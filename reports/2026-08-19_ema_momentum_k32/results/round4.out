@@ -17,3 +17,36 @@
   box reduce=mean root=/root/cf404_runs results=/root/cf/reports/2026-08-19_ema_momentum_k32/results
   arm s08c gpu=0 stops='40000' heads=0
   arm s08d gpu=0 stops='40000' heads=0
+[08-20 09:55:47] [#404 round4] sync loop: 1 for /home/jupyter/cf404_sync/box_r4, 1 file(s) here
+[08-20 09:55:58] [#404 round4] starting 2 backbone(s), lanes '0 0'
+[08-20 09:58:58] [#404 round4] waiting for the guard line of each arm (it reads alpha AND THE SEED
+[08-20 09:58:58] [#404 round4]   back off the trainer's own command line)
+  [08-20 08:56:06] [#404] arm s08c ema='0.8 1.0 200000' reduce=mean seed=20260522 OK — all three reached the trainer
+  [08-20 08:59:06] [#404] arm s08d ema='0.8 1.0 200000' reduce=mean seed=20260523 OK — all three reached the trainer
+[08-20 09:59:41] [#404 round4] waiting for the first rows of each losses CSV
+  index, memory.used [MiB], memory.total [MiB], utilization.gpu [%]
+  0, 11363 MiB, 32607 MiB, 89 %
+  pid, used_gpu_memory [MiB]
+  2679, 5674 MiB
+  2848, 5674 MiB
+  --- s08c seed 20260522 ---
+  csv /root/cf404_runs/s08c/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_mean_s08c_losses.csv
+  depth_cols 33
+  rows 701
+  step,loss,loss_tau_ref,gap,gap_ratio,ff,fp,tp,cross_batch,hf_rows_consumed,synth_rows_consumed,mixup_applied,r2_random,r2_naive,u_temporal,u_batch,auc,top1,top3
+  1,14.439492225646973,20.038715362548828,-0.38758185505867004,2.3401939181890636,0.32321980595588684,0.7108016610145569,0.4970789849758148,0.15510785579681396,64
+  2,14.038125038146973,18.634279251098633,-0.428547739982605,2.5474236859730954,0.29450953006744385,0.7230572700500488,0.415813684463501,0.11011393368244171,128,0
+  --- s08d seed 20260523 ---
+  csv /root/cf404_runs/s08d/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_mean_s08d_losses.csv
+  depth_cols 33
+  rows 201
+  step,loss,loss_tau_ref,gap,gap_ratio,ff,fp,tp,cross_batch,hf_rows_consumed,synth_rows_consumed,mixup_applied,r2_random,r2_naive,u_temporal,u_batch,auc,top1,top3
+  1,14.414872169494629,20.422948837280273,-0.39181289076805115,2.679469557243889,0.3748914897441864,0.7667043805122375,0.48369428515434265,0.22928333282470703,64,
+  2,13.978572845458984,18.337263107299805,-0.43644651770591736,2.8406832216165396,0.32644233107566833,0.7628888487815857,0.38494768738746643,0.1247837245464325,12
+[08-20 10:00:45] [#404 round4] GPU memory in use 11363 MiB over 1 card(s), 2 compute app(s), 2 arm(s) wanted
+[08-20 10:00:45] [#404 round4] VERIFIED — 2 trainer(s) up, each at 33 depth columns
+[08-20 10:00:49] [#404 round4]   s08c STEP RATE 2.8 sps  ETA 3.9h
+[08-20 10:00:52] [#404 round4]   s08d STEP RATE 2.2 sps  ETA 4.9h
+[08-20 10:00:52] [#404 round4] waiting for 40000 steps on 2 arm(s)
+[08-20 10:01:04] [#404 round4]   s08c [    800] loss=12.1810  ema_loss=12.1686  gap=0.0080  ema_gap=-0.0022  mixup=67/200  2.7 sps  ETA 4.0h
+[08-20 10:01:09] [#404 round4]   s08d [    200] loss=12.4374  ema_loss=12.8579  gap=-0.1011  ema_gap=-0.1751  mixup=53/200  2.2 sps  ETA 4.9h

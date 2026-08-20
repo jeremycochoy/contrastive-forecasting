@@ -414,3 +414,24 @@ Five readers share that definition and cannot disagree:
 - 09:42 the round 4 heartbeat loop replaced round 3c's. It follows the round
   through `ROUND` and reads EVERY live losses CSV, because two lanes run at a
   time and a probe that reads one file calls a dead lane live.
+- 09:55 the sync loop's first tick landed nothing but its own log, because the
+  box had no run directory yet, so `launch_sync.sh` waited out its whole
+  10-minute window. The card was idle for it, about $0.07. A later round should
+  start the lanes first and the loop straight after.
+- 09:56 both backbones started, lanes `0 0`.
+- 09:59 the guard lines are in, off each trainer's OWN command line:
+
+      arm s08c ema='0.8 1.0 200000' reduce=mean seed=20260522 OK
+      arm s08d ema='0.8 1.0 200000' reduce=mean seed=20260523 OK
+
+  The seed is the value this round turns on, so it is checked like the
+  momentum. Two arms that differ in the seed alone write the same file names.
+- 10:00 the launch is VERIFIED, off the box: 11,363 MiB of 32,607 MiB in use,
+  two compute apps at 5,674 MiB each, 89 % GPU, 33 depth columns in both losses
+  CSVs, which is k + 1 at k = 32, and 701 and 201 CSV rows.
+- 10:00 step rates: `s08c` 2.8 sps, ETA 3.9 h. `s08d` 2.2 sps, ETA 4.9 h. One
+  lane of round 3 held 2.8 sps on the same class of box at 27 to 34 % GPU. Two
+  lanes on one card cost the second lane 0.6 sps and take the card to 89 %, so
+  both seeds land in about the time one seed took.
+- 10:01 `finish_round4.sh` started, detached, under `nohup setsid`, pid 2601993.
+  It waits for the driver BY PID.
