@@ -83,6 +83,7 @@ def main() -> int:
 
     sentence = repeat_spread.sentence(rows)
     pairs = repeat_spread.pairs(rows)
+    d = None
     out.append("## The measured repeat spread")
     out.append("")
     if pairs:
@@ -95,6 +96,17 @@ def main() -> int:
         out.append(sentence)
     else:
         out.append("No repeat pair is scored yet.")
+    out.append("")
+
+    # The card's own question: is the distance between the two fixed-momentum
+    # arms larger than one repeat of the same cell? Both numbers come from
+    # scores.csv, so the answer cannot disagree with the table above.
+    out.append("## Does the spread separate 0.90 fixed from 0.95 fixed?")
+    out.append("")
+    answer = repeat_spread.separation(rows, d, 0.90, 0.95) if d is not None \
+        else ""
+    out.append(answer or "The card cannot answer this yet: it has no repeat "
+                         "pair, or one of the two arms has no score.")
     out.append("")
     out.append("## The verdict")
     out.append("")

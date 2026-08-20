@@ -72,3 +72,39 @@ def sentence(rows) -> str:
         text += (" " + ", ".join(near) + " all sit within that spread of the "
                  "best score, so this card does not rank them.")
     return text
+
+
+# --- The question the card asks of two named arms ----------------------------
+
+
+def cell(rows, alpha: float, schedule: str) -> dict | None:
+    """The one scored row at a momentum and a schedule, or `None`."""
+    for r in rows:
+        if abs(r["alpha"] - alpha) < 1e-9 and r["schedule"] == schedule:
+            return r
+    return None
+
+
+def separation(rows, d: float, alpha_a: float, alpha_b: float,
+               schedule: str = "fixed") -> str:
+    """Whether a repeat spread of `d` separates two arms, in one sentence.
+
+    The card asks this of the two fixed-momentum arms, 0.90 and 0.95. A gap
+    between two scores that is smaller than one repeat is a gap this card
+    cannot call. The test is a strict comparison: a gap equal to the spread
+    does not separate.
+    """
+    a = cell(rows, alpha_a, schedule)
+    b = cell(rows, alpha_b, schedule)
+    if a is None or b is None:
+        return ""
+    gap = abs(a["score"] - b["score"])
+    lo, hi = (a, b) if a["score"] < b["score"] else (b, a)
+    text = (f"`{lo['arm']}` {lo['score']:.4f} and `{hi['arm']}` "
+            f"{hi['score']:.4f} are {gap:.4f} apart. "
+            f"The repeat spread is {d:.4f}.")
+    if gap > d:
+        return (f"{text} The gap is LARGER than the spread, so this card "
+                f"separates the two arms. `{lo['arm']}` scores better.")
+    return (f"{text} The gap is SMALLER than the spread, so this card does "
+            f"NOT separate the two arms.")
