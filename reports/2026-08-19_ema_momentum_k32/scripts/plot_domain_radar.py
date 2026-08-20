@@ -240,7 +240,7 @@ def draw(by_arm: dict[str, dict[str, float]], out, reference=None):
 
     ax.set_xticks(angles[:-1])
     ax.set_xticklabels(domains, fontsize=9)
-    ax.set_title("#404 — GM-Relative MASE per domain, bb40k\n"
+    ax.set_title("GM-Relative MASE per domain, at 40,000 backbone steps\n"
                  "(radial axis log2, smaller is better)", pad=22)
     ax.grid(alpha=0.3)
     ax.legend(fontsize=8, loc="upper right", bbox_to_anchor=(1.24, 1.12))

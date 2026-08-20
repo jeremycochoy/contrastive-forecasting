@@ -123,11 +123,13 @@ def series_of(rows) -> list[tuple[str, int, float, dict]]:
         out.append((schedule, ramp, align_w, style))
     return out
 
-# The earlier k = 32 run this card starts from. It ran one momentum on a
-# shorter ramp, so it takes its own marker and its own line in the legend.
+# The published run this card starts from. It holds the same depth and the
+# same 100,000-step ramp as one arm here, and it differs in the align target:
+# it pulls toward the student latent, and every arm of this card pulls toward
+# the teacher. The label says that, and not an issue number, because a number
+# tells a reader nothing about what the marker is.
 EARLIER = {"colour": "0.45", "marker": "^",
-           "label": "#401 at a 100,000-step ramp, published "
-                    "(the earlier run this card starts from)"}
+           "label": "published, same depth, the align loss on the student"}
 
 # The arm whose backbone fell to chance. Red, off the line, and out of every
 # mean and every bar.
