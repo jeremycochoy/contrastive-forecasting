@@ -537,6 +537,8 @@ def main() -> int:
     ap.add_argument("--head", choices=HEADS, help="which head to ask about")
     ap.add_argument("--log-paths", action="store_true",
                     help="print the launcher log and the train log")
+    ap.add_argument("--ckpt-at", type=int, metavar="STOP",
+                    help="print the checkpoint STOP wrote, under --root")
     ap.add_argument("--root", help="the durable root that holds the legs")
     ap.add_argument("--wt", help="the checkout that holds #373's results")
     ap.add_argument("--since-cell", type=int, default=0,
@@ -553,6 +555,18 @@ def main() -> int:
             return 2
         print(cell_log(a.wt))
         print(train_log(a.wt))
+        return 0
+
+    if a.ckpt_at is not None:
+        if not a.root:
+            print("ABORT: --ckpt-at needs --root", file=sys.stderr)
+            return 2
+        found = ckpt_path(a.root, a.ckpt_at)
+        if not found or not os.path.isfile(found):
+            print(f"ABORT: no checkpoint at step {a.ckpt_at} under "
+                  f"{leg_dir(a.root, a.ckpt_at)}", file=sys.stderr)
+            return 3
+        print(found)
         return 0
 
     if a.check_resume:
