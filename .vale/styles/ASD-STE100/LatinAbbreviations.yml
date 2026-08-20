@@ -1,0 +1,15 @@
+# ASD-STE100 GR-6 — do not use Latin abbreviations.
+extends: substitution
+message: "ASD-STE100 GR-6: use '%s' instead of '%s'."
+link: https://www.asd-ste100.org/
+level: error
+ignorecase: true
+nonword: true
+swap:
+  '\be\.?g\.': "for example"
+  '\bi\.?e\.': "that is"
+  '\betc\.': "and so on, or give the full list"
+  '\bviz\.': "namely"
+  '\bvs\.': "compared to"
+  '\bN\.?B\.': "note"
+  '\bet al\.': "and others"

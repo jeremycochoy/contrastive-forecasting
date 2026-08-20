@@ -1,0 +1,10 @@
+# ASD-STE100 rule 8.1 — the semicolon is not permitted.
+# The token needs a word character before the mark, so that a text which
+# names the punctuation mark itself, as "(;)", does not give an alert.
+extends: existence
+message: "ASD-STE100 rule 8.1: the semicolon (;) is not permitted. Write two sentences."
+link: https://www.asd-ste100.org/
+level: error
+nonword: true
+tokens:
+  - '\w\s*;'

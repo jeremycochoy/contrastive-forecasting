@@ -1,0 +1,57 @@
+name: ASD-STE100
+
+on:
+  pull_request:
+    paths:
+      - '**/*.md'
+      - '**/*.py'
+      - '.vale/**'
+      - '.github/workflows/ste-lint.yml'
+  push:
+    branches: [experiments]
+    paths:
+      - '**/*.md'
+      - '**/*.py'
+      - '.vale/**'
+      - '.github/workflows/ste-lint.yml'
+
+permissions:
+  contents: read
+
+env:
+  VALE_VERSION: '3.17.1'
+
+jobs:
+  ste-lint:
+    name: Simplified Technical English
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Vale ${{ env.VALE_VERSION }}
+        run: |
+          curl -sSfL -o vale.tar.gz \
+            "https://github.com/errata-ai/vale/releases/download/v${VALE_VERSION}/vale_${VALE_VERSION}_Linux_64-bit.tar.gz"
+          tar -xzf vale.tar.gz vale
+          sudo install -m 0755 vale /usr/local/bin/vale
+          vale --version
+
+      - name: Report every file
+        run: |
+          {
+            echo '## ASD-STE100 report'
+            echo
+            echo 'Files checked: README.md at any level, `docs/*.md`, each `reports/<YYYY-MM-DD>_<name>/<name>.md`, and the comments and docstrings of every `*.py`.'
+            echo
+            echo '```'
+            ./.vale/ste-lint.sh --all 2>&1 | tail -30 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check the files this pull request changed
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          ./.vale/ste-lint.sh --changed "origin/${{ github.base_ref }}"
