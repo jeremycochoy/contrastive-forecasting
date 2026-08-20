@@ -109,8 +109,7 @@ STOP_CALL = {"B1": ("extend both heads",
              "A4": ("extend both heads",
                     "the student head moved down. The teacher head moved "
                     "+0.0019, 5% of the ±0.0384 head-seed band, so the rule "
-                    "decides nothing there. Extended by hand, on free "
-                    "hardware")}
+                    "decides nothing there. Extended by hand")}
 
 # Coverage is read off the score files, not off the run registry.
 #
@@ -250,8 +249,7 @@ def fidelity_lines(results):
                 f"out more faithfully than their own `k = 0` at every depth."]
     return [f"Every one of the {n} arms that trained `k = 3` rolls out more "
             f"faithfully than its own `k = 0`, at all {nd} depths. The "
-            "scores do not follow. The fixed-point approximation does what "
-            "it was built to do. So where a score did not improve, the "
+            "scores do not follow. So where a score did not improve, the "
             "approximation is not the part that failed."]
 
 

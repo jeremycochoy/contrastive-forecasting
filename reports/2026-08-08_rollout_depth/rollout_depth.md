@@ -1,11 +1,15 @@
 # Rollout depth 3 sets the project's best GM-Relative MASE
 
-The best GM-Relative MASE before this study was 1.1544. The best now is 1.0660,
-which is 0.0884 lower. The configuration is arm6_v2 (L_rep MoCo keys, tau_rep 1
-+ L_align on the student, no CPC, EMA 0.9 to 1.0). It reached that number at
-200,000 backbone steps, on the student head [cell A4]. Every cell ran once, on
-one backbone seed. This study measures a frontier and a direction, not a
+Rollout depth 3 sets the project's best GM-Relative MASE: 1.0660 against the
+prior best of 1.1544, 0.0884 lower. The configuration is arm6_v2 (L_rep MoCo
+keys, tau_rep 1 + L_align on the student, no CPC, EMA 0.9 to 1.0), at 200,000
+backbone steps, on the student head [cell A4]. Every cell ran once, on one
+backbone seed. This study measures a frontier and a direction, not a
 per-recipe ranking.
+
+![the best GM-Relative MASE of every cell, against the frontier before this study](plots/frontier.png)
+
+*Best score per cell, one mark per head, sorted best at the top.*
 
 Five terms come first. Section 14 has the glossary for every other term.
 
@@ -27,10 +31,6 @@ launcher sources.
 
 ## 1. The frontier
 
-![the best GM-Relative MASE of every cell, against the frontier before this study](plots/frontier.png)
-
-*Best score per cell, one mark per head, sorted best at the top.*
-
 ![GM-Relative MASE against backbone train step, 14 cells, both heads](plots/ladder.png)
 
 *GM-Relative MASE against backbone train step, all 14 cells, both heads.*
@@ -42,9 +42,7 @@ own published `k = 0`. The gain is 0.1144 on the student head.
 
 ![per-domain GM-Relative MASE, k = 3 against k = 0, student head](plots/domain_radar_student.png)
 
-*Per-domain, student-encoder head. Grey is the best per-domain result before
-this study. The black ring is seasonal-naive parity at 1.0. Config count
-under each family name.*
+*Per-domain, student-encoder head.*
 
 ![per-domain GM-Relative MASE, k = 3 against k = 0, teacher head](plots/domain_radar_teacher.png)
 
@@ -107,9 +105,8 @@ EMA 0.9 to 1.0 [A4] at bb100k. None of them reaches it. All four move away from
 
 ![rollout steps per config, and the k = 3 minus k = 0 change against them](plots/rollout_count.png)
 
-*Left: rollout steps per config, by family. Right: the same count against
-`k = 3` minus `k = 0` per config, student head. The Protocol gives the
-formula and the source of every horizon.*
+*Rollout steps per config (left), and the `k = 3` minus `k = 0` change
+against them (right), student head.*
 
 <!-- ROLLOUTCORR:BEGIN -->
 
@@ -171,12 +168,11 @@ both depths, unlike the loss.*
 
 *`cos` between the rolled latent and the true `h_{T_0+d}`, `d = 1..16`, bb40k
 checkpoints. Top: one panel per cell, all 14. Bottom: the change against the
-same arm's own `k = 0`. One fixed diagnostic batch carries every curve, and
-it is not held out against the pre-training data.*
+same arm's own `k = 0`.*
 
 <!-- FIDELITY:BEGIN -->
 
-Every one of the 5 arms that trained `k = 3` rolls out more faithfully than its own `k = 0`, at all 16 depths. The scores do not follow. The fixed-point approximation does what it was built to do. So where a score did not improve, the approximation is not the part that failed.
+Every one of the 5 arms that trained `k = 3` rolls out more faithfully than its own `k = 0`, at all 16 depths. The scores do not follow. So where a score did not improve, the approximation is not the part that failed.
 
 <!-- FIDELITY:END -->
 
@@ -184,7 +180,7 @@ Every one of the 5 arms that trained `k = 3` rolls out more faithfully than its 
 
 ![k = 3 minus the published k = 0, per cell, per stop](plots/k3_minus_k0.png)
 
-*The parent report's `schedule_vs_fixed` mapped onto this study.*
+*`k = 3` minus the published `k = 0`, per cell, per stop.*
 
 Every cell reached bb100k. There, 10 of the 14 cells improve on their published
 `k = 0` on the student head. Four move the wrong way, and 2 of those pass the
@@ -369,7 +365,7 @@ The rule reads one cell's bb40k number against its bb100k number, per head. A he
 | A1 | +0.0371 | +0.0248 | **stop at 100k** | bb100k | extend rule | both heads moved up |
 | A2 | -0.0256 | -0.0239 | **extend both heads** | bb200k | ladder ceiling | both heads moved down |
 | A3 | -0.0608 | -0.0370 | **extend both heads** | bb200k | ladder ceiling | both heads moved down |
-| A4 | -0.0061 | +0.0019 | **extend both heads** | bb200k | ladder ceiling | the student head moved down. The teacher head moved +0.0019, 5% of the ±0.0384 head-seed band, so the rule decides nothing there. Extended by hand, on free hardware |
+| A4 | -0.0061 | +0.0019 | **extend both heads** | bb200k | ladder ceiling | the student head moved down. The teacher head moved +0.0019, 5% of the ±0.0384 head-seed band, so the rule decides nothing there. Extended by hand |
 | B1 | +0.0030 | -0.0051 | **extend both heads** | bb200k | ladder ceiling | the card's call: both moves sit inside the ±0.0384 head-seed band, so the rule decides nothing |
 | B2 | -0.0533 | -0.0924 | **extend both heads** | bb200k | ladder ceiling | both heads moved down |
 | B3 | +0.0371 | +0.0276 | **stop at 100k** | bb100k | extend rule | both heads moved up |
