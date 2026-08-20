@@ -149,6 +149,20 @@ def draw_references(ax, x_lo, x_hi):
             fontsize=8, color="0.45", va="bottom", ha="left", zorder=4)
 
 
+def y_range(rows, pad=0.06):
+    """The y limits, from the arms that trained and the reference lines.
+
+    A collapsed arm is not in `rows`, so it cannot stretch the axis.
+    """
+    band_lo, band_hi = REF.band_bounds()
+    values = [r["score"] for r in rows] + [
+        REF.K3_BB40K, REF.K0_PARENT_BB40K, REF.K3_BB200K, REF.K32_BB200K,
+        REF.K32_BB40K, band_lo, band_hi]
+    lo, hi = min(values), max(values)
+    margin = pad * (hi - lo)
+    return lo - margin, hi + margin
+
+
 def draw(rows, out, fell=()):
     fig, ax = plt.subplots(figsize=(9.5, 6.4))
     alphas = [r["alpha"] for r in rows] + [r["alpha"] for r in fell] \
@@ -157,13 +171,27 @@ def draw(rows, out, fell=()):
     draw_references(ax, x_lo, x_hi)
     for schedule in ("fixed", "ramp"):
         draw_series(ax, rows, schedule)
+    # The y range covers the arms that trained, and the reference lines. A
+    # collapsed arm scores far above every other point, and its true position
+    # would squeeze every healthy arm into a band too thin to read. So the
+    # axis keeps the healthy range, and a collapsed arm sits on the top edge
+    # with its score in text. The reader sees that it is off the scale, and
+    # sees by how much.
+    y_lo, y_hi = y_range(rows)
     if fell:
-        ax.plot([r["alpha"] for r in fell], [r["score"] for r in fell],
+        top = y_hi - 0.02 * (y_hi - y_lo)
+        ax.plot([r["alpha"] for r in fell], [min(r["score"], top) for r in fell],
                 linestyle="none", marker=FELL["marker"], markersize=11,
                 color=FELL["colour"], zorder=4, label=FELL["label"])
+        for r in fell:
+            if r["score"] > top:
+                ax.annotate(f"{r['score']:.4f}", (r["alpha"], top),
+                            textcoords="offset points", xytext=(12, -2),
+                            fontsize=8, color=FELL["colour"], va="center")
     ax.plot([REF.K32_BB40K_ALPHA], [REF.K32_BB40K], linestyle="none",
             marker=EARLIER["marker"], markersize=9, color=EARLIER["colour"],
             zorder=3, label=EARLIER["label"])
+    ax.set_ylim(y_lo, y_hi)
     ax.set_xlim(x_lo, x_hi)
     ax.set_xticks(sorted(set(alphas)))
     ax.set_xlabel("EMA momentum at step 0")

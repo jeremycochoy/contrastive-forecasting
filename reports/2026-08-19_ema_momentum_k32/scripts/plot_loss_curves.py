@@ -52,6 +52,19 @@ def _colours():
 
 arm_colours = _colours()
 
+# The reader sees the momentum and the schedule, never the internal arm code.
+# A seed appears only where two arms share a momentum and a schedule.
+ARM_LABEL = {
+    "a08": "0.8 constant",
+    "a09": "0.9 constant",
+    "a095": "0.95 constant",
+    "s08": "0.8 rising, seed 20260520",
+    "s08b": "0.8 rising, seed 20260521",
+    "s08c": "0.8 rising, seed 20260522",
+    "s08d": "0.8 rising, seed 20260523",
+    "s09": "0.9 rising",
+}
+
 
 def read_losses(path) -> list[tuple[int, float]]:
     """`(step, loss)` for the rows a log axis can hold."""
@@ -159,7 +172,8 @@ def draw(series, out, bins=320):
                 lw=0.7, alpha=0.18, color=palette[arm], zorder=1)
         smooth = binned(points, bins)
         line, = ax.plot([s for s, _ in smooth], [v for _, v in smooth],
-                        lw=1.6, label=arm, color=palette[arm], zorder=2)
+                        lw=1.6, label=ARM_LABEL.get(arm, arm), color=palette[arm],
+                        zorder=2)
         if dashes:
             line.set_dashes(dashes)
         handles[arm] = line
@@ -173,13 +187,15 @@ def draw(series, out, bins=320):
         matplotlib.ticker.LogLocator(base=10.0, subs=tuple(x / 10 for x in range(11, 100, 5))))
     ax.set_xlabel("backbone step")
     ax.set_ylabel("training loss")
-    ax.set_title("#404 — training loss per arm, k = 32, mean over the depth copies")
+    ax.set_title("The training loss of every arm, at rollout depth 32,\n"
+                 "as a mean over the depth copies")
     if bins > 0:
         ax.text(0.015, 0.02, f"median over {bins} log-spaced bins, raw behind",
                 transform=ax.transAxes, fontsize=8, color="0.35")
     ax.grid(alpha=0.25, which="both")
     # The legend keeps the arm order of the study, not the draw order.
-    ax.legend([handles[a] for a in sorted(handles)], sorted(handles),
+    ax.legend([handles[a] for a in sorted(handles)],
+              [ARM_LABEL.get(a, a) for a in sorted(handles)],
               fontsize=9)
     fig.tight_layout()
     Path(out).parent.mkdir(parents=True, exist_ok=True)
