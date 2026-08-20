@@ -20,12 +20,29 @@
 #         spread. Before it, the card quoted #373's spread, which was measured
 #         at k = 3 against the student target.
 #
+# Rows 7 and 8 answer what `s08b` then showed. `s08b` did not measure noise:
+# its backbone FELL TO CHANCE while it trained. Its contrastive AUC went 0.91
+# at 10,000 steps to 0.57 at 40,000, its top1 went 0.273 to 0.009, and it
+# scored 1.5459 against s08's 1.1782. Every other arm holds AUC 0.93 to 0.98,
+# and every one of those five carries backbone seed 20260520. So one seed
+# collapsed and one seed did not, and two readings fit that:
+#
+#   - 20260521 was unlucky, and a collapse in this cell is rare, or
+#   - 20260520 was lucky, and this cell is unstable.
+#
+# Under the second reading every ranking of this card rests on one seed. Two
+# more seeds of the SAME arm tell the two apart:
+#
+#   s08c  s08 at backbone seed 20260522
+#   s08d  s08 at backbone seed 20260523
+#
 # `a085` was planned and then DROPPED. Alpha 0.85 interpolates inside the
 # 0.8-to-0.9 segment, and that segment already falls in one direction. The
 # value above 0.9 buys more.
 #
 # 20260521 is the project's second backbone seed. #373 measured its own seed
-# band with it (cell B5·s2), so this repeat stays in that family.
+# band with it (cell B5·s2), so this repeat stays in that family. 20260522 and
+# 20260523 continue that count.
 # arm	tau	end	ramp	seed
 a08	0.8	-	-	20260520
 a09	0.9	-	-	20260520
@@ -33,3 +50,5 @@ s08	0.8	1.0	200000	20260520
 s09	0.9	1.0	200000	20260520
 a095	0.95	-	-	20260520
 s08b	0.8	1.0	200000	20260521
+s08c	0.8	1.0	200000	20260522
+s08d	0.8	1.0	200000	20260523
