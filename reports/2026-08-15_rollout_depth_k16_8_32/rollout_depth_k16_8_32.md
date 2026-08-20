@@ -26,7 +26,6 @@ k = 16.
 
 ![Per-domain GM-Relative MASE, phase 1](plots/mean/domain_radar_phase1.png)
 
-*The config count of each domain is under its name.*
 
 ![Per-domain GM-Relative MASE, phase 2](plots/mean/domain_radar_phase2.png)
 
@@ -81,9 +80,8 @@ windows, through the loader the eval uses.*
 
 ![GM-Relative MASE against latent rank and against readout r](plots/collapse_vs_score.png)
 
-*Left: GM-Relative MASE against effective rank, both reductions. Right: the
-same score against readout r, over the cells whose top direction carries at
-least half of the latent variance.*
+*The right panel holds the cells whose top direction carries at least half of
+the latent variance.*
 
 The reduction over the k + 1 depth copies sets the collapse. The depth does
 not: no checkpoint sits between the summed set and the other two. Every
@@ -139,7 +137,7 @@ The `cos_err_d0` panel is this study's cos-error-per-arm graph, and the
 | in-study head-seed repeats | three draws on `k32 bb200k`: 1.1637, 1.1676, 1.1576. Range 0.0100. All three rows are in `results/mean/scores.csv` | the head seed on this study's own cell |
 | the in-study range as the reading rule | not adopted. Three draws give a range, not a standard deviation, and a range over three points understates the spread. The pooled band is a maximum over many cells | — |
 
-*Absolute differences. The ladder figure carries the direction.*
+*Absolute differences.*
 
 | comparison | difference | against the band |
 |---|---:|---|
@@ -256,7 +254,6 @@ same cell and the same head. Sources: `results/mean/splits.csv` and
 
 ### Term splits, mean reduction, 30,000-step student head
 
-*The aggregate of each cell is in the phase tables above.*
 
 | cell | short (55) | medium (21) | long (21) |
 |---|---:|---:|---:|
