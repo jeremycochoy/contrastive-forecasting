@@ -1,0 +1,11 @@
+# ASD-STE100 rules 4.1 and 6.3 — a maximum of 20 words in a procedural
+# sentence and 25 words in a descriptive sentence. Vale cannot tell the two
+# apart, so this rule uses the larger limit and reports only clear cases.
+extends: occurrence
+message: "ASD-STE100 rules 4.1 and 6.3: this sentence has more than 25 words."
+link: https://www.asd-ste100.org/
+level: warning
+scope: sentence
+ignorecase: false
+max: 25
+token: '\b\w+\b'
