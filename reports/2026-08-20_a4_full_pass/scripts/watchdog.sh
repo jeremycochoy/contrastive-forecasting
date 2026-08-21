@@ -24,9 +24,10 @@
 # writes no progress, so the process check alone would never fire. The AND
 # of the two is the condition this study wants.
 #
-# It also runs `mirror_durable.sh` and `teacher_check.sh` every tick. Those
-# are review gaps 5 and 4, and they belong here because the same hourly
-# loop already exists and both are cheap and idempotent.
+# It also runs `read_back.sh` and `teacher_check.sh` every tick. Those cover
+# review gaps 5 and 4, and they belong here because the same hourly loop
+# already exists and both are cheap and idempotent. `read_back.sh` ends with
+# `mirror_durable.sh`, so the mirror still runs every hour.
 #
 # Usage:
 #   WT=<checkout> RUNS=<durable root> BB_GPU=0 \
@@ -143,7 +144,11 @@ log "start period=${PERIOD}s stall=$STALL wt=$WT runs=$RUNS bb_gpu=$BB_GPU"
 prev_step=""; prev_mark=""; quiet=0; fires=0
 
 while :; do
-  bash "$HERE/mirror_durable.sh" >>"$LOG" 2>&1 || log "WARN: mirror rc=$?"
+  # Review gap 5 plus the read-back. `read_back.sh` brings whatever drained
+  # since into the checkout, refreshes the band, the pool and the figure,
+  # and ends with `mirror_durable.sh`. It runs here because a band drains
+  # hours after the agent that fired it has gone.
+  bash "$HERE/read_back.sh" >>"$LOG" 2>&1 || log "WARN: read_back rc=$?"
   # Review gap 4. It costs seconds, it skips a pair it already
   # answered, and it needs the checkpoint rather than the score, so
   # the answer for a stop lands before that stop finishes scoring.

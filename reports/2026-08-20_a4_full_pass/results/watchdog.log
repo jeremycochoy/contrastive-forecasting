@@ -61,3 +61,9 @@
 [2026-08-21T02:52:33Z] [cf407-mirror] 82 files -> /home/jupyter/cf407_durable (fail=0)
 [cf407-teacher] wrote 0, already had 2
 [2026-08-21T02:52:40Z] [cf407-watchdog] tick driver=yes step=299800 quiet=0 open='300000 450000 665000'
+[2026-08-21T03:05:05Z] [cf407-watchdog] start period=1800s stall=2 wt=/tmp/contrastive-forecasting-407 runs=/home/jupyter/cf373_r3/sync bb_gpu=0
+[2026-08-21T03:05:06Z] [cf407-readback] read-back done for stops 200 300 450 665 (fail=0)
+[cf407-teacher] 200k -> 300k: wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/results/teacher_move_200k_300k.json
+[cf407-teacher-head] 200k -> 300k: wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/results/teacher_head_inputs_200k_300k.json
+[cf407-teacher] wrote 2, already had 2
+[2026-08-21T03:05:16Z] [cf407-watchdog] tick driver=yes step=300000 quiet=0 open='300000 450000 665000'

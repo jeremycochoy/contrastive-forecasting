@@ -387,3 +387,36 @@ Five decision paths were tested against the live machine under `QUEUE_DRY`:
 
 The queue reads its state off the disk at every start, so this restart did
 not repeat the 200k re-draw and did not lose the 450k band.
+
+### 03:05 UTC — the read-back stops depending on an agent
+
+The 200k read-back only happened because an agent ran it by hand. Round 3
+put it behind `await_redraw.sh`, a harness background task, and that task
+died with its session. So the draws sat scored on disk while the checkout
+kept the previous numbers and the figure went stale.
+
+The lesson is not "do not use a background task". The lesson is that no
+ARTEFACT may depend on one.
+
+`read_back.sh` now holds the five steps in one place: `collect_replicates.sh`,
+`head_band.py`, `teacher_pool.py`, `plot_full_pass.py`, `mirror_durable.sh`.
+Two things that outlive an agent call it.
+
+| caller | when |
+|---|---|
+| `watchdog.sh` | every hourly tick, for whatever drained since |
+| `replicate_heads.sh` | the moment its own band drains |
+
+The watchdog's bare `mirror_durable.sh` call moved inside `read_back.sh`, so
+the mirror still runs every hour. The first tick of the restarted watchdog
+read back clean at 03:05:06Z and mirrored 87 files. The same tick extended
+`teacher_check.sh` to the new stop and wrote `teacher_move_200k_300k.json`
+and `teacher_head_inputs_200k_300k.json`.
+
+`await_redraw.sh` is deleted. `await_band.sh` replaces it and carries NO
+work. It blocks until one stop's band scores and then exits, so an agent
+wakes on the event rather than on a clock. It exits 0 when every draw
+scored, 2 on its deadline, and 3 when no chain for that stop is alive. When
+it dies with its session, nothing is lost.
+
+Tests: 196 in `test_407_full_pass.py`.

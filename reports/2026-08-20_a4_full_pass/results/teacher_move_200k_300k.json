@@ -1,0 +1,46 @@
+{
+  "a": "/home/jupyter/cf373_r3/sync/arm6_v2_combab_alignS/leg_200k/cf393_arm6_v2_combab_alignS_cf373k3_r2_200k.pth",
+  "b": "/home/jupyter/cf373_r3/sync/arm6_v2_combab_alignS/leg_300k/cf393_arm6_v2_combab_alignS_cf373k3_300k.pth",
+  "teacher": {
+    "tensors": 52,
+    "identical": 52,
+    "moved": 0,
+    "max_abs_diff": 0.0,
+    "rel_l2": 0.0,
+    "only_in_a": [],
+    "only_in_b": [],
+    "largest_moves": []
+  },
+  "student": {
+    "tensors": 110,
+    "identical": 4,
+    "moved": 106,
+    "max_abs_diff": 1.1358855664730072,
+    "rel_l2": 0.4952092306406716,
+    "only_in_a": [],
+    "only_in_b": [],
+    "largest_moves": [
+      [
+        "encoder.gru.bias_hh_l0_reverse",
+        1.1358855664730072
+      ],
+      [
+        "encoder.gru.bias_ih_l0_reverse",
+        1.1358855664730072
+      ],
+      [
+        "transformer.input_to_latent.gru.bias_hh_l0_reverse",
+        1.1358855664730072
+      ],
+      [
+        "transformer.input_to_latent.gru.bias_ih_l0_reverse",
+        1.1358855664730072
+      ],
+      [
+        "transformer.layers.0.linear2.weight",
+        1.0700108036398888
+      ]
+    ]
+  },
+  "verdict": "the teacher is FROZEN: every teacher tensor is equal bit for bit, while the student moved"
+}

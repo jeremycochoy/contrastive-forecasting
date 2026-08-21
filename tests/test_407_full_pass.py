@@ -1309,6 +1309,8 @@ class TestGateInputs:
 # --- 12. round 3 of the review --------------------------------------------
 
 BAND_QUEUE_SH = SCRIPTS / "band_queue.sh"
+READ_BACK_SH = SCRIPTS / "read_back.sh"
+AWAIT_BAND_SH = SCRIPTS / "await_band.sh"
 TEACHER_HEAD_INPUTS_PY = SCRIPTS / "teacher_head_inputs.py"
 TEACHER_POOL_PY = SCRIPTS / "teacher_pool.py"
 SHARD_ORDER_PY = SCRIPTS / "shard_order.py"
@@ -1762,6 +1764,118 @@ class TestBandQueueFires:
         log = queue.run(ckpt=True, once=False, period=1)
         assert queue.fired() == []
         assert "the queue stops" in log
+
+
+class TestReadBackSurvivesTheAgent:
+    """The read-back must not depend on an agent being alive.
+
+    Round 3 put it behind `await_redraw.sh`, a harness background task. That
+    task died with its session and its read-back never ran, so the checkout
+    kept stale numbers while the draws sat scored on disk.
+    """
+
+    def test_read_back_runs_every_step(self):
+        code = strip_comments(READ_BACK_SH.read_text())
+        for name in ("collect_replicates.sh", "head_band.py",
+                     "teacher_pool.py", "plot_full_pass.py",
+                     "mirror_durable.sh"):
+            assert name in code, f"read_back.sh skips {name}"
+
+    def test_the_watchdog_reads_back_every_tick(self):
+        code = strip_comments((SCRIPTS / "watchdog.sh").read_text())
+        assert 'bash "$HERE/read_back.sh"' in code
+
+    def test_a_band_reads_back_when_it_drains(self):
+        code = strip_comments((SCRIPTS / "replicate_heads.sh").read_text())
+        assert 'bash "$HERE/read_back.sh"' in code
+
+    def test_neither_firer_needs_a_harness_task(self):
+        """`await_redraw.sh` is round 3's task. Nothing may depend on it."""
+        for name in ("watchdog.sh", "replicate_heads.sh", "band_queue.sh"):
+            code = strip_comments((SCRIPTS / name).read_text())
+            assert "await_redraw" not in code, f"{name} still calls the task"
+
+    def test_the_mirror_still_runs_hourly(self):
+        """`read_back.sh` replaced the watchdog's bare mirror call."""
+        watch = strip_comments((SCRIPTS / "watchdog.sh").read_text())
+        read_back = strip_comments(READ_BACK_SH.read_text())
+        assert "mirror_durable.sh" not in watch
+        assert "mirror_durable.sh" in read_back
+
+    def test_read_back_reports_a_failed_step(self, tmp_path):
+        """A step that fails must not read as a clean read-back."""
+        import subprocess
+        scripts = tmp_path / "scripts"
+        scripts.mkdir()
+        (tmp_path / "results").mkdir()
+        (tmp_path / "plots").mkdir()
+        (scripts / "read_back.sh").write_text(READ_BACK_SH.read_text())
+        for name in ("collect_replicates.sh", "mirror_durable.sh"):
+            (scripts / name).write_text("#!/bin/bash\nexit 0\n")
+        for name in ("head_band.py", "teacher_pool.py", "plot_full_pass.py"):
+            (scripts / name).write_text("import sys\nsys.exit(0)\n")
+        out = subprocess.run(["bash", str(scripts / "read_back.sh")],
+                             capture_output=True, text=True, timeout=60)
+        assert out.returncode == 0 and "fail=0" in out.stdout
+        # One broken step, and the exit code carries it.
+        (scripts / "plot_full_pass.py").write_text("import sys\nsys.exit(4)\n")
+        out = subprocess.run(["bash", str(scripts / "read_back.sh")],
+                             capture_output=True, text=True, timeout=60)
+        assert out.returncode == 1 and "fail=1" in out.stdout
+
+
+class TestAwaitCarriesNoWork:
+    """The wake-up must lose nothing when its session ends."""
+
+    def test_await_band_does_no_read_back(self):
+        """Round 3's task did the read-back and died with its session."""
+        code = strip_comments(AWAIT_BAND_SH.read_text())
+        for name in ("read_back.sh", "collect_replicates.sh", "head_band.py",
+                     "teacher_pool.py", "plot_full_pass.py",
+                     "mirror_durable.sh"):
+            assert name not in code, f"await_band.sh still runs {name}"
+
+    def test_round_three_task_is_gone(self):
+        assert not (SCRIPTS / "await_redraw.sh").exists()
+
+    def test_await_band_exits_when_the_band_is_gone(self, tmp_path):
+        """Exit 3, so a caller never waits out the clock on a dead band."""
+        import subprocess
+        scripts = tmp_path / "scripts"
+        scripts.mkdir()
+        (tmp_path / "results").mkdir()
+        (scripts / "await_band.sh").write_text(AWAIT_BAND_SH.read_text())
+        (scripts / "replicate_heads.sh").write_text("#!/bin/bash\nexit 0\n")
+        env = dict(os.environ, CF407_RESULTS=str(tmp_path / "results"),
+                   WT=str(tmp_path / "wt"), AWAIT_TIMEOUT="30",
+                   AWAIT_POLL="1")
+        (tmp_path / "wt" / "reports" / "2026-08-08_rollout_depth"
+         / "results").mkdir(parents=True)
+        out = subprocess.run(["bash", str(scripts / "await_band.sh"), "300"],
+                             env=env, capture_output=True, text=True,
+                             timeout=60)
+        assert out.returncode == 3
+
+    def test_await_band_exits_zero_when_every_draw_scored(self, tmp_path):
+        import subprocess
+        scripts = tmp_path / "scripts"
+        scripts.mkdir()
+        (tmp_path / "results").mkdir()
+        (scripts / "await_band.sh").write_text(AWAIT_BAND_SH.read_text())
+        parent = (tmp_path / "wt" / "reports" / "2026-08-08_rollout_depth"
+                  / "results")
+        parent.mkdir(parents=True)
+        for seed in (20260723, 20260724):
+            for head in ("student", "teacher"):
+                (parent / f"score_A4_k3_bb300k_{head}_s{seed}.txt").write_text(
+                    "1.0700\n")
+        env = dict(os.environ, CF407_RESULTS=str(tmp_path / "results"),
+                   WT=str(tmp_path / "wt"), AWAIT_TIMEOUT="30",
+                   AWAIT_POLL="1")
+        out = subprocess.run(["bash", str(scripts / "await_band.sh"), "300"],
+                             env=env, capture_output=True, text=True,
+                             timeout=60)
+        assert out.returncode == 0 and "SCORED" in out.stdout
 
 
 class TestProcessGuardIsShared:

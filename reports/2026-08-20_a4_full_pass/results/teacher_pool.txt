@@ -7,6 +7,9 @@ what these points share, from teacher_head_inputs_*.json
   teacher_head_inputs_100k_200k.json: teacher tensors moved 0, student-owned moved 32 of 36
      encoder_latents      identical=False  rel L2 1.362e-02
      forecaster_latents   identical=False  rel L2 1.013e-01
+  teacher_head_inputs_200k_300k.json: teacher tensors moved 0, student-owned moved 32 of 36
+     encoder_latents      identical=False  rel L2 6.227e-03
+     forecaster_latents   identical=False  rel L2 8.931e-02
   teacher_head_inputs_40k_100k.json: teacher tensors moved 74, student-owned moved 32 of 36
      encoder_latents      identical=False  rel L2 1.288e+00
      forecaster_latents   identical=False  rel L2 1.400e+00
