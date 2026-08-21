@@ -4,35 +4,21 @@ The best schedule holds 0.940 at the 40,000-step stop, and scores 1.1491 and 1.1
 
 ![The momentum each arm reaches at the stop, against its score](plots/reached_vertical.png)
 
-*The momentum reached at 40,000 steps, against the score.*
-
 ![The score against the start of the schedule](plots/by_start.png)
-
-*The ramp length held, the start moved.*
 
 ![The score against the length of the ramp](plots/by_ramp.png)
 
-*The start held, the ramp length moved.*
-
 ![Every arm ordered by score](plots/arm_ranking.png)
-
-*Every arm by score. One dot is one backbone seed. The bar is the range over the seeds of that arm.*
 
 The arm with align weight 3.0 scores 1.2060 against 1.1782 for its twin at weight 1.0, at one seed each. That difference is inside the seed spread of that arm, so it settles nothing.
 
 ![The contrastive AUC of every arm against the backbone step](plots/backbone_health.png)
 
-*The contrastive AUC against the backbone step. A value of 0.5 is chance.*
-
-One backbone of fourteen fell to chance while it trained. Its arm carries the red mark on the score figures.
+The arm of the collapsed backbone carries a red mark on every score figure.
 
 ![The training loss of every run](plots/loss_curves.png)
 
-*The training loss of every run.*
-
 ![GM-Relative MASE per domain](plots/domain_radar.png)
-
-*The per-domain split of the score.*
 
 ## Protocol
 
