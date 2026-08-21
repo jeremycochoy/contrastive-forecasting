@@ -113,6 +113,33 @@
 # Both carry backbone seed 20260520, the seed of the nine scored arms, and the
 # cell's own align weight 1.0. Column 6 is absent on both rows, which is that
 # 1.0.
+#
+# Row 14 answers the review of round 7. Eleven arms carry ONE backbone seed
+# each, and ten of the eleven carry seed 20260520. The one repeat, `s08b` at
+# seed 20260521, COLLAPSED: its contrastive AUC fell to 0.5745. So the card
+# ranks eleven arms and measures no spread between two STABLE runs. Every gap
+# it reads as a result stands against 0.007 to 0.015, and that band comes from
+# #373's cell at k = 3 against the STUDENT target.
+#
+# The winner is where this matters most. `r100_09` scores 1.1507 and the k = 0
+# parent scores 1.1600. The margin is 0.0093, and 0.0093 sits INSIDE the
+# borrowed band. So the card cannot yet say the winner beats the parent.
+#
+# Two measurements close that gap, and rows 7, 8 and 14 carry them:
+#
+#   s08, s08c, s08d   three STABLE seeds of one arm. Their range is this
+#                     cell's OWN repeat spread, measured and not borrowed.
+#                     Rows 7 and 8 already hold healthy backbones, at AUC
+#                     0.9776 and 0.9746. Round 8 trains their heads.
+#   r100_09b          `r100_09` again at backbone seed 20260524. The pair says
+#                     whether the WINNER holds at a second seed.
+#
+#   r100_09b  0.9 to 1.0 over 100,000 steps, at seed 20260524. It holds 0.940
+#             at the 40,000-step stop, which is `r100_09`'s value.
+#
+# `r100_09b` differs from `r100_09` in column 5 ALONE. Every other flag is
+# round 1's: k = 32, the mean reduction, the align target teacher, align
+# weight 1.0, 40,000 backbone steps, 30,000 head steps, head seed 20260722.
 # arm	tau	end	ramp	seed	align_w
 a08	0.8	-	-	20260520
 a09	0.9	-	-	20260520
@@ -127,3 +154,4 @@ r100_08	0.8	1.0	100000	20260520
 w3_s08	0.8	1.0	200000	20260520	3.0
 r60_09	0.9	1.0	60000	20260520
 r100_095	0.95	1.0	100000	20260520
+r100_09b	0.9	1.0	100000	20260524

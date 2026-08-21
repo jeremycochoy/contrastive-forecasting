@@ -209,9 +209,30 @@ def main() -> int:
                        "whether the backbone lived.")
             out.append("")
 
-    # The card's own question: is the distance between the two fixed-momentum
-    # arms larger than one repeat of the same cell? Both numbers come from
-    # scores.csv, so the answer cannot disagree with the table above.
+    # ROUND 8's QUESTION, and the one every other claim of this card rests on.
+    # The winner's margin over the k = 0 parent is 0.0093. Until this card
+    # measured its OWN repeat spread, that margin stood against a band
+    # borrowed from #373's cell at k = 3 against the STUDENT target. These two
+    # sections put it against the measured number instead.
+    if d is not None:
+        out.append("## Does the measured spread separate the winner?")
+        out.append("")
+        fam = seed_report.family(rows)
+        levels = [(references.K0_PARENT_BB40K,
+                   "the k = 0 parent of this cell")]
+        if fam:
+            levels.append((fam[0]["score"], f"`{fam[0]['arm']}`"))
+        for level, name in levels:
+            out.append("- " + repeat_spread.separation_from_level(
+                best, level, name, d))
+        out.append("")
+        out.append("## The winner at a second backbone seed")
+        out.append("")
+        out.append(repeat_spread.seed_sentence(rows, best))
+        out.append("")
+
+    # Round 3's question, kept because the two fixed arms are still 0.0088
+    # apart and a reader of the earlier rounds looks for it.
     out.append("## Does the spread separate 0.90 fixed from 0.95 fixed?")
     out.append("")
     answer = repeat_spread.separation(rows, d, 0.90, 0.95) if d is not None \

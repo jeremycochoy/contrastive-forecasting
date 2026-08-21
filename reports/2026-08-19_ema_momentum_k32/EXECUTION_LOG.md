@@ -922,3 +922,87 @@ The pair also separates the two axes. `r100_09` and `r60_09` share the start
 `r100_095` holds 0.970, so the two labels printed over each other. A tick
 nearer than 0.006 to the tick before it is now dropped. The point stays and
 its score label stays.
+
+## Round 8 — the repeat spread this card measures itself
+
+### Why the round exists
+
+The review of round 7 names one gap that every other claim rests on. Eleven
+arms carry ONE backbone seed each, and ten of the eleven carry seed 20260520.
+The one repeat, `s08b` at seed 20260521, COLLAPSED. So the card ranks eleven
+arms and measures no spread between two STABLE runs. Every gap it reads as a
+result stands against 0.007 to 0.015, and that band comes from #373's cell at
+k = 3 against the STUDENT target.
+
+The winner is where this matters most. `r100_09` scores 1.1507 and the k = 0
+parent scores 1.1600. The margin is 0.0093, and 0.0093 sits INSIDE the borrowed
+band. So the card cannot yet say the winner beats the parent.
+
+### The three things this round runs
+
+    s08c       head + eval. Backbone on disk, seed 20260522, AUC 0.9776.
+    s08d       head + eval. Backbone on disk, seed 20260523, AUC 0.9746.
+    r100_09b   backbone + head + eval. `r100_09` at seed 20260524.
+
+`s08`, `s08c` and `s08d` are then three STABLE seeds of one arm. Their range is
+this cell's OWN repeat spread, measured and not borrowed. `r100_09` and
+`r100_09b` then say whether the winner holds at a second seed.
+
+`r100_09b` differs from `r100_09` in the backbone seed ALONE. Everything else
+is round 1's, flag for flag: 0.9 rising to 1.0 at 100,000 steps, k = 32, the
+mean reduction, the align target teacher, align weight 1.0, 40,000 backbone
+steps, 30,000 head steps, head seed 20260722.
+
+### A head this round did NOT have to train
+
+`s08c`'s head is ALREADY on disk. Round 4 trained it to 30,000 steps at head
+seed 20260722 on the `s08c` 40,000-step backbone, encoder `student`, and its
+trainer returned rc=0 at 13:50 on 2026-08-20. The round 4 box then stopped at
+the eval, with `ABORT: no eval script`, because a box carries no `gift_eval`
+package. That is the intended end of a box-side head, and it is why the round 4
+log reads rc=2 on the arm.
+
+    qhead_s08c_bb40k_h30k_student_s20260722_final.pth   450011 B   28 tensors
+
+The file loads and it holds the same 28 tensors as every scored head of this
+card. So the round COPIED it into the canonical tree and evaluated it. That
+saved about 31 minutes of rented card and about $0.19.
+
+`s08d`'s head is NOT on disk. Round 4's teardown stopped it at about step
+25,500 of 30,000, so it carries `_25k.pth` and `_best.pth` and no `_final.pth`.
+It trains again this round.
+
+### The machine, and the order of the two lanes
+
+ONE box with ONE card. The card puts the head FIRST: an arm whose head lands
+early is an arm the teardown gate can already pass. The `s08d` backbone goes UP
+to the box, because the box that trained it is gone. Then the `r100_09b`
+backbone lane starts beside it on card 0. A head reports about 0 % GPU
+utilization next to a trainer, so the two lanes cost each other almost nothing.
+
+### The defect round 7 left, and the fix this round carries
+
+`box_head_running` matched `qhead_<tag>_s<seed>`, which is the PYTHON TRAINER's
+command line alone. #373's `head_eval_bb.sh` takes a per-card lock before it
+trains, `flock -w 86400` on `/tmp/cf373_head_gpu0.lock`, so ONE head trains per
+card at a time. A head QUEUED behind that lock carries the tag WITHOUT the
+`qhead_` prefix, so the old pattern missed it and the driver read a waiting head
+as a dead one. It then started another, every poll.
+
+`round8.sh` matches the TAG. The tag is on the queued shell's own argument list
+and on the trainer's `--save-path`, so one pattern answers for both. The two
+tags of this round differ before `_bb`, so neither is a prefix of the other.
+
+### The rule this round carries forward
+
+`destroy_box` acts only when EVERY head the round TRAINS is on elisa's disk, by
+name and above 400,000 bytes. `s08c` is not in that list: its head is already
+here and the box never makes one. Every other exit path calls
+`leave_box_alive`, which names the instance and prints the command that
+destroys it. This is `recover_w3_head.sh`'s rule.
+
+### The budget
+
+The credit is $4.20 and the limit for this round is $3. `MAX_SPEND` is $2.60.
+
+### Events

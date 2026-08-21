@@ -124,3 +124,59 @@ def separation(rows, d: float, alpha_a: float, alpha_b: float,
                 f"separates the two arms. `{lo['arm']}` scores better.")
     return (f"{text} The gap is SMALLER than the spread, so this card does "
             f"NOT separate the two arms.")
+
+
+# --- The question round 8 asks -----------------------------------------------
+
+
+def seeds_of(rows, row) -> list[dict]:
+    """Every scored row of the SAME cell as `row`, ordered by backbone seed.
+
+    One cell is one (momentum, schedule, ramp, align weight). Two rows of one
+    cell differ in the backbone seed alone, so this is the arm at every seed
+    the card trained it at. `row` itself is in the result.
+    """
+    def key(r):
+        return (r["alpha"], r["schedule"], r.get("ramp", 0),
+                r.get("align_w", 1.0))
+
+    return sorted([r for r in rows if key(r) == key(row)],
+                  key=lambda r: str(r.get("seed", "")))
+
+
+def separation_from_level(row: dict, level: float, level_name: str,
+                          d: float) -> str:
+    """Whether a repeat spread of `d` separates one arm from a fixed score.
+
+    `separation` compares two arms of THIS table. This compares one arm
+    against a number the card does not train — the k = 0 parent of the cell,
+    or a score another card published. The test is the same and it is strict:
+    a gap equal to the spread does not separate.
+    """
+    gap = abs(row["score"] - level)
+    side = "BELOW" if row["score"] < level else "ABOVE"
+    text = (f"`{row['arm']}` {row['score']:.4f} sits {gap:.4f} {side} "
+            f"{level_name} {level:.4f}. The repeat spread is {d:.4f}.")
+    if gap > d:
+        return (f"{text} The gap is LARGER than the spread, so this card "
+                f"separates the two.")
+    return (f"{text} The gap is SMALLER than the spread, so this card does "
+            f"NOT separate the two.")
+
+
+def seed_sentence(rows: list[dict], row: dict) -> str:
+    """One arm at every seed it was trained at, in one sentence.
+
+    Two seeds of the winner say whether the win holds. One seed says nothing
+    about it, and the sentence says so instead of implying more.
+    """
+    fam = seeds_of(rows, row)
+    if len(fam) < 2:
+        return (f"`{row['arm']}` carries ONE backbone seed, so this card does "
+                f"not say whether its score holds at a second seed.")
+    names = ", ".join(f"`{r['arm']}` {r['score']:.4f} (seed {r.get('seed', '?')})"
+                      for r in fam)
+    lo = min(r["score"] for r in fam)
+    hi = max(r["score"] for r in fam)
+    return (f"{names}. The {len(fam)} seeds span {hi - lo:.4f}, "
+            f"{lo:.4f} to {hi:.4f}.")
