@@ -1,0 +1,7 @@
+[08-20 23:05:30] [r100_08_bb40k_h30k_student] head-train SKIP (final exists)
+[08-20 23:05:30] [r100_08_bb40k_h30k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-20 23:05:30] START r100_08_bb40k_h30k_student bb40k enc=student shards=4 slot=2
+[08-21 00:31:08] merged 97 configs -> /home/jupyter/cf404_sync/box_a/sync/r100_08/eval/r100_08_bb40k_h30k_student/gift/all_results.csv
+[08-21 00:31:11] DONE r100_08_bb40k_h30k_student bb40k student — Aggregate GM-Relative MASE (97 configs): 1.2235 -> 1.2235
+[08-21 00:31:11] [r100_08_bb40k_h30k_student] eval rc=0
+[08-21 00:31:11] [r100_08_bb40k_h30k_student] DONE — GM-Relative MASE 1.2235

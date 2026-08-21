@@ -132,7 +132,17 @@ def draw(rows, out, fell=(), stop=40000):
 
     ax.set_ylim(y_lo, y_hi)
     ax.set_xlim(x_lo, x_hi)
-    ax.set_xticks(sorted({round(x, 3) for x in xs_all}))
+    # One tick per arm, but a tick that sits on its neighbour is unreadable.
+    # `r60_09` holds 0.967 and `r100_095` holds 0.970, and the two labels
+    # printed over each other. So a tick that is nearer than `tick_gap` to the
+    # tick before it is dropped: the point stays, its score label stays, and
+    # the axis says which side of the neighbour it is on.
+    ticks, tick_gap = [], 0.006
+    for x in sorted({round(v, 3) for v in xs_all}):
+        if ticks and x - ticks[-1] < tick_gap:
+            continue
+        ticks.append(x)
+    ax.set_xticks(ticks)
     ax.set_xlabel(f"EMA momentum the arm holds at {stop:,} steps")
     ax.set_ylabel("GM-Relative MASE over 97 configs, lower is better")
     ax.set_title("The score against the momentum the backbone actually\n"

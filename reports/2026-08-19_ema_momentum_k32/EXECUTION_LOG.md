@@ -870,3 +870,55 @@ THE FIX FOR THE NEXT ROUND. `box_head_running` must match a QUEUED head too,
 not the python trainer alone. `round7.sh` was not edited while it ran: bash
 reads a script as it goes, so an edit in place can change the code under a
 running driver.
+
+### The heads, and the teardown
+
+`r60_09`'s head landed at 450,079 B at 06:38. The lock passed to `r100_095`,
+whose head landed at 450,147 B at 07:20. Both heads ran the round 1 protocol,
+30,000 steps at head seed 20260722, encoder `student`.
+
+Then the driver pulled every artefact into
+`$HOME/cf404_sync/box_a/sync`, LOADED each checkpoint with `torch.load`, and
+only then destroyed the box.
+
+    r60_09    backbone _40k.pth 5196231 B  162 tensors   head 450079 B  28 tensors
+    r100_095  backbone _40k.pth 5196527 B  162 tensors   head 450147 B  28 tensors
+
+The 43 MB losses CSVs, the optimizers, the attention-amplitude CSVs, the
+latent-drift CSVs and both run logs came with them.
+
+- 07:23 instance 48255116 destroyed. The head rule opened the teardown and
+  named both sizes in the line that did it.
+- 07:23 the two 97-config GIFT-Evals started on elisa's CPUs, four shards
+  each. Both skipped head training: `head-train SKIP (final exists)`.
+- 08:54 both scores landed. `collect.sh` and every figure redrew.
+
+### The money
+
+Credit $6.58 to $4.23. The box cost $2.35 against the $4 limit and the $3.20
+cap. It ran 5 h 50 min at $0.3611/h.
+
+### The result
+
+    r60_09    holds 0.967 at the stop, align weight 1.0, scores 1.1873
+    r100_095  holds 0.970 at the stop, align weight 1.0, scores 1.2130
+
+Neither goes below `r100_09` at 1.1507, and neither goes below the k = 0
+parent at 1.1600. Both backbones stayed healthy: contrastive AUC 0.976 and
+0.978 at the stop.
+
+At start 0.9 the card now holds four points: 0.900 gives 1.1819, 0.920 gives
+1.1784, 0.940 gives 1.1507 and 0.967 gives 1.1873. So 0.940 is a TURN and not
+an edge, and this round bounds the card's best score from the other side.
+
+The pair also separates the two axes. `r100_09` and `r60_09` share the start
+0.9 and hold 0.940 and 0.967, and they score 0.0366 apart. `r60_09` and
+`r100_095` hold 0.967 and 0.970 and start at 0.9 and 0.95, and they score
+0.0257 apart. Both move the score, and the stop value moves it more.
+
+### One figure defect this round fixed
+
+`plot_momentum_at_stop.py` put one tick per arm. `r60_09` holds 0.967 and
+`r100_095` holds 0.970, so the two labels printed over each other. A tick
+nearer than 0.006 to the tick before it is now dropped. The point stays and
+its score label stays.
