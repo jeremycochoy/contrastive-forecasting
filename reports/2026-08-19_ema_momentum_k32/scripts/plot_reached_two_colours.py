@@ -69,6 +69,68 @@ def cells(rows, stop):
     return out
 
 
+def draw_vertical(rows, out, fell=(), stop=40000):
+    """The reached momentum on the y axis, at its own value.
+
+    The horizontal orientation of `draw` puts the momentum on x.
+    This one puts it on y, so a reader reads the momentum down the
+    side and the score across. The y axis stays numeric, so 0.967
+    and 0.970 sit as close together as their values are.
+    """
+    grid = cells(rows, stop)
+    fig, ax = plt.subplots(figsize=(9.0, 6.6))
+    for kind, style in KIND.items():
+        pts = sorted((k[1], v) for k, v in grid.items()
+                     if k[0] == kind)
+        if not pts:
+            continue
+        py = [p[0] for p in pts]
+        px = [sum(p[1]) / len(p[1]) for p in pts]
+        lo = [m - min(p[1]) for p, m in zip(pts, px)]
+        hi = [max(p[1]) - m for p, m in zip(pts, px)]
+        ax.errorbar(px, py, xerr=[lo, hi], color=style["colour"],
+                    marker=style["marker"], markersize=9,
+                    linewidth=2.0, capsize=5, elinewidth=1.6,
+                    zorder=3, label=style["label"])
+        for x, y in zip(px, py):
+            ax.annotate(f"{x:.4f}", (x, y),
+                        textcoords="offset points",
+                        xytext=(0, 10), fontsize=8,
+                        color=style["colour"], ha="center")
+    for r in fell:
+        y = AT.momentum_at(r["alpha"], r["schedule"], r["ramp"], stop)
+        ax.plot([r["score"]], [y], linestyle="none",
+                marker=MOM.FELL["marker"], markersize=11,
+                color=MOM.FELL["colour"], zorder=4,
+                label=MOM.FELL["label"])
+    ax.axvline(REF.K3_BB40K, color="0.35", linewidth=1.3, zorder=1)
+    ax.axvline(REF.K0_PARENT_BB40K, color="0.35", linestyle="--",
+               linewidth=1.3, zorder=1)
+    y_top = max([k[1] for k in grid]) + 0.012
+    ax.text(REF.K3_BB40K, y_top,
+            f" k = 3, same {stop:,} steps ({REF.K3_BB40K:.4f})",
+            fontsize=8, color="0.20", va="top", rotation=90)
+    ax.text(REF.K0_PARENT_BB40K, y_top,
+            f" the k = 0 parent ({REF.K0_PARENT_BB40K:.4f})",
+            fontsize=8, color="0.20", va="top", rotation=90)
+    ax.set_yticks(sorted({k[1] for k in grid}))
+    ax.set_yticklabels([f"{v:.3f}" for v in
+                        sorted({k[1] for k in grid})], fontsize=9)
+    ax.set_ylabel(f"the momentum the backbone trains against at "
+                  f"{stop:,} steps")
+    ax.set_xlabel("GM-Relative MASE over 97 configs, "
+                  "lower is better")
+    ax.set_title("A held momentum and a rising momentum,\n"
+                 f"against the value each reaches at {stop:,} steps")
+    ax.grid(True, alpha=0.3)
+    ax.legend(fontsize=9, loc="lower right", framealpha=0.9)
+    fig.tight_layout()
+    Path(out).parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=160)
+    print(f"wrote {out} — {len(grid)} point(s), {len(fell)} collapsed")
+    return fig, ax
+
+
 def draw(rows, out, fell=(), stop=40000):
     grid = cells(rows, stop)
     fig, ax = plt.subplots(figsize=(9.5, 6.0))
@@ -137,6 +199,8 @@ def main(argv=None):
     p.add_argument("--out", required=True)
     p.add_argument("--sync-root")
     p.add_argument("--stop", type=int, default=40000)
+    p.add_argument("--vertical", action="store_true",
+                   help="the reached momentum on the y axis")
     args = p.parse_args(argv)
     if not Path(args.scores).is_file():
         raise SystemExit(f"ABORT: no scores table at {args.scores}")
@@ -149,7 +213,8 @@ def main(argv=None):
             auc = SEEDS.auc_at(root, r["arm"], args.stop)
             (fell if SEEDS.collapsed(auc) else alive).append(r)
         rows = alive
-    draw(rows, args.out, fell, args.stop)
+    (draw_vertical if args.vertical else draw)(
+        rows, args.out, fell, args.stop)
     return 0
 
 
