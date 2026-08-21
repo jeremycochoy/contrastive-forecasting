@@ -1,0 +1,11 @@
+stop,head,seed,score,is_distinct_model
+100000,teacher,20260722,1.0874,True
+200000,teacher,20260722,1.0828,True
+300000,teacher,20260722,1.103,True
+
+from_stop,to_stop,delta,kind
+100000,200000,-0.0046,model_to_model_change
+200000,300000,+0.0202,model_to_model_change
+
+n_models,one_encoder,head_input_constant,pooled,noise_band_source
+3,True,False,False,head_band.csv

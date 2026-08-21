@@ -40,8 +40,8 @@ step(){ # <name> <command...>
 step collect_replicates bash "$HERE/collect_replicates.sh" "${STOPS_K[@]}" >>"$LOG" 2>&1
 step head_band python3 "$HERE/head_band.py" --csv "$RES/head_band.csv" \
   >"$RES/head_band.txt" 2>>"$LOG"
-step teacher_pool python3 "$HERE/teacher_pool.py" --csv "$RES/teacher_pool.csv" \
-  >"$RES/teacher_pool.txt" 2>>"$LOG"
+step teacher_track python3 "$HERE/teacher_frozen_track.py" --csv "$RES/teacher_frozen_track.csv" \
+  >"$RES/teacher_frozen_track.txt" 2>>"$LOG"
 step plot python3 "$HERE/plot_full_pass.py" --out "$STUDY/plots/full_pass.png" \
   >>"$LOG" 2>&1
 step mirror bash "$HERE/mirror_durable.sh" >>"$LOG" 2>&1

@@ -1,0 +1,54 @@
+What `teacher_delta_bb100k_bb200k.csv` measures
+===============================================
+
+This file was called `null_frozen_teacher.csv`. That name was wrong and the
+comparison it holds is NOT a null. The rename is the correction.
+
+WHAT IT MEASURES
+  The paired per-config change in GM-Relative MASE from the teacher head on
+  the 100,000-step backbone to the teacher head on the 200,000-step backbone.
+  The resampling unit is the DATASET, over the 97 GIFT-Eval configs.
+  Producer: `reports/2026-08-08_rollout_depth/scripts/paired_bootstrap.py`.
+
+WHAT IT DOES NOT MEASURE
+  Repeatability. The two ends are two DIFFERENT models.
+
+WHY THEY ARE DIFFERENT MODELS
+  The teacher ENCODER freezes at step 100,000, because `--ema-tau-ramp-steps
+  100000` takes the EMA momentum to exactly 1.0. `teacher_move_100k_200k.json`
+  confirms it: 0 of 74 teacher tensors move.
+
+  The teacher HEAD does not freeze. It loads 110 tensors. 74 come from a
+  `teacher_*` key. 36 stay the student's, and 32 of those 36 move between
+  these two checkpoints (`teacher_head_inputs_100k_200k.json`). The latents
+  the head reads move with them: encoder latents rel L2 1.362e-02, forecaster
+  latents rel L2 1.013e-01.
+
+  The line of code that does it:
+
+      src/checkpoint.py:266    out = dict(state_dict)
+
+  `prepare_backbone_state_dict` starts from the full STUDENT state dict. The
+  `encoder_source='teacher'` branch then overwrites two prefixes only,
+  `teacher_input_to_latent.*` and `teacher_encoder_layers.*`
+  (`_TEACHER_PROMOTIONS`, src/checkpoint.py:230). Every key those two do not
+  name keeps the student's tensor.
+
+THE NUMBERS
+  label                       subset       n   delta     interval        p_improved
+  teacher_bb100k_to_bb200k    all         97  -0.0046  [-0.0199, 0.0123]  0.711
+  teacher_bb100k_to_bb200k    short       55   0.0150  [-0.0005, 0.0340]  0.029
+  teacher_bb100k_to_bb200k    medium_long 42  -0.0381  [-0.0713, -0.0091] 0.996
+
+  Read the `all` row. The other two are subsets picked after the numbers were
+  seen.
+
+  The aggregate change of -0.0046 is a measured change between two models. It
+  is not a repeatability draw and it is not a noise floor. Do not read it as
+  either.
+
+WHERE THE NOISE BAND COMES FROM INSTEAD
+  `head_band.csv`. Three head seeds on ONE backbone, at 200,000 steps:
+    student   1.0660  1.0652  1.0642   range 0.0018
+    teacher   1.0828  1.0809  1.0764   range 0.0064
+  That is the band the report reads.

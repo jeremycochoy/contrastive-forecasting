@@ -18,7 +18,7 @@
 # Round 3 of the review added a second question to every pair: does the
 # teacher HEAD read teacher tensors only? `teacher_head_inputs.py` answers
 # it, and the answer is no. So this runs that script on the same pairs, and
-# it refreshes `teacher_pool.py`, which reads both.
+# it refreshes `teacher_frozen_track.py`, which reads both.
 #
 # Usage: [CF373_ROOT=<root>] teacher_check.sh
 set -uo pipefail
@@ -59,10 +59,11 @@ for pair in $PAIRS; do
   n=$(( n + 1 ))
 done
 
-# The pool of review gap 4, refreshed on every tick. It reads the score
-# files and the JSONs above, so it costs milliseconds.
-python3 "$HERE/teacher_pool.py" --csv "$RES/teacher_pool.csv" \
-  >"$RES/teacher_pool.txt" 2>&1 || \
-  echo "[cf407-teacher] WARN: teacher_pool rc=$?"
+# The teacher track of review gap 4, refreshed on every tick. It reads the
+# score files and the JSONs above, so it costs milliseconds. It does NOT
+# pool the teacher points: each one is a different model.
+python3 "$HERE/teacher_frozen_track.py" --csv "$RES/teacher_frozen_track.csv" \
+  >"$RES/teacher_frozen_track.txt" 2>&1 || \
+  echo "[cf407-teacher] WARN: teacher_frozen_track rc=$?"
 
 echo "[cf407-teacher] wrote $n, already had $skip"

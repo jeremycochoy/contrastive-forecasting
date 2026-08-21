@@ -203,6 +203,14 @@ input, so the pool is not a null. It is how far the teacher head travels
 while its encoder stack stands still. At n = 2 the range is 0.0046. It grows
 to n = 5 as the stops land, and the watchdog refreshes it every tick.
 
+**Corrected 2026-08-21, 09:xx UTC.** The label above was still too kind. A
+number that pools five DIFFERENT models has no meaning, whatever label sits
+beside it, and a reader who sees `mean`, `std` and `range` in a CSV reads a
+draw statistic. `teacher_pool.py` is now `teacher_frozen_track.py`. It prints
+each stop as its own model, it prints the change from one stop to the next,
+and it computes no mean, no standard deviation and no pooled range over the
+stops. Outputs: `teacher_frozen_track.csv`, `teacher_frozen_track.txt`.
+
 ### 19:0x UTC — 40 shards, not 12 (item 9)
 
 `shard_order.py` reads 40 of the 4,274 shards and the verdict quotes that
@@ -239,7 +247,8 @@ infix.
 
 The round-2 page called the `medium_long` interval a false positive. That
 was a subset picked after the numbers were seen. The aggregate row of
-`results/null_frozen_teacher.csv` reads delta -0.0046, interval
+`results/teacher_delta_bb100k_bb200k.csv` (named
+`null_frozen_teacher.csv` at the time) reads delta -0.0046, interval
 [-0.0199, 0.0123], p_improved 0.711, so the aggregate bootstrap PASSED.
 `results/pr_comment_20260820_gaps.md` now shows all three rows and reads the
 aggregate. `stop_bootstrap.sh` is sound and its docstring is accurate.
@@ -300,7 +309,7 @@ done when both re-draw heads score, and it keeps stage 2 for the 450k band.
 ### 20:00 UTC — the read-back waits in a background task
 
 `await_redraw.sh` blocks on the two re-draw score files, then runs
-`collect_replicates.sh`, `head_band.py`, `teacher_pool.py`,
+`collect_replicates.sh`, `head_band.py`, `teacher_frozen_track.py`,
 `plot_full_pass.py` and `mirror_durable.sh`. So the numbers land in the
 checkout the moment they exist, and no agent sits in a poll loop for hours.
 
@@ -316,8 +325,9 @@ artefact behind it, so the report cites rather than asserts.
 | claim | artefact |
 |---|---|
 | The teacher tensors are frozen from step 100,000 on. | `results/teacher_move_100k_200k.json`, `results/teacher_move_40k_100k.json` |
-| The teacher HEAD still reads 36 student-owned tensors, and 32 of them move over that span. So the teacher stops are not draws of one encoder. | `results/teacher_head_inputs_100k_200k.json`, `results/teacher_pool.txt` |
-| The aggregate config bootstrap on the 100k-to-200k teacher pair straddles zero: delta -0.0046, [-0.0199, 0.0123], p_improved 0.711. Its half-width, about 0.016, is wider than the 0.0141 selection gap. | `results/null_frozen_teacher.csv` |
+| The teacher HEAD still reads 36 student-owned tensors, and 32 of them move over that span. So the teacher stops are five models, not five draws of one. `src/checkpoint.py:266` is the reason. | `results/teacher_head_inputs_100k_200k.json`, `results/teacher_frozen_track.txt` |
+| The 100k-to-200k teacher pair is a change between two models, not a null. The aggregate config bootstrap reads delta -0.0046, [-0.0199, 0.0123], p_improved 0.711. | `results/teacher_delta_bb100k_bb200k.csv`, `results/teacher_delta_bb100k_bb200k.txt` |
+| The noise band the report reads: three head seeds on ONE backbone at 200,000 steps. Student range 0.0018, teacher range 0.0064. | `results/head_band.csv` |
 | The shard order carries no data-mix confound. Two halves, pooled, sit 0.0008 apart in total variation over 40 shards. | `results/shard_order.json` |
 | The head-seed band, measured here, against #393's published one and against the 0.0141 selection gap. | `head_band.py` review-gap-6 block, `results/head_band.csv` |
 | The protocol seed drawn again here at 200k, against #373's published anchor. Machine and code drift at one head seed. | `results/replicate_200k.log`, `results/head_band.csv` |
@@ -350,7 +360,8 @@ head-seed spread, and no part of it comes from the move between boxes.
 The largest range, 0.0064, stays under the 0.0141 gap that made 1.0660 the
 project's best. A move larger than the band is therefore readable.
 
-`head_band.py`, `teacher_pool.py`, `plot_full_pass.py` and `mirror_durable.sh`
+`head_band.py`, `teacher_frozen_track.py`, `plot_full_pass.py` and
+`mirror_durable.sh`
 all ran. The mirror holds 82 files.
 
 ### 02:53 UTC — the 300k band takes the idle card
@@ -399,7 +410,8 @@ The lesson is not "do not use a background task". The lesson is that no
 ARTEFACT may depend on one.
 
 `read_back.sh` now holds the five steps in one place: `collect_replicates.sh`,
-`head_band.py`, `teacher_pool.py`, `plot_full_pass.py`, `mirror_durable.sh`.
+`head_band.py`, `teacher_frozen_track.py`, `plot_full_pass.py`,
+`mirror_durable.sh`.
 Two things that outlive an agent call it.
 
 | caller | when |

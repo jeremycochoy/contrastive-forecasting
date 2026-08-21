@@ -145,9 +145,9 @@ prev_step=""; prev_mark=""; quiet=0; fires=0
 
 while :; do
   # Review gap 5 plus the read-back. `read_back.sh` brings whatever drained
-  # since into the checkout, refreshes the band, the pool and the figure,
-  # and ends with `mirror_durable.sh`. It runs here because a band drains
-  # hours after the agent that fired it has gone.
+  # since into the checkout, refreshes the band, the teacher track and the
+  # figure, and ends with `mirror_durable.sh`. It runs here because a band
+  # drains hours after the agent that fired it has gone.
   bash "$HERE/read_back.sh" >>"$LOG" 2>&1 || log "WARN: read_back rc=$?"
   # Review gap 4. It costs seconds, it skips a pair it already
   # answered, and it needs the checkpoint rather than the score, so

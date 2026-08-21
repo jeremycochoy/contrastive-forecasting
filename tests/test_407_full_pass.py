@@ -1312,7 +1312,7 @@ BAND_QUEUE_SH = SCRIPTS / "band_queue.sh"
 READ_BACK_SH = SCRIPTS / "read_back.sh"
 AWAIT_BAND_SH = SCRIPTS / "await_band.sh"
 TEACHER_HEAD_INPUTS_PY = SCRIPTS / "teacher_head_inputs.py"
-TEACHER_POOL_PY = SCRIPTS / "teacher_pool.py"
+TEACHER_TRACK_PY = SCRIPTS / "teacher_frozen_track.py"
 SHARD_ORDER_PY = SCRIPTS / "shard_order.py"
 HEAD_BAND_PY = SCRIPTS / "head_band.py"
 TEACHER_CHECK_SH = SCRIPTS / "teacher_check.sh"
@@ -1427,30 +1427,60 @@ class TestTeacherHeadInputs:
     def test_teacher_check_runs_the_head_input_script(self):
         code = strip_comments(TEACHER_CHECK_SH.read_text())
         assert "teacher_head_inputs.py" in code
-        assert "teacher_pool.py" in code
+        assert "teacher_frozen_track.py" in code
 
 
-class TestTeacherPool:
-    """Item 4. Pool the teacher points, and label them correctly."""
+class TestTeacherTrack:
+    """Item 4. The teacher points are models. Track them, do not pool."""
 
-    def test_pool_is_not_called_a_null_when_the_input_moves(self):
-        mod = load(TEACHER_POOL_PY, "cf407_teacher_pool")
+    def test_track_is_not_called_a_null_when_the_input_moves(self):
+        mod = load(TEACHER_TRACK_PY, "cf407_teacher_track")
         moves = [{"file": "teacher_head_inputs_100k_200k.json",
                   "moved_from_teacher": 0, "moved_from_student": 32}]
         assert mod.one_encoder(moves) is True
         assert mod.head_input_constant(moves) is False
 
-    def test_pool_is_a_null_only_when_nothing_moves(self):
-        mod = load(TEACHER_POOL_PY, "cf407_teacher_pool")
+    def test_the_points_are_draws_only_when_nothing_moves(self):
+        mod = load(TEACHER_TRACK_PY, "cf407_teacher_track")
         moves = [{"file": "teacher_head_inputs_100k_200k.json",
                   "moved_from_teacher": 0, "moved_from_student": 0}]
         assert mod.head_input_constant(moves) is True
 
     def test_frozen_stops_start_at_the_end_of_the_ramp(self):
-        mod = load(TEACHER_POOL_PY, "cf407_teacher_pool")
+        mod = load(TEACHER_TRACK_PY, "cf407_teacher_track")
         assert mod.FROZEN_FROM == 100_000
         assert min(mod.frozen_stops()) == 100_000
         assert 40_000 not in mod.frozen_stops()
+
+    def test_the_stops_are_never_pooled(self):
+        """No mean, no standard deviation, no range over the stops.
+
+        The five teacher points are five models. A pooled statistic over
+        them reads as a draw statistic, and a reader takes it for a noise
+        band. This test is the guard on that mistake.
+        """
+        mod = load(TEACHER_TRACK_PY, "cf407_teacher_track")
+        assert not hasattr(mod, "statistics")
+        code = TEACHER_TRACK_PY.read_text()
+        for banned in ("statistics.fmean", "statistics.stdev",
+                       "max(values) - min(values)"):
+            assert banned not in code, banned
+
+    def test_neighbouring_stops_give_a_change_not_a_spread(self):
+        mod = load(TEACHER_TRACK_PY, "cf407_teacher_track")
+        got = mod.steps({100_000: 1.0874, 200_000: 1.0828, 300_000: 1.1030})
+        assert [(a, b) for a, b, _ in got] == [(100_000, 200_000),
+                                               (200_000, 300_000)]
+        assert got[0][2] == pytest.approx(-0.0046, abs=1e-6)
+        assert got[1][2] == pytest.approx(+0.0202, abs=1e-6)
+
+    def test_the_promotion_line_is_quoted_verbatim(self):
+        """The artefact must carry the reason, checked against the source."""
+        mod = load(TEACHER_TRACK_PY, "cf407_teacher_track")
+        path, lineno = mod.PROMOTION_SITE.split(":")
+        line = (REPO_ROOT / path).read_text().splitlines()[int(lineno) - 1]
+        assert line.strip() == mod.PROMOTION_LINE
+        assert mod.PROMOTION_LINE == "out = dict(state_dict)"
 
 
 class TestShardSample:
@@ -1777,7 +1807,7 @@ class TestReadBackSurvivesTheAgent:
     def test_read_back_runs_every_step(self):
         code = strip_comments(READ_BACK_SH.read_text())
         for name in ("collect_replicates.sh", "head_band.py",
-                     "teacher_pool.py", "plot_full_pass.py",
+                     "teacher_frozen_track.py", "plot_full_pass.py",
                      "mirror_durable.sh"):
             assert name in code, f"read_back.sh skips {name}"
 
@@ -1812,7 +1842,8 @@ class TestReadBackSurvivesTheAgent:
         (scripts / "read_back.sh").write_text(READ_BACK_SH.read_text())
         for name in ("collect_replicates.sh", "mirror_durable.sh"):
             (scripts / name).write_text("#!/bin/bash\nexit 0\n")
-        for name in ("head_band.py", "teacher_pool.py", "plot_full_pass.py"):
+        for name in ("head_band.py", "teacher_frozen_track.py",
+                     "plot_full_pass.py"):
             (scripts / name).write_text("import sys\nsys.exit(0)\n")
         out = subprocess.run(["bash", str(scripts / "read_back.sh")],
                              capture_output=True, text=True, timeout=60)
@@ -1831,7 +1862,7 @@ class TestAwaitCarriesNoWork:
         """Round 3's task did the read-back and died with its session."""
         code = strip_comments(AWAIT_BAND_SH.read_text())
         for name in ("read_back.sh", "collect_replicates.sh", "head_band.py",
-                     "teacher_pool.py", "plot_full_pass.py",
+                     "teacher_frozen_track.py", "plot_full_pass.py",
                      "mirror_durable.sh"):
             assert name not in code, f"await_band.sh still runs {name}"
 

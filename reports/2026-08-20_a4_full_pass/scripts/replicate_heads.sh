@@ -102,9 +102,9 @@ for i in "${!pids[@]}"; do
 done
 
 # The read-back, the moment this band drains. `read_back.sh` brings the
-# draws into the checkout, refreshes the band, the pool and the figure, and
-# ends with the mirror. The watchdog runs the same script every hour, so a
-# band that dies before this line still reads back inside an hour.
+# draws into the checkout, refreshes the band, the teacher track and the
+# figure, and ends with the mirror. The watchdog runs the same script every
+# hour, so a band that dies before this line still reads back inside an hour.
 bash "$HERE/read_back.sh" "$STOP_K" >>"$LOG" 2>&1 || log "WARN: read_back rc=$?"
 python3 "$HERE/head_band.py" --stop "$STOP" --results "$RES" \
   --parent "$WT/reports/2026-08-08_rollout_depth/results" | tee -a "$LOG"
