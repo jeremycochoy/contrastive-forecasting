@@ -325,5 +325,65 @@ artefact behind it, so the report cites rather than asserts.
 | 1.0660 is a selected number, so a point near it is not a plateau. | `results/selection_context.json`: rank 1 of 99, runner-up +0.0141 |
 
 A move smaller than the head-seed band decides nothing, whichever direction
-it points. 300k carries one draw per head and no band, so the report must
-say so beside that point.
+it points. `band_queue.sh` now covers 200k, 300k and 450k, and the watchdog
+covers 665k, so every stop of the card gets its own band. Beside a stop
+whose band has not drained yet, the report must say that the stop carries
+one draw per head.
+
+
+## Round 4 — the read-back, and the idle card
+
+### 02:47 UTC, 21 Aug — the 200k band reads back
+
+Six draws, all on disk, all across the 97-config gate. `collect_replicates.sh`
+reports 6 pairs and 0 skips.
+
+| head | s20260722 | s20260723 | s20260724 | mean | std | range |
+|---|---|---|---|---|---|---|
+| student | 1.0660 | 1.0652 | 1.0642 | 1.0651 | 0.0009 | 0.0018 |
+| teacher | 1.0828 | 1.0809 | 1.0764 | 1.0800 | 0.0033 | 0.0064 |
+
+The protocol re-draw reproduces #373 EXACTLY on both heads, delta +0.0000.
+Machine drift and code drift are zero at one head seed. So the whole band is
+head-seed spread, and no part of it comes from the move between boxes.
+
+The largest range, 0.0064, stays under the 0.0141 gap that made 1.0660 the
+project's best. A move larger than the band is therefore readable.
+
+`head_band.py`, `teacher_pool.py`, `plot_full_pass.py` and `mirror_durable.sh`
+all ran. The mirror holds 82 files.
+
+### 02:53 UTC — the 300k band takes the idle card
+
+The 300k checkpoint landed at 02:52 UTC and the 300k leg closed at 8.5 h.
+Card 1 then stands idle until the 450k checkpoint, about 15 hours. Two more
+head seeds at 300k cost that idle time and no more.
+
+`band_queue.sh` now holds a stage TABLE rather than two hard-coded stages:
+
+| stop | seeds | gate | state at 02:53 UTC |
+|---|---|---|---|
+| 200,000 | 20260722 | now | done |
+| 300,000 | 20260723, 20260724 | ckpt | FIRED at 02:53:52Z |
+| 450,000 | 20260723, 20260724 | ckpt | pending, armed |
+
+A `ckpt` stage fires on the CHECKPOINT and not on the score, so the extra
+seeds train while the driver still scores the protocol seed at the same stop.
+The queue runs ONE band at a time, because `head_vram_gate` serialises card 1
+on one flock and a second band would only queue behind the first.
+
+The gate now demands the `_optimizer.pth` sidecar beside the checkpoint.
+`save_snapshot` in `train.py` writes the backbone first and the sidecar
+second, so a sidecar on disk proves the backbone write finished. Without that
+test the queue could glob a checkpoint the driver is still writing.
+
+Five decision paths were tested against the live machine under `QUEUE_DRY`:
+
+- gate `now`, no score, card free: fires.
+- gate `ckpt`, backbone on disk: fires.
+- gate `ckpt`, no backbone: waits.
+- a chain up at any stop: no stage fires, on either stop.
+- every seed scored: reports DONE and the queue exits.
+
+The queue reads its state off the disk at every start, so this restart did
+not repeat the 200k re-draw and did not lose the 450k band.

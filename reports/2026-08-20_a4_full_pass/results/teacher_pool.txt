@@ -12,4 +12,4 @@ what these points share, from teacher_head_inputs_*.json
      forecaster_latents   identical=False  rel L2 1.400e+00
 
 VERDICT: NOT a null. The teacher ENCODER STACK is common to these 2 points, but the teacher head also reads student-owned tensors that keep training, so the two inputs differ. The 0.0046 range measures how far the teacher head travels while its encoder stack stands still. It is an upper bound on the frozen-encoder contribution, not a repeatability band.
-wrote ../results/teacher_pool.csv
+wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/results/teacher_pool.csv

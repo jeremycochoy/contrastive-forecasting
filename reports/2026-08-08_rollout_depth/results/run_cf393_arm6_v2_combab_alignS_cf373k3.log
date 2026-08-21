@@ -2288,3 +2288,19 @@ Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, 
 [ 299200] loss=15.5735  ema_loss=15.2399  gap=0.2170  ema_gap=0.2388  mixup=62/200  3.3 sps  ETA 0.1h
               R²_rand=0.5744  R²_naive=0.4742  U_t=0.0997  U_b=0.1416  AUC=0.9491  Top1=0.1834
   timing: data=3.9ms  fwd=129.1ms  bwd=96.9ms  total=230.5ms
+[ 299400] loss=15.4688  ema_loss=15.1552  gap=0.2012  ema_gap=0.2402  mixup=66/200  3.3 sps  ETA 0.1h
+              R²_rand=0.6086  R²_naive=0.4722  U_t=0.0976  U_b=0.1390  AUC=0.9517  Top1=0.2125
+  timing: data=5.0ms  fwd=145.0ms  bwd=111.5ms  total=262.1ms
+[ 299600] loss=15.1973  ema_loss=15.1384  gap=0.1862  ema_gap=0.2321  mixup=60/200  3.3 sps  ETA 0.0h
+              R²_rand=0.6305  R²_naive=0.4938  U_t=0.0951  U_b=0.1444  AUC=0.9588  Top1=0.2418
+  timing: data=37.2ms  fwd=145.7ms  bwd=110.7ms  total=294.3ms
+[ 299800] loss=15.5967  ema_loss=15.1156  gap=0.2368  ema_gap=0.2291  mixup=56/200  3.3 sps  ETA 0.0h
+              R²_rand=0.5742  R²_naive=0.4815  U_t=0.0986  U_b=0.1382  AUC=0.9498  Top1=0.2128
+  timing: data=5.2ms  fwd=146.8ms  bwd=111.1ms  total=263.8ms
+[ 300000] loss=14.9296  ema_loss=15.1281  gap=0.2733  ema_gap=0.2267  mixup=63/200  3.3 sps  ETA 0.0h
+              R²_rand=0.6415  R²_naive=0.5456  U_t=0.0868  U_b=0.1410  AUC=0.9631  Top1=0.2136
+  timing: data=5.1ms  fwd=144.8ms  bwd=111.0ms  total=261.6ms
+  -> Saved /home/jupyter/cf373_r3/sync/arm6_v2_combab_alignS/leg_300k/cf393_arm6_v2_combab_alignS_cf373k3_300k.pth
+  -> Saved /home/jupyter/cf373_r3/sync/arm6_v2_combab_alignS/leg_300k/cf393_arm6_v2_combab_alignS_cf373k3_final.pth
+
+Done in 8.5h. Best gap=0.2490 at step 173400, Best loss=15.0434 at step 24200
