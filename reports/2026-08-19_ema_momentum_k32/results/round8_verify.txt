@@ -1,0 +1,16 @@
+index, memory.used [MiB], memory.total [MiB], utilization.gpu [%]
+0, 11295 MiB, 32607 MiB, 91 %
+pid, used_gpu_memory [MiB]
+2787, 5606 MiB
+3009, 5674 MiB
+--- r100_09b seed 20260524 align_w 1.0 ---
+csv /root/cf404_runs/r100_09b/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_mean_r100_09b_losses.csv
+depth_cols 33
+rows 701
+step,loss,loss_tau_ref,gap,gap_ratio,ff,fp,tp,cross_batch,hf_rows_consumed,synth_rows_consumed,mixup_applied,r2_random,r2_naive,u_temporal,u_batch,auc,top1,top3
+1,14.273473739624023,20.18562889099121,-0.39251360297203064,2.5466037138956494,0.35369572043418884,0.7462093234062195,0.46994832158088684,0.1690085083246231,64,
+2,13.869218826293945,18.495637893676758,-0.4268050491809845,2.716294127051201,0.3245166838169098,0.7513217329978943,0.39133766293525696,0.0862002968788147,128,0
+cmdline ema 0.9 1.0 100000
+cmdline seed 20260524
+cmdline align_w 1.0
+cmdline reduce mean

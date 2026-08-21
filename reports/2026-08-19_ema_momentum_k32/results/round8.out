@@ -3,3 +3,151 @@
 [08-21 09:20:21] [#404 round8] 3 of 3 arm(s) need a score
 [08-21 09:20:21] [#404 round8] s08d: the 40k backbone is here, 5195999 B — it goes UP
 [08-21 09:20:21] [#404 round8] searching — 1 card, datacenter, reliability >= 0.99, <= $0.45/h
+[08-21 09:31:43] [#404 round8] instance 48289133 at ssh6.vast.ai:19132
+[08-21 09:31:47] [#404 round8] card(s): 0, NVIDIA GeForce RTX 5090, 32607 MiB, Default  count=1
+[08-21 09:31:47] [#404 round8] the head lane and the backbone lane share card 0 (Default compute mode, 32607 MiB)
+[08-21 09:31:50] [#404 round8] bootstrap
+[08-21 09:35:03] [#404 round8] bootstrap OK
+[08-21 09:35:07] [#404 round8] the box's arms table holds: a08 a09 s08 s09 a095 s08b s08c s08d r100_09 r100_08 w3_s08 r60_09 r100_095 r100_09b 
+[08-21 09:35:20] [#404 round8] the box builds r100_09b at '--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000', seed '20260524', align_w 1.0, k=32, reduce=mean
+[08-21 09:35:24] [#404 round8] s08d: pushing the backbone, 5195999 B
+[08-21 09:35:41] [#404 round8] s08d: the backbone is on the box, 5195999 B
+[08-21 09:35:53] [#404 round8] sync loop: 2 for /home/jupyter/cf404_sync/box_r8, 2 file(s) here
+[08-21 09:36:00] [#404 round8] s08d: starting its head, 30000 steps, seed 20260722, card 0
+[08-21 09:40:30] [#404 round8] head lane(s) started first: s08d
+[08-21 09:40:37] [#404 round8] s08d head: process=yes file=[   3000] after 0s
+[08-21 09:40:43] [#404 round8] r100_09b: starting a backbone lane on card 0
+[08-21 09:45:43] [#404 round8] backbone lanes started this round: r100_09b
+[08-21 09:45:43] [#404 round8] waiting for the guard line of each new lane
+  [08-21 08:40:52] [#404] arm r100_09b ema='0.9 1.0 100000' reduce=mean seed=20260524 align_w=1.0 OK — all four reached the trainer
+[08-21 09:45:50] [#404 round8] waiting for the first rows of each losses CSV
+  index, memory.used [MiB], memory.total [MiB], utilization.gpu [%]
+  0, 11295 MiB, 32607 MiB, 91 %
+  pid, used_gpu_memory [MiB]
+  2787, 5606 MiB
+  3009, 5674 MiB
+  --- r100_09b seed 20260524 align_w 1.0 ---
+  csv /root/cf404_runs/r100_09b/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_mean_r100_09b_losses.csv
+  depth_cols 33
+  rows 701
+  step,loss,loss_tau_ref,gap,gap_ratio,ff,fp,tp,cross_batch,hf_rows_consumed,synth_rows_consumed,mixup_applied,r2_random,r2_naive,u_temporal,u_batch,auc,top1,top3
+  1,14.273473739624023,20.18562889099121,-0.39251360297203064,2.5466037138956494,0.35369572043418884,0.7462093234062195,0.46994832158088684,0.1690085083246231,64,
+  2,13.869218826293945,18.495637893676758,-0.4268050491809845,2.716294127051201,0.3245166838169098,0.7513217329978943,0.39133766293525696,0.0862002968788147,128,0
+  cmdline ema 0.9 1.0 100000
+  cmdline seed 20260524
+  cmdline align_w 1.0
+  cmdline reduce mean
+[08-21 09:46:14] [#404 round8] GPU memory in use 11295 MiB, 2 compute app(s)
+[08-21 09:46:14] [#404 round8] VERIFIED — every lane at 33 depth columns, and at the
+[08-21 09:46:14] [#404 round8]   momentum, the SEED, the reduction and the align weight its row names
+[08-21 09:46:18] [#404 round8]   r100_09b STEP RATE 2.5 sps  ETA 4.3h
+[08-21 09:46:18] [#404 round8] waiting for 40000 steps on 1 lane(s) and 2 head(s)
+[08-21 09:46:35] [#404 round8]   r100_09b bb=[    800] loss=12.5785  ema_loss=12.6743  gap=0.0804  ema_gap=0.0857  mixup=60/200  2.5 sps  ETA 4.3h
+[08-21 09:46:42] [#404 round8]   s08d head=0 B [   7500]
+[08-21 09:46:48] [#404 round8]   r100_09b head=0 B 
+[08-21 09:46:50] [#404 round8]   spend $0.12 of $2.60
+[08-21 10:18:18] [#404 round8]   r100_09b bb=[   5800] loss=12.6855  ema_loss=12.6914  gap=0.1085  ema_gap=0.1197  mixup=66/200  2.6 sps  ETA 3.7h
+[08-21 10:18:25] [#404 round8]   s08d head=0 B [  29000]
+[08-21 10:18:32] [#404 round8]   r100_09b head=0 B 
+[08-21 10:18:33] [#404 round8]   spend $0.35 of $2.60
+[08-21 10:49:40] [#404 round8]   r100_09b bb=[  11200] loss=12.7965  ema_loss=12.7278  gap=0.1488  ema_gap=0.1420  mixup=57/200  2.7 sps  ETA 2.9h
+[08-21 10:49:47] [#404 round8]   s08d head=450011 B [  30000]
+[08-21 10:49:53] [#404 round8]   r100_09b head=0 B 
+[08-21 10:49:55] [#404 round8]   spend $0.57 of $2.60
+[08-21 11:21:08] [#404 round8]   r100_09b bb=[  16600] loss=12.7080  ema_loss=12.7145  gap=0.0943  ema_gap=0.1142  mixup=55/200  2.8 sps  ETA 2.4h
+[08-21 11:21:17] [#404 round8]   s08d head=450011 B [  30000]
+[08-21 11:21:24] [#404 round8]   r100_09b head=0 B 
+[08-21 11:21:25] [#404 round8]   spend $0.80 of $2.60
+[08-21 11:52:34] [#404 round8]   r100_09b bb=[  22000] loss=12.7400  ema_loss=12.6972  gap=0.1349  ema_gap=0.0904  mixup=62/200  2.8 sps  ETA 1.8h
+[08-21 11:52:41] [#404 round8]   s08d head=450011 B [  30000]
+[08-21 11:52:48] [#404 round8]   r100_09b head=0 B 
+[08-21 11:52:49] [#404 round8]   spend $1.02 of $2.60
+[08-21 12:24:04] [#404 round8]   r100_09b bb=[  27400] loss=12.6647  ema_loss=12.7162  gap=0.1437  ema_gap=0.0769  mixup=64/200  2.8 sps  ETA 1.2h
+[08-21 12:24:11] [#404 round8]   s08d head=450011 B [  30000]
+[08-21 12:24:18] [#404 round8]   r100_09b head=0 B 
+[08-21 12:24:19] [#404 round8]   spend $1.24 of $2.60
+[08-21 12:55:40] [#404 round8]   r100_09b bb=[  33000] loss=12.7821  ema_loss=12.7019  gap=0.1399  ema_gap=0.0954  mixup=72/200  2.8 sps  ETA 0.7h
+[08-21 12:55:47] [#404 round8]   s08d head=450011 B [  30000]
+[08-21 12:55:54] [#404 round8]   r100_09b head=0 B 
+[08-21 12:55:55] [#404 round8]   spend $1.47 of $2.60
+[08-21 13:27:07] [#404 round8]   r100_09b bb=[  38400] loss=12.5599  ema_loss=12.5806  gap=0.1041  ema_gap=0.0880  mixup=45/200  2.8 sps  ETA 0.2h
+[08-21 13:27:14] [#404 round8]   s08d head=450011 B [  30000]
+[08-21 13:27:21] [#404 round8]   r100_09b head=0 B 
+[08-21 13:27:22] [#404 round8]   spend $1.69 of $2.60
+[08-21 13:37:59] [#404 round8] r100_09b: starting its head, 30000 steps, seed 20260722, card 0
+[08-21 14:04:15] [#404 round8]   r100_09b bb=[  40000] loss=12.5553  ema_loss=12.5641  gap=0.1091  ema_gap=0.0851  mixup=62/200  2.8 sps  ETA 0.0h
+[08-21 14:04:22] [#404 round8]   s08d head=450011 B [  30000]
+[08-21 14:04:28] [#404 round8]   r100_09b head=0 B [  24000]
+[08-21 14:04:30] [#404 round8]   spend $1.96 of $2.60
+[08-21 14:15:12] [#404 round8] backbones left 0, heads left 0
+[08-21 14:15:20] [#404 round8] heads on the box: s08d=450011 r100_09b=450147 
+[08-21 14:15:21] [#404 round8] stopping the sync loop (1 loop(s))
+[08-21 14:15:21] [#404 round8] r100_09b: pulling the backbone side into /home/jupyter/cf404_sync/box_a/sync
+[08-21 14:15:27] [#404 round8]   cf393_arm6_v2_combab_alignT_cf373k32_mean_r100_09b_40k.pth 5196527 B
+[08-21 14:15:33] [#404 round8]   cf393_arm6_v2_combab_alignT_cf373k32_mean_r100_09b_40k_optimizer.pth 5795376 B
+[08-21 14:24:27] [#404 round8]   cf393_arm6_v2_combab_alignT_cf373k32_mean_r100_09b_losses.csv 42746751 B
+[08-21 14:24:34] [#404 round8]   cf393_arm6_v2_combab_alignT_cf373k32_mean_r100_09b_attn_amplitude.csv 178152 B
+[08-21 14:24:38] [#404 round8]   cf393_arm6_v2_combab_alignT_cf373k32_mean_r100_09b_latent_drift.csv 510 B
+[08-21 14:24:42] [#404 round8]   run_cf393_arm6_v2_combab_alignT_cf373k32_mean_r100_09b.log 59806 B
+[08-21 14:24:42] [#404 round8] s08d: pulling the head into /home/jupyter/cf404_sync/box_a/sync
+[08-21 14:24:42] [#404 round8]   have qhead_s08d_bb40k_h30k_student_s20260722_final.pth
+[08-21 14:25:08] [#404 round8] r100_09b: pulling the head into /home/jupyter/cf404_sync/box_a/sync
+[08-21 14:25:13] [#404 round8]   qhead_r100_09b_bb40k_h30k_student_s20260722_final.pth 450147 B
+[08-21 14:25:28] [#404 round8] checking that every pulled artefact reads, before the box goes
+  OK cf393_arm6_v2_combab_alignT_cf373k32_mean_s08c_40k.pth 162 tensors
+  OK qhead_s08c_bb40k_h30k_student_s20260722_final.pth 28 tensors
+  OK cf393_arm6_v2_combab_alignT_cf373k32_mean_s08d_40k.pth 162 tensors
+  OK qhead_s08d_bb40k_h30k_student_s20260722_final.pth 28 tensors
+  OK cf393_arm6_v2_combab_alignT_cf373k32_mean_r100_09b_40k.pth 162 tensors
+  OK qhead_r100_09b_bb40k_h30k_student_s20260722_final.pth 28 tensors
+[08-21 14:25:31] [#404 round8] every artefact reads and every head is here — tearing the box down
+[08-21 14:25:31] [#404 round8] teardown: every head is here (s08d=450011 r100_09b=450147 ) — destroying 48289133 (cf404-box-r8)
+[08-21 14:25:31] [#404 round8] teardown: stopping the sync loop (0 loop(s))
+  Destroyed instance 48289133
+    Label:  cf404-box-r8
+    GPU:    1× RTX 5090
+    Uptime: 4h 55m
+    Spent:  $2.11
+  No running instances found.
+[08-21 14:25:42] [#404 round8] credit after: Credit:  $1.70 Total:   $1.70 
+[08-21 14:25:42] [#404 round8] starting the 97-config GIFT-Evals for 'r100_09b' on elisa's CPUs, detached
+[08-21 14:26:42] [#404 round8] evals launched, 2 eval process(es) on elisa
+[08-21 14:26:42] [#404 round8] waiting for 3 score(s)
+[08-21 14:26:42] [#404 round8]   2 of 3 scored
+[08-21 14:56:42] [#404 round8]   2 of 3 scored
+[08-21 15:26:42] [#404 round8]   2 of 3 scored
+[08-21 15:41:42] [#404 round8] SCORE s08c 1.3214 (seed 20260522, holds 0.840 at 40000)
+[08-21 15:41:42] [#404 round8] SCORE s08d 1.2893 (seed 20260523, holds 0.840 at 40000)
+[08-21 15:41:42] [#404 round8] SCORE r100_09b 1.1491 (seed 20260524, holds 0.940 at 40000)
+[08-21 15:41:42] [#404 round8] collect.sh, then every figure
+  | s09 | 0.9, to 1.0 at 200k | 0.920 | 1 | 20260520 | 0.972 | 1.1784 | +0.0922 |
+  | a09 | 0.9, fixed | 0.900 | 1 | 20260520 | 0.979 | 1.1819 | +0.0957 |
+  | r60_09 | 0.9, to 1.0 at 60k | 0.967 | 1 | 20260520 | 0.976 | 1.1873 | +0.1011 |
+  | a095 | 0.95, fixed | 0.950 | 1 | 20260520 | 0.982 | 1.1907 | +0.1045 |
+  | w3_s08 | 0.8, to 1.0 at 200k | 0.840 | 3 | 20260520 | 0.936 | 1.2060 | +0.1198 |
+  | r100_095 | 0.95, to 1.0 at 100k | 0.970 | 1 | 20260520 | 0.978 | 1.2130 | +0.1268 |
+  | r100_08 | 0.8, to 1.0 at 100k | 0.880 | 1 | 20260520 | 0.954 | 1.2235 | +0.1373 |
+  | a08 | 0.8, fixed | 0.800 | 1 | 20260520 | 0.927 | 1.2309 | +0.1447 |
+  | s08d | 0.8, to 1.0 at 200k | 0.840 | 1 | 20260523 | 0.975 | 1.2893 | +0.2031 |
+  | s08c | 0.8, to 1.0 at 200k | 0.840 | 1 | 20260522 | 0.978 | 1.3214 | +0.2352 |
+  | s08b | 0.8, to 1.0 at 200k | 0.840 | 1 | 20260521 | 0.575 (collapsed) | 1.5459 | +0.4597 |
+  
+  | reference | GM-Relative MASE |
+  |---|---|
+  | k = 3, bb200k, the best score of the project | 1.0660 |
+  | k = 3, bb40k | 1.0862 |
+  | k = 32, mean, student, bb200k | 1.1637 |
+  | k = 32, mean, student, bb40k | 1.2082 |
+  | the k = 0 parent of this cell, bb40k | 1.1600 |
+  
+  `r100_09b` wins, at 1.1491. Its momentum starts at 0.9 (to 1.0 at 100k) and holds 0.940 at 40,000 steps. It sits +0.0629 from the k = 3 score at bb40k, 1.0862, so it does not go below that score.
+  
+  `s08`, `s08c`, `s08d` are one arm at 3 backbone seeds that did not collapse. They span 0.1432 (12.2%), which is the repeat spread this card measures. `r100_09b`, `r100_09`, `s08`, `s09`, `a09`, `r60_09`, `a095`, `w3_s08`, `r100_095`, `r100_08`, `a08`, `s08d` all sit within that spread of the best score, so this card does not rank them.
+  
+  `a09` 1.1819 and `a095` 1.1907 are 0.0088 apart. The repeat spread is 0.1432. The gap is SMALLER than the spread, so this card does NOT separate the two arms.
+  /home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+    warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/plots/backbone_health.png — 14 arm(s)
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/seed_report.md
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/seed_table.csv — 4 row(s)
+[08-21 15:42:15] [#404 round8] ROUND 8 DONE — 3 of 3 arm(s) scored

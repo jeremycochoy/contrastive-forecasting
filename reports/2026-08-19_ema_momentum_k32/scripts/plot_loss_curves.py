@@ -53,17 +53,14 @@ def _colours():
 arm_colours = _colours()
 
 # The reader sees the momentum and the schedule, never the internal arm code.
-# A seed appears only where two arms share a momentum and a schedule.
-ARM_LABEL = {
-    "a08": "0.8 constant",
-    "a09": "0.9 constant",
-    "a095": "0.95 constant",
-    "s08": "0.8 rising, seed 20260520",
-    "s08b": "0.8 rising, seed 20260521",
-    "s08c": "0.8 rising, seed 20260522",
-    "s08d": "0.8 rising, seed 20260523",
-    "s09": "0.9 rising",
-}
+# The map is NOT written here. A hand-written dict named eight arms, and every
+# arm added after it fell through to its own internal code in the legend.
+# `plot_backbone_health.arms()` builds the label from `arms.tsv`, so one arm
+# carries one label on every figure of this study.
+sys.path.insert(0, str(HERE))
+from plot_backbone_health import arms as _arms  # noqa: E402
+
+ARM_LABEL = dict(_arms())
 
 
 def read_losses(path) -> list[tuple[int, float]]:

@@ -1,5 +1,6 @@
 | arm | EMA momentum | holds at 40k | L_align weight | backbone seed | AUC at the stop | GM-Relative MASE | vs k = 3 at bb40k |
 |---|---|---|---|---|---|---|---|
+| r100_09b | 0.9, to 1.0 at 100k | 0.940 | 1 | 20260524 | 0.974 | 1.1491 | +0.0629 |
 | r100_09 | 0.9, to 1.0 at 100k | 0.940 | 1 | 20260520 | 0.978 | 1.1507 | +0.0645 |
 | s08 | 0.8, to 1.0 at 200k | 0.840 | 1 | 20260520 | 0.957 | 1.1782 | +0.0920 |
 | s09 | 0.9, to 1.0 at 200k | 0.920 | 1 | 20260520 | 0.972 | 1.1784 | +0.0922 |
@@ -10,6 +11,8 @@
 | r100_095 | 0.95, to 1.0 at 100k | 0.970 | 1 | 20260520 | 0.978 | 1.2130 | +0.1268 |
 | r100_08 | 0.8, to 1.0 at 100k | 0.880 | 1 | 20260520 | 0.954 | 1.2235 | +0.1373 |
 | a08 | 0.8, fixed | 0.800 | 1 | 20260520 | 0.927 | 1.2309 | +0.1447 |
+| s08d | 0.8, to 1.0 at 200k | 0.840 | 1 | 20260523 | 0.975 | 1.2893 | +0.2031 |
+| s08c | 0.8, to 1.0 at 200k | 0.840 | 1 | 20260522 | 0.978 | 1.3214 | +0.2352 |
 | s08b | 0.8, to 1.0 at 200k | 0.840 | 1 | 20260521 | 0.575 (collapsed) | 1.5459 | +0.4597 |
 
 | reference | GM-Relative MASE |
@@ -20,4 +23,8 @@
 | k = 32, mean, student, bb40k | 1.2082 |
 | the k = 0 parent of this cell, bb40k | 1.1600 |
 
-`r100_09` wins, at 1.1507. Its momentum starts at 0.9 (to 1.0 at 100k) and holds 0.940 at 40,000 steps. It sits +0.0645 from the k = 3 score at bb40k, 1.0862, so it does not go below that score.
+`r100_09b` wins, at 1.1491. Its momentum starts at 0.9 (to 1.0 at 100k) and holds 0.940 at 40,000 steps. It sits +0.0629 from the k = 3 score at bb40k, 1.0862, so it does not go below that score.
+
+`s08`, `s08c`, `s08d` are one arm at 3 backbone seeds that did not collapse. They span 0.1432 (12.2%), which is the repeat spread this card measures. `r100_09b`, `r100_09`, `s08`, `s09`, `a09`, `r60_09`, `a095`, `w3_s08`, `r100_095`, `r100_08`, `a08`, `s08d` all sit within that spread of the best score, so this card does not rank them.
+
+`a09` 1.1819 and `a095` 1.1907 are 0.0088 apart. The repeat spread is 0.1432. The gap is SMALLER than the spread, so this card does NOT separate the two arms.

@@ -60,6 +60,14 @@ def _module(name: str, filename: str):
 
 # One colour per arm, shared with every other figure of this study.
 arm_colours = _module("cf404_arm_colours", "arm_colours.py").colours
+
+# The label the reader sees for one arm. It names the momentum and the
+# schedule, never the internal arm code. `plot_backbone_health.arms()` builds
+# it from `arms.tsv`, so one arm carries one label on every figure.
+sys.path.insert(0, str(HERE))
+from plot_backbone_health import arms as _arms  # noqa: E402
+
+ARM_LABEL = dict(_arms())
 REF = _module("cf404_refs", "references.py")
 
 # #373's committed per-domain table, and the row this card compares against.
@@ -195,7 +203,7 @@ def draw(by_arm: dict[str, dict[str, float]], out, reference=None):
     angles.append(angles[0])
 
     palette = arm_colours(sorted(by_arm))
-    fig, ax = plt.subplots(figsize=(6.8, 6.4),
+    fig, ax = plt.subplots(figsize=(7.6, 7.2),
                            subplot_kw={"projection": "polar"})
     ax.set_theta_offset(math.pi / 2)
     ax.set_theta_direction(-1)
@@ -228,7 +236,8 @@ def draw(by_arm: dict[str, dict[str, float]], out, reference=None):
     for arm in sorted(by_arm):
         values = polygon_of(by_arm[arm], domains)
         colour = palette[arm]
-        ax.plot(angles, values, lw=1.8, label=arm, color=colour, zorder=4)
+        ax.plot(angles, values, lw=1.8, label=ARM_LABEL.get(arm, arm),
+                color=colour, zorder=4)
         holes = [d for d in domains if d not in by_arm[arm]]
         if holes:
             # No fill: a polygon with a break encloses no area. The line alone
@@ -243,7 +252,8 @@ def draw(by_arm: dict[str, dict[str, float]], out, reference=None):
     ax.set_title("GM-Relative MASE per domain, at 40,000 backbone steps\n"
                  "(radial axis log2, smaller is better)", pad=22)
     ax.grid(alpha=0.3)
-    ax.legend(fontsize=8, loc="upper right", bbox_to_anchor=(1.24, 1.12))
+    ax.legend(fontsize=8, loc="upper center", bbox_to_anchor=(0.5, -0.06),
+              ncol=2, frameon=False)
     fig.tight_layout()
     Path(out).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=160, bbox_inches="tight")
