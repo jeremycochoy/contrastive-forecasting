@@ -42,6 +42,13 @@ def _load(name, filename):
 REF = _load("cf404_refs", "references.py")
 SEEDS = _load("cf404_seeds", "seed_report.py")
 MOM = _load("cf404_momentum", "plot_momentum.py")
+AT = _load("cf404_at_stop", "plot_momentum_at_stop.py")
+
+# One colour per kind of schedule, the same two the reached-value figure
+# uses. The ramp length is not in the colour.
+KIND_COLOUR = {"fixed": "#1f77b4", "ramp": "#d95f02"}
+KIND_NAME = {"fixed": "the momentum holds one value",
+             "ramp": "the momentum rises toward 1.0"}
 
 
 def arm_label(r) -> str:
@@ -52,7 +59,8 @@ def arm_label(r) -> str:
         base = f"{r['alpha']:g} rises to 1.0 over {r['ramp'] // 1000:g}k"
     if float(r.get("align_w", 1.0)) != 1.0:
         base += f", align weight {float(r['align_w']):g}"
-    return base
+    reached = AT.momentum_at(r["alpha"], r["schedule"], r["ramp"], 40000)
+    return f"{base}  (reaches {reached:.3f})"
 
 
 def group(rows):
@@ -88,12 +96,14 @@ def draw(rows, out, fell=()):
         dead = [r for r in runs if id(r) in fell_ids]
         if len(alive) > 1:
             lo, hi = min(r["score"] for r in alive), max(r["score"] for r in alive)
-            ax.plot([lo, hi], [y, y], color="#1f77b4", linewidth=2.4, zorder=2)
+            colour = KIND_COLOUR[runs[0]["schedule"]]
+            ax.plot([lo, hi], [y, y], color=colour, linewidth=2.4,
+                    zorder=2)
             ax.text(hi + 0.006, y, f"range {hi - lo:.4f}", fontsize=7.5,
-                    color="#1f77b4", va="center")
+                    color=colour, va="center")
         for r in alive:
             ax.plot([r["score"]], [y], marker="o", markersize=7,
-                    color="#1f77b4", zorder=3)
+                    color=KIND_COLOUR[r["schedule"]], zorder=3)
         for r in dead:
             ax.plot([r["score"]], [y], marker="X", markersize=9,
                     color="#d62728", zorder=3)
@@ -102,6 +112,11 @@ def draw(rows, out, fell=()):
             ax.text(best - 0.006, y, f"{best:.4f}", fontsize=7.5,
                     color="0.25", va="center", ha="right")
 
+    handles = [plt.Line2D([], [], marker="o", linestyle="-",
+                          color=KIND_COLOUR[k], label=KIND_NAME[k])
+               for k in ("fixed", "ramp")]
+    ax.legend(handles=handles, fontsize=8, loc="lower right",
+              framealpha=0.9)
     ax.set_yticks(range(len(order)))
     ax.set_yticklabels(list(reversed(order)), fontsize=9)
     ax.set_xlabel("GM-Relative MASE over 97 configs, lower is better")
