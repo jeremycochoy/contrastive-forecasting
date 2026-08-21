@@ -1,5 +1,5 @@
-The ribbon is ±0.0024, one pooled head-seed standard deviation over 2 (stop, head) rows of 3 draws each. Measured ranges: 0.0018, 0.0064.
-A standard deviation from 3 draws carries about 40% relative uncertainty, so read the range, not the ribbon edge.
+The ribbon is ±0.0024, one pooled head-seed standard deviation over 4 (stop, head) rows of 2/3 draws each. Measured ranges: 0.0018, 0.0038, 0.0042, 0.0064.
+A standard deviation from 2 draws carries about 40% relative uncertainty, so read the range, not the ribbon edge.
 The ribbon pools the student and the teacher into one number, so it assumes the two heads share one spread.
-Draws exist at 200k only. At 40k, 100k the ribbon is an extrapolation.
+Draws exist at 200k, 300k only. At 40k, 100k the ribbon is an extrapolation.
 The three hollow points are #373's. 40k comes from the cf373_r2 tree, 100k and 200k come from cf373_r3, and the 200k checkpoint file carries an _r2_ infix from the round that wrote it.

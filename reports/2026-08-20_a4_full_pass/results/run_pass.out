@@ -6,3 +6,25 @@
 [08-21 03:52:49] [cf407] LEG done 300k
 [08-21 03:52:49] [cf407] HEAD 300k student (attempt 1)
 [08-21 03:52:49] [A4_k3_bb300k_student] head-train start enc=student steps=30000 seed=20260722 gpu=0 bb=cf393_arm6_v2_combab_alignS_cf373k3_300k.pth
+[08-21 04:54:08] [A4_k3_bb300k_student] head-train rc=0
+[08-21 04:54:08] [A4_k3_bb300k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-21 06:09:42] [A4_k3_bb300k_student] eval rc=0
+[08-21 06:09:42] [A4_k3_bb300k_student] DONE — GM-Relative MASE 1.0867
+[08-21 06:09:42] [cf407] HEAD 300k student rc=0
+[08-21 06:09:42] [cf407] HEAD 300k teacher (attempt 1)
+[08-21 06:09:42] [A4_k3_bb300k_teacher] head-train start enc=teacher steps=30000 seed=20260722 gpu=0 bb=cf393_arm6_v2_combab_alignS_cf373k3_300k.pth
+[08-21 07:18:49] [A4_k3_bb300k_teacher] head-train rc=0
+[08-21 07:18:49] [A4_k3_bb300k_teacher] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-21 08:45:27] [A4_k3_bb300k_teacher] eval rc=0
+[08-21 08:45:27] [A4_k3_bb300k_teacher] DONE — GM-Relative MASE 1.1030
+[08-21 08:45:27] [cf407] HEAD 300k teacher rc=0
+A4  arm6_v2_combab_alignS  k=3  seed 20260520
+resume  cf393_arm6_v2_combab_alignS_cf373k3_r2_200k.pth  (+ optimizer)
+stops   300000, 450000, 665000
+heads   student, teacher  30000 steps  seed 20260722
+best before this card: 1.0660 (A4_k3_bb200k_student)
+student  bb40k=1.0862  bb100k=1.0801  bb200k=1.0660  bb300k=1.0867
+teacher  bb40k=1.0855  bb100k=1.0874  bb200k=1.0828  bb300k=1.1030
+[08-21 08:45:28] [cf407] LEG -> 450k
+[08-21 08:45:28] [arm6_v2_combab_alignS] RESUME from cf393_arm6_v2_combab_alignS_cf373k3_300k.pth (step 300k)
+[08-21 08:45:28] [arm6_v2_combab_alignS] START target=450000 gpu=0 save_every=20000 leg=/home/jupyter/cf373_r3/sync/arm6_v2_combab_alignS/leg_450k

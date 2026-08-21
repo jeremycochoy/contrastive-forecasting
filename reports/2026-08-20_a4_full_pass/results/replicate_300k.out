@@ -4,3 +4,25 @@
 [2026-08-21T02:53:53Z] [rep300k] DRAW A4_k3_bb300k_student_s20260723 start
 [2026-08-21T02:53:53Z] [rep300k] DRAW A4_k3_bb300k_student_s20260724 start
 [08-21 03:53:53] [A4_k3_bb300k_student_s20260723] head-train start enc=student steps=30000 seed=20260723 gpu=1 bb=cf393_arm6_v2_combab_alignS_cf373k3_300k.pth
+[08-21 04:54:28] [A4_k3_bb300k_student_s20260723] head-train rc=0
+[08-21 04:54:28] [A4_k3_bb300k_student_s20260723] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-21 04:54:28] [A4_k3_bb300k_student_s20260724] head-train start enc=student steps=30000 seed=20260724 gpu=1 bb=cf393_arm6_v2_combab_alignS_cf373k3_300k.pth
+[08-21 06:00:51] [A4_k3_bb300k_student_s20260724] head-train rc=0
+[08-21 06:00:51] [A4_k3_bb300k_student_s20260724] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-21 06:09:57] [A4_k3_bb300k_student_s20260723] eval rc=0
+[08-21 06:09:57] [A4_k3_bb300k_student_s20260723] DONE — GM-Relative MASE 1.0883
+[2026-08-21T05:09:57Z] [rep300k] DRAW A4_k3_bb300k_student_s20260723 DONE 1.0883
+[2026-08-21T05:09:57Z] [rep300k] DRAW A4_k3_bb300k_teacher_s20260723 start
+[08-21 06:09:57] [A4_k3_bb300k_teacher_s20260723] head-train start enc=teacher steps=30000 seed=20260723 gpu=1 bb=cf393_arm6_v2_combab_alignS_cf373k3_300k.pth
+[08-21 07:14:09] [A4_k3_bb300k_student_s20260724] eval rc=0
+[08-21 07:14:09] [A4_k3_bb300k_student_s20260724] DONE — GM-Relative MASE 1.0841
+[2026-08-21T06:14:09Z] [rep300k] DRAW A4_k3_bb300k_student_s20260724 DONE 1.0841
+[2026-08-21T06:14:09Z] [rep300k] DRAW A4_k3_bb300k_teacher_s20260724 start
+[08-21 07:21:34] [A4_k3_bb300k_teacher_s20260723] head-train rc=0
+[08-21 07:21:34] [A4_k3_bb300k_teacher_s20260723] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-21 07:21:34] [A4_k3_bb300k_teacher_s20260724] head-train start enc=teacher steps=30000 seed=20260724 gpu=1 bb=cf393_arm6_v2_combab_alignS_cf373k3_300k.pth
+[08-21 08:50:15] [A4_k3_bb300k_teacher_s20260723] eval rc=0
+[08-21 08:50:15] [A4_k3_bb300k_teacher_s20260723] DONE — GM-Relative MASE 1.0992
+[2026-08-21T07:50:15Z] [rep300k] DRAW A4_k3_bb300k_teacher_s20260723 DONE 1.0992
+[08-21 08:56:44] [A4_k3_bb300k_teacher_s20260724] head-train rc=0
+[08-21 08:56:44] [A4_k3_bb300k_teacher_s20260724] eval start (97 configs, B4, forecast-len 16, elisa CPUs)

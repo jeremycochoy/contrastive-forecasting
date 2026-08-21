@@ -28,3 +28,153 @@ wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/results/f
   head-seed band: +-0.0024, pooled over 2 (stop, head) pairs with 2 draws or more
 [2026-08-21T03:05:06Z] [cf407-mirror] 87 files -> /home/jupyter/cf407_durable (fail=0)
 [2026-08-21T03:05:06Z] [cf407-readback] read-back done for stops 200 300 450 665 (fail=0)
+[cf407-collect-rep] replicate pairs 6  skipped 0
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/plots/full_pass.png
+wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/results/figure_caption.txt
+  caption: The ribbon is ±0.0024, one pooled head-seed standard deviation over 2 (stop, head) rows of 3 draws each. Measured ranges: 0.0018, 0.0064.
+  caption: A standard deviation from 3 draws carries about 40% relative uncertainty, so read the range, not the ribbon edge.
+  caption: The ribbon pools the student and the teacher into one number, so it assumes the two heads share one spread.
+  caption: Draws exist at 200k only. At 40k, 100k the ribbon is an extrapolation.
+  caption: The three hollow points are #373's. 40k comes from the cf373_r2 tree, 100k and 200k come from cf373_r3, and the 200k checkpoint file carries an _r2_ infix from the round that wrote it.
+  student  bb40k=1.0862  bb100k=1.0801  bb200k=1.0660
+  teacher  bb40k=1.0855  bb100k=1.0874  bb200k=1.0828
+  head-seed band: +-0.0024, pooled over 2 (stop, head) pairs with 2 draws or more
+[2026-08-21T03:35:17Z] [cf407-mirror] 93 files -> /home/jupyter/cf407_durable (fail=0)
+[2026-08-21T03:35:17Z] [cf407-readback] read-back done for stops 200 300 450 665 (fail=0)
+[cf407-collect-rep] replicate pairs 6  skipped 0
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/plots/full_pass.png
+wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/results/figure_caption.txt
+  caption: The ribbon is ±0.0024, one pooled head-seed standard deviation over 2 (stop, head) rows of 3 draws each. Measured ranges: 0.0018, 0.0064.
+  caption: A standard deviation from 3 draws carries about 40% relative uncertainty, so read the range, not the ribbon edge.
+  caption: The ribbon pools the student and the teacher into one number, so it assumes the two heads share one spread.
+  caption: Draws exist at 200k only. At 40k, 100k the ribbon is an extrapolation.
+  caption: The three hollow points are #373's. 40k comes from the cf373_r2 tree, 100k and 200k come from cf373_r3, and the 200k checkpoint file carries an _r2_ infix from the round that wrote it.
+  student  bb40k=1.0862  bb100k=1.0801  bb200k=1.0660
+  teacher  bb40k=1.0855  bb100k=1.0874  bb200k=1.0828
+  head-seed band: +-0.0024, pooled over 2 (stop, head) pairs with 2 draws or more
+[2026-08-21T04:05:23Z] [cf407-mirror] 93 files -> /home/jupyter/cf407_durable (fail=0)
+[2026-08-21T04:05:23Z] [cf407-readback] read-back done for stops 200 300 450 665 (fail=0)
+[cf407-collect-rep] replicate pairs 6  skipped 0
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/plots/full_pass.png
+wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/results/figure_caption.txt
+  caption: The ribbon is ±0.0024, one pooled head-seed standard deviation over 2 (stop, head) rows of 3 draws each. Measured ranges: 0.0018, 0.0064.
+  caption: A standard deviation from 3 draws carries about 40% relative uncertainty, so read the range, not the ribbon edge.
+  caption: The ribbon pools the student and the teacher into one number, so it assumes the two heads share one spread.
+  caption: Draws exist at 200k only. At 40k, 100k the ribbon is an extrapolation.
+  caption: The three hollow points are #373's. 40k comes from the cf373_r2 tree, 100k and 200k come from cf373_r3, and the 200k checkpoint file carries an _r2_ infix from the round that wrote it.
+  student  bb40k=1.0862  bb100k=1.0801  bb200k=1.0660
+  teacher  bb40k=1.0855  bb100k=1.0874  bb200k=1.0828
+  head-seed band: +-0.0024, pooled over 2 (stop, head) pairs with 2 draws or more
+[2026-08-21T04:35:31Z] [cf407-mirror] 93 files -> /home/jupyter/cf407_durable (fail=0)
+[2026-08-21T04:35:31Z] [cf407-readback] read-back done for stops 200 300 450 665 (fail=0)
+[cf407-collect-rep] replicate pairs 6  skipped 0
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/plots/full_pass.png
+wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/results/figure_caption.txt
+  caption: The ribbon is ±0.0024, one pooled head-seed standard deviation over 2 (stop, head) rows of 3 draws each. Measured ranges: 0.0018, 0.0064.
+  caption: A standard deviation from 3 draws carries about 40% relative uncertainty, so read the range, not the ribbon edge.
+  caption: The ribbon pools the student and the teacher into one number, so it assumes the two heads share one spread.
+  caption: Draws exist at 200k only. At 40k, 100k the ribbon is an extrapolation.
+  caption: The three hollow points are #373's. 40k comes from the cf373_r2 tree, 100k and 200k come from cf373_r3, and the 200k checkpoint file carries an _r2_ infix from the round that wrote it.
+  student  bb40k=1.0862  bb100k=1.0801  bb200k=1.0660
+  teacher  bb40k=1.0855  bb100k=1.0874  bb200k=1.0828
+  head-seed band: +-0.0024, pooled over 2 (stop, head) pairs with 2 draws or more
+[2026-08-21T05:05:38Z] [cf407-mirror] 93 files -> /home/jupyter/cf407_durable (fail=0)
+[2026-08-21T05:05:38Z] [cf407-readback] read-back done for stops 200 300 450 665 (fail=0)
+[cf407-collect-rep] replicate pairs 7  skipped 0
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/plots/full_pass.png
+wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/results/figure_caption.txt
+  caption: The ribbon is ±0.0024, one pooled head-seed standard deviation over 2 (stop, head) rows of 3 draws each. Measured ranges: 0.0018, 0.0064.
+  caption: A standard deviation from 3 draws carries about 40% relative uncertainty, so read the range, not the ribbon edge.
+  caption: The ribbon pools the student and the teacher into one number, so it assumes the two heads share one spread.
+  caption: Draws exist at 200k only. At 40k, 100k the ribbon is an extrapolation.
+  caption: The three hollow points are #373's. 40k comes from the cf373_r2 tree, 100k and 200k come from cf373_r3, and the 200k checkpoint file carries an _r2_ infix from the round that wrote it.
+  student  bb40k=1.0862  bb100k=1.0801  bb200k=1.0660
+  teacher  bb40k=1.0855  bb100k=1.0874  bb200k=1.0828
+  head-seed band: +-0.0024, pooled over 2 (stop, head) pairs with 2 draws or more
+[2026-08-21T05:35:45Z] [cf407-mirror] 100 files -> /home/jupyter/cf407_durable (fail=0)
+[2026-08-21T05:35:45Z] [cf407-readback] read-back done for stops 200 300 450 665 (fail=0)
+[cf407-collect-rep] replicate pairs 7  skipped 0
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/plots/full_pass.png
+wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/results/figure_caption.txt
+  caption: The ribbon is ±0.0024, one pooled head-seed standard deviation over 2 (stop, head) rows of 3 draws each. Measured ranges: 0.0018, 0.0064.
+  caption: A standard deviation from 3 draws carries about 40% relative uncertainty, so read the range, not the ribbon edge.
+  caption: The ribbon pools the student and the teacher into one number, so it assumes the two heads share one spread.
+  caption: Draws exist at 200k only. At 40k, 100k the ribbon is an extrapolation.
+  caption: The three hollow points are #373's. 40k comes from the cf373_r2 tree, 100k and 200k come from cf373_r3, and the 200k checkpoint file carries an _r2_ infix from the round that wrote it.
+  student  bb40k=1.0862  bb100k=1.0801  bb200k=1.0660
+  teacher  bb40k=1.0855  bb100k=1.0874  bb200k=1.0828
+  head-seed band: +-0.0024, pooled over 2 (stop, head) pairs with 2 draws or more
+[2026-08-21T06:05:52Z] [cf407-mirror] 100 files -> /home/jupyter/cf407_durable (fail=0)
+[2026-08-21T06:05:52Z] [cf407-readback] read-back done for stops 200 300 450 665 (fail=0)
+[cf407-collect-rep] replicate pairs 8  skipped 0
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/plots/full_pass.png
+wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/results/figure_caption.txt
+  caption: The ribbon is ±0.0024, one pooled head-seed standard deviation over 2 (stop, head) rows of 3 draws each. Measured ranges: 0.0018, 0.0064.
+  caption: A standard deviation from 3 draws carries about 40% relative uncertainty, so read the range, not the ribbon edge.
+  caption: The ribbon pools the student and the teacher into one number, so it assumes the two heads share one spread.
+  caption: Draws exist at 200k only. At 40k, 100k the ribbon is an extrapolation.
+  caption: The three hollow points are #373's. 40k comes from the cf373_r2 tree, 100k and 200k come from cf373_r3, and the 200k checkpoint file carries an _r2_ infix from the round that wrote it.
+  student  bb40k=1.0862  bb100k=1.0801  bb200k=1.0660
+  teacher  bb40k=1.0855  bb100k=1.0874  bb200k=1.0828
+  head-seed band: +-0.0024, pooled over 2 (stop, head) pairs with 2 draws or more
+[2026-08-21T06:36:00Z] [cf407-mirror] 106 files -> /home/jupyter/cf407_durable (fail=0)
+[2026-08-21T06:36:00Z] [cf407-readback] read-back done for stops 200 300 450 665 (fail=0)
+[cf407-collect-rep] replicate pairs 8  skipped 0
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/plots/full_pass.png
+wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/results/figure_caption.txt
+  caption: The ribbon is ±0.0024, one pooled head-seed standard deviation over 2 (stop, head) rows of 3 draws each. Measured ranges: 0.0018, 0.0064.
+  caption: A standard deviation from 3 draws carries about 40% relative uncertainty, so read the range, not the ribbon edge.
+  caption: The ribbon pools the student and the teacher into one number, so it assumes the two heads share one spread.
+  caption: Draws exist at 200k only. At 40k, 100k the ribbon is an extrapolation.
+  caption: The three hollow points are #373's. 40k comes from the cf373_r2 tree, 100k and 200k come from cf373_r3, and the 200k checkpoint file carries an _r2_ infix from the round that wrote it.
+  student  bb40k=1.0862  bb100k=1.0801  bb200k=1.0660
+  teacher  bb40k=1.0855  bb100k=1.0874  bb200k=1.0828
+  head-seed band: +-0.0024, pooled over 2 (stop, head) pairs with 2 draws or more
+[2026-08-21T07:06:09Z] [cf407-mirror] 106 files -> /home/jupyter/cf407_durable (fail=0)
+[2026-08-21T07:06:09Z] [cf407-readback] read-back done for stops 200 300 450 665 (fail=0)
+[cf407-collect-rep] replicate pairs 8  skipped 0
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/plots/full_pass.png
+wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/results/figure_caption.txt
+  caption: The ribbon is ±0.0024, one pooled head-seed standard deviation over 2 (stop, head) rows of 3 draws each. Measured ranges: 0.0018, 0.0064.
+  caption: A standard deviation from 3 draws carries about 40% relative uncertainty, so read the range, not the ribbon edge.
+  caption: The ribbon pools the student and the teacher into one number, so it assumes the two heads share one spread.
+  caption: Draws exist at 200k only. At 40k, 100k the ribbon is an extrapolation.
+  caption: The three hollow points are #373's. 40k comes from the cf373_r2 tree, 100k and 200k come from cf373_r3, and the 200k checkpoint file carries an _r2_ infix from the round that wrote it.
+  student  bb40k=1.0862  bb100k=1.0801  bb200k=1.0660
+  teacher  bb40k=1.0855  bb100k=1.0874  bb200k=1.0828
+  head-seed band: +-0.0024, pooled over 2 (stop, head) pairs with 2 draws or more
+[2026-08-21T07:36:18Z] [cf407-mirror] 106 files -> /home/jupyter/cf407_durable (fail=0)
+[2026-08-21T07:36:18Z] [cf407-readback] read-back done for stops 200 300 450 665 (fail=0)
+[cf407-collect-rep] replicate pairs 9  skipped 0
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/plots/full_pass.png
+wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/results/figure_caption.txt
+  caption: The ribbon is ±0.0024, one pooled head-seed standard deviation over 4 (stop, head) rows of 2/3 draws each. Measured ranges: 0.0018, 0.0038, 0.0042, 0.0064.
+  caption: A standard deviation from 2 draws carries about 40% relative uncertainty, so read the range, not the ribbon edge.
+  caption: The ribbon pools the student and the teacher into one number, so it assumes the two heads share one spread.
+  caption: Draws exist at 200k, 300k only. At 40k, 100k the ribbon is an extrapolation.
+  caption: The three hollow points are #373's. 40k comes from the cf373_r2 tree, 100k and 200k come from cf373_r3, and the 200k checkpoint file carries an _r2_ infix from the round that wrote it.
+  student  bb40k=1.0862  bb100k=1.0801  bb200k=1.0660  bb300k=1.0867
+  teacher  bb40k=1.0855  bb100k=1.0874  bb200k=1.0828  bb300k=1.1030
+  head-seed band: +-0.0024, pooled over 4 (stop, head) pairs with 2 draws or more
+[2026-08-21T07:54:02Z] [cf407-mirror] 126 files -> /home/jupyter/cf407_durable (fail=0)
+[2026-08-21T07:54:02Z] [cf407-readback] read-back done for stops 200 300 (fail=0)

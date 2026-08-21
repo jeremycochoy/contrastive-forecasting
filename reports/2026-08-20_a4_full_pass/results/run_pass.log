@@ -5,3 +5,17 @@ leg 300000 will continue from cf393_arm6_v2_combab_alignS_cf373k3_r2_200k.pth
 leg 300000 continued the run
 [08-21 03:52:49] [cf407] LEG done 300k
 [08-21 03:52:49] [cf407] HEAD 300k student (attempt 1)
+[08-21 06:09:42] [cf407] HEAD 300k student rc=0
+student scored 1.0867 at 300000
+[08-21 06:09:42] [cf407] HEAD 300k teacher (attempt 1)
+[08-21 08:45:27] [cf407] HEAD 300k teacher rc=0
+teacher scored 1.103 at 300000
+A4  arm6_v2_combab_alignS  k=3  seed 20260520
+resume  cf393_arm6_v2_combab_alignS_cf373k3_r2_200k.pth  (+ optimizer)
+stops   300000, 450000, 665000
+heads   student, teacher  30000 steps  seed 20260722
+best before this card: 1.0660 (A4_k3_bb200k_student)
+student  bb40k=1.0862  bb100k=1.0801  bb200k=1.0660  bb300k=1.0867
+teacher  bb40k=1.0855  bb100k=1.0874  bb200k=1.0828  bb300k=1.1030
+leg 450000 will continue from cf393_arm6_v2_combab_alignS_cf373k3_300k.pth
+[08-21 08:45:28] [cf407] LEG -> 450k
