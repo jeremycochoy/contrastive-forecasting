@@ -226,6 +226,26 @@ def main() -> int:
                f"{momentum(best)}. It sits {best['score'] - k3_40k:+.4f} from "
                f"the k = 3 score at the same 40,000 steps, {k3_40k:.4f}, so it "
                f"does NOT go below that score.")
+
+    # The card's own goal is a LOWER GM-Relative MASE, and the line it has to
+    # cross is the k = 0 parent of this cell. A comment that names only the
+    # winner leaves the reader to subtract. This block reads the same
+    # `references` file the figures draw the line from, so the two agree.
+    k0 = references.K0_PARENT_BB40K
+    under = [r for r in rows if r["score"] < k0]
+    out.append("")
+    if under:
+        out.append(f"{len(under)} arm(s) go below the k = 0 parent of this "
+                   f"cell, {k0:.4f} at the same 40,000 steps:")
+        out.append("")
+        for r in under:
+            out.append(f"- `{r['arm']}`, {r['score']:.4f}, "
+                       f"{k0 - r['score']:.4f} under it. It holds "
+                       f"{holds_at(r, a.stop):.3f} at the stop.")
+    else:
+        out.append(f"No arm goes below the k = 0 parent of this cell, "
+                   f"{k0:.4f} at the same 40,000 steps. The best arm sits "
+                   f"{best['score'] - k0:+.4f} from it.")
     if rep is not None and rep["spread"] is not None:
         near = repeat_spread.unresolved(rows, rep["spread"])
         out.append("")
