@@ -91,6 +91,28 @@
 # reach the trainer gives two identical runs under two names — the same
 # failure the seed column carries, and run_arm.sh guards it the same way.
 #
+#
+# Rows 12 and 13 extend the direction that WINS. `r100_09` is the first arm of
+# this card below the k = 0 parent: it scores 1.1507 against 1.1600, and it
+# holds 0.940 at the 40,000-step stop. No arm of rows 1 to 11 holds more than
+# 0.950 there.
+#
+# The nine scored arms say two things about the ramp. Two arms start at 0.9,
+# and the faster ramp wins by 0.0277. Two arms start at 0.8, and the faster
+# ramp LOSES by 0.0453. So a fast ramp helps from a high start only.
+#
+#   r60_09    0.9 to 1.0 over 60,000 steps. It holds 0.967 at the stop.
+#   r100_095  0.95 to 1.0 over 100,000 steps. It holds 0.970 at the stop.
+#
+# Both go past 0.940 and neither reaches 1.0. A momentum of 1.0 freezes the
+# teacher, and reports/2026-08-04_ema_sched_ladder/ measured that as bad.
+#
+# The two arms differ in the START value at one similar END value: 0.967
+# against 0.970. So the pair says whether the start or the end sets the score.
+#
+# Both carry backbone seed 20260520, the seed of the nine scored arms, and the
+# cell's own align weight 1.0. Column 6 is absent on both rows, which is that
+# 1.0.
 # arm	tau	end	ramp	seed	align_w
 a08	0.8	-	-	20260520
 a09	0.9	-	-	20260520
@@ -103,3 +125,5 @@ s08d	0.8	1.0	200000	20260523
 r100_09	0.9	1.0	100000	20260520
 r100_08	0.8	1.0	100000	20260520
 w3_s08	0.8	1.0	200000	20260520	3.0
+r60_09	0.9	1.0	60000	20260520
+r100_095	0.95	1.0	100000	20260520
