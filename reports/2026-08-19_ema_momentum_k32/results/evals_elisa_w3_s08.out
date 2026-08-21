@@ -1,2 +1,16 @@
 [08-20 23:48:42] [#404 evals] START arms='w3_s08' root=/home/jupyter/cf404_sync/box_a/sync shards=4
 [08-20 23:48:42] [#404 evals] eval w3_s08 head 450079 B
+[08-21 01:12:11] [#404 evals] eval w3_s08 rc=0
+[08-21 01:12:11] [#404 evals] score w3_s08 1.2060
+/tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/scores.csv: 9 score(s)
+a08_bb40k_h30k_student       n= 97  all=1.2309  short=1.1137  medium=1.4209  long=1.3854
+a095_bb40k_h30k_student      n= 97  all=1.1907  short=1.0560  medium=1.4127  long=1.3743
+a09_bb40k_h30k_student       n= 97  all=1.1819  short=1.0820  medium=1.3320  long=1.3215
+r100_08_bb40k_h30k_student   n= 97  all=1.2235  short=1.0880  medium=1.4425  long=1.4112
+r100_09_bb40k_h30k_student   n= 97  all=1.1507  short=1.0327  medium=1.3332  long=1.3186
+s08_bb40k_h30k_student       n= 97  all=1.1782  short=1.0439  medium=1.4105  long=1.3513
+s08b_bb40k_h30k_student      n= 97  all=1.5459  short=1.4825  medium=1.6493  long=1.6166
+s09_bb40k_h30k_student       n= 97  all=1.1784  short=1.0291  medium=1.4379  long=1.3773
+w3_s08_bb40k_h30k_student    n= 97  all=1.2060  short=1.0595  medium=1.4468  long=1.4110
+wrote 108 rows -> /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/splits.csv
+[08-21 01:12:11] [#404 evals] EVALS DONE — 0 failed, 0 skipped

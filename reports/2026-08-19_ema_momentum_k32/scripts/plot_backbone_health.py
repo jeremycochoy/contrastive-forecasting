@@ -26,17 +26,51 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from seed_report import auc_series  # noqa: E402
 from seed_report import collapsed as arm_collapsed  # noqa: E402
 
-# The arms of this card, and the momentum each one holds.
-ARMS = (
-    ("a08", "0.8 constant"),
-    ("a09", "0.9 constant"),
-    ("a095", "0.95 constant"),
-    ("s08", "0.8 rising, seed 20260520"),
-    ("s09", "0.9 rising"),
-    ("s08b", "0.8 rising, seed 20260521"),
-    ("s08c", "0.8 rising, seed 20260522"),
-    ("s08d", "0.8 rising, seed 20260523"),
-)
+ARMS_TSV = Path(__file__).resolve().parent / "arms.tsv"
+
+
+def arms(tsv: Path = ARMS_TSV):
+    """Every arm of the card, with a label that names what makes it unique.
+
+    THE LIST IS NOT WRITTEN HERE. A hard-coded tuple held eight names, and
+    round 6 added three arms that this figure then dropped without a word: it
+    printed "8 arm(s)" beside a table of eleven. `arms.tsv` is the study's one
+    place for its arms, and every other script reads it.
+
+    The label carries a field only when that field separates this arm from
+    another. So `a08` stays "0.8 constant", and `w3_s08` has to name its seed
+    and its L_align weight, because `s08` shares its momentum and its ramp.
+    """
+    rows = []
+    for line in tsv.read_text().splitlines():
+        if line.startswith("#") or not line.strip():
+            continue
+        f = line.split("\t")
+        if len(f) < 4:
+            continue
+        rows.append({
+            "arm": f[0],
+            "alpha": float(f[1]),
+            "ramp": 0 if f[3] == "-" else int(f[3]),
+            "seed": f[4] if len(f) > 4 else "",
+            "align_w": float(f[5]) if len(f) > 5 and f[5] != "-" else 1.0,
+        })
+    shape = [(r["alpha"], r["ramp"]) for r in rows]
+    out = []
+    for r in rows:
+        if r["ramp"]:
+            label = f"{r['alpha']:g} rising to 1.0 at {r['ramp'] // 1000}k"
+        else:
+            label = f"{r['alpha']:g} constant"
+        if shape.count((r["alpha"], r["ramp"])) > 1 and r["seed"]:
+            label += f", seed {r['seed']}"
+        if r["align_w"] != 1.0:
+            label += f", L_align x{r['align_w']:g}"
+        out.append((r["arm"], label))
+    return tuple(out)
+
+
+ARMS = arms()
 
 # Red belongs to a COLLAPSED arm alone, and the data decides which arm that is.
 # The name is not hard-coded: three of these arms hold one momentum at three
@@ -47,7 +81,8 @@ ARMS = (
 # colour per arm, so no two curves share one.
 COLLAPSED_COLOUR = "#d62728"
 STABLE_COLOURS = ("#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd", "#17becf",
-                  "#8c564b", "#7f7f7f")
+                  "#8c564b", "#7f7f7f", "#bcbd22", "#e377c2", "#393b79",
+                  "#111111")
 
 
 def series(sync_root: Path, arm: str):

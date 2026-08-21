@@ -122,10 +122,11 @@ def draw(rows, out, fell=(), stop=40000):
                             textcoords="offset points", xytext=(12, -2),
                             fontsize=8, color=MOM.FELL["colour"], va="center")
 
-    # Every arm is named at its own x, because the point of this figure is
-    # WHICH arm reached which value.
+    # Every arm carries its score, not its internal name. The x axis already
+    # gives the momentum the arm holds, and the legend already gives the
+    # schedule. A name like `r100_09` adds nothing a reader can use.
     for r in sorted(rows, key=lambda r: r["x"]):
-        ax.annotate(r["arm"], (r["x"], r["score"]),
+        ax.annotate(f"{r['score']:.4f}", (r["x"], r["score"]),
                     textcoords="offset points", xytext=(0, 9),
                     fontsize=7.5, color="0.25", ha="center")
 

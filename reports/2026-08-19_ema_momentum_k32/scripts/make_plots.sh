@@ -27,7 +27,15 @@
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# The root this study READS on elisa is the sync tree, the same one
+# `evals_elisa.sh` takes. Without this line CF404_ROOT falls back to the
+# durable local root, which holds no arm of this card: every arm trained on a
+# box. `plot_loss_curves.py --root` then found no curve and the figure was
+# SKIPPED with a one-line message, so a stale loss_curves.png survived a
+# redraw. `CF404_ROOT_GIVEN` keeps an operator's own root winning.
+CF404_ROOT_GIVEN="${CF404_ROOT:-}"
 . "$HERE/study.sh"
+cf404_use_root "$CF404_SYNC_ROOT"
 
 mkdir -p "$CF404_PLOTS" "$CF404_RESULTS"
 
