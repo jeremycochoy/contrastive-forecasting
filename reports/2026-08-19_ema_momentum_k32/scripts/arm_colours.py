@@ -24,7 +24,8 @@ NAMED = {"a08": "#1f77b4", "a09": "#d62728",
 # — the k = 3 band, #401's arm, the two 200,000-step lines — so a grey arm
 # reads as a reference and not as an arm.
 EXTRA = ("#ff7f0e", "#17becf", "#8c564b", "#e377c2",
-         "#bcbd22", "#393b79", "#7b4173", "#8c6d31")
+         "#bcbd22", "#393b79", "#7b4173", "#8c6d31",
+         "#006d5b", "#c51b8a", "#5254a3", "#a63603")
 
 
 def colours(arms) -> dict[str, str]:
