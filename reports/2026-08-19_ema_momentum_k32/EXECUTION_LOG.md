@@ -747,3 +747,98 @@ it. A box destroyed early costs the run.
 The sync loop pulled the periodic head checkpoints as they were written: 5k,
 10k, 15k and `best`, with their optimizers and the losses CSV. A box lost at
 minute 25 would have left a head to fine-tune, not an empty directory.
+
+## Round 7 — the winning direction, extended past 0.940
+
+### Why this round exists
+
+Nine arms have scored and ONE goes below the k = 0 parent of this cell.
+`r100_09` raises the momentum from 0.9 to 1.0 over 100,000 steps, holds 0.940
+at the 40,000-step stop, and scores 1.1507 against the parent's 1.1600. No arm
+of rounds 1 to 6 holds more than 0.950 at that stop.
+
+Two readings of the nine fit that result:
+
+  - the RAMP LENGTH sets the score. Two arms start at 0.9 and the faster ramp
+    wins by 0.0277. But two arms start at 0.8 and the faster ramp LOSES by
+    0.0453, so a fast ramp helps from a HIGH start only.
+  - the momentum AT THE STOP sets the score, and 0.940 is not the top of that
+    curve.
+
+### The two arms
+
+    r60_09    --ema-tau 0.9  --ema-tau-end 1.0 --ema-tau-ramp-steps 60000
+    r100_095  --ema-tau 0.95 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000
+
+`r60_09` holds 0.967 at the stop and `r100_095` holds 0.970. Both go past
+0.940 and neither reaches 1.0, so neither freezes its teacher there. The pair
+differs in the START value at one similar END value, so it says whether the
+start or the end sets the score.
+
+Everything else is round 1's, flag for flag: k = 32, the mean reduction, the
+align target teacher, align weight 1.0, 40,000 backbone steps, 30,000 head
+steps, head seed 20260722, backbone seed 20260520.
+
+### The rule this round carries forward
+
+`round7.sh` takes `recover_w3_head.sh`'s rule over two arms. `destroy_box`
+acts only when EVERY head of the round is on elisa's disk, by name and above
+400,000 bytes. Every other exit path calls `leave_box_alive`, which names the
+instance and prints the command that destroys it.
+
+THE CARD GATE IS THE ONE EXCEPTION. A box this round rented seconds ago, whose
+card is not in Default compute mode or is too small for two lanes, holds no
+artefact. `discard_box` sends that box back and the round stops. It refuses to
+act on a box read out of the `.env` file, which can hold a lane from an
+earlier invocation.
+
+### Events
+
+- 01:26 the momentum guard reads 130 (arm, step) pairs over 13 arms and every
+  one agrees with `src.models.ema_tau_at_step`. The align guard passes 26
+  checks and the trainer-pattern guard passes 10.
+- 01:31 `round7.sh` started, detached, under `nohup setsid`, pid 3917976. The
+  heartbeat loop followed at pid 3918321, hourly.
+- 01:31 the search asked for ONE card, a datacenter host, reliability at or
+  above 0.99, a desktop-class CPU and a bid at or under $0.45/h. Three offers
+  went away on the first attempt.
+- 01:33 instance 48255116, one RTX 5090, 32,607 MiB, `Default` compute mode,
+  $0.3611/h. The card gate passed on all three counts, so `discard_box` never
+  fired.
+- 01:36 bootstrap OK, 2 minutes 43 seconds. The box's arms table holds all 13
+  arms, `r60_09` and `r100_095` among them.
+- 01:36 the box builds each arm's command line with the RAMP on it, read back
+  off the box's OWN copy of `run_arm.sh`. The two arms of this round differ
+  from the nine that scored in the ramp length alone, and `r100_095` differs
+  from `r100_09` in the start value alone, so a stale table would train a
+  duplicate of an arm that already has a number.
+- 01:46 the sync loop started for `box_r7`, 15 minute ticks, for the whole
+  run.
+- 01:47 and 01:53 the two lanes started on card 0, six minutes apart. Two cold
+  HuggingFace readers on one connection need the stagger.
+- 01:52 the first tick landed, verified by `ls` and not by the sync log: the
+  `r60_09` losses CSV at 866,188 B, its attention-amplitude CSV at 3,490 B and
+  its latent-drift CSV at 78 B.
+- 01:59 the launch is VERIFIED off the box: 11,363 MiB of 32,607 MiB in use,
+  TWO compute apps at 5,674 MiB each, 88 % GPU, 33 depth columns in both
+  losses CSVs, which is k + 1 at k = 32.
+- 01:59 the guard lines, off each trainer's OWN command line:
+
+      arm r60_09 ema='0.9 1.0 60000' reduce=mean seed=20260520 align_w=1.0 OK
+      arm r100_095 ema='0.95 1.0 100000' reduce=mean seed=20260520 align_w=1.0 OK
+
+- 01:59 step rates: `r60_09` 2.7 sps ETA 3.9 h. `r100_095` 2.6 sps ETA 4.2 h.
+  Two lanes cost each other 0.1 sps against round 6's three lanes, which is
+  what the card predicted.
+
+### A number the launch already gives
+
+Both lanes write loss 14.2752 at step 1 and part at step 2: 13.8292 against
+13.8323. The teacher is identical at step 1 and the two momentum schedules
+differ from step 2 on, so the schedule reached the objective and not only the
+command line.
+
+### The budget
+
+The credit is $6.58 and the limit for this round is $4. `MAX_SPEND` is $3.20,
+which is 8.9 h of runway at $0.3611/h, and the whole round needs about 5.5 h.
