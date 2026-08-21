@@ -28,6 +28,7 @@ import argparse
 import csv
 import math
 import os
+import shlex
 import sys
 import time
 import torch
@@ -72,7 +73,7 @@ from src.forecasting_head import (extract_encoder_latents,
 # -- Tiny architecture (identical to v3c) -----------------------------------
 # C and T_raw can be overridden at runtime via --n-channels / --t-raw to
 # accommodate datasets shaped differently from the standard
-# (T_raw=1024, C=4) bundles — e.g. exp_realonly_4096_2arm trains at
+# (T_raw=1024, C=4) bundles — for example exp_realonly_4096_2arm trains at
 # (T_raw=4096, C=1) on jeremycochoy/gift-pretrain-small-4096.
 MODEL_CONFIG = dict(
     C=4, H=512, W=16,
@@ -88,7 +89,7 @@ LOSS_SPEC = SimpleNamespace(train_configuration={
 })
 CLD = LOSS_SPEC.train_configuration["contrastive_latent_delay"] + 1
 
-T_RAW = 1024  # Default; overridden by --t-raw CLI flag.
+T_RAW = 1024  # Default. Overridden by --t-raw CLI flag.
 
 
 def parse_args():
@@ -99,7 +100,7 @@ def parse_args():
     p.add_argument("--lr", type=float, default=1e-4)
     # Optimizer hyperparams. --adam-beta1/2 keep torch.optim.AdamW defaults
     # so prior runs that omitted them reproduce bit-identically.
-    # MOIRAI Aksu et al. recipe: lr=1e-3, weight_decay=0.1, betas=(0.9, 0.98).
+    # MOIRAI Aksu and others recipe: lr=1e-3, weight_decay=0.1, betas=(0.9, 0.98).
     # --weight-decay is intentionally REQUIRED (no default): a silent 0.01
     # default previously let runs inherit the wrong decay by accident.
     # Forcing an explicit value makes every (re)training state its decay on
@@ -131,7 +132,7 @@ def parse_args():
     # Latent-drift probe (#XXX). Fixed synthetic probe batch, no-grad
     # forward every N steps, dumps drift_cos / drift_cos_aligned /
     # rot_gap / cka between the current h_t and (a) the previous probe
-    # and (b) the initial probe. Rank-0 only; CSV goes to
+    # and (b) the initial probe. Rank-0 only. CSV goes to
     # `<save_dir>/<run_name>_latent_drift.csv`. Default on — probe cost
     # is one no-grad forward per cadence step (≪ 1 s per probe at the
     # #374 arch), so leaving it on for every future run gives us "free"
@@ -217,7 +218,7 @@ def parse_args():
                         "forecaster (down -> causal transformer -> up, same "
                         "--forecaster-d-model/-n-heads bottleneck), with head k "
                         "forecasting the encoder latent k steps ahead (h_{t+k}); "
-                        "requires --loss-shape cpc_multistep. At K=1 it is "
+                        "requires --loss-shape cpc_multistep. At k=1 it is "
                         "byte-identical to the transformer forecaster, so only "
                         "the number of forecast steps differs.")
     p.add_argument("--cpc-k-steps", type=int, default=12,
@@ -547,9 +548,9 @@ def parse_args():
                         "at depth j = 1..k, copy j tying f^(j)_t to h_{t+1+j}, "
                         "where f^(j) is the forecaster re-applied to its own "
                         "output j more times (the operator the eval rollout "
-                        "composes). The depths are SUMMED on top of the k = 0 "
-                        "objective, so 0 (default) is byte-for-byte today's "
-                        "loss. Terms that carry no f (L_rep, L_rep_moco, "
+                        "composes). --train-rollout-reduce says how the k + 1 "
+                        "copies combine; 0 (default) is byte-for-byte today's "
+                        "loss under either. Terms that carry no f (L_rep, L_rep_moco, "
                         "align_moco, SIGReg) enter the total once at any k. "
                         "Applies to the main contrastive loss, the standalone "
                         "align term and the CPC InfoNCE auxiliary. Changes the "
@@ -558,6 +559,20 @@ def parse_args():
                         "Refused when NO term of the run ties f to h, since "
                         "every depth would then add exactly zero. Adds "
                         "cos_err_d0..dk to the losses CSV. Full reference: "
+                        "docs/train_rollout_depth.md.")
+    p.add_argument("--train-rollout-reduce", choices=["sum", "mean"],
+                   default="sum",
+                   help="How the k + 1 copies of every f-bearing term combine "
+                        "(#401). 'sum' (default) is #373's objective: the "
+                        "f-side then carries k + 1 times its k = 0 weight "
+                        "against the terms that carry no f, which enter once "
+                        "at any k. 'mean' divides the copies by k + 1, so the "
+                        "f-side holds its k = 0 weight at every depth, and "
+                        "the depth changes what the model trains on rather "
+                        "than how much the f-side outweighs the rest. The "
+                        "mean covers the f-bearing copies only. At k = 0 "
+                        "there is one copy and the two agree exactly, so "
+                        "every published run reproduces under either. "
                         "docs/train_rollout_depth.md.")
     p.add_argument("--ema-embedding", action="store_true",
                    help="BYOL/JEPA EMA-teacher copy of the patch-embedding "
@@ -759,7 +774,7 @@ def forward_step(model, x, freq_ids=None, freq_embs=None,
         f_flat, o_flat = out
         e_in = None
     if cpc:
-        # f_flat is the [B*C, T, K, H] multi-step stack; keep K as a 4th axis
+        # f_flat is the [B*C, T, K, H] multi-step stack. Keep K as a 4th axis
         # so the loss sees [B, T, C, K, H]. Diagnostics in main() slice k=1.
         K = f_flat.shape[2]
         f_lat = f_flat.reshape(B, C, T, K, H).permute(0, 2, 1, 3, 4)
@@ -825,7 +840,7 @@ def parse_extra_save_steps(spec):
     Raises SystemExit if any entry is not a positive integer, or if two
     entries fall in the same 1000-block. The snapshot filename is
     `{run}_{step // 1000}k.pth`, so two extras within the same 1000-block
-    (e.g. 2500 and 2800) would silently overwrite each other. Reject at
+    (for example 2500 and 2800) would silently overwrite each other. Reject at
     parse time rather than during training when the collision surfaces
     hours in.
     """
@@ -894,7 +909,7 @@ def main_term_depth_gap(args):
     A depth (`--train-rollout-depth k`) rides on the terms that tie f to h.
     Three settings leave the MAIN term with no such part, so every depth
     copy of it adds exactly zero. Returns the reason, naming the flag or the
-    shape at fault; None means the term does take the depths.
+    shape at fault. None means the term does take the depths.
     """
     if args.no_main_contrastive_loss:
         return "--no-main-contrastive-loss drops the main term"
@@ -961,7 +976,7 @@ class CSVLogger:
             header.append("loss_tau_ref")
         # gap_ratio = (1 - ff) / (1 - fp): forecast-vs-future gap
         # normalized by past-vs-future gap. ff -> 1 (perfect forecast)
-        # and fp -> 0 (decorrelated past) drive this toward 0; lower is
+        # and fp -> 0 (decorrelated past) drive this toward 0. Lower is
         # better. Sits next to `gap = ff - fp` so the two are read together.
         header += ["gap", "gap_ratio", "ff", "fp", "tp", "cross_batch",
                    "hf_rows_consumed", "synth_rows_consumed", "mixup_applied"]
@@ -997,12 +1012,12 @@ class CSVLogger:
             self._file.flush()
         else:
             # Resume schema guard (#356-P5): if the existing CSV's header
-            # has fewer columns than the writer expects (e.g. a pre-SIGReg
+            # has fewer columns than the writer expects (for example a pre-SIGReg
             # run resumed with --sigreg-embedding/--sigreg-encoding), the
             # appended rows would silently shift column meaning. Refuse
             # rather than corrupt the file. The check compares the first
             # header row's column count against `header` — we don't try
-            # to handle a header that is a strict prefix; the safe action
+            # to handle a header that is a strict prefix. The safe action
             # is fail-loudly and let the caller pick a fresh CSV.
             try:
                 with open(path, "r", newline="") as f:
@@ -1123,7 +1138,7 @@ class LatentDriftProbe:
         written before #388 would swallow 9-field rows under its 8-field
         header without an error and every column after ``step`` would read
         shifted. Runs are in flight against ``COLUMNS``, so the order is
-        fixed; on a mismatch the safe action is to stop and let the caller
+        fixed. On a mismatch the safe action is to stop and let the caller
         move the old CSV aside.
         """
         with open(csv_path, "r", newline="") as fh:
@@ -1183,7 +1198,7 @@ class LatentDriftProbe:
             adj = drift_pair(self.prev_h[latent].to(self.device).float(), cur)
             self._write(step, latent, "adjacent", self.prev_step, adj)
             # vs_initial only when the adjacent-pair isn't already the
-            # initial-pair; a second write would be a redundant duplicate row.
+            # initial-pair. A second write would be a redundant duplicate row.
             if self.prev_step != self.initial_step:
                 ini = drift_pair(
                     self.initial_h[latent].to(self.device).float(), cur)
@@ -1250,11 +1265,21 @@ class AttnAmplitudeCSV:
 def main():
     args = parse_args()
 
+    # The run's own command line, first line of its log. A wrapper builds this
+    # command line from a cell name and an environment, so the log is the only
+    # place a reader (or a check) can see which flags actually reached the
+    # trainer. #401 reads the rollout reduction off this line after the first
+    # window of a leg: the objective it selects leaves no other trace — the
+    # same file names, the same CSV columns and the same log lines under either
+    # word. `shlex.quote` keeps a value with a space readable as one argument.
+    print("Command line: " + " ".join(shlex.quote(a) for a in sys.argv),
+          flush=True)
+
     # Distributed (opt-in, env-driven): launch with
     #   torchrun --nproc_per_node=N experiments/.../train.py ...
     # WORLD_SIZE<=1 (the default, no torchrun) → (0,1,0,False) and every
     # dist_utils helper is a strict no-op, so the single-GPU path is
-    # byte-identical. --batch-size is PER RANK; the loss sees the global
+    # byte-identical. --batch-size is PER RANK. The loss sees the global
     # W*B batch via gather_latents (2-GPU @ B/2 == 1-GPU @ B).
     rank, world_size, local_rank, distributed = setup_distributed()
     if distributed:
@@ -1295,7 +1320,7 @@ def main():
     # CLIP-style learnable τ (#28). When --learnable-tau is set, the model
     # registers `log_inv_tau` as an nn.Parameter (init from args.tau or 0.07).
     # The trainer passes `model.tau()` (a 0-d tensor) as `tau_override` to
-    # the loss so gradient flows; after each optimizer.step we clamp.
+    # the loss so gradient flows. After each optimizer.step we clamp.
     tau_init = args.tau if args.tau is not None else 0.07
     model_config["learnable_tau"] = bool(args.learnable_tau)
     model_config["tau_init"] = tau_init
@@ -1350,7 +1375,7 @@ def main():
     model_config["attn_out_norm"] = bool(args.attn_out_norm)
     model_config["log_attn_amplitude"] = bool(args.log_attn_amplitude)
     # EMA-target teacher (#353). Two independent flags so the embedding-only
-    # and encoder-only ablations are reachable; arm 1 of the issue sets both.
+    # and encoder-only ablations are reachable. Arm 1 of the issue sets both.
     # Combination with --stopgrad-positive-h is rejected here (the teacher
     # IS the target stop-grad — passing both is intent-conflicting).
     if (args.ema_embedding or args.ema_encoder) and args.stopgrad_positive_h:
@@ -1417,7 +1442,7 @@ def main():
     model_config["ema_embedding"] = bool(args.ema_embedding)
     model_config["ema_encoder"] = bool(args.ema_encoder)
     # LeJEPA SIGReg (#355): the term contributes nothing to the model's
-    # state_dict (no buffers; M projections resampled per forward), so
+    # state_dict (no buffers. M projections resampled per forward), so
     # there is no model_config to thread through — only the run-level
     # knobs are read from args at the loss-call site below. Reject
     # nonsense combinations here.
@@ -1442,7 +1467,7 @@ def main():
         # operator whose output lives in its own input space. Only
         # --forecaster-kind transformer is that. The guard rejects every
         # other kind rather than only today's two, so a kind added later
-        # cannot pick up the flag by default; the CPC families are named
+        # cannot pick up the flag by default. The CPC families are named
         # because they are the ones that exist and the reason they cannot
         # compose is instructive.
         why = (" (K parallel heads, f^(k)_t = W_k h_t, each predicting its "
@@ -1480,6 +1505,7 @@ def main():
     LOSS_SPEC.train_configuration["pred_loss_weight"] = args.pred_loss_weight
     LOSS_SPEC.train_configuration["rep_loss_weight"] = args.rep_loss_weight
     LOSS_SPEC.train_configuration["train_rollout_depth"] = args.train_rollout_depth
+    LOSS_SPEC.train_configuration["train_rollout_reduce"] = args.train_rollout_reduce
     if args.tau is not None:
         LOSS_SPEC.train_configuration["contrastive_divergence_temperature"] = args.tau
     if args.tau_rep is not None:
@@ -1536,7 +1562,7 @@ def main():
     # init or resumed). No-op when not distributed.
     broadcast_module(model)
 
-    _loss_mode = ""  # only used in the distributed arm of the print below;
+    _loss_mode = ""  # only used in the distributed arm of the print below.
     # hoisted so a future edit can't turn the lazy reference into an
     # UnboundLocalError on the single-GPU path.
     if distributed:
@@ -1590,7 +1616,7 @@ def main():
         drift_every = 0
 
     # Sidecar attention-amplitude diagnostic CSV (opt-in). Only created when
-    # --log-attn-amplitude is set; otherwise None and the per-step hook is a
+    # --log-attn-amplitude is set. Otherwise None and the per-step hook is a
     # strict no-op (the global ATTN_AMP_DIAG.active stays False forever).
     attn_amp_csv = None
     if args.log_attn_amplitude:
@@ -1768,7 +1794,7 @@ def main():
             attn_amp_csv.write_rows(step, ATTN_AMP_DIAG.take_rows())
         # Loss + compute_metrics ALWAYS see fp32 latents. When
         # residual-dtype is fp16/bf16 the model returns latents in that
-        # dtype; cast back here so downstream cos-sim arithmetic (loss,
+        # dtype. Cast back here so downstream cos-sim arithmetic (loss,
         # loss_tau_ref, compute_metrics, q_random, q_naive_latent,
         # dim_usage, retrieval_auc_topk) runs in fp32. The contrastive
         # logsumexp(sims/τ) with small τ loses precision in bf16 — root
@@ -1800,7 +1826,7 @@ def main():
         # --shard-loss-on-batch: SKIP the gather → each rank's loss sees
         # only its local shard (negatives = B/world_size). Cheaper / no
         # O(global_B²) loss memory, but a DIFFERENT, weaker objective —
-        # opt-in only; the default keeps the proper gathered loss.
+        # opt-in only. The default keeps the proper gathered loss.
         # average_gradients() below still averages param grads across
         # ranks (standard DDP) so the sharded objective is the mean of
         # the per-rank local losses.
@@ -1815,7 +1841,7 @@ def main():
             # a lone tensor, so it takes the single-tensor form).
             rollout_lats = [gather_latent(f_j) for f_j in rollout_lats]
             if teacher_o_lat is not None:
-                # Same global pooling as o_lat; gather_latents is a no-op
+                # Same global pooling as o_lat. The gather_latents call is a no-op
                 # single-GPU. Teacher carries no grad either way.
                 _dummy, teacher_o_lat = gather_latents(teacher_o_lat, teacher_o_lat)
             if e_lat is not None and args.sigreg_embedding:
@@ -1826,7 +1852,7 @@ def main():
                 # marginal reads and work fine without a gather (#356-P4).
                 _dummy, e_lat = gather_latents(e_lat, e_lat)
         # CPC multi-step (#316): f_lat is [B,T,C,K,H]. The loss / loss_tau_ref
-        # consume the full stack; the per-batch diagnostics (compute_metrics,
+        # consume the full stack. The per-batch diagnostics (compute_metrics,
         # q_*, retrieval_auc) want a single [B,T,C,H] forecaster latent, so
         # use the next-step (k=1) head — the analogue of the legacy 1-step
         # forecaster. For the transformer forecaster f1_lat IS f_lat (4-D),
@@ -1840,7 +1866,7 @@ def main():
             tau_tensor_loss = (tau_tensor.float()
                                if tau_tensor is not None else None)
             if args.no_main_contrastive_loss:
-                # #344 follow-up arm: drop the main contrastive loss; train only
+                # #344 follow-up arm: drop the main contrastive loss. Train only
                 # on the auxiliary terms. Skip contrastive_latent_loss (no
                 # xshh_allt Gram backward) and add the BYOL align term standalone
                 # (same form, encoder target stop-gradded). L_cpc is added below.
@@ -1860,10 +1886,11 @@ def main():
                             "target is the #382 defect this flag removes.")
                     align_target = (teacher_o_lat
                                     if args.align_target == "teacher" else None)
-                    loss = loss + align_loss(f_lat, o_lat,
-                                             args.align_loss_weight,
-                                             target_latent=align_target,
-                                             rollout_latents=rollout_lats)
+                    loss = loss + align_loss(
+                        f_lat, o_lat, args.align_loss_weight,
+                        target_latent=align_target,
+                        rollout_latents=rollout_lats,
+                        depth_reduce=args.train_rollout_reduce)
             else:
                 loss = contrastive_latent_loss(
                     (f_lat, o_lat), validation=False,
@@ -1886,7 +1913,7 @@ def main():
                 loss = loss + align_moco
                 align_moco_val = align_moco.item()
             # CPC InfoNCE auxiliary (#344): total = contrastive + λ·L_cpc,
-            # equal weight at λ=1. f_lat is the AR context h_t (4-D here; the
+            # equal weight at λ=1. f_lat is the AR context h_t (4-D here. The
             # cpc_multistep stack is 5-D and returns earlier in the loss), o_lat
             # the encoder embeddings e. Same fp32 block as the contrastive loss.
             cpc_aux_val = float('nan')
@@ -1894,17 +1921,19 @@ def main():
                 if args.cpc_infonce_negs == "matched":
                     cpc_aux = cpc_infonce_aux_loss(
                         f_lat, o_lat, model.cpc_w1,
-                        rollout_latents=rollout_lats)
+                        rollout_latents=rollout_lats,
+                        depth_reduce=args.train_rollout_reduce)
                 else:  # "cross" (strict marginal) or "all" (full batch×time grid)
                     cpc_aux = cpc_infonce_all_loss(
                         f_lat, o_lat, model.cpc_w1,
                         marginal_only=(args.cpc_infonce_negs == "cross"),
-                        rollout_latents=rollout_lats)
+                        rollout_latents=rollout_lats,
+                        depth_reduce=args.train_rollout_reduce)
                 loss = loss + args.cpc_infonce_weight * cpc_aux
                 cpc_aux_val = cpc_aux.item()
             # LeJEPA SIGReg (#355): regularise the pooled marginal of e_t
             # (patch-embed) and/or h_t (encoding) toward Unif(S^{K-1}). The
-            # statistic is stateless (no buffers; M projections resampled
+            # statistic is stateless (no buffers. M projections resampled
             # every forward); λ is per-term (#359) so the two sides can be
             # tuned independently.
             sigreg_e_val = float('nan')
@@ -1933,10 +1962,10 @@ def main():
         # so the column is always ≥ 0 — unlike the training `loss` above,
         # whose negatives-only objective is intentionally unchanged and
         # goes negative once positives separate. ONLY this diagnostic
-        # call passes the flag; the training loss keeps the default.
+        # call passes the flag. The training loss keeps the default.
         with torch.no_grad():
             # `cosine_similarity_batch_split_pred_rep` (#374) is L_pred +
-            # L_rep where L_pred is ALREADY normalized-InfoNCE; the shape
+            # L_rep where L_pred is ALREADY normalized-InfoNCE. The shape
             # rejects `include_positive_in_denominator` as a semantic no-op.
             # Its own default at τ=0.07 IS the correct reference.
             _pos_in_denom_ref = (
@@ -1952,7 +1981,7 @@ def main():
                 # Keep this a PURE contrastive reference regardless of the
                 # run's --align-loss-weight / --subtract-contrastive-floor
                 # / --moco-negatives (the diagnostic doesn't have a teacher
-                # to route through anyway; force off to keep it a fixed
+                # to route through anyway. Force off to keep it a fixed
                 # student-side reference).
                 align_loss_weight=0.0,
                 subtract_contrastive_floor=False,

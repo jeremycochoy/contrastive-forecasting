@@ -1,0 +1,10 @@
+# `scripts/trial_head.sh` drives the whole pipeline at a few hundred steps
+# and ONE GIFT-Eval config. Its score is a wiring check, not a measurement,
+# and a `score_k16_bb400_h200_student.txt` beside the study's own score files
+# is one glob away from being read as a study number.
+#
+# `trial.log` is the exception, and it is committed: it carries the run
+# record and both tables verbatim, which is the evidence that the head half
+# of this pipeline ran before phase 1 spent its first hours of backbone time.
+results/trial/*
+!results/trial/trial.log

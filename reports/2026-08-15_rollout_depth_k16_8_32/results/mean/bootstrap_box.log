@@ -1,0 +1,37 @@
+[#401] bootstrapping ssh2.vast.ai:16048 from /tmp/contrastive-forecasting-401
+[08-17 22:52:58] [bootstrap ssh2.vast.ai:16048] packing code
+[08-17 22:52:58] [bootstrap ssh2.vast.ai:16048] uploading 576K
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-17 22:53:03] [bootstrap ssh2.vast.ai:16048] installing
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+started
+[08-17 22:55:15] [bootstrap ssh2.vast.ai:16048] waiting for BOOTSTRAP_OK (install is ~4 min)
+[08-17 22:55:17] [bootstrap ssh2.vast.ai:16048] OK
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+BOX-ENV driver=590.48.01, NVIDIA GeForce RTX 5090, Default
++ echo BOOTSTRAP_OK
+BOOTSTRAP_OK
+[#401] gate: --train-rollout-reduce on the box
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[#401] gate: the box's train.py writes its own command line
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[#401] OK — ssh2.vast.ai:16048 carries the trainer, the flag and the scripts
+  next: ssh -p 16048 root@ssh2.vast.ai
+        cd /root/cf/reports/2026-08-15_rollout_depth_k16_8_32
+        CF401_ROOT=/root/cf401_runs nohup setsid bash scripts/launch_box.sh &

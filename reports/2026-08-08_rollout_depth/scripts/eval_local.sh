@@ -49,6 +49,27 @@ GEVAL="$WT/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py"
 [ -f "$GEVAL" ] || { echo "ABORT: no eval script at $GEVAL" >&2; exit 2; }
 
 EVAL_SHARDS="${EVAL_SHARDS:-4}"
+# The full protocol is 97 configs, and the merge count below is what proves
+# the split lost none. A caller that runs a SUBSET says so through these two,
+# together: the regex it wants, and how many configs that regex covers.
+#
+# #401 uses them to run one config, so the head half of its pipeline can be
+# exercised end to end in minutes rather than in three core-hours. Unset,
+# this is the 97-config protocol, unchanged, and every published number of
+# both studies comes from that path.
+EVAL_CONFIG_FILTER="${EVAL_CONFIG_FILTER:-}"
+EVAL_EXPECT_CONFIGS="${EVAL_EXPECT_CONFIGS:-97}"
+# One filter cannot be split across shards: each shard would run the same
+# regex and the merge would count every config as many times as there are
+# shards.
+#
+# `if`, not `[ -n ... ] && ...`. The test form returns 1 when the filter is
+# unset, which is the 97-config protocol — every published number of both
+# studies. That status is the script's own if a later edit turns on `set -e`,
+# and the protocol would then stop at this line.
+if [ -n "$EVAL_CONFIG_FILTER" ]; then
+  EVAL_SHARDS=1
+fi
 GIFT="$OUT/gift"
 LOG="$OUT/eval_local.log"
 mkdir -p "$GIFT" "$(dirname "$SCORE_OUT")" || exit 2
@@ -108,8 +129,12 @@ sanitise_shard_csv() {  # <all_results.csv>
 
 pids=(); tags=()
 for (( s = 0; s < EVAL_SHARDS; s++ )); do
-  filt="$(python3 "$HERE/shard_configs.py" --shards "$EVAL_SHARDS" --shard "$s")" \
-    || { log "ABORT: shard $s plan failed"; exit 4; }
+  if [ -n "$EVAL_CONFIG_FILTER" ]; then
+    filt="$EVAL_CONFIG_FILTER"
+  else
+    filt="$(python3 "$HERE/shard_configs.py" --shards "$EVAL_SHARDS" --shard "$s")" \
+      || { log "ABORT: shard $s plan failed"; exit 4; }
+  fi
   sdir="$GIFT/shard_$s"
   mkdir -p "$sdir"
   sanitise_shard_csv "$sdir/all_results.csv"
@@ -148,27 +173,36 @@ for (( s = 0; s < EVAL_SHARDS; s++ )); do
   tail -n +2 "$f" >>"$MERGED.tmp"
 done
 
-# Exactly 97 distinct configs, or the split lost or doubled one. The
-# shard regexes are anchored and generated from one partition, so this
-# should never fire; it is here because a merged CSV that is quietly
-# short still produces a plausible-looking aggregate over fewer configs.
+# Exactly EVAL_EXPECT_CONFIGS distinct configs — 97 for the protocol — or
+# the split lost or doubled one. The shard regexes are anchored and generated
+# from one partition, so this should never fire; it is here because a merged
+# CSV that is quietly short still produces a plausible-looking aggregate over
+# fewer configs.
 n_rows=$(( $(wc -l <"$MERGED.tmp") - 1 ))
 n_uniq=$(tail -n +2 "$MERGED.tmp" | cut -d, -f1 | sort -u | wc -l)
-if [ "$n_rows" -ne 97 ] || [ "$n_uniq" -ne 97 ]; then
-  log "ABORT: merged CSV has $n_rows rows / $n_uniq configs, want 97/97"
+if [ "$n_rows" -ne "$EVAL_EXPECT_CONFIGS" ] || [ "$n_uniq" -ne "$EVAL_EXPECT_CONFIGS" ]; then
+  log "ABORT: merged CSV has $n_rows rows / $n_uniq configs, want $EVAL_EXPECT_CONFIGS/$EVAL_EXPECT_CONFIGS"
   exit 6
 fi
 mv "$MERGED.tmp" "$MERGED"
 log "merged $n_rows configs -> $MERGED"
 
-# All 97 are on disk, so this pass evaluates nothing. It exists to write
-# summary.txt through the official aggregation, against the same
+# All the configs are on disk, so this pass evaluates nothing. It exists to
+# write summary.txt through the official aggregation, against the same
 # seasonal-naive denominator every other stop in this study used.
+#
+# The filter goes to this pass too. Without it a subset run would find its
+# own configs done and then evaluate the other 96 here, which is the whole
+# cost the subset exists to avoid.
+AGG_FILTER=()
+if [ -n "$EVAL_CONFIG_FILTER" ]; then
+  AGG_FILTER=(--config-filter "$EVAL_CONFIG_FILTER")
+fi
 python3 -u "$GEVAL" \
   --backbone-path "$BB" --head-path "$HEAD_CKPT" \
   --encoder-source "$ENC" --output-dir "$GIFT" \
   --strategy B4 --forecast-len 16 --resume --device cpu \
-  "${ARCH[@]}" >>"$LOG" 2>&1
+  "${AGG_FILTER[@]}" "${ARCH[@]}" >>"$LOG" 2>&1
 rc=$?
 [ $rc -eq 0 ] || { log "ABORT: aggregate pass rc=$rc"; exit 7; }
 

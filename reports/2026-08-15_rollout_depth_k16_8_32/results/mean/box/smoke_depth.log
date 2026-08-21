@@ -1,0 +1,49 @@
+[08-17 21:57:26] [#401 smoke] scratch root: /root/cf401_smoke
+[08-17 21:57:26] [#401 smoke] card at start: 2 MiB, 32111 MiB, 0 %
+[08-17 21:57:26] [#401 smoke] neighbours at start: 
+[08-17 21:57:26] [#401 smoke] START k=0 reduce=mean steps=400 gpu=0 log_every=100
+[08-17 21:57:26] [arm6_v2_combab_alignS] FRESH start at step 0
+[08-17 21:57:26] [arm6_v2_combab_alignS] START target=400 gpu=0 save_every=1000000 leg=/root/cf401_smoke/k0/arm6_v2_combab_alignS/leg_0k
+[08-17 21:58:50] [arm6_v2_combab_alignS] DONE target=400 (5.0M) -> /root/cf401_smoke/k0/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k0_smoke401_k0_0k.pth
+[08-17 21:58:51] [#401 smoke] k=0: no trainer log at /root/cf/reports/2026-08-15_rollout_depth_k16_8_32/results/mean/run_cf393_arm6_v2_combab_alignS_cf373k0_mean_smoke401_k0.log (rc=0)
+[08-17 21:58:51] [#401 smoke] START k=8 reduce=mean steps=400 gpu=0 log_every=100
+[08-17 21:58:52] [arm6_v2_combab_alignS] FRESH start at step 0
+[08-17 21:58:52] [arm6_v2_combab_alignS] START target=400 gpu=0 save_every=1000000 leg=/root/cf401_smoke/k8/arm6_v2_combab_alignS/leg_0k
+Terminated
+[08-17 22:00:36] [arm6_v2_combab_alignS] train exited rc=143 — tail:   timing: data=7.2ms  fwd=123.6ms  bwd=106.2ms  total=237.7ms   -> Saved /root/cf401_smoke/k8/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k8_smoke401_k8_best_gap.pth   -> Saved /root/cf401_smoke/k8/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k8_smoke401_k8_best_loss.pth 
+Exception ignored in: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='utf-8'>
+BrokenPipeError: [Errno 32] Broken pipe
+[08-17 22:00:51] [#401 smoke] scratch root: /root/cf401_smoke
+[08-17 22:00:51] [#401 smoke] card at start: 2 MiB, 32111 MiB, 0 %
+[08-17 22:00:51] [#401 smoke] neighbours at start: 
+[08-17 22:00:51] [#401 smoke] START k=0 reduce=mean steps=400 gpu=0 log_every=100
+[08-17 22:00:51] [arm6_v2_combab_alignS] FRESH start at step 0
+[08-17 22:00:51] [arm6_v2_combab_alignS] START target=400 gpu=0 save_every=1000000 leg=/root/cf401_smoke/k0/arm6_v2_combab_alignS/leg_0k
+[08-17 22:02:14] [arm6_v2_combab_alignS] DONE target=400 (5.0M) -> /root/cf401_smoke/k0/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k0_mean_smoke401_k0_0k.pth
+[08-17 22:02:14] [#401 smoke] k=0: no trainer log at /root/cf/reports/2026-08-15_rollout_depth_k16_8_32/results/mean/run_cf393_arm6_v2_combab_alignS_cf373k0_mean_mean_smoke401_k0.log (rc=0)
+[08-17 22:02:14] [#401 smoke] START k=8 reduce=mean steps=400 gpu=0 log_every=100
+[08-17 22:02:14] [arm6_v2_combab_alignS] FRESH start at step 0
+[08-17 22:02:15] [arm6_v2_combab_alignS] START target=400 gpu=0 save_every=1000000 leg=/root/cf401_smoke/k8/arm6_v2_combab_alignS/leg_0k
+Terminated
+[08-17 22:03:27] [arm6_v2_combab_alignS] train exited rc=143 — tail:   timing: data=7.4ms  fwd=124.6ms  bwd=107.3ms  total=240.1ms   -> Saved /root/cf401_smoke/k8/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k8_mean_smoke401_k8_best_gap.pth   -> Saved /root/cf401_smoke/k8/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k8_mean_smoke401_k8_best_loss.pth 
+Exception ignored in: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='utf-8'>
+BrokenPipeError: [Errno 32] Broken pipe
+[08-17 22:03:44] [#401 smoke] scratch root: /root/cf401_smoke
+[08-17 22:03:45] [#401 smoke] card at start: 2 MiB, 32111 MiB, 0 %
+[08-17 22:03:45] [#401 smoke] neighbours at start: 
+[08-17 22:03:45] [#401 smoke] START k=0 reduce=mean steps=400 gpu=0 log_every=100
+[08-17 22:03:45] [arm6_v2_combab_alignS] FRESH start at step 0
+[08-17 22:03:45] [arm6_v2_combab_alignS] START target=400 gpu=0 save_every=1000000 leg=/root/cf401_smoke/k0/arm6_v2_combab_alignS/leg_0k
+[08-17 22:05:22] [arm6_v2_combab_alignS] DONE target=400 (5.0M) -> /root/cf401_smoke/k0/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k0_mean_smoke401_k0_0k.pth
+[08-17 22:05:23] [#401 smoke] k=0 rc=0 peak=5530 MiB cols=0 — arm6_v2_combab_alignS,mean,0,400,3,7.3,90.9,58.4,155.8,4.4,5530,0,32111,0
+[08-17 22:05:23] [#401 smoke] START k=8 reduce=mean steps=400 gpu=0 log_every=100
+[08-17 22:05:23] [arm6_v2_combab_alignS] FRESH start at step 0
+[08-17 22:05:23] [arm6_v2_combab_alignS] START target=400 gpu=0 save_every=1000000 leg=/root/cf401_smoke/k8/arm6_v2_combab_alignS/leg_0k
+[08-17 22:07:19] [arm6_v2_combab_alignS] DONE target=400 (5.0M) -> /root/cf401_smoke/k8/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k8_mean_smoke401_k8_0k.pth
+[08-17 22:07:19] [#401 smoke] k=8 rc=0 peak=5572 MiB cols=9 — arm6_v2_combab_alignS,mean,8,400,3,7.5,124.4,107.9,240.5,3.7,5572,9,32111,0
+[08-17 22:07:19] [#401 smoke] START k=32 reduce=mean steps=400 gpu=0 log_every=100
+[08-17 22:07:20] [arm6_v2_combab_alignS] FRESH start at step 0
+[08-17 22:07:20] [arm6_v2_combab_alignS] START target=400 gpu=0 save_every=1000000 leg=/root/cf401_smoke/k32/arm6_v2_combab_alignS/leg_0k
+[08-17 22:10:54] [arm6_v2_combab_alignS] DONE target=400 (5.0M) -> /root/cf401_smoke/k32/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k32_mean_smoke401_k32_0k.pth
+[08-17 22:10:54] [#401 smoke] k=32 rc=0 peak=5690 MiB cols=33 — arm6_v2_combab_alignS,mean,32,400,3,7.3,220.9,253.6,482.6,2,5690,33,32111,0
+[08-17 22:10:54] [#401 smoke] card at end: 2 MiB, 32111 MiB, 0 %

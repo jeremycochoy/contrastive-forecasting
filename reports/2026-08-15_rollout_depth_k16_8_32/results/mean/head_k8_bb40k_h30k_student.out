@@ -1,0 +1,12 @@
+[08-18 01:33:16] [#401] head k8_bb40k_h30k_student on cf393_arm6_v2_combab_alignS_cf373k8_mean_40k.pth
+[08-18 01:33:16] [k8_bb40k_h30k_student] waiting for VRAM on GPU 0: 6143 MiB free, need 7000
+[08-18 01:43:16] [k8_bb40k_h30k_student] waiting for VRAM on GPU 0: 6143 MiB free, need 7000
+[08-18 01:53:17] [k8_bb40k_h30k_student] waiting for VRAM on GPU 0: 6143 MiB free, need 7000
+[08-18 02:03:17] [k8_bb40k_h30k_student] waiting for VRAM on GPU 0: 6143 MiB free, need 7000
+[08-18 02:05:47] [k8_bb40k_h30k_student] GPU 0 has 18261 MiB free after 1950s
+[08-18 02:05:47] [k8_bb40k_h30k_student] head-train start enc=student steps=30000 seed=20260722 gpu=0 bb=cf393_arm6_v2_combab_alignS_cf373k8_mean_40k.pth
+[08-18 03:09:47] [k8_bb40k_h30k_student] head-train rc=0
+[08-18 03:09:47] [k8_bb40k_h30k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-18 04:23:12] [k8_bb40k_h30k_student] eval rc=0
+[08-18 04:23:12] [k8_bb40k_h30k_student] DONE — GM-Relative MASE 1.2433
+[08-18 04:23:12] [#401] head k8_bb40k_h30k_student rc=0

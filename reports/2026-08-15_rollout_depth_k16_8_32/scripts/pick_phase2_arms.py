@@ -1,0 +1,92 @@
+#!/usr/bin/env python3
+"""#401 — which arms phase 2 retrains heads on.
+
+The card: *wait until phase 1 has the GM-Relative MASE of every backbone stop
+at every k, then take the 2 arms with the best results.* This protocol runs
+two arms, so the pair is both of them. The picker stays, because its other
+job is the one that matters here.
+
+Two decisions are made here, once, so the driver and the report cannot
+disagree:
+
+  complete        phase 1 must hold every stop of every arm. A missing stop
+                  makes an arm look better than it is, because its best is
+                  taken over fewer stops. This is what the picker refuses.
+  best of an arm  the LOWEST GM-Relative MASE the arm reached at any of its
+                  stops. An arm whose 200k stop is its best is still that
+                  arm's result, and phase 2 retrains all three of its stops
+                  anyway. Ties break on the study's run order, 8 then 32.
+
+Usage:  pick_phase2_arms.py --scores results/mean/scores.csv
+        -> "8 32" on stdout, one line, space separated
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import sys
+
+# The card's depths, in the order it runs them. Ties break on this.
+RUN_ORDER = (8, 32)
+STOPS = (40_000, 100_000, 200_000)
+N_ARMS = 2
+
+
+def pick_arms(rows, n: int = N_ARMS, run_order=RUN_ORDER, stops=STOPS):
+    """The `n` depths with the lowest best score, in run order.
+
+    `rows` are dicts with `k`, `stop` and `score`. Raises ValueError when a
+    depth or a stop is missing.
+    """
+    best: dict[int, float] = {}
+    seen: dict[int, set[int]] = {}
+    for row in rows:
+        k, stop, score = int(row["k"]), int(row["stop"]), float(row["score"])
+        seen.setdefault(k, set()).add(stop)
+        best[k] = min(best.get(k, score), score)
+
+    missing = [k for k in run_order if k not in best]
+    if missing:
+        raise ValueError(f"phase 1 has no score for k = {missing}")
+    for k in run_order:
+        gaps = sorted(set(stops) - seen[k])
+        if gaps:
+            raise ValueError(f"phase 1 has no score for k = {k} at {gaps}")
+
+    ranked = sorted(run_order, key=lambda k: (best[k], run_order.index(k)))
+    return [k for k in run_order if k in set(ranked[:n])]
+
+
+def read_scores(path: str, phase: int = 1):
+    """The phase-1 GRID rows of a `collect.sh` scores.csv.
+
+    A variant row carries the same (depth, stop, head budget) as its base cell
+    on a different training schedule, so it is not a second stop of that arm.
+    Left in, it would enter `best[k]` and an arm could be picked on a schedule
+    the card does not run. A table written before the `variant` column existed
+    holds grid cells only, so a missing column reads as `base`.
+    """
+    with open(path) as fh:
+        return [r for r in csv.DictReader(fh)
+                if int(r["phase"]) == phase
+                and (r.get("variant") or "base") == "base"]
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--scores", required=True, help="results/scores.csv")
+    ap.add_argument("--count", type=int, default=N_ARMS)
+    args = ap.parse_args(argv)
+
+    try:
+        arms = pick_arms(read_scores(args.scores), n=args.count)
+    except ValueError as exc:
+        print(f"ABORT: {exc}", file=sys.stderr)
+        return 2
+    print(" ".join(str(k) for k in arms))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

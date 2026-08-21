@@ -1,0 +1,40 @@
+Device: cuda | Params: 720,668
+Training for 300 steps, bs=64, lr=0.001, T=4096, C=1, mix_ratio=0.0078125, freq_emb_dim=3, seasonality_emb_dim=3, mixup_p=0.3, rev_norm_kind=ewma(span=128), patch_stats=none, encoder_type=gru
+Checkpoints: /home/jupyter/checkpoints_backup/cf-401-smoke/k32/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k32_smoke401_k32_*.pth
+Loss CSV: /home/jupyter/checkpoints_backup/cf-401-smoke/k32/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k32_smoke401_k32_losses.csv
+Latent-drift CSV: /home/jupyter/checkpoints_backup/cf-401-smoke/k32/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k32_smoke401_k32_latent_drift.csv (every 1000000 steps, probe_bs=64, probe_seed=20260722)
+Attn-amplitude CSV: /home/jupyter/checkpoints_backup/cf-401-smoke/k32/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k32_smoke401_k32_attn_amplitude.csv (every 200 steps)
+Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, hf_bs=64, synth_bs=0, cross_bs=0, total_bs=67
+[     50] loss=30.4903  ema_loss=57.8501  gap=-0.0957  ema_gap=-0.2724  mixup=21/50  1.4 sps  ETA 0.0h
+              R²_rand=0.5156  R²_naive=0.0162  U_t=0.0338  U_b=0.0373  AUC=0.7264  Top1=0.0239
+  timing: data=150.3ms  fwd=251.7ms  bwd=284.3ms  total=687.0ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-401-smoke/k32/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k32_smoke401_k32_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-401-smoke/k32/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k32_smoke401_k32_best_loss.pth
+[    100] loss=17.1651  ema_loss=43.8248  gap=-0.0220  ema_gap=-0.1780  mixup=13/50  1.6 sps  ETA 0.0h
+              R²_rand=0.4047  R²_naive=0.1869  U_t=0.0181  U_b=0.0181  AUC=0.6231  Top1=0.0076
+  timing: data=2.9ms  fwd=247.0ms  bwd=272.5ms  total=522.9ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-401-smoke/k32/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k32_smoke401_k32_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-401-smoke/k32/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k32_smoke401_k32_best_loss.pth
+[    150] loss=24.9080  ema_loss=35.6389  gap=-0.0484  ema_gap=-0.1221  mixup=12/50  1.7 sps  ETA 0.0h
+              R²_rand=0.2485  R²_naive=0.0184  U_t=0.0225  U_b=0.0230  AUC=0.5371  Top1=0.0057
+  timing: data=3.3ms  fwd=249.0ms  bwd=275.8ms  total=528.7ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-401-smoke/k32/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k32_smoke401_k32_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-401-smoke/k32/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k32_smoke401_k32_best_loss.pth
+[    200] loss=48.8020  ema_loss=36.0429  gap=-0.1087  ema_gap=-0.1142  mixup=15/50  1.7 sps  ETA 0.0h
+              R²_rand=0.2520  R²_naive=-0.3205  U_t=0.0493  U_b=0.0605  AUC=0.6309  Top1=0.0068
+  timing: data=3.4ms  fwd=251.0ms  bwd=277.9ms  total=532.9ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-401-smoke/k32/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k32_smoke401_k32_best_gap.pth
+[    250] loss=25.3335  ema_loss=34.7618  gap=-0.0340  ema_gap=-0.0884  mixup=11/50  1.7 sps  ETA 0.0h
+              R²_rand=-0.0475  R²_naive=-0.1426  U_t=0.0214  U_b=0.0213  AUC=0.5252  Top1=0.0046
+  timing: data=3.4ms  fwd=252.5ms  bwd=276.9ms  total=533.4ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-401-smoke/k32/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k32_smoke401_k32_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-401-smoke/k32/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k32_smoke401_k32_best_loss.pth
+[    300] loss=36.6354  ema_loss=33.3104  gap=-0.0277  ema_gap=-0.0741  mixup=18/50  1.8 sps  ETA 0.0h
+              R²_rand=-2.2881  R²_naive=-3.0435  U_t=0.0193  U_b=0.0192  AUC=0.5416  Top1=0.0054
+  timing: data=3.2ms  fwd=249.5ms  bwd=277.1ms  total=530.5ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-401-smoke/k32/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k32_smoke401_k32_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-401-smoke/k32/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k32_smoke401_k32_best_loss.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-401-smoke/k32/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k32_smoke401_k32_0k.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-401-smoke/k32/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k32_smoke401_k32_final.pth
+
+Done in 0.0h. Best gap=-0.0741 at step 300, Best loss=33.3104 at step 300

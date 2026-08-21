@@ -1,0 +1,9 @@
+[08-17 22:11:33] [#401 elisa] START reduce=mean depths='8 32' head gpus='0'
+[08-17 22:11:33] [#401 elisa] sync: 1 loop(s) running
+[08-17 22:11:33] [#401 elisa] heads_watch pid 2990172
+/tmp/contrastive-forecasting-401/reports/2026-08-15_rollout_depth_k16_8_32/results/mean/scores.csv: 0 score(s)
+/tmp/contrastive-forecasting-401/reports/2026-08-15_rollout_depth_k16_8_32/results/mean/splits.csv: no eval to split yet
+SKIP depth_ladder (rc=1): ABORT: /tmp/contrastive-forecasting-401/reports/2026-08-15_rollout_depth_k16_8_32/results/mean/scores.csv holds no student-head score
+SKIP domain_radar_phase1 (rc=1): FileNotFoundError: [Errno 2] No such file or directory: '/tmp/contrastive-forecasting-401/reports/2026-08-15_rollout_depth_k16_8_32/results/mean/splits.csv'
+SKIP domain_radar_phase2 (rc=1): FileNotFoundError: [Errno 2] No such file or directory: '/tmp/contrastive-forecasting-401/reports/2026-08-15_rollout_depth_k16_8_32/results/mean/splits.csv'
+[08-17 22:11:34] [#401 elisa] sync: 1 loop(s) running

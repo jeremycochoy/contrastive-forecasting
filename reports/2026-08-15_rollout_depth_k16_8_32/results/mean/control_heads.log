@@ -1,0 +1,12 @@
+[08-19 12:50:16] [controls] k32_bb200k_h30k_student_s20260723 START seed=20260723 steps=30000 bb=cf393_arm6_v2_combab_alignS_cf373k32_mean_200k.pth
+[08-19 13:54:33] [controls] k0_parent_bb40k DROPPED — control c2 already holds it at 1.1600
+[08-19 14:59:32] [controls] k0_parent_bb40k DROPPED — control c2 already holds it at 1.1600
+[08-19 15:02:40] [controls] the two remaining control heads move to card 1; card 0 keeps phase 2
+[08-19 15:02:40] [controls] k32_bb200k_h30k_student_s20260724 START seed=20260724 steps=30000 gpu=1 bb=cf393_arm6_v2_combab_alignS_cf373k32_mean_200k.pth
+[08-19 15:25:46] [rescue] k32_bb200k_h30k_student_s20260724 watched: re-run its eval if the shell dies with no score
+[08-19 16:25:16] [controls] k32_bb200k_h30k_student_s20260724 rc=0 score=none
+[08-19 16:25:16] [controls] k0_parent_bb100k_h30k_student START seed=20260722 steps=30000 gpu=1 bb=cf393_arm6_v2_combab_alignS_100k.pth
+[08-19 16:25:46] [rescue] k32_bb200k_h30k_student_s20260724 shell ended with no score; re-running through a fresh shell
+[08-19 17:46:29] [rescue] k32_bb200k_h30k_student_s20260724 rescue rc=0 score=1.1576
+[08-19 19:04:37] [controls] k0_parent_bb100k_h30k_student rc=0 score=1.1945
+[08-19 19:04:37] [controls] control heads done

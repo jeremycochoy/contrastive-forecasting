@@ -1,0 +1,117 @@
+[08-17 23:08:53] [handover k=32] START host=ssh2.vast.ai:16048 box gpu=1
+[08-17 23:08:53] [handover k=32] waiting for a periodic checkpoint under /home/jupyter/checkpoints_backup/cf-401-mean/k32/arm6_v2_combab_alignS/leg_40k
+[08-18 01:18:13] [handover k=32] checkpoint ready: cf393_arm6_v2_combab_alignS_cf373k32_mean_20k.pth
+[08-18 01:18:13] [handover k=32] elisa is at step 20000
+[08-18 01:18:13] [handover k=32] moving the resume bundle
+=== move_arm_to_box.sh ===
+  arm        : k=32 reduce=mean
+  run name   : cf393_arm6_v2_combab_alignS_cf373k32_mean
+  from       : /home/jupyter/checkpoints_backup/cf-401-mean/k32/arm6_v2_combab_alignS/leg_40k (elisa)
+  resume at  : 20k steps
+  to         : root@ssh2.vast.ai:16048 /root/cf401_runs/k32/arm6_v2_combab_alignS/leg_20k
+  log to     : /root/cf/reports/2026-08-15_rollout_depth_k16_8_32/results/mean/run_cf393_arm6_v2_combab_alignS_cf373k32_mean.log
+
+  ok  backbone                  5195355 B  /home/jupyter/checkpoints_backup/cf-401-mean/k32/arm6_v2_combab_alignS/leg_40k/cf393_arm6_v2_combab_alignS_cf373k32_mean_20k.pth
+  ok  backbone optimizer        5793109 B  /home/jupyter/checkpoints_backup/cf-401-mean/k32/arm6_v2_combab_alignS/leg_40k/cf393_arm6_v2_combab_alignS_cf373k32_mean_20k_optimizer.pth
+  ok  losses CSV               21357517 B  /home/jupyter/checkpoints_backup/cf-401-mean/k32/arm6_v2_combab_alignS/leg_40k/cf393_arm6_v2_combab_alignS_cf373k32_mean_losses.csv
+  ok  leg log                     29646 B  /tmp/contrastive-forecasting-401/reports/2026-08-15_rollout_depth_k16_8_32/results/mean/run_cf393_arm6_v2_combab_alignS_cf373k32_mean.log
+  ok  best gap                  5195999 B  /home/jupyter/checkpoints_backup/cf-401-mean/k32/arm6_v2_combab_alignS/leg_40k/cf393_arm6_v2_combab_alignS_cf373k32_mean_best_gap.pth
+  ok  best gap optimizer        5794468 B  /home/jupyter/checkpoints_backup/cf-401-mean/k32/arm6_v2_combab_alignS/leg_40k/cf393_arm6_v2_combab_alignS_cf373k32_mean_best_gap_optimizer.pth
+  ok  best loss                 5196115 B  /home/jupyter/checkpoints_backup/cf-401-mean/k32/arm6_v2_combab_alignS/leg_40k/cf393_arm6_v2_combab_alignS_cf373k32_mean_best_loss.pth
+  ok  best loss optimizer       5794727 B  /home/jupyter/checkpoints_backup/cf-401-mean/k32/arm6_v2_combab_alignS/leg_40k/cf393_arm6_v2_combab_alignS_cf373k32_mean_best_loss_optimizer.pth
+  ok  attn amplitude CSV          86770 B  /home/jupyter/checkpoints_backup/cf-401-mean/k32/arm6_v2_combab_alignS/leg_40k/cf393_arm6_v2_combab_alignS_cf373k32_mean_attn_amplitude.csv
+  ok  latent drift CSV              218 B  /home/jupyter/checkpoints_backup/cf-401-mean/k32/arm6_v2_combab_alignS/leg_40k/cf393_arm6_v2_combab_alignS_cf373k32_mean_latent_drift.csv
+
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-18 01:18:16] [move k=32] push backbone
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-18 01:18:35] [move k=32] push backbone optimizer
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-18 01:18:52] [move k=32] push losses CSV
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-18 01:19:25] [move k=32] push leg log
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-18 01:19:30] [move k=32] push best gap
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-18 01:19:43] [move k=32] push best gap optimizer
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-18 01:19:53] [move k=32] push best loss
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-18 01:20:02] [move k=32] push best loss optimizer
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-18 01:20:15] [move k=32] push attn amplitude CSV
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-18 01:20:20] [move k=32] push latent drift CSV
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+
+[08-18 01:20:25] [move k=32] verifying 10 file(s) on the box
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+  ok  backbone                  5195355 B sent, box has 5195355
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+  ok  backbone optimizer        5793109 B sent, box has 5793109
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+  ok  losses CSV               21464246 B sent, box has 21464246
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+  ok  leg log                     29907 B sent, box has 29907
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+  ok  best gap                  5195999 B sent, box has 5195999
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+  ok  best gap optimizer        5794468 B sent, box has 5794468
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+  ok  best loss                 5196115 B sent, box has 5196115
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+  ok  best loss optimizer       5794727 B sent, box has 5794727
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+  ok  attn amplitude CSV          87659 B sent, box has 87659
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+  ok  latent drift CSV              218 B sent, box has 218
+
+[08-18 01:20:48] [move k=32] OK — k=32 resumes on the box from step 20000
+  the box's leg finds it through newest_ckpt over /root/cf401_runs/k32/arm6_v2_combab_alignS/leg_20k
+[08-18 01:20:48] [handover k=32] starting k=32 on the box, gpu 1, backbones only
+Warning: Permanently added '[ssh2.vast.ai]:16048' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-19 01:41:50] [handover k=32] ABORT: phase1.sh did not start on the box

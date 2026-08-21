@@ -23,9 +23,23 @@ case "$ENC" in student|teacher) ;; *) echo "ABORT: bad encoder '$ENC'" >&2; exit
 
 HEAD_SEED="${HEAD_SEED:-20260722}"
 
+# The backbone stop, in thousands, for the eval's log lines only. #373 runs
+# every head of this script on a bb40k backbone, so 40 keeps its logs
+# unchanged. #401 puts heads on 40k, 100k and 200k stops, and a wrong label
+# in `results/stops.log` misnames the number a report reads.
+CF_STOP_K="${CF_STOP_K:-40}"
+
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export WT="${WT:-/home/jupyter/wt-cf-373-train}"
-RES="$WT/reports/2026-08-08_rollout_depth/results"
+# Which study's directory takes the head log and the score file. #401 reuses
+# this head and this eval on its own backbones and points it at its own
+# directory. Unset, this is #373's own directory, unchanged.
+#
+# CF_RESULTS names that results directory OUTRIGHT, for a caller whose
+# results do not sit at `<study>/results` — #401's trial runs write to
+# `<study>/results/trial`, and a score file that landed one level up would be
+# collected as a real one.
+RES="${CF_RESULTS:-${CF_STUDY_DIR:-$WT/reports/2026-08-08_rollout_depth}/results}"
 mkdir -p "$RES"
 . "$HERE/cell_paths.sh"
 . "$HERE/gpu_gate.sh"
@@ -62,7 +76,16 @@ head_vram_gate(){ # <gpu index>
   local lock="${GPU_GATE_LOCKDIR:-/tmp}/cf373_head_gpu${gpu}.lock"
   : >>"$lock" 2>/dev/null || true
   exec 7>>"$lock" || return 0
-  flock -w 86400 7 || { log "timed out waiting for the head lock"; return 1; }
+  # How long this head waits for the card. The default is a day, unchanged.
+  #
+  # It is a ceiling, not a budget: a caller that queues a short head behind a
+  # long one must raise it. #401 puts three 30,000-step control heads behind
+  # 540,000 steps of phase-2 cells, which is 22 h of training, and `flock` is
+  # not first-in-first-out. A control head could therefore wait out the day
+  # and abort with no score and no cause a reader could see.
+  flock -w "${HEAD_LOCK_TIMEOUT:-86400}" 7 || {
+    log "timed out after ${HEAD_LOCK_TIMEOUT:-86400}s waiting for the head lock"
+    return 1; }
   while :; do
     free=$(nvidia-smi --id="$gpu" --query-gpu=memory.free \
              --format=csv,noheader,nounits 2>/dev/null | tr -d ' ')
@@ -109,7 +132,7 @@ else
 fi
 
 log "eval start (97 configs, B4, forecast-len 16, elisa CPUs)"
-bash "$HERE/eval_local.sh" "$TAG" 40 "$ENC" "$BB" "$HEAD_CKPT" \
+bash "$HERE/eval_local.sh" "$TAG" "$CF_STOP_K" "$ENC" "$BB" "$HEAD_CKPT" \
   "$OUT" "$SCORE_OUT" >>"$LOG" 2>&1
 rc=$?
 log "eval rc=$rc"

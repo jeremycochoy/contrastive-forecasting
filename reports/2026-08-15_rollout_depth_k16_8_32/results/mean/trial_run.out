@@ -1,0 +1,31 @@
+[08-18 01:53:55] [#401 trial] steps=300 k=8 gpu=0 config=^us_births/M/short$
+[08-18 01:53:55] [#401 trial] root=/home/jupyter/checkpoints_backup/cf-401-mean-trial results=/tmp/contrastive-forecasting-401/reports/2026-08-15_rollout_depth_k16_8_32/results/mean/trial
+[08-18 01:53:55] [#401 trial] head budgets: phase 1 150, phase 2 300
+[08-18 01:53:55] [#401 trial] START backbone k=8 -> 300 steps
+[08-18 01:53:55] [#401] arm k=8 reduce=mean -> 300 steps on gpu 0
+[08-18 01:53:55] [arm6_v2_combab_alignS] SKIP: cf393_arm6_v2_combab_alignS_cf373k8_mean_0k.pth already on disk
+[08-18 01:54:00] [#401] arm k=8 reduce=mean OK — the flag reached the trainer
+[08-18 01:54:00] [#401] arm k=8 stop=300 rc=0
+[08-18 01:54:00] [#401 trial] backbone k=8 -> 300 steps rc=0
+[08-18 01:54:00] [#401 trial] backbone at /home/jupyter/checkpoints_backup/cf-401-mean-trial/k8/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k8_mean_0k.pth (5.0M)
+[08-18 01:54:00] [#401 trial] START phase 1
+[08-18 01:54:00] [#401 phase1] arm k=8 -> 300
+[08-18 01:54:00] [#401] arm k=8 reduce=mean -> 300 steps on gpu 0
+[08-18 01:54:00] [arm6_v2_combab_alignS] SKIP: cf393_arm6_v2_combab_alignS_cf373k8_mean_0k.pth already on disk
+[08-18 01:54:05] [#401] arm k=8 reduce=mean OK — the flag reached the trainer
+[08-18 01:54:05] [#401] arm k=8 stop=300 rc=0
+[08-18 01:54:05] [#401 phase1] head k=8 stop=300 (inline)
+[08-18 01:54:05] [#401] head k8_bb300_h150_student on cf393_arm6_v2_combab_alignS_cf373k8_mean_0k.pth
+[08-18 03:09:47] [k8_bb300_h150_student] waiting for VRAM on GPU 0: 6143 MiB free, need 7000
+[08-18 03:18:17] [k8_bb300_h150_student] GPU 0 has 18738 MiB free after 510s
+[08-18 03:18:17] [k8_bb300_h150_student] head-train start enc=student steps=150 seed=20260722 gpu=0 bb=cf393_arm6_v2_combab_alignS_cf373k8_mean_0k.pth
+[08-18 03:18:41] [k8_bb300_h150_student] head-train rc=0
+[08-18 03:18:41] [k8_bb300_h150_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-18 03:18:46] [k8_bb300_h150_student] eval rc=0
+[08-18 03:18:46] [k8_bb300_h150_student] DONE — GM-Relative MASE 2.5849
+[08-18 03:18:46] [#401] head k8_bb300_h150_student rc=0
+[08-18 03:18:46] [#401 phase1] head k=8 stop=300 rc=0
+/tmp/contrastive-forecasting-401/reports/2026-08-15_rollout_depth_k16_8_32/results/mean/trial/scores.csv: 1 score(s)
+k8_bb300_h150_student        n=  1  all=2.5849  short=2.5849
+wrote 3 rows -> /tmp/contrastive-forecasting-401/reports/2026-08-15_rollout_depth_k16_8_32/results/mean/trial/splits.csv
+[08-18 03:18:46] [#401 phase1] phase 1 drained — 2 row(s) in scores.csv, 0 leg(s) and 0 head(s) failed
