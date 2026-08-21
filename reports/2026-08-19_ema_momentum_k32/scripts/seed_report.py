@@ -197,13 +197,33 @@ def spread_sentence(rows: list[dict], rep: dict) -> str:
     names = ", ".join(f"`{r['arm']}`" for r in stable)
     text = (f"{names} are one arm at {len(stable)} backbone seeds that did not "
             f"collapse. They span {d:.4f} "
-            f"({d / min(r['score'] for r in stable):.1%}), which is the repeat "
-            f"spread this card measures.")
-    near = repeat_spread.unresolved(rows, d)
-    if len(near) > 1:
-        text += (" " + ", ".join(f"`{n}`" for n in near) + " all sit within "
-                 "that spread of the best score, so this card does not rank "
-                 "them.")
+            f"({d / min(r['score'] for r in stable):.1%}), which is the widest "
+            f"repeat this card measures.")
+
+    # THE SPREAD BELONGS TO ONE CELL, NOT TO THE TABLE. This sentence read
+    # "all sit within that spread of the best score, so this card does not
+    # rank them", over a list that held the WINNER. The winner is the one
+    # other cell trained twice, its own two seeds span far less than this,
+    # and both of them beat every other arm's best seed. So the claim the
+    # spread supports is narrower: it is the arms at ONE seed that this card
+    # does not separate.
+    win = min(rows, key=lambda r: r["score"])
+    win_seeds = [r for r in repeat_spread.seeds_of(rows, win)
+                 if not r.get("collapsed")]
+    single = [r["arm"] for r in sorted(rows, key=lambda r: r["score"])
+              if len(repeat_spread.seeds_of(rows, r)) < 2]
+    if len(win_seeds) > 1:
+        lo = min(r["score"] for r in win_seeds)
+        hi = max(r["score"] for r in win_seeds)
+        rest = [r["score"] for r in rows
+                if r["arm"] not in {x["arm"] for x in win_seeds}]
+        text += (f" The best cell holds {len(win_seeds)} seeds of its own, "
+                 f"{lo:.4f} to {hi:.4f}, a span of {hi - lo:.4f}. Its worst "
+                 f"seed sits {min(rest) - hi:.4f} from the best seed of every "
+                 f"other arm, {min(rest):.4f}.")
+    if len(single) > 1:
+        text += (" " + ", ".join(f"`{n}`" for n in single) + " carry one seed "
+                 "each, and this card does not separate them from each other.")
     return text
 
 

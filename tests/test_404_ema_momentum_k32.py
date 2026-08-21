@@ -51,7 +51,7 @@ RUN_SH = EXP / "run.sh"
 REFERENCES_PY = EXP / "scripts" / "references.py"
 PLOT_MOMENTUM = EXP / "scripts" / "plot_momentum.py"
 PLOT_CURVES = EXP / "scripts" / "plot_loss_curves.py"
-PLOT_RADAR = EXP / "scripts" / "plot_domain_radar.py"
+PLOT_GRID = EXP / "scripts" / "plot_domain_grid.py"
 MAKE_TABLE = EXP / "scripts" / "make_table.py"
 ARM_COLOURS = EXP / "scripts" / "arm_colours.py"
 
@@ -160,7 +160,7 @@ class TestLayout:
         "script", [STUDY_SH, ARMS_TSV, RUN_ARM, HEAD_EVAL, PHASE1, HEADS_WATCH,
                    COLLECT, SMOKE, MAKE_PLOTS, LAUNCH_BOX, LAUNCH_ELISA,
                    LAUNCH_SYNC, RUN_SH, REFERENCES_PY, PLOT_MOMENTUM,
-                   PLOT_CURVES, PLOT_RADAR, MAKE_TABLE, ARM_COLOURS])
+                   PLOT_CURVES, PLOT_GRID, MAKE_TABLE, ARM_COLOURS])
     def test_file_exists(self, script):
         assert script.is_file(), f"{script} missing"
 
@@ -1370,8 +1370,14 @@ class TestLossCurves:
         assert [s for s, _ in lc.read_losses(path)] == [100]
 
 
-class TestDomainRadar:
-    """Deliverable 3 — the per-domain figure, as in #373 and #401."""
+class TestDomainGrid:
+    """Deliverable 3 — the per-domain figure, one row per arm.
+
+    IT WAS A RADAR AND THE RADAR DID NOT WORK. Fourteen arms drew fourteen
+    near-equal polygons in seven colours that repeated, under a sixteen-row
+    legend, and no reader could map a polygon to a row. The grid gives every
+    arm a row of its own and prints every value.
+    """
 
     def splits(self, tmp_path, by_arm):
         path = tmp_path / "splits.csv"
@@ -1387,124 +1393,124 @@ class TestDomainRadar:
                                 f"{base + 0.01 * i:.4f}"])
         return path
 
-    def polygon(self, ax, arm):
-        """One arm's drawn radii, closing point included."""
-        line = next(ln for ln in ax.get_lines()
-                    if str(ln.get_label()) == arm)
-        return line.get_ydata()
+    def row_labels(self, ax):
+        return [t.get_text() for t in ax.get_yticklabels()]
 
-    def test_one_polygon_per_arm(self, tmp_path):
-        pr = load_module(PLOT_RADAR, "cf404_plot_radar")
+    def cells(self, ax):
+        """Every number the figure PRINTS in a cell."""
+        return [t.get_text() for t in ax.texts]
+
+    def test_one_row_per_arm(self, tmp_path):
+        pg = load_module(PLOT_GRID, "cf404_plot_grid")
         src = self.splits(tmp_path, {"a08": 1.19, "s09": 1.11})
-        out = tmp_path / "radar.png"
-        fig, ax = pr.draw(pr.read_splits(src), out)
+        out = tmp_path / "grid.png"
+        _fig, ax = pg.draw(pg.read_splits(src), out)
         assert out.is_file()
-        labels = {str(ln.get_label()) for ln in ax.get_lines()}
-        assert any("a08" in v for v in labels) and any("s09" in v for v in labels)
+        assert len(self.row_labels(ax)) == 3, self.row_labels(ax)
 
-    def test_the_radial_axis_holds_the_data_range(self, tmp_path):
-        """Every arm sits between about 0.8 and 1.3. An axis from 0 draws the
-        four polygons on top of one another and the figure says nothing. The
-        axis is log2, as in #373, so the limits read back through 2**x."""
-        pr = load_module(PLOT_RADAR, "cf404_plot_radar")
+    def test_no_row_carries_an_internal_arm_code(self, tmp_path):
+        """A reader cannot look up `a08`. Every row names the momentum and
+        the schedule, out of `arms.tsv`."""
+        pg = load_module(PLOT_GRID, "cf404_plot_grid")
         src = self.splits(tmp_path, {"a08": 1.19, "s09": 1.11})
-        fig, ax = pr.draw(pr.read_splits(src), tmp_path / "radar.png")
-        lo, hi = (2 ** v for v in ax.get_ylim())
-        assert lo > 0.5, f"the radial axis starts at {lo}"
-        assert hi < 1.6
+        _fig, ax = pg.draw(pg.read_splits(src), tmp_path / "grid.png")
+        for label in self.row_labels(ax):
+            assert "a08" not in label and "s09" not in label, label
 
-    def test_the_parity_ring_is_drawn(self, tmp_path):
-        """GM-Relative MASE = 1.0 is parity with seasonal naive. #373 draws
-        that ring on every panel, and a polygon inside it beats seasonal
-        naive on that family."""
-        pr = load_module(PLOT_RADAR, "cf404_plot_radar")
+    def test_the_best_arm_is_the_first_arm_row(self, tmp_path):
+        """The row order IS the ranking, so the grid and the ranking figure
+        cannot disagree."""
+        pg = load_module(PLOT_GRID, "cf404_plot_grid")
         src = self.splits(tmp_path, {"a08": 1.19, "s09": 1.11})
-        _fig, ax = pr.draw(pr.read_splits(src), tmp_path / "radar.png")
-        rings = [ln for ln in ax.get_lines()
-                 if set(round(float(v), 9) for v in ln.get_ydata()) == {0.0}]
-        assert rings, [ln.get_label() for ln in ax.get_lines()]
-        assert any("parity" in str(ln.get_label()) for ln in rings)
+        _fig, ax = pg.draw(pg.read_splits(src), tmp_path / "grid.png",
+                           reference={})
+        assert "0.9" in self.row_labels(ax)[0], self.row_labels(ax)
 
-    def test_the_k3_polygon_is_drawn(self, tmp_path):
-        """Four arms of one cell that differ in one hyperparameter draw four
-        near-equal polygons. Without k = 3 on the figure a reader cannot see
-        where they sit against the score the card has to beat."""
-        pr = load_module(PLOT_RADAR, "cf404_plot_radar")
+    def test_every_cell_prints_its_own_value(self, tmp_path):
+        """Colour alone cannot be read to four figures. The number is there."""
+        pg = load_module(PLOT_GRID, "cf404_plot_grid")
+        src = self.splits(tmp_path, {"a08": 1.19})
+        by_arm = pg.read_splits(src)
+        _fig, ax = pg.draw(by_arm, tmp_path / "grid.png", reference={})
+        printed = self.cells(ax)
+        assert len(printed) == len(by_arm["a08"]), printed
+        assert f"{by_arm['a08']['Econ/Fin']:.2f}" in printed, printed
+
+    def test_the_aggregate_is_a_column_of_its_own(self, tmp_path):
+        """The 97-config score ties a row to the ranking figure. It is not a
+        domain, so it takes the last column."""
+        pg = load_module(PLOT_GRID, "cf404_plot_grid")
+        src = self.splits(tmp_path, {"a08": 1.19})
+        _fig, ax = pg.draw(pg.read_splits(src), tmp_path / "grid.png",
+                           reference={})
+        columns = [t.get_text() for t in ax.get_xticklabels()]
+        assert columns[-1] == pg.ALL, columns
+
+    def test_the_k3_row_is_drawn(self, tmp_path):
+        """Without k = 3 on the figure a reader cannot see where the arms sit
+        against the score they have to beat."""
+        pg = load_module(PLOT_GRID, "cf404_plot_grid")
         src = self.splits(tmp_path, {"a08": 1.19, "s09": 1.11})
-        _fig, ax = pr.draw(pr.read_splits(src), tmp_path / "radar.png")
-        labels = [str(ln.get_label()) for ln in ax.get_lines()]
-        assert any("k = 3" in v and f"{K3_BB40K:.4f}" in v for v in labels), \
-            labels
+        _fig, ax = pg.draw(pg.read_splits(src), tmp_path / "grid.png")
+        assert "k = 3" in self.row_labels(ax)[0], self.row_labels(ax)
 
     def test_the_reference_is_the_run_behind_the_cards_number(self):
-        """The polygon comes out of #373's own committed table. Its 97-config
-        aggregate has to BE the card's `k = 3, bb40k` row, or the polygon is
+        """The row comes out of #373's own committed table. Its 97-config
+        aggregate has to BE the card's `k = 3, bb40k` row, or the row is
         another run under the name of that one."""
-        pr = load_module(PLOT_RADAR, "cf404_plot_radar")
-        assert Path(pr.REFERENCE_SPLITS).is_file(), pr.REFERENCE_SPLITS
-        _domains, whole = pr._rows(pr.REFERENCE_SPLITS, pr.REFERENCE_KEY)
+        pg = load_module(PLOT_GRID, "cf404_plot_grid")
+        assert Path(pg.REFERENCE_SPLITS).is_file(), pg.REFERENCE_SPLITS
+        _domains, whole = pg._rows(pg.REFERENCE_SPLITS, pg.REFERENCE_KEY)
         assert round(whole, 4) == round(K3_BB40K, 4), whole
-        assert len(pr.read_reference()) >= 6
+        assert len(pg.read_reference()) >= 6
 
     def test_a_reference_under_another_key_is_dropped(self, tmp_path, capsys):
         """A wrong key would draw another run as k = 3. The figure refuses it
         and says so, rather than drawing a reference nobody can check."""
-        pr = load_module(PLOT_RADAR, "cf404_plot_radar")
-        got = pr.read_reference(pr.REFERENCE_SPLITS, "A4_k3_bb200k_student")
+        pg = load_module(PLOT_GRID, "cf404_plot_grid")
+        got = pg.read_reference(pg.REFERENCE_SPLITS, "A4_k3_bb200k_student")
         assert got == {}
         assert f"{K3_BB40K:.4f}" in capsys.readouterr().err
 
     def test_a_missing_reference_table_still_draws(self, tmp_path, capsys):
         """`make_plots.sh` redraws every 30 minutes. A checkout without #373's
-        table gives a figure with the parity ring, not a stack trace."""
-        pr = load_module(PLOT_RADAR, "cf404_plot_radar")
-        assert pr.read_reference(tmp_path / "nope.csv") == {}
+        table gives a figure without that row, not a stack trace."""
+        pg = load_module(PLOT_GRID, "cf404_plot_grid")
+        assert pg.read_reference(tmp_path / "nope.csv") == {}
         assert "WARN" in capsys.readouterr().err
         src = self.splits(tmp_path, {"a08": 1.19})
-        _fig, ax = pr.draw(pr.read_splits(src), tmp_path / "radar.png",
+        _fig, ax = pg.draw(pg.read_splits(src), tmp_path / "grid.png",
                            reference={})
-        assert (tmp_path / "radar.png").is_file()
-        assert not any("k = 3" in str(ln.get_label())
-                       for ln in ax.get_lines())
+        assert (tmp_path / "grid.png").is_file()
+        assert not any("k = 3" in v for v in self.row_labels(ax))
 
     def test_the_domains_come_from_the_eval_not_from_a_list(self, tmp_path):
-        pr = load_module(PLOT_RADAR, "cf404_plot_radar")
+        pg = load_module(PLOT_GRID, "cf404_plot_grid")
         src = self.splits(tmp_path, {"a08": 1.19})
-        got = pr.read_splits(src)
+        got = pg.read_splits(src)
         assert set(got["a08"]) == {"Econ/Fin", "Energy", "Nature", "Sales",
-                                   "Transport", "Web/CloudOps"}
+                                   "Transport", "Web/CloudOps", pg.ALL}
 
-    def test_a_hole_in_an_arms_table_breaks_the_polygon(self, tmp_path,
-                                                        capsys):
-        """A domain an arm has no row for, read as 1.0, lands exactly on the
-        parity ring. A reader then takes the hole for a score at parity. The
-        polygon breaks at that domain instead, and the figure names the arm
-        and the domain on stderr."""
-        pr = load_module(PLOT_RADAR, "cf404_plot_radar")
-        src = self.splits(tmp_path, {"a08": 1.19, "s09": 1.11})
-        by_arm = pr.read_splits(src)
-        del by_arm["s09"]["Energy"]
-        _fig, ax = pr.draw(by_arm, tmp_path / "radar.png", reference={})
-        domains = sorted(by_arm["a08"])
-        radii = list(self.polygon(ax, "s09"))
-        assert math.isnan(radii[domains.index("Energy")]), radii
-        assert not any(round(float(v), 9) == 0.0
-                       for v in radii if not math.isnan(v)), radii
-        err = capsys.readouterr().err
-        assert "s09" in err and "Energy" in err, err
-
-    def test_an_arm_with_every_row_keeps_every_point(self, tmp_path):
-        """The break is for a hole alone. An arm whose table is whole draws
-        every domain, at the value the table gives."""
-        pr = load_module(PLOT_RADAR, "cf404_plot_radar")
+    def test_a_hole_in_an_arms_table_leaves_the_cell_empty(self, tmp_path):
+        """A domain an arm has no row for prints no number. A value there
+        would read as a measured score."""
+        pg = load_module(PLOT_GRID, "cf404_plot_grid")
         src = self.splits(tmp_path, {"a08": 1.19})
-        by_arm = pr.read_splits(src)
-        _fig, ax = pr.draw(by_arm, tmp_path / "radar.png", reference={})
-        domains = sorted(by_arm["a08"])
-        radii = list(self.polygon(ax, "a08"))
-        assert not any(math.isnan(v) for v in radii), radii
-        assert radii[:-1] == pytest.approx(
-            [math.log2(by_arm["a08"][d]) for d in domains])
+        by_arm = pg.read_splits(src)
+        del by_arm["a08"]["Energy"]
+        _fig, ax = pg.draw(by_arm, tmp_path / "grid.png", reference={})
+        assert len(self.cells(ax)) == len(by_arm["a08"])
+
+    def test_one_wild_cell_does_not_wash_out_the_others(self, tmp_path):
+        """A collapsed backbone reaches 3.90 on one domain. A colour span set
+        by it drew every other cell near white."""
+        pg = load_module(PLOT_GRID, "cf404_plot_grid")
+        src = self.splits(tmp_path, {"a08": 1.19, "s09": 1.11})
+        by_arm = pg.read_splits(src)
+        by_arm["a08"]["Econ/Fin"] = 3.90
+        _fig, ax = pg.draw(by_arm, tmp_path / "grid.png", reference={})
+        span = ax.get_images()[0].get_clim()[1]
+        assert span < math.log2(3.90), span
 
 
 class TestTheTableAndTheStatement:
@@ -1604,7 +1610,7 @@ class TestOneColourPerArm:
             r, g, b = (int(c[i:i + 2], 16) for i in (1, 3, 5))
             assert max(r, g, b) - min(r, g, b) > 24, f"{c} is a grey"
 
-    @pytest.mark.parametrize("script", [PLOT_MOMENTUM, PLOT_CURVES, PLOT_RADAR])
+    @pytest.mark.parametrize("script", [PLOT_MOMENTUM, PLOT_CURVES])
     def test_every_figure_reads_the_shared_map(self, script):
         text = script.read_text()
         assert "arm_colours" in text, f"{script.name} carries its own palette"
@@ -1622,6 +1628,8 @@ class TestMakePlots:
 
     def test_it_draws_every_deliverable(self):
         code = strip_comments(MAKE_PLOTS.read_text())
-        for script in ("plot_momentum.py", "plot_loss_curves.py",
-                       "plot_domain_radar.py", "make_table.py"):
+        for script in ("plot_arm_ranking.py", "plot_reached_two_colours.py",
+                       "plot_two_axes.py", "plot_loss_curves.py",
+                       "plot_domain_grid.py", "make_table.py",
+                       "plot_backbone_health.py"):
             assert script in code, script

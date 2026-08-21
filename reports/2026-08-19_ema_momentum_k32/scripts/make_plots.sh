@@ -1,15 +1,14 @@
 #!/bin/bash
 # #404 — the card's four deliverables, from whatever this study has scored.
 #
-#   plots/momentum.png         GM-Relative MASE against the EMA momentum
-#                              at step 0 (deliverable 1)
-#   plots/momentum_at_stop.png the same score against the momentum the arm
-#                              HOLDS at the stop. Two ramp lengths now share a
-#                              start value, so the step-0 axis puts two arms on
-#                              one tick and this axis separates them.
+#   plots/arm_ranking.png      every run, one row per arm, ordered by score
+#   plots/reached_vertical.png the score against the momentum the arm HOLDS at
+#                              the stop (deliverable 1)
+#   plots/by_start.png         the score against the start of the schedule
+#   plots/by_ramp.png          the score against the length of the ramp
 #   plots/loss_curves.png      one training-loss curve per arm, log-log
 #                              (deliverable 2)
-#   plots/domain_radar.png     GM-Relative MASE per domain (deliverable 3)
+#   plots/domain_grid.png      GM-Relative MASE per domain (deliverable 3)
 #   results/table.md           the table and the statement (deliverable 4)
 #   plots/backbone_health.png  the contrastive AUC of every arm against the
 #                              backbone step, with any collapsed arm in red
@@ -58,20 +57,29 @@ draw(){  # <name> <script> <args...>
   fi
 }
 
-draw "momentum" "$HERE/plot_momentum.py" \
-  --scores "$CF404_RESULTS/scores.csv" --out "$CF404_PLOTS/momentum.png" \
+# Every figure the report embeds is drawn here. The four score figures were
+# drawn by hand for one round, and a redraw then missed them.
+draw "arm_ranking" "$HERE/plot_arm_ranking.py" \
+  --scores "$CF404_RESULTS/scores.csv" --out "$CF404_PLOTS/arm_ranking.png" \
   --sync-root "$SYNC_TREE"
 
-draw "momentum_at_stop" "$HERE/plot_momentum_at_stop.py" \
+draw "reached_vertical" "$HERE/plot_reached_two_colours.py" --vertical \
   --scores "$CF404_RESULTS/scores.csv" \
-  --out "$CF404_PLOTS/momentum_at_stop.png" \
+  --out "$CF404_PLOTS/reached_vertical.png" --sync-root "$SYNC_TREE"
+
+draw "by_start" "$HERE/plot_two_axes.py" --by start \
+  --scores "$CF404_RESULTS/scores.csv" --out "$CF404_PLOTS/by_start.png" \
+  --sync-root "$SYNC_TREE"
+
+draw "by_ramp" "$HERE/plot_two_axes.py" --by ramp \
+  --scores "$CF404_RESULTS/scores.csv" --out "$CF404_PLOTS/by_ramp.png" \
   --sync-root "$SYNC_TREE"
 
 draw "loss_curves" "$HERE/plot_loss_curves.py" \
-  --root "$CF404_ROOT" --out "$CF404_PLOTS/loss_curves.png"
+  --sync-root "$SYNC_TREE" --out "$CF404_PLOTS/loss_curves.png"
 
-draw "domain_radar" "$HERE/plot_domain_radar.py" \
-  --splits "$CF404_RESULTS/splits.csv" --out "$CF404_PLOTS/domain_radar.png"
+draw "domain_grid" "$HERE/plot_domain_grid.py" \
+  --splits "$CF404_RESULTS/splits.csv" --out "$CF404_PLOTS/domain_grid.png"
 
 draw "table" "$HERE/make_table.py" \
   --scores "$CF404_RESULTS/scores.csv" --out "$CF404_RESULTS/table.md" \

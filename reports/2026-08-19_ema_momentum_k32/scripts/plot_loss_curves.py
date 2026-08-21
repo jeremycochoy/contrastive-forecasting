@@ -58,9 +58,13 @@ arm_colours = _colours()
 # `plot_backbone_health.arms()` builds the label from `arms.tsv`, so one arm
 # carries one label on every figure of this study.
 sys.path.insert(0, str(HERE))
+from plot_backbone_health import arm_rows as _arm_rows  # noqa: E402
 from plot_backbone_health import arms as _arms  # noqa: E402
 
 ARM_LABEL = dict(_arms())
+
+# The L_align weight of each arm, from the same table the labels come from.
+ALIGN_W = {r["arm"]: r["align_w"] for r in _arm_rows()}
 
 
 def read_losses(path) -> list[tuple[int, float]]:
@@ -148,15 +152,34 @@ def find_curves(root) -> list[tuple[str, list[tuple[int, float]]]]:
     return series
 
 
-def draw(series, out, bins=320):
-    """Draw the curves and write the figure. Returns (figure, axes)."""
-    series = [(arm, points) for arm, points in series if points]
-    if not series:
-        raise SystemExit("ABORT: no arm has a losses CSV yet — nothing to draw")
+def sync_curves(sync_root, stop=40000) -> list[tuple[str, list]]:
+    """One arm's BACKBONE losses CSV out of the sync tree, for every arm.
 
-    palette = arm_colours([arm for arm, _ in series])
-    schedules = study_schedules()
-    fig, ax = plt.subplots(figsize=(7.2, 5.0))
+    `find_curves` walks one checkpoint root, and the arms of this study
+    trained on five boxes. It also has to reach past each arm's own eval
+    directory, which holds a head losses CSV under the same name pattern.
+    `seed_report.auc_series` is the study's one locator of the backbone curve,
+    so this figure reads exactly the file the health figure reads.
+    """
+    kk = stop // 1000
+    root = Path(sync_root).expanduser()
+    series = []
+    for arm in study_arms():
+        hits = [h for h in root.glob(f"*/sync/{arm}/*/leg_{kk}k/*_losses.csv")
+                if not h.name.endswith(".prev")]
+        if hits:
+            series.append((arm, read_losses(max(
+                hits, key=lambda h: h.stat().st_size))))
+    return series
+
+
+def align_weight(arm: str) -> float:
+    """The L_align weight of one arm, out of `arms.tsv`."""
+    return ALIGN_W.get(arm, 1.0)
+
+
+def _panel(ax, series, palette, schedules, bins):
+    """Every curve of `series` on one axes. Returns `{arm: line}`."""
     # The solid curves go down first and the dashed ones on top of them. Two
     # arms of one alpha agree to 0.005 below step 500, so whichever goes last
     # hides the other. A dash on top leaves the curve under it in view.
@@ -169,8 +192,8 @@ def draw(series, out, bins=320):
                 lw=0.7, alpha=0.18, color=palette[arm], zorder=1)
         smooth = binned(points, bins)
         line, = ax.plot([s for s, _ in smooth], [v for _, v in smooth],
-                        lw=1.6, label=ARM_LABEL.get(arm, arm), color=palette[arm],
-                        zorder=2)
+                        lw=1.6, label=ARM_LABEL.get(arm, arm),
+                        color=palette[arm], zorder=2)
         if dashes:
             line.set_dashes(dashes)
         handles[arm] = line
@@ -183,27 +206,63 @@ def draw(series, out, bins=320):
     ax.yaxis.set_minor_locator(
         matplotlib.ticker.LogLocator(base=10.0, subs=tuple(x / 10 for x in range(11, 100, 5))))
     ax.set_xlabel("backbone step")
-    ax.set_ylabel("training loss")
-    ax.set_title("The training loss of every arm, at rollout depth 32,\n"
-                 "as a mean over the depth copies")
-    if bins > 0:
-        ax.text(0.015, 0.02, f"median over {bins} log-spaced bins, raw behind",
-                transform=ax.transAxes, fontsize=8, color="0.35")
     ax.grid(alpha=0.25, which="both")
+    return handles
+
+
+def draw(series, out, bins=320):
+    """Draw the curves and write the figure. Returns (figure, axes).
+
+    TWO PANELS, ONE PER L_align WEIGHT. One arm multiplies the align term by
+    3, so its loss sits on another scale and read as the worst run of the
+    study on a shared axes — the worst run is the collapsed backbone. A panel
+    of its own keeps the arm in the figure and off the other panel's scale.
+
+    The legend sits BELOW the axes. Inside, it covered steps 1 to about 500 on
+    every curve, which is the decade the log x axis exists to show.
+    """
+    series = [(arm, points) for arm, points in series if points]
+    if not series:
+        raise SystemExit("ABORT: no arm has a losses CSV yet — nothing to draw")
+
+    palette = arm_colours([arm for arm, _ in series])
+    schedules = study_schedules()
+    base = [s for s in series if align_weight(s[0]) == 1.0]
+    other = [s for s in series if align_weight(s[0]) != 1.0]
+    panels = [(base, "align weight 1")] + \
+             ([(other, "align weight 3")] if other else [])
+
+    fig, axes = plt.subplots(
+        1, len(panels), figsize=(6.6 * len(panels), 5.2), squeeze=False)
+    axes = list(axes[0])
+    handles = {}
+    for ax, (rows, name) in zip(axes, panels):
+        handles.update(_panel(ax, rows, palette, schedules, bins))
+        ax.set_title(name, fontsize=10)
+    axes[0].set_ylabel("training loss")
+    if bins > 0:
+        axes[0].text(0.015, 0.02,
+                     f"median over {bins} log-spaced bins, raw behind",
+                     transform=axes[0].transAxes, fontsize=8, color="0.35")
+    fig.suptitle("The training loss of every arm, at rollout depth 32,\n"
+                 "as a mean over the depth copies")
     # The legend keeps the arm order of the study, not the draw order.
-    ax.legend([handles[a] for a in sorted(handles)],
-              [ARM_LABEL.get(a, a) for a in sorted(handles)],
-              fontsize=9)
-    fig.tight_layout()
+    order = sorted(handles)
+    fig.legend([handles[a] for a in order],
+               [ARM_LABEL.get(a, a) for a in order],
+               fontsize=8, loc="upper center", bbox_to_anchor=(0.5, 0.0),
+               ncol=3, frameon=False)
+    fig.tight_layout(rect=(0, 0, 1, 0.94))
     Path(out).parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=160)
-    print(f"wrote {out} — {len(series)} curve(s)")
-    return fig, ax
+    fig.savefig(out, dpi=160, bbox_inches="tight")
+    print(f"wrote {out} — {len(series)} curve(s), {len(panels)} panel(s)")
+    return fig, axes[0]
 
 
 def main(argv=None):
     p = argparse.ArgumentParser()
     p.add_argument("--root", help="the checkpoint root, one directory per arm")
+    p.add_argument("--sync-root", help="the sync tree, one directory per box")
     p.add_argument("--curve", action="append", default=[],
                    metavar="ARM=CSV", help="one arm's losses CSV, explicitly")
     p.add_argument("--bins", type=int, default=320,
@@ -219,8 +278,10 @@ def main(argv=None):
         series.append((arm, read_losses(path)))
     if args.root:
         series += find_curves(args.root)
+    if args.sync_root:
+        series += sync_curves(args.sync_root)
     if not series:
-        raise SystemExit("ABORT: pass --root or at least one --curve")
+        raise SystemExit("ABORT: pass --root, --sync-root or one --curve")
     draw(series, args.out, bins=args.bins)
     return 0
 

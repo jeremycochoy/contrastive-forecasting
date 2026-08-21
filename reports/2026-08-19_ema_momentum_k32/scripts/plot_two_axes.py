@@ -66,6 +66,50 @@ def cells(rows):
     return out
 
 
+# Where a point's label can go, tried in this order. Above, below, then
+# beside: four points can stack inside 0.04 of the score axis, and a ladder of
+# vertical offsets alone pushes the fourth label so far from its point that a
+# reader cannot tell which point it belongs to.
+SLOTS = ((0.0, 9.0, "center"), (0.0, -15.0, "center"),
+         (13.0, -4.0, "left"), (-13.0, -4.0, "right"),
+         (0.0, 22.0, "center"), (0.0, -28.0, "center"),
+         (0.0, 35.0, "center"))
+
+
+def place_labels(ax, labels, half_w=24.0, half_h=6.5, marker=8.0):
+    """Print each point's score beside it, over no marker and no other label.
+
+    An offset per SERIES was not enough. Two series meet on one x with scores
+    0.009 apart, and both labels then printed at the same height. This tries
+    the slots above in turn and takes the first that hits nothing already on
+    the axes, the other labels of that x AND the markers themselves.
+    """
+    by_x = defaultdict(list)
+    for x, y, colour in labels:
+        by_x[round(x, 6)].append((y, colour))
+    for x in sorted(by_x):
+        points = sorted(by_x[x])
+        taken = []
+        for y, _ in points:
+            cx, cy = ax.transData.transform((x, y))
+            taken.append((cx, cy, marker, marker))
+        for y, colour in points:
+            cx, cy = ax.transData.transform((x, y))
+            dx, dy, align = SLOTS[-1]
+            for dx, dy, align in SLOTS:
+                bx = cx + dx + (half_w if align == "left" else
+                                -half_w if align == "right" else 0.0)
+                by = cy + dy
+                if not any(abs(bx - ox) < half_w + ow and
+                           abs(by - oy) < half_h + oh
+                           for ox, oy, ow, oh in taken):
+                    break
+            taken.append((bx, by, half_w, half_h))
+            ax.annotate(f"{y:.4f}", (x, y), textcoords="offset points",
+                        xytext=(dx, dy), fontsize=7.5, color=colour,
+                        ha=align, zorder=6)
+
+
 def draw(rows, out, by):
     grid = cells(rows)
     fig, ax = plt.subplots(figsize=(9.0, 5.8))
@@ -92,6 +136,7 @@ def draw(rows, out, by):
         tick_labels = [RAMP_NAME[r].replace("over ", "").replace(" steps", "")
                        for r in xs]
 
+    labels = []
     for i, s in enumerate(series):
         px, py, lo, hi = [], [], [], []
         for j, x in enumerate(xs):
@@ -108,21 +153,15 @@ def draw(rows, out, by):
         ax.errorbar(px, py, yerr=[lo, hi], marker="o", markersize=8,
                     linewidth=1.8, capsize=5, elinewidth=1.6,
                     color=COLOURS[i % len(COLOURS)], zorder=3, label=name(s))
-        # Several series can meet on one x, and one offset then prints
-        # every label over the one before it. Each series takes its own.
-        dy = (9, -15, 21, -27, 33)[i % 5]
-        for x, y in zip(px, py):
-            ax.annotate(f"{y:.4f}", (x, y), textcoords="offset points",
-                        xytext=(0, dy), fontsize=7.5,
-                        color=COLOURS[i % len(COLOURS)], ha="center")
+        labels += [(x, y, COLOURS[i % len(COLOURS)]) for x, y in zip(px, py)]
 
     ax.axhline(REF.K3_BB40K, color="0.35", linewidth=1.3, zorder=1)
     ax.axhline(REF.K0_PARENT_BB40K, color="0.35", linestyle="--",
                linewidth=1.3, zorder=1)
     x_text = ax.get_xlim()[0]
-    ax.text(x_text, REF.K3_BB40K, f" k = 3, same 40,000 steps "
+    ax.text(x_text, REF.K3_BB40K, f" {REF.K3_LINE} "
             f"({REF.K3_BB40K:.4f})", fontsize=8, color="0.20", va="bottom")
-    ax.text(x_text, REF.K0_PARENT_BB40K, f" the k = 0 parent of this cell "
+    ax.text(x_text, REF.K0_PARENT_BB40K, f" {REF.K0_LINE} "
             f"({REF.K0_PARENT_BB40K:.4f})", fontsize=8, color="0.20",
             va="bottom")
 
@@ -135,6 +174,9 @@ def draw(rows, out, by):
     ax.legend(fontsize=8, loc="upper center", bbox_to_anchor=(0.5, -0.11),
               ncol=2, framealpha=0.9)
     fig.tight_layout()
+    # After tight_layout, so the axes box and the limits are both final and
+    # the collision test runs on the pixels the reader gets.
+    place_labels(ax, labels)
     Path(out).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=160)
     print(f"wrote {out} — {len(series)} series")

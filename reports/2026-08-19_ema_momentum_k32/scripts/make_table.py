@@ -101,6 +101,33 @@ def beats_k3(rows: list[dict]) -> bool:
     return best(rows)["score"] < REF.K3_BB40K
 
 
+def seed_ranges(rows: list[dict]) -> dict[str, float]:
+    """`{arm: range}` for every cell trained at more than one STABLE seed.
+
+    The table ranks fourteen rows by a quantity and printed no spread for it,
+    while the spread is what decides whether two rows are apart. A cell is a
+    momentum, a schedule, a ramp and an L_align weight, the same key
+    `seed_report.family` uses.
+
+    A collapsed run is out of the range and gets no value. The distance
+    between a dead backbone and a healthy one is not run-to-run noise.
+    """
+    cells: dict[tuple, list[dict]] = {}
+    for r in rows:
+        if r.get("collapsed"):
+            continue
+        cells.setdefault((r["alpha"], r["schedule"], r["ramp"],
+                          r.get("align_w", 1.0)), []).append(r)
+    out = {}
+    for group in cells.values():
+        if len(group) < 2:
+            continue
+        span = max(g["score"] for g in group) - min(g["score"] for g in group)
+        for g in group:
+            out[g["arm"]] = span
+    return out
+
+
 def table_markdown(rows: list[dict], stop: int = 40000) -> str:
     """The card's table: this card's arms first, then the references.
 
@@ -113,20 +140,27 @@ def table_markdown(rows: list[dict], stop: int = 40000) -> str:
     arm holds it at the cell's 1.0. Two rows that agree in every other column
     read as one arm trained twice without it.
     """
+    span = seed_ranges(rows)
     out = [f"| arm | EMA momentum | holds at {stop // 1000}k "
            "| L_align weight | backbone seed "
-           "| AUC at the stop | GM-Relative MASE | vs k = 3 at bb40k |",
-           "|---|---|---|---|---|---|---|---|"]
+           "| AUC at the stop | GM-Relative MASE | seed range "
+           "| vs k = 3 at bb40k |",
+           "|---|---|---|---|---|---|---|---|---|"]
     for r in rows:
         alpha = f"{r['alpha']:g}, {schedule_text(r)}"
         auc = r.get("auc")
         auc_text = "?" if auc is None else f"{auc:.3f}"
         if r.get("collapsed"):
             auc_text += " (collapsed)"
+        # A collapsed run is out of its cell's range, so it prints neither
+        # the range nor "one seed": it measured no run-to-run noise.
+        range_text = ("not counted" if r.get("collapsed") else
+                      f"{span[r['arm']]:.4f}" if r["arm"] in span
+                      else "one seed")
         out.append(f"| {r['arm']} | {alpha} | {holds_at(r, stop):.3f} | "
                    f"{r.get('align_w', 1.0):g} | "
                    f"{r.get('seed') or '?'} | "
-                   f"{auc_text} | {r['score']:.4f} | "
+                   f"{auc_text} | {r['score']:.4f} | {range_text} | "
                    f"{r['score'] - REF.K3_BB40K:+.4f} |")
     out += ["", "| reference | GM-Relative MASE |", "|---|---|"]
     for label, value in REF.TABLE:

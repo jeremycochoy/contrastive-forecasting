@@ -12,7 +12,7 @@ Every number is a GM-Relative MASE on the 97 GIFT-Eval configs.
   K32_BB200K       1.1637  k = 32, mean, student — the best score at k = 32
   K32_BB40K        1.2082  the same arm at bb40k, which is where this card
                            starts
-  K0_PARENT_BB40K  1.1600  the k = 0 parent of this cell
+  K0_PARENT_BB40K  1.1600  the same backbone with no rollout (k = 0)
 
 The arms of this card stop at 40,000 backbone steps, so K3_BB40K and
 K32_BB40K are the fair comparison. The two 200,000-step numbers are a
@@ -27,6 +27,11 @@ K3_BB40K = 1.0862
 K32_BB200K = 1.1637
 K32_BB40K = 1.2082
 K0_PARENT_BB40K = 1.1600
+
+# What every figure calls that line. "parent" and "cell" named no run a reader
+# can look up, and "cell" already means a group of arms in the results table.
+K0_LINE = "k = 0, same 40,000 steps"
+K3_LINE = "k = 3, same 40,000 steps"
 
 # #401's k = 32 arm is not only a horizontal reference: it IS a cell of this
 # sweep. It ran #373's runner at its own default momentum, alpha = 0.9 raised
@@ -47,7 +52,8 @@ TABLE = (
     ("k = 3, bb40k", K3_BB40K),
     ("k = 32, mean, student, bb200k", K32_BB200K),
     ("k = 32, mean, student, bb40k", K32_BB40K),
-    ("the k = 0 parent of this cell, bb40k", K0_PARENT_BB40K),
+    ("the same backbone with no rollout (k = 0), at 40,000 steps",
+     K0_PARENT_BB40K),
 )
 
 

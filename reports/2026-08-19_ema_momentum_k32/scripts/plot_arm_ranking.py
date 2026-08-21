@@ -81,12 +81,12 @@ def draw(rows, out, fell=()):
     # one height. So one labels at the top of the axes and one at the bottom.
     ax.axvline(REF.K3_BB40K, color="0.35", linewidth=1.3, zorder=1)
     ax.text(REF.K3_BB40K, len(order) - 0.35,
-            f" k = 3, same 40,000 steps ({REF.K3_BB40K:.4f})",
+            f" {REF.K3_LINE} ({REF.K3_BB40K:.4f})",
             fontsize=8, color="0.20", va="top")
     ax.axvline(REF.K0_PARENT_BB40K, color="0.35", linestyle="--",
                linewidth=1.3, zorder=1)
     ax.text(REF.K0_PARENT_BB40K, -0.6,
-            f" the k = 0 parent of this cell ({REF.K0_PARENT_BB40K:.4f})",
+            f" {REF.K0_LINE} ({REF.K0_PARENT_BB40K:.4f})",
             fontsize=8, color="0.20", va="bottom")
 
     fell_ids = {id(r) for r in fell}
@@ -109,24 +109,36 @@ def draw(rows, out, fell=()):
                     color="#d62728", zorder=3)
         best = min(r["score"] for r in alive) if alive else None
         if best is not None:
+            # The dashed reference line runs through several of these
+            # labels, so each one carries its own background.
             ax.text(best - 0.006, y, f"{best:.4f}", fontsize=7.5,
-                    color="0.25", va="center", ha="right")
+                    color="0.25", va="center", ha="right", zorder=6,
+                    bbox=dict(facecolor="white", edgecolor="none",
+                              pad=0.9, alpha=0.85))
 
     handles = [plt.Line2D([], [], marker="o", linestyle="-",
                           color=KIND_COLOUR[k], label=KIND_NAME[k])
                for k in ("fixed", "ramp")]
-    ax.legend(handles=handles, fontsize=8, loc="lower right",
-              framealpha=0.9)
+    if fell:
+        handles.append(plt.Line2D([], [], marker=MOM.FELL["marker"],
+                                  linestyle="none", markersize=9,
+                                  color=MOM.FELL["colour"],
+                                  label=MOM.FELL["label"]))
+    # BELOW the axes. Inside, at the lower right, the legend covered the
+    # k = 0 reference label that sits along the bottom.
+    ax.legend(handles=handles, fontsize=8, loc="upper center",
+              bbox_to_anchor=(0.5, -0.06), ncol=3, framealpha=0.9)
     ax.set_yticks(range(len(order)))
     ax.set_yticklabels(list(reversed(order)), fontsize=9)
     ax.set_xlabel("GM-Relative MASE over 97 configs, lower is better")
-    ax.set_title("Every run of the card, by arm\n"
+    ax.set_title("Every run, by arm\n"
                  "one dot is one backbone seed, the bar is the seed range")
     ax.grid(True, axis="x", alpha=0.3)
     ax.set_ylim(-0.7, len(order) - 0.2)
     fig.tight_layout()
     Path(out).parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=160)
+    # bbox_inches, because the legend sits outside the axes.
+    fig.savefig(out, dpi=160, bbox_inches="tight")
     print(f"wrote {out} — {len(order)} arm(s), {len(fell)} collapsed")
     return fig, ax
 

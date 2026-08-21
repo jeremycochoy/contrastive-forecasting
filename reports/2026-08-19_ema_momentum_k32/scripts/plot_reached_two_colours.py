@@ -93,10 +93,13 @@ def draw_vertical(rows, out, fell=(), stop=40000):
                     linewidth=2.0, capsize=5, elinewidth=1.6,
                     zorder=3, label=style["label"])
         for x, y in zip(px, py):
+            # The white box keeps the two reference lines out of the digits.
             ax.annotate(f"{x:.4f}", (x, y),
                         textcoords="offset points",
                         xytext=(0, 10), fontsize=8,
-                        color=style["colour"], ha="center")
+                        color=style["colour"], ha="center", zorder=6,
+                        bbox=dict(facecolor="white", edgecolor="none",
+                                  pad=0.9, alpha=0.85))
     for r in fell:
         y = AT.momentum_at(r["alpha"], r["schedule"], r["ramp"], stop)
         ax.plot([r["score"]], [y], linestyle="none",
@@ -106,13 +109,17 @@ def draw_vertical(rows, out, fell=(), stop=40000):
     ax.axvline(REF.K3_BB40K, color="0.35", linewidth=1.3, zorder=1)
     ax.axvline(REF.K0_PARENT_BB40K, color="0.35", linestyle="--",
                linewidth=1.3, zorder=1)
+    # The two lines sit 0.074 apart. Both labels at the top printed the k = 0
+    # one straight through the best arm's own value, which is the number this
+    # figure exists to show. So one labels at the top and one at the bottom.
     y_top = max([k[1] for k in grid]) + 0.012
+    y_bottom = min([k[1] for k in grid]) - 0.012
     ax.text(REF.K3_BB40K, y_top,
-            f" k = 3, same {stop:,} steps ({REF.K3_BB40K:.4f})",
+            f" {REF.K3_LINE} ({REF.K3_BB40K:.4f})",
             fontsize=8, color="0.20", va="top", rotation=90)
-    ax.text(REF.K0_PARENT_BB40K, y_top,
-            f" the k = 0 parent ({REF.K0_PARENT_BB40K:.4f})",
-            fontsize=8, color="0.20", va="top", rotation=90)
+    ax.text(REF.K0_PARENT_BB40K, y_bottom,
+            f" {REF.K0_LINE} ({REF.K0_PARENT_BB40K:.4f})",
+            fontsize=8, color="0.20", va="bottom", rotation=90)
     ax.set_yticks(sorted({k[1] for k in grid}))
     ax.set_yticklabels([f"{v:.3f}" for v in
                         sorted({k[1] for k in grid})], fontsize=9)
