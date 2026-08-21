@@ -7,5 +7,71 @@ f477c03525bf5e169704715511f1c6d7  /home/jupyter/cf373_r3/sync/arm6_v2_combab_ali
 [08-20 20:58:21] [A4_k3_bb200k_student_s20260724] head-train rc=0
 [08-20 20:58:21] [A4_k3_bb200k_student_s20260724] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
 [08-20 20:58:21] [A4_k3_bb200k_student_s20260723] head-train start enc=student steps=30000 seed=20260723 gpu=1 bb=cf393_arm6_v2_combab_alignS_cf373k3_r2_200k.pth
-22  heads student teacher  30000 steps  gpu 1
-[2026-08-20T19:56:47Z] [rep200k] DRAW A4_k3_bb200k_student_s20260722 start
+[08-20 22:05:01] [A4_k3_bb200k_student_s20260723] head-train rc=0
+[08-20 22:05:01] [A4_k3_bb200k_student_s20260723] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-20 22:12:39] [A4_k3_bb200k_student_s20260724] eval rc=0
+[08-20 22:12:39] [A4_k3_bb200k_student_s20260724] DONE — GM-Relative MASE 1.0642
+[2026-08-20T21:12:39Z] [rep200k] DRAW A4_k3_bb200k_student_s20260724 DONE 1.0642
+[2026-08-20T21:12:39Z] [rep200k] DRAW A4_k3_bb200k_teacher_s20260724 start
+[08-20 23:13:09] [A4_k3_bb200k_teacher_s20260724] head-train start enc=teacher steps=30000 seed=20260724 gpu=1 bb=cf393_arm6_v2_combab_alignS_cf373k3_r2_200k.pth
+[08-20 23:20:46] [A4_k3_bb200k_student_s20260723] eval rc=0
+[08-20 23:20:46] [A4_k3_bb200k_student_s20260723] DONE — GM-Relative MASE 1.0652
+[2026-08-20T22:20:46Z] [rep200k] DRAW A4_k3_bb200k_student_s20260723 DONE 1.0652
+[2026-08-20T22:20:46Z] [rep200k] DRAW A4_k3_bb200k_teacher_s20260723 start
+[08-21 00:27:30] [A4_k3_bb200k_teacher_s20260724] head-train rc=0
+[08-21 00:27:30] [A4_k3_bb200k_teacher_s20260724] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-21 00:27:30] [A4_k3_bb200k_teacher_s20260723] head-train start enc=teacher steps=30000 seed=20260723 gpu=1 bb=cf393_arm6_v2_combab_alignS_cf373k3_r2_200k.pth
+[08-21 01:31:39] [A4_k3_bb200k_teacher_s20260723] head-train rc=0
+[08-21 01:31:39] [A4_k3_bb200k_teacher_s20260723] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-21 01:43:34] [A4_k3_bb200k_teacher_s20260724] eval rc=0
+[08-21 01:43:34] [A4_k3_bb200k_teacher_s20260724] DONE — GM-Relative MASE 1.0764
+[2026-08-21T00:43:34Z] [rep200k] DRAW A4_k3_bb200k_teacher_s20260724 DONE 1.0764
+[08-21 02:45:40] [A4_k3_bb200k_teacher_s20260723] eval rc=0
+[08-21 02:45:40] [A4_k3_bb200k_teacher_s20260723] DONE — GM-Relative MASE 1.0809
+[2026-08-21T01:45:40Z] [rep200k] DRAW A4_k3_bb200k_teacher_s20260723 DONE 1.0809
+   stop  head     draws     mean      std    range  seeds
+ 200000  student      3   1.0651   0.0009   0.0018  s20260722=1.0660  s20260723=1.0652  s20260724=1.0642
+ 200000  teacher      3   1.0800   0.0033   0.0064  s20260722=1.0828  s20260723=1.0809  s20260724=1.0764
+pooled head-seed std over the rows with 2 draws or more: 0.0024
+
+review gap 2 — the protocol seed drawn again here
+   stop  head        #373     here     delta
+ 200000  student   1.0660   1.0660   +0.0000
+  Same head seed, same backbone. Machine and code version are the only difference.
+
+review gap 6 — this band against the published one
+  published pooled range, #393                 0.0384  largest range at either head budget, over every cell
+    same cell, bb40k teacher                   0.0118  #393, arm6_v2_combab_alignS
+    same cell, bb100k teacher                  0.0080  #393, arm6_v2_combab_alignS
+    same cell, bb40k student                   0.0049  #393, arm6_v2_combab_alignS
+    same cell, bb100k student                  0.0047  #393, arm6_v2_combab_alignS
+  gap that made 1.0660 the best                0.0141  rank 1 of 99, runner-up 1.0801
+  this card's largest head-seed range          0.0064  over 2 (stop, head) rows
+  this card's pooled head-seed std             0.0024
+  VERDICT: the band (0.0064) is narrower than the 0.0141 gap that made 1.0660 the best, so a move larger than the band is readable.
+[2026-08-21T01:45:40Z] [rep200k] band drained at 200k
+[08-21 03:46:09] [A4_k3_bb200k_teacher_s20260722] eval rc=0
+[08-21 03:46:09] [A4_k3_bb200k_teacher_s20260722] DONE — GM-Relative MASE 1.0828
+[2026-08-21T02:46:09Z] [rep200k] DRAW A4_k3_bb200k_teacher_s20260722 DONE 1.0828
+   stop  head     draws     mean      std    range  seeds
+ 200000  student      3   1.0651   0.0009   0.0018  s20260722=1.0660  s20260723=1.0652  s20260724=1.0642
+ 200000  teacher      3   1.0800   0.0033   0.0064  s20260722=1.0828  s20260723=1.0809  s20260724=1.0764
+pooled head-seed std over the rows with 2 draws or more: 0.0024
+
+review gap 2 — the protocol seed drawn again here
+   stop  head        #373     here     delta
+ 200000  student   1.0660   1.0660   +0.0000
+ 200000  teacher   1.0828   1.0828   +0.0000
+  Same head seed, same backbone. Machine and code version are the only difference.
+
+review gap 6 — this band against the published one
+  published pooled range, #393                 0.0384  largest range at either head budget, over every cell
+    same cell, bb40k teacher                   0.0118  #393, arm6_v2_combab_alignS
+    same cell, bb100k teacher                  0.0080  #393, arm6_v2_combab_alignS
+    same cell, bb40k student                   0.0049  #393, arm6_v2_combab_alignS
+    same cell, bb100k student                  0.0047  #393, arm6_v2_combab_alignS
+  gap that made 1.0660 the best                0.0141  rank 1 of 99, runner-up 1.0801
+  this card's largest head-seed range          0.0064  over 2 (stop, head) rows
+  this card's pooled head-seed std             0.0024
+  VERDICT: the band (0.0064) is narrower than the 0.0141 gap that made 1.0660 the best, so a move larger than the band is readable.
+[2026-08-21T02:46:09Z] [rep200k] band drained at 200k

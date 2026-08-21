@@ -1,0 +1,22 @@
+   stop  head     draws     mean      std    range  seeds
+ 200000  student      3   1.0651   0.0009   0.0018  s20260722=1.0660  s20260723=1.0652  s20260724=1.0642
+ 200000  teacher      3   1.0800   0.0033   0.0064  s20260722=1.0828  s20260723=1.0809  s20260724=1.0764
+pooled head-seed std over the rows with 2 draws or more: 0.0024
+
+review gap 2 — the protocol seed drawn again here
+   stop  head        #373     here     delta
+ 200000  student   1.0660   1.0660   +0.0000
+ 200000  teacher   1.0828   1.0828   +0.0000
+  Same head seed, same backbone. Machine and code version are the only difference.
+
+review gap 6 — this band against the published one
+  published pooled range, #393                 0.0384  largest range at either head budget, over every cell
+    same cell, bb40k teacher                   0.0118  #393, arm6_v2_combab_alignS
+    same cell, bb100k teacher                  0.0080  #393, arm6_v2_combab_alignS
+    same cell, bb40k student                   0.0049  #393, arm6_v2_combab_alignS
+    same cell, bb100k student                  0.0047  #393, arm6_v2_combab_alignS
+  gap that made 1.0660 the best                0.0141  rank 1 of 99, runner-up 1.0801
+  this card's largest head-seed range          0.0064  over 2 (stop, head) rows
+  this card's pooled head-seed std             0.0024
+  VERDICT: the band (0.0064) is narrower than the 0.0141 gap that made 1.0660 the best, so a move larger than the band is readable.
+wrote ../results/head_band.csv
