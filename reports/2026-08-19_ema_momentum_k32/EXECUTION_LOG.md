@@ -842,3 +842,31 @@ command line.
 
 The credit is $6.58 and the limit for this round is $4. `MAX_SPEND` is $3.20,
 which is 8.9 h of runway at $0.3611/h, and the whole round needs about 5.5 h.
+
+### The head lock, and what the driver read as a dead head
+
+`r60_09` reached 40,000 steps at 06:02 and its head started. `r100_095`
+reached the stop at 06:12 and the driver logged "starting its head" TWICE, at
+06:12 and 06:21. Only one head trainer was on the card.
+
+THE CAUSE IS A LOCK, NOT A FAILURE. #373's `head_eval_bb.sh` takes a per-card
+lock before it trains, `flock -w 86400` on `/tmp/cf373_head_gpu0.lock`, so ONE
+head trains per card at a time. `r60_09` held it. Two `r100_095` instances
+queued behind it, blocked, with no output and no error.
+
+The driver asks "does a head run for this arm?" with a pattern on
+`qhead_<tag>_s<seed>`, which is the PYTHON TRAINER's command line. A queued
+`head_eval_bb.sh` carries the tag without the `qhead_` prefix, so the pattern
+misses it and the driver reads a waiting head as a dead one. It then starts
+another, every poll, until the trainer itself comes up.
+
+WHAT THAT COSTS. Nothing on disk. The lock serialises the heads, which is what
+it is for, and `head_eval_bb.sh` skips a head whose final checkpoint is
+already there. So the extra instances take the lock in turn after the real
+head lands, skip, and exit. The cost is a few idle shells for the ~30 minutes
+`r60_09`'s head takes.
+
+THE FIX FOR THE NEXT ROUND. `box_head_running` must match a QUEUED head too,
+not the python trainer alone. `round7.sh` was not edited while it ran: bash
+reads a script as it goes, so an edit in place can change the code under a
+running driver.
