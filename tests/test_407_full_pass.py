@@ -1516,21 +1516,32 @@ class TestBandQueue:
         code = strip_comments(BAND_QUEUE_SH.read_text())
         assert 'BAND_GPU="${BAND_GPU:-1}"' in code
 
-    def test_queue_fires_the_redraw_and_the_450k_band(self):
+    def test_queue_holds_the_three_stages_card_one_owns(self):
         code = strip_comments(BAND_QUEUE_SH.read_text())
-        assert 'REDRAW_SEED="${REDRAW_SEED:-20260722}"' in code
-        assert 'MID_STOP="${MID_STOP:-450000}"' in code
+        assert '"200000|20260722|now"' in code
+        assert '"300000|20260723 20260724|ckpt"' in code
+        assert '"450000|20260723 20260724|ckpt"' in code
         # 665k belongs to the watchdog. Two firers would race.
         assert "665000" not in code
+
+    def test_the_checkpoint_gate_demands_the_sidecar(self):
+        """A backbone alone can be one the driver is still writing.
+
+        `save_snapshot` writes the backbone first and the optimizer file
+        second, so the sidecar is what proves the write finished.
+        """
+        code = strip_comments(BAND_QUEUE_SH.read_text())
+        assert '_optimizer.pth' in code
 
     def test_queue_waits_on_the_running_band(self):
         code = strip_comments(BAND_QUEUE_SH.read_text())
         assert "replicate_alive" in code
         assert "/proc/$p/cmdline" in code, "pgrep alone matches the launcher"
 
-    def test_queue_serialises_stage_two_behind_stage_one(self):
+    def test_queue_runs_one_band_at_a_time(self):
+        """Card 1 holds one flock, so a second band would only queue."""
         code = strip_comments(BAND_QUEUE_SH.read_text())
-        assert '[ "$stage1" = done ]' in code
+        assert "any_replicate_alive" in code
 
 
 # --- 13. the band queue, end to end ---------------------------------------
@@ -1546,7 +1557,15 @@ exit 0
 """
 
 CKPT_STUB = """import os, sys
-sys.exit(0 if os.environ.get("STUB_CKPT") == "1" else 3)
+# The sandbox stands in for `full_pass.py --ckpt-at <stop> --root <root>`.
+# The real script PRINTS the checkpoint it found, and the queue then tests
+# the file and its optimizer sidecar. So this must print a path too.
+stop = int(sys.argv[sys.argv.index("--ckpt-at") + 1])
+root = os.environ.get("STUB_CKPT_DIR", "")
+path = os.path.join(root, "bb_%dk.pth" % (stop // 1000))
+if not root or not os.path.isfile(path):
+    sys.exit(3)
+print(path)
 """
 
 
@@ -1583,6 +1602,22 @@ def queue(tmp_path):
             (parent / f"score_A4_k3_bb{stop_k}k_{head}_s{seed}.txt").write_text(
                 value + "\n")
 
+        def land(self, stop_k, sidecar=True):
+            """That stop's backbone is on disk.
+
+            `sidecar=False` gives a backbone with no optimizer file beside
+            it, which is what a checkpoint the driver is still writing
+            looks like.
+            """
+            ck = tmp_path / "ckpt"
+            ck.mkdir(exist_ok=True)
+            (ck / f"bb_{stop_k}k.pth").write_text("x")
+            opt = ck / f"bb_{stop_k}k_optimizer.pth"
+            if sidecar:
+                opt.write_text("x")
+            elif opt.exists():
+                opt.unlink()
+
         def start_band(self, stop):
             """A real process that reads as a band of this sandbox."""
             env = dict(os.environ, CF407_RESULTS=str(res), STUB_SLEEP="30")
@@ -1598,10 +1633,14 @@ def queue(tmp_path):
 
         def run(self, ckpt=False, once=True, period=300, max_fires=4,
                 timeout=30):
+            # `ckpt=True` lands every checkpoint a `ckpt` stage waits on.
+            if ckpt:
+                self.land(300)
+                self.land(450)
             env = dict(os.environ,
                        CF407_RESULTS=str(res), WT=str(tmp_path / "wt"),
                        RUNS=str(tmp_path / "runs"),
-                       STUB_CKPT="1" if ckpt else "0",
+                       STUB_CKPT_DIR=str(tmp_path / "ckpt"),
                        QUEUE_PERIOD=str(period),
                        QUEUE_MAX_FIRES=str(max_fires))
             if once:
@@ -1663,20 +1702,38 @@ class TestBandQueueFires:
         # Only the stub's own line. The queue added nothing.
         assert queue.fired(1) == ["200000"]
 
-    def test_stage_two_waits_for_stage_one(self, queue):
+    def test_a_later_stage_waits_while_a_band_holds_card_one(self, queue):
         queue.start_band(200_000)
         queue.run(ckpt=True)
-        assert "450000" not in " ".join(queue.fired(1))
+        fired = " ".join(queue.fired(1))
+        assert "300000" not in fired and "450000" not in fired
 
-    def test_stage_two_fires_when_the_checkpoint_lands(self, queue):
+    def test_the_300k_band_fires_when_its_checkpoint_lands(self, queue):
         for head in ("student", "teacher"):
             queue.score(head, 20260722)
         queue.run(ckpt=True)
-        assert queue.fired(1) == ["450000"]
+        # 450k is ready too, and it must WAIT. One band at a time.
+        assert queue.fired(1) == ["300000 20260723 20260724"]
 
-    def test_stage_two_waits_for_the_checkpoint(self, queue):
+    def test_the_450k_band_fires_when_the_300k_band_drains(self, queue):
         for head in ("student", "teacher"):
             queue.score(head, 20260722)
+            for seed in (20260723, 20260724):
+                queue.score(head, seed, stop_k=300)
+        queue.run(ckpt=True)
+        assert queue.fired(1) == ["450000 20260723 20260724"]
+
+    def test_a_stage_waits_for_its_checkpoint(self, queue):
+        for head in ("student", "teacher"):
+            queue.score(head, 20260722)
+        queue.run(ckpt=False)
+        assert queue.fired() == []
+
+    def test_a_checkpoint_without_its_sidecar_does_not_fire(self, queue):
+        """The driver may still be writing that backbone."""
+        for head in ("student", "teacher"):
+            queue.score(head, 20260722)
+        queue.land(300, sidecar=False)
         queue.run(ckpt=False)
         assert queue.fired() == []
 
@@ -1686,17 +1743,21 @@ class TestBandQueueFires:
         assert queue.fired(1) == ["200000 20260722"]
 
     def test_the_fire_cap_stops_a_runaway(self, queue):
+        """The stub scores nothing, so every stage burns its cap and stops."""
         for head in ("student", "teacher"):
             queue.score(head, 20260722)
         log = queue.run(ckpt=True, once=False, period=1, max_fires=2)
-        assert queue.fired(2).count("450000") == 2
+        fired = queue.fired(4)
+        assert sum("300000" in ln for ln in fired) == 2
+        assert sum("450000" in ln for ln in fired) == 2
         assert "GIVING UP" in log
         assert "the queue stops" in log
 
-    def test_a_drained_band_ends_the_queue(self, queue):
+    def test_a_drained_queue_ends(self, queue):
         for head in ("student", "teacher"):
             queue.score(head, 20260722)
             for seed in (20260723, 20260724):
+                queue.score(head, seed, stop_k=300)
                 queue.score(head, seed, stop_k=450)
         log = queue.run(ckpt=True, once=False, period=1)
         assert queue.fired() == []
