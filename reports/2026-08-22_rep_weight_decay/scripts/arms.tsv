@@ -1,0 +1,97 @@
+# #409 — the arms of the card, one row each. Tab separated.
+#
+# Columns: arm, the L_rep weight at the end of the ramp, the ramp length in
+# steps, the backbone seed, the L_align target. A `-` in a column is a flag
+# the arm does NOT pass.
+#
+# Only the decay, the seed and the align target change. Every other flag comes
+# from #373's cell `arm6_v2_combab_alignS` at k = 3 under the default `sum`
+# reduction: `--loss-shape cosine_similarity_batch_rep_only`,
+# `--align-loss-weight 1.0`, `--moco-rep-keys`, `--tau-rep 1.0`, no CPC
+# auxiliary, SIGReg on the embedding and the encoding at weight 1.0,
+# `--tau 0.10`, and the EMA momentum 0.9 rising to 1.0 at step 100,000.
+#
+# Add a row here and nothing else changes: every script and guard reads this
+# file.
+#
+# ---- Why this cell -----------------------------------------------------------
+#
+# The card says to take the EMA momentum sweep's table as a guide, not as a
+# list, and to ask a Fable agent before the choice. That opinion is in
+# scripts/fable_opinion.md, and this table follows it.
+#
+# The sweep ran at k = 32 under the mean reduction. Its best arm scores 1.1491
+# at the 40,000-step stop. The k = 3 cell scores 1.0862 at that same stop and
+# 1.0660 at 200,000 steps, which is the project's best. So this card starts
+# from the k = 3 cell: a decay gain on the k = 32 cell would have to close
+# 0.063 before it reaches the frontier.
+#
+# The premise of the card holds on both cells. They share the loss shape
+# `cosine_similarity_batch_rep_only`, whose whole main loss IS L_rep. On the
+# sweep's own CSVs L_rep holds 92 to 93 percent of the total and moves from
+# 11.54 to 11.63 over 40,000 steps, while L_align moves.
+#
+# The card's stated best, 1.1491, is the best of the SWEEP, not of the project.
+#
+# ---- Why the EMA schedule does not move --------------------------------------
+#
+# It stays at 0.9 rising to 1.0 over 100,000 steps. Three reasons:
+#
+#   - It is already this cell's schedule, so the decay is the only flag that
+#     moves against the control.
+#   - It is the sweep's own best arm.
+#   - On the align-student arms the teacher enters the loss through the MoCo
+#     keys inside L_rep and nowhere else. At weight 0.0 the teacher leaves the
+#     objective, so no schedule can act after step 10,000 in seven of the eight
+#     arms.
+#
+# ---- Why these floors --------------------------------------------------------
+#
+# k = 3 under the `sum` reduction sums 4 copies of L_align against ONE copy of
+# the h-anchored L_rep. So the baseline holds a repel-to-pull ratio of 1:4, and
+# the decay walks that ratio up as the weight falls.
+#
+# The k = 16 / 8 / 32 study measured the far end of that walk. Its summed arms
+# ran 1:9, 1:17 and 1:33 from step 0. All three lost the contrastive task: AUC
+# fell below 0.55 at steps 4,404, 347 and 1,343, the latent rank fell to about
+# 1.0, and the scores ran 1.8 to 12.5. Both SIGReg terms were on at weight 1.0
+# and did not hold them.
+#
+# A decay from 1.0 to 0.0 over 10,000 steps crosses the known-dead 1:9 near
+# step 5,600. So the card measures the WALK and not one point of it:
+#
+#   1.0 (control) -> 0.5 -> 0.2 -> 0.0
+#
+# A floor of 0.5 holds 1:8, the last ratio the collapsed set does not cover.
+# A floor of 0.1 would hold 1:40, past every dead ratio, so it is not run.
+#
+# ---- Why two seeds -----------------------------------------------------------
+#
+# The sweep measured a seed range of 0.1432 on one arm and 0.0016 on another,
+# so one seed cannot separate a small gain. This cell's own backbone-seed
+# spread is unmeasured. Three arms carry a repeat at seed 20260524: the
+# control, the full decay and the 0.5 floor.
+#
+# Seed 20260521 stays out. It lost the contrastive task once at full weight, so
+# a collapse there could not be read as the decay's.
+#
+# ---- What to watch -----------------------------------------------------------
+#
+# L_rep carries the negatives of this objective. At weight 0.0 nothing pushes
+# the representations apart. The trainer writes the contrastive AUC to the
+# `auc` column of <run>_losses.csv every step, and #409 adds `rep_w`, `l_rep`
+# and `l_align` beside it. Read the AUC of every arm and name the step any run
+# leaves the 0.95 to 0.97 band.
+#
+# `dec0T_s20` is the one arm whose L_align pulls toward the EMA TEACHER. Past
+# the ramp that arm is exactly BYOL: a forecaster trained against a detached,
+# slow target. It is the arm most likely to hold the AUC at weight 0.0.
+# arm	end	ramp	seed	align_target
+ctrl_s20	-	-	20260520	student
+ctrl_s24	-	-	20260524	student
+dec0_s20	0.0	10000	20260520	student
+dec0_s24	0.0	10000	20260524	student
+flr05_s20	0.5	10000	20260520	student
+flr05_s24	0.5	10000	20260524	student
+flr02_s20	0.2	10000	20260520	student
+dec0T_s20	0.0	10000	20260520	teacher
