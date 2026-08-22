@@ -67,6 +67,10 @@ if [ -n "${CF409_TRIAL:-}" ]; then
   CF409_STOPS="$CF409_TRIAL"
   CF409_HEAD_STEPS=$(( CF409_TRIAL / 2 ))
   CF409_RAMP_SCALE="${CF409_RAMP_SCALE:-$(( CF409_TRIAL * 10000 / 40000 ))}"
+  # The AUC gate scales too, or a 400-step trial would end inside its own
+  # warmup and the gate would never fire.
+  CF409_AUC_WARMUP="${CF409_AUC_WARMUP:-$(( CF409_TRIAL / 40 ))}"
+  CF409_AUC_POLL="${CF409_AUC_POLL:-30}"
 fi
 
 # ---- Where the artefacts live ------------------------------------------------
@@ -297,4 +301,245 @@ cf409_kill_tree(){  # <pid>
   sleep 2
   pkill -9 -P "$pid" 2>/dev/null
   kill -9 "$pid" 2>/dev/null
+}
+
+# The CSVs of one leg, oldest first. A leg re-fired after a crash resumes into
+# the SAME leg_40k/ directory, and train.py branches its `--run-name` to
+# `<name>_r2` when that directory already holds `<name>_*.pth`
+# (`safe_run_name`). So one arm can hold more than one CSV, and the report
+# reads them all.
+cf409_losses_csvs(){  # <arm> <stop steps>
+  local dir name
+  dir="$(cf409_leg_dir "${1:?arm}" "${2:?stop}")"
+  name="$(cf409_run_name "$1")"
+  ls -tr "$dir/$name"_losses.csv "$dir/$name"_r[0-9]*_losses.csv 2>/dev/null
+}
+
+# The CSV the leg that runs NOW writes to, which is the newest one. The AUC
+# gate reads this one: an older CSV holds the steps of a leg that already
+# stopped, and a verdict on those would stop the wrong run.
+cf409_live_losses_csv(){  # <arm> <stop steps>
+  cf409_losses_csvs "${1:?arm}" "${2:?stop}" | tail -1
+}
+
+# ---- The AUC gate ------------------------------------------------------------
+#
+# L_rep carries the negatives. Four arms decay it to 0.0 and cross the
+# known-dead 1:9 repel-to-pull ratio near step 5,600, and a collapsed arm then
+# climbs about 30,000 dead steps to the stop. `auc_guard.sh` reads the `auc`
+# column of the live CSV while the leg trains and stops the leg that lost the
+# contrastive task.
+#
+# The window and the threshold are `auc_watch.py`'s own: a 500-step rolling
+# median, under 0.55. The three arms of the k = 16 / 8 / 32 study that lost the
+# task all fell under that value and stayed there.
+CF409_AUC_WINDOW="${CF409_AUC_WINDOW:-500}"
+CF409_AUC_THRESHOLD="${CF409_AUC_THRESHOLD:-0.55}"
+# Steps the verdict does not read. The AUC of a fresh run starts near 0.5 and
+# climbs, so a gate with no warmup stops every arm in its first minute. Every
+# arm holds a weight of 0.9 or more through this warmup, so no arm can collapse
+# from the decay inside it.
+CF409_AUC_WARMUP="${CF409_AUC_WARMUP:-1000}"
+# How often the gate reads the CSV. The trainer flushes every 100 rows.
+CF409_AUC_POLL="${CF409_AUC_POLL:-600}"
+
+# What the gate writes when it stops an arm. The report reads the step out of
+# it, and `phase1.sh` reads its presence.
+cf409_collapse_file(){  # <arm>
+  printf '%s/collapsed_%s.txt\n' "$CF409_RESULTS" "${1:?arm}"
+}
+
+# ---- Exit codes --------------------------------------------------------------
+#
+# A lane re-fires a leg that CRASHED. It must never re-fire a refusal, because
+# a refusal repeats and each re-fire costs a GPU lane.
+#
+#   2   refused: not an arm, not a stop, no runner, no checkpoint
+#   3   the trainer took an objective this arm does not carry
+#   4   the AUC gate stopped this arm
+#   9   the session holds above this stop (`run_leg_k.sh`)
+#   10  another machine claims this cell (`run_leg_k.sh`)
+CF409_RC_COLLAPSED=4
+CF409_NO_RETRY="2 3 4 9 10"
+
+cf409_retryable(){  # <exit code>
+  [ "${1:?rc}" -eq 0 ] && return 1
+  case " $CF409_NO_RETRY " in *" $1 "*) return 1 ;; esac
+  return 0
+}
+
+# How many times a lane fires ONE leg, and ONE head, before it drops it.
+CF409_LEG_TRIES="${CF409_LEG_TRIES:-3}"
+CF409_HEAD_TRIES="${CF409_HEAD_TRIES:-3}"
+
+# ---- The head half of the study ----------------------------------------------
+#
+# One 30,000-step student head on each arm's 40,000-step backbone, then that
+# head's 97 GIFT-Eval configs. `head_eval.sh` runs the pair on #373's protocol,
+# and the names below are what the pair writes under.
+
+cf409_is_in(){  # <value> <space separated list>
+  case " ${2:-} " in *" ${1:-} "*) return 0 ;; *) return 1 ;; esac
+}
+
+# The card defines ONE head budget. A tag written at any other budget is a tag
+# `collect.sh` reads as this study's and the card never defined.
+cf409_require_head_steps(){  # <head steps>
+  [ "${1:-}" = "$CF409_HEAD_STEPS" ] && return 0
+  echo "ABORT: head steps='${1:-}' is not this card's budget" \
+       "($CF409_HEAD_STEPS)" >&2
+  return 2
+}
+
+# A step count, as a tag reads it. `40000` -> `40k`, `400` -> `400`. A trial
+# budget is not a multiple of 1000, and rounding it to `0k` would give two
+# budgets one tag.
+cf409_steps_label(){  # <steps>
+  local n="${1:?steps}"
+  if [ $(( n % 1000 )) -eq 0 ]; then printf '%dk' $(( n / 1000 ))
+  else printf '%d' "$n"; fi
+}
+
+cf409_steps_of(){  # <label>
+  case "${1:?label}" in
+    *k) printf '%d' $(( ${1%k} * 1000 )) ;;
+    *)  printf '%d' "$1" ;;
+  esac
+}
+
+# The name of one (arm, stop, head budget). It names the head checkpoint, the
+# eval directory and the score file, so `collect.sh` reads the table back out
+# of the filenames rather than out of a second place that can drift.
+cf409_tag(){  # <arm> <stop steps> <head steps>
+  printf '%s_bb%s_h%s_%s\n' "${1:?arm}" \
+    "$(cf409_steps_label "${2:?stop}")" \
+    "$(cf409_steps_label "${3:?head steps}")" "$CF409_ENC"
+}
+
+# The backbone a stop produced, or nothing. Two names, not one glob:
+# `<name>_<N>k.pth` is the leg's own, and `<name>_r<N>_<N>k.pth` is train.py's
+# `_rN` infix on a re-fired leg. A trailing `*` would take the optimizer file
+# with them.
+#
+# train.py names every snapshot `<run>_<step / 1000>k.pth`, so a trial budget
+# of 400 steps lands `_0k.pth`. The TAG uses `cf409_steps_label` instead, which
+# keeps a trial's score file apart from the study's.
+cf409_bb_ckpt(){  # <arm> <stop steps>
+  local dir name kk
+  dir="$(cf409_leg_dir "${1:?arm}" "${2:?stop}")"
+  name="$(cf409_run_name "$1")"
+  kk=$(( ${2:?stop} / 1000 ))
+  ls "$dir/$name"_"$kk"k.pth "$dir/$name"_r[0-9]*_"$kk"k.pth 2>/dev/null \
+    | grep -v optimizer | head -1
+}
+
+# Where #373's head script lays one tag's head, its GIFT-Eval output and its
+# merged 97-config CSV. One root per arm, the same rule as the backbones.
+cf409_eval_dir(){  # <arm> <tag>
+  printf '%s/eval/%s\n' "$(cf409_arm_root "${1:?arm}")" "${2:?tag}"
+}
+
+# The file #373's head script writes one pair's aggregate score to.
+cf409_score_file(){  # <arm> <stop steps>
+  printf '%s/score_%s.txt\n' "$CF409_RESULTS" \
+    "$(cf409_tag "${1:?arm}" "${2:?stop}" "$CF409_HEAD_STEPS")"
+}
+
+# Every (arm, stop) pair of the study, one per line.
+cf409_pairs(){
+  local arm stop
+  for arm in $CF409_ARMS; do
+    for stop in $CF409_STOPS; do printf '%s %s\n' "$arm" "$stop"; done
+  done
+}
+
+cf409_scored(){  # <arm> <stop steps>
+  [ -s "$(cf409_score_file "${1:?arm}" "${2:?stop}")" ]
+}
+
+# ---- The cards this machine carries ------------------------------------------
+#
+# elisa holds two RTX 4090s and the study puts four arms on each. A lane on a
+# card that is not there dies inside `.to(device)`, hours after the operator
+# has left, so the launcher asks the driver first.
+#
+# `CF409_GPU_COUNT` overrides the count, for a test that must not depend on the
+# machine it runs on.
+cf409_gpu_count(){
+  if [ -n "${CF409_GPU_COUNT:-}" ]; then printf '%s\n' "$CF409_GPU_COUNT"
+    return 0; fi
+  nvidia-smi --query-gpu=index --format=csv,noheader 2>/dev/null | grep -c .
+}
+
+cf409_default_gpus(){
+  local n i out=""
+  n="$(cf409_gpu_count)"
+  case "$n" in ''|*[!0-9]*) n=0 ;; esac
+  for (( i = 0; i < n; i++ )); do out="$out $i"; done
+  printf '%s\n' "${out# }"
+}
+
+cf409_require_gpus(){  # <space separated indices>
+  local n g bad=0
+  n="$(cf409_gpu_count)"
+  case "$n" in ''|*[!0-9]*) n=0 ;; esac
+  if [ "$n" -lt 1 ]; then
+    echo "ABORT: this machine carries no card, so no lane can start" >&2
+    return 2
+  fi
+  for g in ${1:-}; do
+    case "$g" in
+      ''|*[!0-9]*)
+        echo "ABORT: gpu '$g' is not a card index" >&2; bad=1; continue ;;
+    esac
+    [ "$g" -lt "$n" ] && continue
+    echo "ABORT: gpu $g — this machine carries $n card(s), so the indices" >&2
+    echo "  are 0 to $(( n - 1 ))." >&2
+    bad=1
+  done
+  [ "$bad" -eq 0 ]
+}
+
+# ---- The checkout this study needs -------------------------------------------
+#
+# Three things this card depends on are NOT in every checkout of this
+# repository. A machine bootstrapped from a stale branch would train, log
+# nothing unusual, and hand back eight copies of the control.
+#
+#   --rep-loss-weight-end in the trainer (#409). Without it every arm holds the
+#   weight at 1.0, so the eight arms are the control, eight times.
+#
+#   GAP_ARGS in #373's runner. Without it the decay, the seed and the L_align
+#   target never reach the trainer. `run_arm.sh` also catches this at run time,
+#   off the trainer's own command line. This check is the cheap one, before the
+#   first leg.
+#
+#   The HF token. Every run that streams from HF must authenticate, or the
+#   anonymous rate limit idles the card at about 20 percent use.
+#
+# Prints what is missing and returns non-zero.
+cf409_check_checkout(){  # [checkout]
+  local wt="${1:-$CF409_WT}" missing=0 runner trainer token
+  runner="$wt/reports/2026-08-08_rollout_depth/scripts/run_leg_k.sh"
+  trainer="$wt/experiments/2026-04-27_freq-embedding/scripts/train.py"
+  token="$wt/experiments/hf_token.txt"
+  if ! grep -q -- '--rep-loss-weight-end' "$trainer" 2>/dev/null; then
+    echo "ABORT: $trainer has no --rep-loss-weight-end." >&2
+    echo "  Every arm would hold the weight at 1.0, so the eight arms" >&2
+    echo "  would be the control, eight times." >&2
+    missing=1
+  fi
+  if ! grep -q 'GAP_ARGS' "$runner" 2>/dev/null; then
+    echo "ABORT: $runner takes no GAP_ARGS." >&2
+    echo "  The decay, the seed and the align target would not reach the" >&2
+    echo "  trainer." >&2
+    missing=1
+  fi
+  if [ ! -s "$token" ]; then
+    echo "ABORT: no HF token at $token." >&2
+    echo "  The anonymous rate limit throttles the stream and idles the" >&2
+    echo "  card. The head trainer refuses an empty token outright." >&2
+    missing=1
+  fi
+  [ "$missing" -eq 0 ]
 }

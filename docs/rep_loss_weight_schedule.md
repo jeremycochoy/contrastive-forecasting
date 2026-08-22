@@ -73,17 +73,30 @@ refuse a collapse, so watch these columns of `<run>_losses.csv`:
 
 The three term columns hold the raw term. The weights come from the command
 line, which is the convention of the `sigreg_e`, `sigreg_h` and `cpc_aux`
-columns. So the total of a `rep_only` run reads:
+columns. So the total of a `rep_only` run at depth 0 reads:
 
 ```
 loss = rep_w * l_rep + align_w * l_align + w_e * sigreg_e + w_h * sigreg_h + cpc_w * cpc_aux
 ```
 
-`l_align` is the depth-0 copy. On a `--train-rollout-depth` run the
-`cos_err_d*` columns carry the other depths. Under `--align-target student`
-the term reads the same pair as `cos_err_d0`, so `l_align = 2 * cos_err_d0`.
+**On a `--train-rollout-depth k` run that formula under-counts `L_align`.**
+`l_align` is the depth-0 copy, and the loss holds `k + 1` copies of the term,
+one for each depth. Read the other depths off the `cos_err_d*` columns. Under
+`--align-target student` each copy is `2 * cos_err_dj`, so the align part of
+the total is:
+
+```
+--train-rollout-reduce sum    align_w * 2 * (cos_err_d0 + ... + cos_err_dk)
+--train-rollout-reduce mean   the same, divided by k + 1
+```
+
+At k = 3 with `sum` the align part sums four copies, not one. #409's own arms
+are such runs, so a report that rebuilds their loss by term must read the
+`cos_err_d*` columns and not `l_align` alone.
+
 Under `--align-target teacher` the term reads the teacher's next latent and
-`cos_err_d0` reads the student's, so the two are different numbers.
+`cos_err_dj` reads the student's, so the two are different numbers and the
+identity above does not hold. `l_align` still gives the depth-0 copy.
 
 The column is blank under `--no-main-contrastive-loss`, where the training
 script adds `L_align` outside the main loss.

@@ -80,6 +80,8 @@ if [ -n "${CF409_DRY_RUN:-}" ]; then
        "$(cf409_rep_w_at "$ARM" "$(cf409_ramp "$ARM")")" \
        "$(cf409_rep_w_at "$ARM" "$STOP")"
   echo "  seed=$ARM_SEED align_target=$ARM_TARGET"
+  echo "  auc gate=${CF409_AUC_WATCH:-1} window=$CF409_AUC_WINDOW" \
+       "threshold=$CF409_AUC_THRESHOLD warmup=$CF409_AUC_WARMUP"
   echo "  reduce=$CF409_REDUCE runner=$RUNNER"
   echo "  RUN_SUFFIX=$(cf409_run_suffix "$ARM") RUNS=$ARM_ROOT"
   echo "  CF_RESULTS=$CF409_RESULTS"
@@ -96,6 +98,9 @@ cmdlines_before="$(cf409_cmdlines "$TLOG")"
 
 log "arm $ARM decay='$DECAY_ARGS' seed=$ARM_SEED target=$ARM_TARGET" \
     "-> ${STOP} steps on gpu $BB_GPU"
+# A collapse note of an EARLIER leg of this arm would make this leg read as
+# stopped the moment it finishes. Delete it: this leg writes its own.
+rm -f "$(cf409_collapse_file "$ARM")"
 K="$CF409_K" RUNS="$ARM_ROOT" CF_STUDY_DIR="$CF409_STUDY" \
   CF_RESULTS="$CF409_RESULTS" WT="$CF409_WT" \
   GAP_ARGS="$GAP" SEED="$ARM_SEED" \
@@ -146,6 +151,41 @@ if [ -n "$line" ]; then
       "all three reached the trainer"
 fi
 
+# ---- The AUC gate ------------------------------------------------------------
+#
+# The decay ends at step 10,000 and the leg trains to 40,000. An arm that lost
+# the contrastive task has nothing left to train, so it would climb about
+# 30,000 dead steps to a checkpoint whose score is already known to be bad.
+# `auc_guard.sh` reads the trainer's own `auc` column while the leg runs and
+# stops the leg on a `lost` verdict. See its header for the reading and the
+# warmup.
+#
+# It starts AFTER the decay check, so a leg stopped for the wrong objective is
+# never read as a collapse.
+guard=""
+if [ "${CF409_AUC_WATCH:-1}" = "1" ]; then
+  bash "$CF409_SCRIPTS/auc_guard.sh" "$ARM" "$STOP" "$runner" \
+    >>"$CF409_RESULTS/auc_guard_${ARM}.out" 2>&1 &
+  guard=$!
+  log "arm $ARM AUC gate pid $guard — window $CF409_AUC_WINDOW," \
+      "threshold $CF409_AUC_THRESHOLD, warmup $CF409_AUC_WARMUP"
+else
+  log "arm $ARM AUC gate OFF (CF409_AUC_WATCH=0) — a human must watch the" \
+      "auc column of $(cf409_live_losses_csv "$ARM" "$STOP")"
+fi
+
 wait "$runner"; rc=$?
+# The tree, not the guard alone: the guard sleeps between reads, and that
+# `sleep` would outlive a signal sent to its parent.
+[ -n "$guard" ] && { cf409_kill_tree "$guard"; wait "$guard" 2>/dev/null; }
+
+# The gate stops the leg, so the leg's own exit code says "killed", which a
+# lane would read as a crash and re-fire. A collapse is not a crash: the
+# re-fire trains the same collapse.
+if [ -f "$(cf409_collapse_file "$ARM")" ]; then
+  log "arm $ARM STOPPED by the AUC gate — see" \
+      "$(cf409_collapse_file "$ARM")"
+  exit "$CF409_RC_COLLAPSED"
+fi
 log "arm $ARM stop=$STOP rc=$rc"
 exit $rc

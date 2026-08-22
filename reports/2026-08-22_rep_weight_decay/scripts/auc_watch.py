@@ -20,15 +20,22 @@ The k = 16 / 8 / 32 study measured three summed arms of this same cell that
 lost the task, at steps 4,404, 347 and 1,343 (`results/diag/`). Their AUC fell
 under 0.55, so 0.55 is the default threshold.
 
-TWO USES. The report reads the verdict of every arm. The runner reads the exit
-code and stops an arm that has nothing left to train:
+THE WARMUP. The AUC of a fresh run starts near 0.5 and climbs, so the first
+steps of every healthy run read as a loss. `--warmup N` drops every row at
+step N or below, and the verdict then reads what is left. `auc_guard.sh` needs
+this: without it the gate would stop every arm in its first minute. The default
+is 0, which reads the whole run.
+
+TWO USES. The report reads the verdict of every arm. `auc_guard.sh` reads the
+exit code and stops an arm that has nothing left to train:
 
     exit 0   the run holds the task
     exit 1   the run lost it. Line 1 of stdout names the step
-    exit 2   the CSV is missing, empty, or holds no `auc` column
+    exit 2   the CSV is missing, empty, or holds no `auc` column, or the
+             warmup left it with no row to read
 
 Usage:
-  auc_watch.py <losses.csv> [--window 500] [--threshold 0.55] [--quiet]
+  auc_watch.py <losses.csv> [--window 500] [--threshold 0.55] [--warmup 0]
   auc_watch.py results/*_losses.csv --tsv > results/auc_verdicts.tsv
 """
 from __future__ import annotations
@@ -47,11 +54,12 @@ DEFAULT_THRESHOLD = 0.55
 DEFAULT_WINDOW = 500
 
 
-def read_auc(path):
+def read_auc(path, warmup=0):
     """`[(step, auc), ...]` for one run, in file order.
 
     Rows with a blank or unreadable `auc` are dropped: the column is blank on
-    a run whose trainer wrote no diagnostic that step.
+    a run whose trainer wrote no diagnostic that step. Rows at step `warmup`
+    or below are dropped as well.
     """
     with open(path, newline="") as fh:
         reader = csv.DictReader(fh)
@@ -60,11 +68,15 @@ def read_auc(path):
         out = []
         for row in reader:
             try:
-                out.append((int(row["step"]), float(row["auc"])))
+                step, auc = int(row["step"]), float(row["auc"])
             except (KeyError, TypeError, ValueError):
                 continue
+            if step > warmup:
+                out.append((step, auc))
     if not out:
-        raise ValueError(f"{path}: no readable `auc` row")
+        raise ValueError(
+            f"{path}: no readable `auc` row above step {warmup}"
+            if warmup else f"{path}: no readable `auc` row")
     return out
 
 
@@ -126,6 +138,9 @@ def main(argv=None):
                    help=f"rolling median width, in rows. Default {DEFAULT_WINDOW}")
     p.add_argument("--threshold", type=float, default=DEFAULT_THRESHOLD,
                    help=f"AUC floor of a healthy run. Default {DEFAULT_THRESHOLD}")
+    p.add_argument("--warmup", type=int, default=0,
+                   help="drop every row at this step or below. The AUC of a "
+                        "fresh run starts near 0.5 and climbs. Default 0")
     p.add_argument("--tsv", action="store_true",
                    help="write a header row, for a table the report reads")
     p.add_argument("--quiet", action="store_true", help="exit code only")
@@ -136,7 +151,8 @@ def main(argv=None):
     any_lost, any_error = False, False
     for path in args.csv:
         try:
-            v = verdict(read_auc(path), args.window, args.threshold)
+            v = verdict(read_auc(path, args.warmup), args.window,
+                        args.threshold)
         except (OSError, ValueError) as e:
             any_error = True
             if not args.quiet:
