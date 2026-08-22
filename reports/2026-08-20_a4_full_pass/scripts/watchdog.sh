@@ -33,13 +33,15 @@
 #   WT=<checkout> RUNS=<durable root> BB_GPU=0 \
 #     nohup setsid bash watchdog.sh > watchdog.out 2>&1 &
 #
-# It also fires the head-seed band at the last stop when that stop's
-# checkpoint lands. See `band_at_last_stop`. That is review gap 1's
-# second half.
+# It also decides the head-seed band at the last stop. See
+# `band_at_last_stop`. That is review gap 1's second half, and the compute
+# audit of 2026-08-22 made it conditional. `band_decision.py` holds the
+# rule.
 #
 # WATCHDOG_PERIOD  seconds between ticks (default 3600).
 # WATCHDOG_STALL   ticks with no progress before a re-fire (default 2).
 # WATCHDOG_MAX_FIRES  give up after this many re-fires (default 10).
+# WATCHDOG_ONCE    run one tick and exit. The test seam.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -55,6 +57,10 @@ export HEAD_GPU="${HEAD_GPU:-$BB_GPU}"
 PERIOD="${WATCHDOG_PERIOD:-3600}"
 STALL="${WATCHDOG_STALL:-2}"
 MAX_FIRES="${WATCHDOG_MAX_FIRES:-10}"
+# Run one tick and exit. The test seam, the same one `band_queue.sh` holds
+# as `QUEUE_ONCE`. The band decision at the last stop runs inside the loop,
+# so a test cannot reach it without this.
+ONCE="${WATCHDOG_ONCE:-0}"
 LOG="$RES/watchdog.log"
 TRAIN_LOG="$WT/reports/2026-08-08_rollout_depth/results/run_cf393_arm6_v2_combab_alignS_cf373k3.log"
 DRIVER_LOG="$RES/run_pass.log"
@@ -115,25 +121,62 @@ replicate_alive(){ # <stop>
   return 1
 }
 
-# Review gap 1, second half: the head-seed band at the LAST stop.
+# Review gap 1, second half, and the compute audit of 2026-08-22.
 #
-# The first half runs at 200,000 steps, where the card's comparison starts.
-# This one runs at 665,000, where it ends. Two more head seeds there cost
-# about 4 GPU-hours, and they decide whether the last point's distance from
-# 1.0660 means anything.
+# The first half of the band runs at 200,000 steps, where the card's
+# comparison starts. This one covers 665,000 steps, where it ends.
 #
-# It fires on the CHECKPOINT, not on the score, so the band trains while the
-# driver is still scoring the protocol seed. It runs on the card the driver
-# is NOT using, so it takes no GPU time from the card's own heads.
+# It used to be ARMED. It fired on the 665,000-step CHECKPOINT, whatever
+# the stop then scored, and it cost about 8 GPU-hours. It is now
+# CONDITIONAL. It fires on the SCORE.
+#
+# `band_decision.py` holds the rule and the two constants. Read that file
+# for the reasoning. Its exit codes:
+#
+#   0   FIRE  the student score is within 0.01 of 1.0651, the mean of the
+#             200,000-step student band. One draw cannot decide the card's
+#             comparison inside that window, so the card buys two more
+#             head seeds.
+#   10  SKIP  the score is outside the window. This card's measured pooled
+#             standard deviation is 0.0029, so a clearly high or clearly
+#             low point reads on its own. The card keeps the 8 GPU-hours.
+#   20  WAIT  that stop has no student score yet.
+#
+# The verdict goes to `band_<k>k_decision.txt`. A SKIP latches on that
+# file, so the watchdog decides once and does not re-read the rule every
+# tick. A FIRE latches on `replicate_<k>k.log`, which the band writes at
+# once, exactly as before.
+#
+# The student score lands about two hours before the teacher one, and the
+# watchdog ticks every 30 minutes. So the decision happens while the
+# driver still scores the teacher head. `band_at_last_stop` also runs
+# BEFORE the loop tests `open_stops`, so the last tick of the study still
+# decides before the watchdog exits.
+#
+# A fired band runs on the card the driver is NOT using, so it takes no
+# GPU time from the card's own heads.
 band_at_last_stop(){
-  local last="${BAND_STOP:-665000}" k gpu
+  local last="${BAND_STOP:-665000}" k gpu rc dec
   k=$(( last / 1000 ))
-  [ -s "$RES/replicate_${k}k.log" ] && return 0    # started once already
+  dec="$RES/band_${k}k_decision.txt"
+  [ -s "$RES/replicate_${k}k.log" ] && return 0    # fired once already
+  grep -q '^SKIP' "$dec" 2>/dev/null && return 0   # decided against, once
   replicate_alive "$last" && return 0
-  python3 "$HERE/full_pass.py" --ckpt-at "$last" --root "$RUNS" \
-    >/dev/null 2>&1 || return 0
+
+  WT="$WT" python3 "$HERE/band_decision.py" --stop "$last" \
+    --results "$WT/reports/2026-08-08_rollout_depth/results" \
+    --csv "$RES/head_band.csv" --write "$dec" >>"$LOG" 2>&1
+  rc=$?
+  case "$rc" in
+    20) return 0 ;;
+    10) log "BAND at ${k}k: SKIP. The score reads on its own, so the card keeps the draws."
+        return 0 ;;
+    0)  ;;
+    *)  log "WARN: band_decision rc=$rc"; return 0 ;;
+  esac
+
   gpu="${BAND_GPU:-$(( 1 - BB_GPU ))}"
-  log "BAND at ${k}k: the checkpoint landed, so two more head seeds start on GPU $gpu"
+  log "BAND at ${k}k: FIRE. The score sits inside the window, so two more head seeds start on GPU $gpu"
   WT="$WT" CF373_ROOT="$RUNS" BB_GPU="$gpu" \
     HEAD_VRAM_MIB="${BAND_VRAM_MIB:-6400}" \
     nohup setsid bash "$HERE/replicate_heads.sh" "$last" \
@@ -187,5 +230,6 @@ while :; do
     quiet=0
   fi
 
+  [ "$ONCE" = 1 ] && exit 0
   sleep "$PERIOD"
 done

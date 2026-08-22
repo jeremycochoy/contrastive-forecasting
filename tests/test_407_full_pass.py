@@ -1923,3 +1923,252 @@ class TestProcessGuardIsShared:
         watch = (SCRIPTS / "watchdog.sh").read_text()
         assert '[ "$full" = "$SCRIPT" ]' in queue
         assert '[ "$full" = "$REPLICATE_SCRIPT" ]' in watch
+
+
+# --- 14. the band at the last stop is conditional --------------------------
+#
+# A compute audit on 2026-08-22 disarmed the 665,000-step band. It used to
+# fire on the checkpoint, whatever the stop then scored, and it cost about
+# 8 GPU-hours. It now fires on the SCORE, and only inside a window around
+# the number the card compares against.
+#
+# The rule lives in `band_decision.py`, not in a comment, so these tests can
+# run it.
+
+BAND_DECISION_PY = SCRIPTS / "band_decision.py"
+WATCHDOG_SH = SCRIPTS / "watchdog.sh"
+
+
+@pytest.fixture(scope="module")
+def bd():
+    return load(BAND_DECISION_PY, "cf407_band_decision")
+
+
+class TestBandDecisionRule:
+    """The rule itself: two constants and one comparison."""
+
+    def test_the_center_is_the_measured_200k_mean(self, bd):
+        """1.0651 must track `head_band.csv`, not a number typed twice."""
+        import csv as _csv
+        path = STUDY / "results" / "head_band.csv"
+        with open(path, newline="") as fh:
+            rows = {(r["stop"], r["head"]): r for r in _csv.DictReader(fh)}
+        row = rows[("200000", "student")]
+        assert float(row["mean"]) == pytest.approx(bd.BAND_CENTER, abs=5e-5)
+        assert int(row["n_draws"]) == 3
+
+    def test_the_window_is_the_audited_one(self, bd):
+        assert bd.BAND_RADIUS == 0.01
+        assert bd.BAND_STOP == 665_000
+        assert bd.BAND_HEAD == "student"
+
+    def test_inside_the_window_fires(self, bd):
+        for score in (1.0651, 1.0700, 1.0600, 1.0751, 1.0551):
+            verdict, _ = bd.decide(score)
+            assert verdict == bd.FIRE, score
+
+    def test_outside_the_window_does_not_fire(self, bd):
+        for score in (1.0450, 1.0540, 1.0800, 1.1000):
+            verdict, _ = bd.decide(score)
+            assert verdict == bd.SKIP, score
+
+    def test_no_score_waits(self, bd):
+        assert bd.decide(None) == (bd.WAIT, None)
+
+    def test_the_boundary_belongs_to_fire(self, bd):
+        """A point exactly on the edge buys the band. The cheap error is to
+        measure a band the card did not need."""
+        assert bd.decide(bd.BAND_CENTER + bd.BAND_RADIUS)[0] == bd.FIRE
+        assert bd.decide(bd.BAND_CENTER - bd.BAND_RADIUS)[0] == bd.FIRE
+        assert bd.decide(bd.BAND_CENTER + bd.BAND_RADIUS + 1e-4)[0] == bd.SKIP
+        assert bd.decide(bd.BAND_CENTER - bd.BAND_RADIUS - 1e-4)[0] == bd.SKIP
+
+    def test_the_pooled_sd_the_audit_quotes(self, bd):
+        """0.0029, over both heads and every stop that carries a band."""
+        sigma = bd.pooled_std(STUDY / "results" / "head_band.csv")
+        assert sigma == pytest.approx(0.0029, abs=5e-5)
+        # The window is wide against that spread, so a point outside it is
+        # not a draw away from the center.
+        assert bd.BAND_RADIUS / sigma > 3.0
+
+    def test_pooled_sd_ignores_a_stop_with_one_draw(self, bd, tmp_path):
+        path = tmp_path / "head_band.csv"
+        path.write_text(
+            "stop,head,n_draws,mean,std,range,seeds,"
+            "redraw_anchor,redraw_here,redraw_delta\n"
+            "200000,student,3,1.0651,0.0009,0.0018,"
+            "20260722=1.0660 20260723=1.0652 20260724=1.0642,,,\n"
+            "665000,student,1,1.0700,0.0000,0.0000,20260722=1.0700,,,\n")
+        sigma = bd.pooled_std(path)
+        assert sigma == pytest.approx(0.000902, abs=5e-6)
+
+    def test_pooled_sd_survives_a_missing_file(self, bd, tmp_path):
+        assert bd.pooled_std(tmp_path / "gone.csv") is None
+
+
+class TestBandDecisionCli:
+    """The exit codes the watchdog branches on."""
+
+    def run(self, *args):
+        return subprocess.run(
+            [sys.executable, str(BAND_DECISION_PY), *args],
+            capture_output=True, text=True, timeout=60)
+
+    def test_fire_exits_zero(self):
+        out = self.run("--score", "1.0700")
+        assert out.returncode == 0 and out.stdout.startswith("FIRE")
+
+    def test_skip_exits_ten(self):
+        out = self.run("--score", "1.0450")
+        assert out.returncode == 10 and out.stdout.startswith("SKIP")
+
+    def test_wait_exits_twenty(self, tmp_path):
+        """An empty results directory is a stop with no score."""
+        out = self.run("--results", str(tmp_path))
+        assert out.returncode == 20 and out.stdout.startswith("WAIT")
+
+    def test_it_reads_the_score_off_disk(self, tmp_path):
+        (tmp_path / "score_A4_k3_bb665k_student.txt").write_text("1.0662\n")
+        out = self.run("--results", str(tmp_path))
+        assert out.returncode == 0
+        assert "1.0662" in out.stdout
+
+    def test_write_records_the_verdict(self, tmp_path):
+        rec = tmp_path / "decision.txt"
+        out = self.run("--score", "1.0900", "--write", str(rec))
+        assert out.returncode == 10
+        assert rec.read_text().startswith("SKIP")
+
+    def test_wait_records_nothing(self, tmp_path):
+        """A latch file written before the score exists would freeze the
+        decision at WAIT."""
+        rec = tmp_path / "decision.txt"
+        out = self.run("--results", str(tmp_path), "--write", str(rec))
+        assert out.returncode == 20 and not rec.exists()
+
+    def test_explain_prints_the_numbers(self):
+        out = self.run("--explain", "--score", "1.0700")
+        assert "pooled sd" in out.stdout and "window" in out.stdout
+
+
+# The sandbox for the watchdog's own tick. Stubs stand in for everything the
+# tick calls, and the band stub records the arguments it was called with.
+WATCH_STUBS = {
+    "read_back.sh": "#!/bin/bash\nexit 0\n",
+    "teacher_check.sh": "#!/bin/bash\nexit 0\n",
+    "run_pass.sh": "#!/bin/bash\nexit 0\n",
+    "replicate_heads.sh":
+        '#!/bin/bash\necho "STUB $*" >> "$CF407_RESULTS/fired.txt"\nexit 0\n',
+}
+
+
+def watchdog_sandbox(tmp_path, scores: dict):
+    """A checkout with the watchdog, the rule, and `scores` on disk."""
+    scripts = tmp_path / "study" / "scripts"
+    scripts.mkdir(parents=True)
+    results = tmp_path / "study" / "results"
+    results.mkdir()
+    for name in ("watchdog.sh", "band_decision.py", "full_pass.py"):
+        (scripts / name).write_text((SCRIPTS / name).read_text())
+    for name, body in WATCH_STUBS.items():
+        (scripts / name).write_text(body)
+    (STUDY / "results" / "head_band.csv").read_text()
+    (results / "head_band.csv").write_text(
+        (STUDY / "results" / "head_band.csv").read_text())
+
+    wt = tmp_path / "wt"
+    parent = wt / "reports" / "2026-08-08_rollout_depth" / "results"
+    parent.mkdir(parents=True)
+    (parent / f"run_{RUN_NAME}.log").write_text("[ 665000] loss 0.2\n")
+    for (stop, head), value in scores.items():
+        (parent / f"score_A4_k3_bb{stop // 1000}k_{head}.txt").write_text(
+            f"{value}\n")
+    return scripts, results, wt
+
+
+def watchdog_tick(scripts, results, wt):
+    env = dict(os.environ, CF407_RESULTS=str(results), WT=str(wt),
+               RUNS=str(wt / "runs"), BB_GPU="1", BAND_GPU="1",
+               WATCHDOG_ONCE="1", WATCHDOG_PERIOD="1")
+    return subprocess.run(["bash", str(scripts / "watchdog.sh")],
+                          env=env, capture_output=True, text=True, timeout=120)
+
+
+class TestBandAtTheLastStopIsConditional:
+    """The firing path, run rather than read."""
+
+    def test_no_score_yet_fires_nothing(self, tmp_path):
+        scripts, results, wt = watchdog_sandbox(tmp_path, {})
+        watchdog_tick(scripts, results, wt)
+        assert not (results / "fired.txt").exists()
+        assert not (results / "band_665k_decision.txt").exists()
+
+    def test_a_score_inside_the_window_fires_the_band(self, tmp_path):
+        scripts, results, wt = watchdog_sandbox(
+            tmp_path, {(665_000, "student"): "1.0660"})
+        out = watchdog_tick(scripts, results, wt)
+        assert (results / "fired.txt").read_text().strip() == "STUB 665000"
+        assert "FIRE" in (results / "band_665k_decision.txt").read_text()
+        assert "FIRE" in out.stdout
+
+    def test_a_score_outside_the_window_fires_nothing(self, tmp_path):
+        scripts, results, wt = watchdog_sandbox(
+            tmp_path, {(665_000, "student"): "1.0450"})
+        out = watchdog_tick(scripts, results, wt)
+        assert not (results / "fired.txt").exists()
+        assert "SKIP" in (results / "band_665k_decision.txt").read_text()
+        assert "SKIP" in out.stdout
+
+    def test_a_skip_decides_once(self, tmp_path):
+        """The second tick must not re-read the rule or re-log the verdict."""
+        scripts, results, wt = watchdog_sandbox(
+            tmp_path, {(665_000, "student"): "1.0450"})
+        watchdog_tick(scripts, results, wt)
+        watchdog_tick(scripts, results, wt)
+        rec = (results / "band_665k_decision.txt").read_text().splitlines()
+        assert len(rec) == 1
+        assert not (results / "fired.txt").exists()
+
+    def test_a_fired_band_does_not_fire_twice(self, tmp_path):
+        scripts, results, wt = watchdog_sandbox(
+            tmp_path, {(665_000, "student"): "1.0660"})
+        watchdog_tick(scripts, results, wt)
+        (results / "replicate_665k.log").write_text("[rep665k] backbone ...\n")
+        watchdog_tick(scripts, results, wt)
+        assert (results / "fired.txt").read_text().count("STUB") == 1
+
+    def test_the_last_tick_decides_before_the_watchdog_exits(self, tmp_path):
+        """Both scores land, so `open_stops` is empty and the tick is the
+        last one. The decision must still happen."""
+        scripts, results, wt = watchdog_sandbox(
+            tmp_path, {(300_000, "student"): "1.0867",
+                       (300_000, "teacher"): "1.1030",
+                       (450_000, "student"): "1.0691",
+                       (450_000, "teacher"): "1.0986",
+                       (665_000, "student"): "1.0660",
+                       (665_000, "teacher"): "1.0800"})
+        out = watchdog_tick(scripts, results, wt)
+        assert "watchdog stops" in out.stdout
+        assert (results / "fired.txt").read_text().strip() == "STUB 665000"
+
+
+class TestTheBandIsNoLongerArmed:
+    """The checkpoint gate is gone. Two firers must not race either."""
+
+    def test_the_watchdog_no_longer_gates_on_the_checkpoint(self):
+        code = strip_comments(WATCHDOG_SH.read_text())
+        body = code[code.index("band_at_last_stop()"):]
+        body = body[:body.index("\n}")]
+        assert "--ckpt-at" not in body, "the band still fires on a checkpoint"
+        assert "band_decision.py" in body
+
+    def test_the_rule_is_in_a_script_not_a_comment(self):
+        assert BAND_DECISION_PY.exists()
+        code = strip_comments(WATCHDOG_SH.read_text())
+        # The two constants live in one place only.
+        assert "1.0651" not in code
+        assert "0.01" not in code
+
+    def test_the_queue_still_owns_no_665k_stage(self):
+        code = strip_comments(BAND_QUEUE_SH.read_text())
+        assert "665000" not in code

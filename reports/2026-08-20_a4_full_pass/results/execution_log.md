@@ -504,3 +504,87 @@ so the driver's own heads and the band draws take the card in turn.
 
 Band draws at 450k: student 1.0761 and 1.0778, teacher 1.0924. The second
 teacher draw (seed 20260724) is still in GIFT-Eval.
+
+## 2026-08-22, the compute audit
+
+### 12:52 UTC — the 665k band is conditional, not armed
+
+The orchestrator audited the compute after the 450k band drained. The band
+at the last stop was ARMED: `watchdog.sh` fired it when the 665,000-step
+checkpoint landed, whatever the stop then scored. Two head seeds, two heads
+each, cost about 8 GPU-hours.
+
+The audit disarmed it. The band now fires on the SCORE, and only inside a
+window.
+
+**The rule.** Fire the band when the 665,000-step STUDENT score lands
+inside
+
+    |score - 1.0651| <= 0.01
+
+**The center, 1.0651.** The mean of the 200,000-step student band, over
+head seeds 20260722, 20260723 and 20260724. It is row `200000,student` of
+`results/head_band.csv`. That number is the comparison the card makes.
+
+**The radius, 0.01.** This card's measured pooled standard deviation is
+0.0029, over both heads and the three banded stops. The radius is 3.4 of
+those standard deviations.
+
+**Why.** Inside the window, one draw cannot decide the comparison, so the
+card buys the band. Outside it, a clearly high or a clearly low point reads
+on its own, and the band buys no information. The card then keeps about 8
+GPU-hours.
+
+**Where the rule lives.** `scripts/band_decision.py`, not a comment. It
+returns 0 for FIRE, 10 for SKIP and 20 for WAIT. `band_at_last_stop` in
+`watchdog.sh` branches on those codes. `--explain` prints the two constants,
+the window and the pooled standard deviation:
+
+```
+center     1.0651  (mean of the 200k student band)
+radius     0.0100
+window     [1.0551, 1.0751]
+pooled sd  0.0029  (both heads, every banded stop)
+radius     3.4 pooled sd
+```
+
+**The tests.** Section 14 of `tests/test_407_full_pass.py`, 28 tests. They
+cover the rule and the firing path:
+
+- 1.0651 tracks `head_band.csv` rather than a number typed twice.
+- The pooled standard deviation reproduces the audit's 0.0029.
+- FIRE inside the window, SKIP outside, WAIT with no score.
+- The edge belongs to FIRE. Binary floats put `1.0651 + 0.01` at
+  1.0751000000000002, so the rule carries a 1e-9 tolerance.
+- A watchdog tick with no 665k score fires nothing and records nothing.
+- A tick at 1.0660 fires the band. A tick at 1.0450 does not.
+- A SKIP decides once. The second tick reads the latch file.
+- A fired band does not fire twice.
+- The last tick decides BEFORE the watchdog exits on an empty `open_stops`.
+
+The suite is 224 tests and all pass.
+
+**The latch.** `results/band_665k_decision.txt` holds the verdict. A SKIP
+latches on that file. A FIRE latches on `replicate_665k.log`, exactly as
+before. A WAIT writes nothing, so an early tick cannot freeze the decision.
+
+**The restart.** `watchdog.sh` changed, so the watchdog restarted at
+12:52:12 UTC on the new code. The old process (pid 1742859) was asleep
+between ticks and its only child was `sleep 1800`, so the restart
+interrupted no work. A restart costs the quiet counter and the re-fire
+counter only. The first tick read:
+
+```
+[2026-08-22T12:52:16Z] tick driver=yes step=631200 quiet=0 open='665000'
+WAIT   stop 665000 student: no score yet
+```
+
+The 665k leg on card 1 was not touched. `run_pass.sh` (pid 1741671) kept
+its step counter through the restart.
+
+`watchdog.sh` also gained `WATCHDOG_ONCE`, the test seam. It is the same
+seam `band_queue.sh` carries as `QUEUE_ONCE`. The band decision runs inside
+the tick loop, so no test could reach it without one.
+
+**What did not change.** Both heads stay at the 665,000-step stop, as the
+card asks. `band_queue.sh` owns no 665k stage and needed no change.

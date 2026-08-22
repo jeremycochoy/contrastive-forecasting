@@ -4,8 +4,8 @@
  300000  student      3   1.0864   0.0021   0.0042  s20260722=1.0867  s20260723=1.0883  s20260724=1.0841
  300000  teacher      3   1.1009   0.0019   0.0038  s20260722=1.1030  s20260723=1.0992  s20260724=1.1004
  450000  student      3   1.0743   0.0046   0.0087  s20260722=1.0691  s20260723=1.0761  s20260724=1.0778
- 450000  teacher      2   1.0955   0.0044   0.0062  s20260722=1.0986  s20260723=1.0924
-pooled head-seed std over the rows with 2 draws or more: 0.0032
+ 450000  teacher      3   1.0952   0.0032   0.0062  s20260722=1.0986  s20260723=1.0924  s20260724=1.0945
+pooled head-seed std over the rows with 2 draws or more: 0.0029
 
 review gap 2 — the protocol seed drawn again here
    stop  head        #373     here     delta
@@ -21,6 +21,6 @@ review gap 6 — this band against the published one
     same cell, bb100k student                  0.0047  #393, arm6_v2_combab_alignS
   gap that made 1.0660 the best                0.0141  rank 1 of 99, runner-up 1.0801
   this card's largest head-seed range          0.0087  over 6 (stop, head) rows
-  this card's pooled head-seed std             0.0032
+  this card's pooled head-seed std             0.0029
   VERDICT: the band (0.0087) is narrower than the 0.0141 gap that made 1.0660 the best, so a move larger than the band is readable.
 wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/results/head_band.csv
