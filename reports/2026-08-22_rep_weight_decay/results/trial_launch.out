@@ -1,0 +1,12 @@
+[08-22 22:44:11] [#409] START arms='ctrl_s20 dec0T_s20' gpus='1 0' root=/home/jupyter/checkpoints_backup/cf-409-trial
+[08-22 22:44:11] [#409] artefacts stay on elisa — no sync loop. See notes/artefacts.md
+  gpu 0, NVIDIA GeForce RTX 4090, 24564 MiB
+  gpu 1, NVIDIA GeForce RTX 4090, 24564 MiB
+[08-22 22:44:11] [#409] gpu 1 takes ctrl_s20
+[08-22 22:44:41] [#409] gpu 0 takes dec0T_s20
+[08-22 22:47:11] [#409] lane gpu=1 arms=ctrl_s20 rc=0
+[08-22 22:47:11] [#409] lane gpu=0 arms=dec0T_s20 rc=1
+/tmp/contrastive-forecasting-409/reports/2026-08-22_rep_weight_decay/results/trial/scores.csv: 1 score(s)
+WARN: the AUC pass exited rc=2 — see /tmp/contrastive-forecasting-409/reports/2026-08-22_rep_weight_decay/results/trial/auc_verdicts.tsv
+/tmp/contrastive-forecasting-409/reports/2026-08-22_rep_weight_decay/results/trial/auc_verdicts.tsv: 2 run(s)
+[08-22 22:47:12] [#409] DONE — 1 lane(s) failed
