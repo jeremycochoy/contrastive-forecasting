@@ -1134,9 +1134,16 @@ class TestPlot:
         assert out.is_file()
 
     def test_the_rule_label_and_the_legend_do_not_share_a_corner(self):
-        """Both sat in the top right, and the rule label lands under it."""
+        """The rule label is anchored to the RIGHT edge, at y = 1.0660.
+
+        So the legend belongs on the left. Round 7 moved it up: the two
+        heads now dip to their lowest point at 200,000 steps, which puts
+        the deepest part of the curve and the rule under it in the bottom
+        left, and leaves the top left empty.
+        """
         code = PLOT_PY.read_text()
-        assert 'loc="lower left"' in code
+        assert '(0.995, best)' in code
+        assert 'loc="upper left"' in code
 
 
 # --- 10. what the gates read out of #373's scripts -------------------------
@@ -1513,32 +1520,107 @@ class TestShardSample:
         assert got["halves"]["tv_between_halves"] < so.GROUPED_TV
 
 
-class TestFigureCaption:
-    """Item 5 and item 8. The ribbon and the hollow points, labelled."""
+class TestTheFigure:
+    """The deliverable. Every mark on the axes is a measurement.
 
-    def test_caption_names_the_extrapolated_stops(self):
-        mod = load(PLOT_PY, "cf407_plot_caption")
-        drawn = {"student": {200_000: {1: 1.06, 2: 1.07}}, "teacher": {}}
-        rows = [(200_000, "student", {1: 1.06, 2: 1.07})]
-        note = "\n".join(mod.caption(0.005, rows, drawn,
-                                     [100_000, 200_000, 300_000]))
-        assert "extrapolation" in note
-        assert "100k" in note and "300k" in note
-        assert "share one spread" in note
+    Round 7 dropped the pooled ribbon. One number over both heads and every
+    stop understated the widest measured range by 2.4 times, and the line
+    ran through the protocol draw rather than the mean, so the picture and
+    the tables disagreed by 0.0052 at 450,000 steps.
+    """
 
-    def test_caption_gives_the_range_beside_the_std(self):
-        mod = load(PLOT_PY, "cf407_plot_caption")
-        rows = [(200_000, "student", {1: 1.060, 2: 1.070})]
-        drawn = {"student": {200_000: {1: 1.060, 2: 1.070}}, "teacher": {}}
-        note = "\n".join(mod.caption(0.005, rows, drawn, [200_000]))
-        assert "0.0100" in note
-        assert "40%" in note
+    WORDS = (
+        "GM-Relative MASE against backbone train step, student and teacher "
+        "heads, lower is better. Lines join the per-stop means. Small dots "
+        "are single head-seed draws. Hollow marks are the published points "
+        "from the rollout-depth study. The dashed line is the prior best, "
+        "1.0660.")
 
-    def test_caption_carries_the_parent_provenance(self):
-        mod = load(PLOT_PY, "cf407_plot_caption")
-        note = "\n".join(mod.caption(0.0, [], {}, [200_000]))
-        assert "cf373_r2" in note and "cf373_r3" in note
-        assert "_r2_" in note
+    def test_the_caption_is_the_agreed_words(self):
+        mod = load(PLOT_PY, "cf407_plot")
+        assert mod.CAPTION == self.WORDS
+
+    def test_the_figure_carries_no_band(self):
+        """No ribbon and no shaded band. The dots are the spread."""
+        code = PLOT_PY.read_text()
+        assert "fill_between" not in code
+        assert "Patch" not in code
+
+    def test_the_line_joins_the_means(self, tmp_path):
+        mod = load(PLOT_PY, "cf407_plot")
+        results = tmp_path / "results"
+        results.mkdir()
+        for seed, value in ((20260722, 1.0660), (20260723, 1.0652),
+                            (20260724, 1.0642)):
+            (results /
+             f"score_A4_k3_bb300k_student_s{seed}.txt").write_text(f"{value}\n")
+        got = mod.means("student", results, tmp_path / "none")
+        assert got[300_000] == pytest.approx(1.06513, abs=5e-6)
+
+    def test_one_draw_is_its_own_mean(self, tmp_path):
+        """665k carries one draw. It must not drop off the line."""
+        mod = load(PLOT_PY, "cf407_plot")
+        results = tmp_path / "results"
+        results.mkdir()
+        (results / "score_A4_k3_bb665k_student.txt").write_text("1.0783\n")
+        got = mod.means("student", results, tmp_path / "none")
+        assert got == {665_000: pytest.approx(1.0783)}
+
+    def test_a_stop_with_no_draw_is_absent(self, tmp_path):
+        """A head that has not scored draws a shorter line, not a guess."""
+        mod = load(PLOT_PY, "cf407_plot")
+        results = tmp_path / "results"
+        results.mkdir()
+        assert mod.means("teacher", results, tmp_path / "none") == {}
+
+    def test_a_label_never_lands_on_the_rule(self):
+        """The student runs under the teacher, so its label goes below it.
+
+        At 450,000 steps its lowest draw sits just above 1.0660, and a
+        number printed on the rule reads as the rule's own label.
+        """
+        mod = load(PLOT_PY, "cf407_plot")
+        curves = {"student": {450_000: 1.0743}, "teacher": {450_000: 1.0952}}
+        draws = {"student": {450_000: {1: 1.0691, 2: 1.0761, 3: 1.0778}},
+                 "teacher": {450_000: {1: 1.0986, 2: 1.0924, 3: 1.0945}}}
+        sides = mod.label_side(curves, draws, 1.0660, 0.0512)
+        assert sides[("student", 450_000)] == 1
+        assert sides[("teacher", 450_000)] == 1
+
+    def test_a_label_keeps_its_side_when_the_rule_is_clear(self):
+        """200k is the deepest point. Its label belongs under it."""
+        mod = load(PLOT_PY, "cf407_plot")
+        curves = {"student": {200_000: 1.0651}, "teacher": {200_000: 1.0800}}
+        draws = {"student": {200_000: {1: 1.0660, 2: 1.0652, 3: 1.0642}},
+                 "teacher": {200_000: {1: 1.0828, 2: 1.0809, 3: 1.0764}}}
+        sides = mod.label_side(curves, draws, 1.0660, 0.0512)
+        assert sides[("student", 200_000)] == -1
+
+    def test_the_provenance_stays_off_the_axes(self):
+        """The two checkpoint trees are recorded, not drawn."""
+        mod = load(PLOT_PY, "cf407_plot")
+        note = mod.provenance()
+        assert "cf373_r2" in note and "cf373_r3" in note and "_r2_" in note
+        assert note not in mod.CAPTION
+        code = PLOT_PY.read_text()
+        assert "fig.text" not in code
+
+    def test_no_card_number_reaches_the_axes(self):
+        """A cold reader cannot read an issue number."""
+        mod = load(PLOT_PY, "cf407_plot")
+        drawn = [mod.CAPTION, "prior best", "rollout-depth study point",
+                 "one head-seed draw", "student head", "teacher head"]
+        for text in drawn:
+            assert "#" not in text
+        code = PLOT_PY.read_text()
+        for token in ('"best before #', "published by #"):
+            assert token not in code
+
+    def test_the_caption_file_holds_the_words(self):
+        """`figure_caption.txt` is what the report pastes under the PNG."""
+        path = STUDY / "results" / "figure_caption.txt"
+        assert path.exists()
+        assert path.read_text().strip() == self.WORDS
 
 
 class TestBandQueue:

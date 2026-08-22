@@ -29,6 +29,9 @@ measured, from teacher_head_inputs_*.json
   teacher_head_inputs_40k_100k.json: loaded 110, teacher 74, student 36. Moved: teacher 74, student 32
      encoder_latents      identical=False  rel L2 1.288e+00
      forecaster_latents   identical=False  rel L2 1.400e+00
+  teacher_head_inputs_450k_665k.json: loaded 110, teacher 74, student 36. Moved: teacher 0, student 32
+     encoder_latents      identical=False  rel L2 9.502e-03
+     forecaster_latents   identical=False  rel L2 8.091e-02
 
 VERDICT: NOT a null, and NOT pooled. The teacher ENCODER STACK is common to these 4 points, but the head also reads student-owned tensors that keep training, so the head inputs differ. Each delta above is a change between two models. The card's noise band comes from head_band.csv instead: three head seeds on one backbone, student range 0.0018, teacher range 0.0064.
 wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/results/teacher_frozen_track.csv

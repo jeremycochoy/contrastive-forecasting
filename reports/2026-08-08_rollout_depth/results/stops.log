@@ -332,3 +332,15 @@
 [08-22 01:52:35] [A4_k3_bb450k_teacher] DONE — GM-Relative MASE 1.0986
 [08-22 02:22:59] [A4_k3_bb450k_teacher_s20260724] eval rc=0
 [08-22 02:22:59] [A4_k3_bb450k_teacher_s20260724] DONE — GM-Relative MASE 1.0945
+[08-22 16:06:57] [A4_k3_bb665k_student] head-train start enc=student steps=30000 seed=20260722 gpu=1 bb=cf393_arm6_v2_combab_alignS_cf373k3_665k.pth
+[08-22 17:20:30] [A4_k3_bb665k_student] head-train rc=0
+[08-22 17:20:30] [A4_k3_bb665k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-22 18:33:28] [A4_k3_bb665k_student] eval rc=0
+[08-22 18:33:28] [A4_k3_bb665k_student] DONE — GM-Relative MASE 1.0783
+[08-22 18:33:28] [A4_k3_bb665k_teacher] waiting for VRAM on GPU 1: 6933 MiB free, need 7000
+[08-22 18:43:28] [A4_k3_bb665k_teacher] waiting for VRAM on GPU 1: 6933 MiB free, need 7000
+[08-22 18:53:29] [A4_k3_bb665k_teacher] waiting for VRAM on GPU 1: 6933 MiB free, need 7000
+[08-22 19:03:29] [A4_k3_bb665k_teacher] waiting for VRAM on GPU 1: 6933 MiB free, need 7000
+[08-22 19:13:30] [A4_k3_bb665k_teacher] waiting for VRAM on GPU 1: 6933 MiB free, need 7000
+[08-22 19:18:00] [A4_k3_bb665k_teacher] GPU 1 has 24207 MiB free after 2670s
+[08-22 19:18:00] [A4_k3_bb665k_teacher] head-train start enc=teacher steps=30000 seed=20260722 gpu=1 bb=cf393_arm6_v2_combab_alignS_cf373k3_665k.pth
