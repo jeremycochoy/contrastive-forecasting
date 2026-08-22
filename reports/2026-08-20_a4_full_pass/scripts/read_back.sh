@@ -37,6 +37,12 @@ step(){ # <name> <command...>
   "$@" || { log "WARN: $name rc=$?"; fail=1; }
 }
 
+# `collect.sh` carries the driver's own six pairs, whose tags hold no seed.
+# `collect_replicates.sh` carries the `_s<seed>` draws. Round 7 found the
+# first one missing here: the 665k student pair reached the study only
+# because an agent ran it by hand, and the 665k teacher pair would have
+# needed the same. Both are idempotent and both gate on 97 configs.
+step collect bash "$HERE/collect.sh" >>"$LOG" 2>&1
 step collect_replicates bash "$HERE/collect_replicates.sh" "${STOPS_K[@]}" >>"$LOG" 2>&1
 step head_band python3 "$HERE/head_band.py" --csv "$RES/head_band.csv" \
   >"$RES/head_band.txt" 2>>"$LOG"

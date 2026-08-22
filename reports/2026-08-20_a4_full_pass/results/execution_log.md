@@ -853,3 +853,17 @@ WAIT   stop 665000 teacher: no score yet
 
 The student verdict did not repeat, so the SKIP latch held. `run_pass.sh`
 (pid 1741671) kept its teacher head-train on card 1 through the restart.
+
+### 19:01 UTC — the driver's own pairs cross without an agent
+
+`read_back.sh` ran `collect_replicates.sh` and not `collect.sh`.
+`collect_replicates.sh` carries the `_s<seed>` draws only. The driver's own
+six pairs carry no seed in their tag, so `collect.sh` is the only script
+that copies them.
+
+That is why the 665,000-step student pair reached this study by hand at
+18:44 UTC. The teacher pair would have needed the same hand.
+
+`read_back.sh` now runs both. The watchdog starts `read_back.sh` fresh
+every tick, so the fix took effect with no restart. Both scripts are
+idempotent and both gate on 97 configs.

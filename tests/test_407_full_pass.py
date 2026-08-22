@@ -1888,10 +1888,21 @@ class TestReadBackSurvivesTheAgent:
 
     def test_read_back_runs_every_step(self):
         code = strip_comments(READ_BACK_SH.read_text())
-        for name in ("collect_replicates.sh", "head_band.py",
+        for name in ("collect.sh", "collect_replicates.sh", "head_band.py",
                      "teacher_frozen_track.py", "plot_full_pass.py",
                      "mirror_durable.sh"):
             assert name in code, f"read_back.sh skips {name}"
+
+    def test_the_driver_pairs_cross_without_an_agent(self):
+        """`collect_replicates.sh` carries the `_s<seed>` draws only.
+
+        The driver's own six pairs carry no seed in their tag, and
+        `collect.sh` is the only script that copies them. Round 7 found it
+        missing from the read-back, so the last stop reached the study by
+        hand.
+        """
+        code = strip_comments(READ_BACK_SH.read_text())
+        assert 'bash "$HERE/collect.sh"' in code
 
     def test_the_watchdog_reads_back_every_tick(self):
         code = strip_comments((SCRIPTS / "watchdog.sh").read_text())
@@ -1922,7 +1933,8 @@ class TestReadBackSurvivesTheAgent:
         (tmp_path / "results").mkdir()
         (tmp_path / "plots").mkdir()
         (scripts / "read_back.sh").write_text(READ_BACK_SH.read_text())
-        for name in ("collect_replicates.sh", "mirror_durable.sh"):
+        for name in ("collect.sh", "collect_replicates.sh",
+                     "mirror_durable.sh"):
             (scripts / name).write_text("#!/bin/bash\nexit 0\n")
         for name in ("head_band.py", "teacher_frozen_track.py",
                      "plot_full_pass.py"):
