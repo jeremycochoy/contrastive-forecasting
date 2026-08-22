@@ -1529,12 +1529,10 @@ class TestTheFigure:
     the tables disagreed by 0.0052 at 450,000 steps.
     """
 
-    WORDS = (
-        "GM-Relative MASE against backbone train step, student and teacher "
-        "heads, lower is better. Lines join the per-stop means. Small dots "
-        "are single head-seed draws. Hollow marks are the published points "
-        "from the rollout-depth study. The dashed line is the prior best, "
-        "1.0660.")
+    # The report review cut the caption to a label: the legend, the y-axis
+    # label and the rule annotation already carry what the long form said.
+    WORDS = ("GM-Relative MASE against backbone train step, student and "
+             "teacher heads.")
 
     def test_the_caption_is_the_agreed_words(self):
         mod = load(PLOT_PY, "cf407_plot")
