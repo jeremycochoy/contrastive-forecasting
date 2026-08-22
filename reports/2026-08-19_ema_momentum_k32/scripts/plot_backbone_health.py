@@ -51,6 +51,29 @@ def arm_rows(tsv: Path = ARMS_TSV):
     return rows
 
 
+def schedule_label(alpha: float, ramp: int) -> str:
+    """The name of one momentum schedule. THE STUDY HAS ONE, AND IT IS HERE.
+
+    One schedule once carried three names: "0.9 constant" on this figure,
+    "0.9 held" on the ranking figure, and "0.9, fixed" in the table. A reader
+    who met the first name and then the third had to stop and decide whether
+    the two figures drew one arm. These are the table's words, and every
+    figure that labels an arm calls this function for them.
+    """
+    if ramp:
+        return f"{alpha:g}, to 1.0 at {ramp // 1000}k"
+    return f"{alpha:g}, fixed"
+
+
+def align_label(align_w: float) -> str:
+    """The name of an L_align weight that is not the cell's own 1.0.
+
+    The words are the table column's, "L_align weight". An arm at 1.0 gets an
+    empty string, because that weight separates no arm from another.
+    """
+    return "" if float(align_w) == 1.0 else f", L_align weight {float(align_w):g}"
+
+
 def arms(tsv: Path = ARMS_TSV):
     """Every arm of the card, with a label that names what makes it unique.
 
@@ -60,21 +83,17 @@ def arms(tsv: Path = ARMS_TSV):
     place for its arms, and every other script reads it.
 
     The label carries a field only when that field separates this arm from
-    another. So `a08` stays "0.8 constant", and `w3_s08` has to name its seed
+    another. So `a08` stays "0.8, fixed", and `w3_s08` has to name its seed
     and its L_align weight, because `s08` shares its momentum and its ramp.
     """
     rows = arm_rows(tsv)
     shape = [(r["alpha"], r["ramp"]) for r in rows]
     out = []
     for r in rows:
-        if r["ramp"]:
-            label = f"{r['alpha']:g} rising to 1.0 at {r['ramp'] // 1000}k"
-        else:
-            label = f"{r['alpha']:g} constant"
+        label = schedule_label(r["alpha"], r["ramp"])
         if shape.count((r["alpha"], r["ramp"])) > 1 and r["seed"]:
             label += f", seed {r['seed']}"
-        if r["align_w"] != 1.0:
-            label += f", L_align x{r['align_w']:g}"
+        label += align_label(r["align_w"])
         out.append((r["arm"], label))
     return tuple(out)
 

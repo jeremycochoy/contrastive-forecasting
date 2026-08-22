@@ -21,6 +21,7 @@ the domain grid and the table — are covered in section 8.
 
 from __future__ import annotations
 
+import ast
 import csv
 import importlib.util
 import math
@@ -54,6 +55,8 @@ PLOT_MOMENTUM = EXP / "scripts" / "plot_momentum.py"
 PLOT_REACHED = EXP / "scripts" / "plot_reached_two_colours.py"
 PLOT_CURVES = EXP / "scripts" / "plot_loss_curves.py"
 PLOT_GRID = EXP / "scripts" / "plot_domain_grid.py"
+PLOT_RANKING = EXP / "scripts" / "plot_arm_ranking.py"
+PLOT_HEALTH = EXP / "scripts" / "plot_backbone_health.py"
 MAKE_TABLE = EXP / "scripts" / "make_table.py"
 
 PARENT_LEG = PARENT / "scripts" / "run_leg_k.sh"
@@ -1740,6 +1743,120 @@ class TestTheTableAndTheStatement:
         mt, rows = self.rows(tmp_path, {})
         with pytest.raises(SystemExit):
             mt.statement(rows)
+
+
+# --- 8b. One arm, one name ---------------------------------------------------
+
+
+class TestOneArmOneName:
+    """One arm carries ONE name, in the table and on every figure.
+
+    ONE SCHEDULE ONCE CARRIED THREE NAMES. The backbone-health figure said
+    "0.9 constant", the ranking figure said "0.9 held", and the table said
+    "0.9, fixed". A reader who met the first name and then the third had to
+    stop and decide whether the two figures drew one arm. The L_align weight
+    carried three names the same way.
+
+    `plot_backbone_health.schedule_label` and `plot_backbone_health.align_label`
+    hold the one name now, in the table's own words, and every figure that
+    labels an arm calls them.
+    """
+
+    # Every figure script that puts an arm's name on the page. The health
+    # figure holds the two functions; the other two read them.
+    READERS = ("plot_arm_ranking.py", "plot_domain_grid.py")
+
+    # The names the study dropped, each as the whole literal that carried it:
+    # `f"{alpha:g} held"` puts " held" in the module on its own. A script that
+    # brings one back splits one arm into two for the reader.
+    DEAD = (" constant", " held", " rises to 1.0 over ",
+            " rising to 1.0 at ", ", L_align x", ", align weight ")
+
+    def health(self):
+        return load_module(PLOT_HEALTH, "cf404_health_label")
+
+    def row(self, arm, alpha, end, ramp):
+        """One arm of `arms.tsv`, in the columns `scores.csv` gives."""
+        return {"arm": arm, "alpha": float(alpha),
+                "schedule": "fixed" if end == "-" else "ramp",
+                "ramp": 0 if ramp == "-" else int(ramp),
+                "align_w": float(ALIGN_W[arm])}
+
+    def literals(self, path):
+        """Every string the module can print. Docstrings are not printed."""
+        tree = ast.parse(path.read_text())
+        docs = set()
+        for node in ast.walk(tree):
+            body = getattr(node, "body", None)
+            if not isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef,
+                                     ast.AsyncFunctionDef)) or not body:
+                continue
+            first = body[0]
+            if isinstance(first, ast.Expr) and \
+                    isinstance(first.value, ast.Constant) and \
+                    isinstance(first.value.value, str):
+                docs.add(id(first.value))
+        return [n.value for n in ast.walk(tree)
+                if isinstance(n, ast.Constant) and isinstance(n.value, str)
+                and id(n) not in docs]
+
+    def test_a_fixed_arm_carries_the_tables_words(self):
+        assert self.health().schedule_label(0.9, 0) == "0.9, fixed"
+
+    def test_a_ramp_arm_carries_the_tables_words(self):
+        h = self.health()
+        assert h.schedule_label(0.9, 100_000) == "0.9, to 1.0 at 100k"
+        assert h.schedule_label(0.8, 200_000) == "0.8, to 1.0 at 200k"
+
+    def test_the_align_weight_carries_the_tables_column(self):
+        h = self.health()
+        assert h.align_label(3.0) == ", L_align weight 3"
+
+    def test_the_cells_own_weight_names_nothing(self):
+        """Thirteen arms hold 1.0. A weight that separates no arm from another
+        belongs in no label."""
+        assert self.health().align_label(1.0) == ""
+
+    @pytest.mark.parametrize("arm,alpha,end,ramp", ARMS)
+    def test_the_table_cell_and_the_figure_label_are_one_string(
+            self, arm, alpha, end, ramp):
+        """`make_table` writes the momentum column. The figures write the row
+        label. Both are this one function's output, so they cannot drift."""
+        h = self.health()
+        mt = load_module(MAKE_TABLE, "cf404_make_table_label")
+        r = self.row(arm, alpha, end, ramp)
+        cell = f"{r['alpha']:g}, {mt.schedule_text(r)}"
+        assert cell == h.schedule_label(r["alpha"], r["ramp"]), arm
+
+    @pytest.mark.parametrize("arm,alpha,end,ramp", ARMS)
+    def test_one_arm_gives_one_label_on_every_figure(
+            self, arm, alpha, end, ramp):
+        """The ranking figure and the health figure open one arm's row with
+        one string, and both name its L_align weight the same way."""
+        h = self.health()
+        rank = load_module(PLOT_RANKING, "cf404_rank_label")
+        r = self.row(arm, alpha, end, ramp)
+        name = h.schedule_label(r["alpha"], r["ramp"])
+        weight = h.align_label(r["align_w"])
+        on_health = dict(h.arms())[arm]
+        on_ranking = rank.arm_label(r)
+        assert on_health.startswith(name), (arm, on_health)
+        assert on_ranking.startswith(name), (arm, on_ranking)
+        assert on_health.endswith(weight), (arm, on_health)
+        assert weight in on_ranking, (arm, on_ranking)
+
+    @pytest.mark.parametrize("script", READERS)
+    def test_every_labelling_figure_reads_the_one_function(self, script):
+        code = (EXP / "scripts" / script).read_text()
+        assert "plot_backbone_health" in code, script
+
+    @pytest.mark.parametrize(
+        "script", ("plot_arm_ranking.py", "plot_domain_grid.py",
+                   "plot_backbone_health.py"))
+    def test_no_figure_writes_a_name_of_its_own(self, script):
+        """A dropped name that comes back is the defect again."""
+        for text in self.literals(EXP / "scripts" / script):
+            assert text not in self.DEAD, (script, text)
 
 
 class TestMakePlots:

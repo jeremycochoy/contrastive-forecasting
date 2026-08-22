@@ -44,6 +44,10 @@ REF = _load("cf404_refs", "references.py")
 SEEDS = _load("cf404_seeds", "seed_report.py")
 MOM = _load("cf404_momentum", "plot_momentum.py")
 AT = _load("cf404_at_stop", "plot_momentum_at_stop.py")
+# The study's one name for one arm. `plot_backbone_health.schedule_label` and
+# `align_label` hold it, and the backbone-health figure and the domain grid
+# read the same two functions.
+HEALTH = _load("cf404_health", "plot_backbone_health.py")
 
 # One colour per kind of schedule, the same two the reached-value figure
 # uses. The ramp length is not in the colour.
@@ -53,13 +57,15 @@ KIND_NAME = {"fixed": "the momentum holds one value",
 
 
 def arm_label(r) -> str:
-    """What the reader sees for one arm. No internal name, no issue number."""
-    if r["schedule"] != "ramp" or not r["ramp"]:
-        base = f"{r['alpha']:g} held"
-    else:
-        base = f"{r['alpha']:g} rises to 1.0 over {r['ramp'] // 1000:g}k"
-    if float(r.get("align_w", 1.0)) != 1.0:
-        base += f", align weight {float(r['align_w']):g}"
+    """What the reader sees for one arm. No internal name, no issue number.
+
+    THE WORDS ARE NOT WRITTEN HERE. `plot_backbone_health` holds them, so an
+    arm named "0.9, fixed" on the first figure of the report carries that same
+    name on this one.
+    """
+    ramp = r["ramp"] if r["schedule"] == "ramp" else 0
+    base = HEALTH.schedule_label(r["alpha"], ramp)
+    base += HEALTH.align_label(r.get("align_w", 1.0))
     reached = AT.momentum_at(r["alpha"], r["schedule"], r["ramp"], 40000)
     return f"{base}  (reaches {reached:.3f})"
 
