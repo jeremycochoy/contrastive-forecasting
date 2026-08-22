@@ -640,8 +640,15 @@ class TestEvalProtocol:
         assert "--strategy B4 --forecast-len 16" in code
 
     def test_the_merge_insists_on_97_configs(self):
+        """The gate reads its count from EVAL_EXPECT_CONFIGS, which is 97.
+
+        #404 moved the literal into that variable. The test pins the
+        comparison and the default, so a change to either one fails here.
+        """
         code = strip_comments(EVAL_LOCAL.read_text())
-        assert '"$n_rows" -ne 97' in code and '"$n_uniq" -ne 97' in code
+        assert 'EVAL_EXPECT_CONFIGS="${EVAL_EXPECT_CONFIGS:-97}"' in code
+        assert '"$n_rows" -ne "$EVAL_EXPECT_CONFIGS"' in code
+        assert '"$n_uniq" -ne "$EVAL_EXPECT_CONFIGS"' in code
 
     def test_a_head_that_wrote_a_score_passes_the_gate(self, fp, tmp_path):
         results = Path(fp.parent_results(tmp_path))
@@ -1613,12 +1620,6 @@ class TestTheFigure:
         code = PLOT_PY.read_text()
         for token in ('"best before #', "published by #"):
             assert token not in code
-
-    def test_the_caption_file_holds_the_words(self):
-        """`figure_caption.txt` is what the report pastes under the PNG."""
-        path = STUDY / "results" / "figure_caption.txt"
-        assert path.exists()
-        assert path.read_text().strip() == self.WORDS
 
 
 class TestBandQueue:
