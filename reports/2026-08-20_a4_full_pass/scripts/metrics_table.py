@@ -107,6 +107,37 @@ def as_markdown(rows) -> str:
     return "\n".join(lines)
 
 
+def mean_rows(rows):
+    """One row per (stop, head): the mean of its head-seed draws.
+
+    The figure joins the per-stop means, so the metric table beside it
+    must do the same. A stop with one draw keeps that draw, and `n_draws`
+    says which stops carry a measured spread.
+    """
+    groups = {}
+    for r in rows:
+        groups.setdefault((r["stop"], r["head"]), []).append(r)
+    out = []
+    for (stop, head), got in sorted(groups.items()):
+        row = {"stop": stop, "head": head, "n_draws": len(got)}
+        for column in COLUMNS:
+            row[column] = sum(g[column] for g in got) / len(got)
+        out.append(row)
+    return out
+
+
+def means_as_markdown(rows) -> str:
+    head = ("| stop | head | draws | " +
+            " | ".join(TITLES[c] for c in COLUMNS) + " |")
+    rule = "|---:|:---|---:|" + "---:|" * len(COLUMNS)
+    lines = [head, rule]
+    for r in rows:
+        cells = " | ".join(f"{r[c]:.4f}" for c in COLUMNS)
+        lines.append(f"| {r['stop'] // 1000}k | {r['head']} | "
+                     f"{r['n_draws']} | {cells} |")
+    return "\n".join(lines)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--stop", type=int, action="append", dest="stops")
@@ -117,6 +148,8 @@ def main(argv=None):
     ap.add_argument("--root", default="/home/jupyter/cf373_r3/sync")
     ap.add_argument("--csv")
     ap.add_argument("--md")
+    ap.add_argument("--means-csv")
+    ap.add_argument("--means-md")
     a = ap.parse_args(argv)
 
     stops = a.stops or ([full_pass.RESUME_STEP] + full_pass.STOPS)
@@ -153,6 +186,24 @@ def main(argv=None):
         with open(a.md, "w") as fh:
             fh.write(as_markdown(rows) + "\n")
         print(f"wrote {a.md}")
+
+    means = mean_rows(rows)
+    print()
+    print(f"{'stop':>7} {'head':<8} {'draws':>5} " +
+          " ".join(f"{TITLES[c]:>17}" for c in COLUMNS))
+    for r in means:
+        print(f"{r['stop']:>7} {r['head']:<8} {r['n_draws']:>5} " +
+              " ".join(f"{r[c]:>17.4f}" for c in COLUMNS))
+    if a.means_csv:
+        with open(a.means_csv, "w", newline="") as fh:
+            w = csv.DictWriter(fh, fieldnames=list(means[0]))
+            w.writeheader()
+            w.writerows(means)
+        print(f"wrote {a.means_csv}")
+    if a.means_md:
+        with open(a.means_md, "w") as fh:
+            fh.write(means_as_markdown(means) + "\n")
+        print(f"wrote {a.means_md}")
     return 0
 
 

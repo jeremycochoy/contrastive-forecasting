@@ -138,6 +138,87 @@ def live_score(stop: int, head: str, results):
     return full_pass.score(stop, head, results)
 
 
+def protocol_offsets(csv_path, head: str = BAND_HEAD):
+    """`[(stop, mean, protocol draw, offset)]` for every banded row.
+
+    A SKIP leaves its stop with one draw, and that draw comes from the
+    protocol head seed. So the question the skip must answer is: how far
+    does the protocol draw sit from the mean of a full band?
+
+    Every banded stop of this card measures that offset directly. The rows
+    with two draws or more are the evidence, and this reads them back.
+    """
+    out = []
+    try:
+        with open(csv_path, newline="") as fh:
+            for row in csv.DictReader(fh):
+                if row["head"] != head or int(row["n_draws"]) < 2:
+                    continue
+                draws = {int(part.split("=")[0]): float(part.split("=")[1])
+                         for part in row["seeds"].split() if "=" in part}
+                if full_pass.HEAD_SEED not in draws:
+                    continue
+                mean = sum(draws.values()) / len(draws)
+                protocol = draws[full_pass.HEAD_SEED]
+                out.append((int(row["stop"]), mean, protocol, protocol - mean))
+    except (OSError, KeyError, ValueError):
+        return []
+    return out
+
+
+def skip_context(csv_path, score, stop: int, head: str, center: float):
+    """What the one draw at a skipped stop says about its unmeasured mean.
+
+    The measured offsets bound the mean the band would have found. The
+    bound is the widest offset in each direction, so it is the whole
+    measured spread and not a standard deviation of it.
+
+    Returns None when no banded row carries the protocol seed.
+    """
+    rows = protocol_offsets(csv_path, head)
+    if not rows or score is None:
+        return None
+    offsets = [off for _, _, _, off in rows]
+    # The draw sits `off` ABOVE the mean, so the mean sits `off` BELOW the
+    # draw. The widest offset up gives the lowest mean, and the reverse.
+    lo, hi = score - max(offsets), score - min(offsets)
+    sigma = pooled_std(csv_path)
+    return {"stop": stop, "head": head, "score": score, "rows": rows,
+            "offset_lo": min(offsets), "offset_hi": max(offsets),
+            "mean_lo": lo, "mean_hi": hi, "center": center,
+            "rise_lo": lo - center, "rise_hi": hi - center,
+            "pooled_sd": sigma,
+            "sd_lo": (lo - center) / sigma if sigma else None,
+            "sd_hi": (hi - center) / sigma if sigma else None}
+
+
+def offsets_text(context) -> str:
+    """The skip's evidence, as the report cites it."""
+    if context is None:
+        return "no banded row carries the protocol seed, so no bound"
+    lines = [f"the protocol draw against its own band mean, "
+             f"{context['head']} head",
+             f"{'stop':>7}  {'band mean':>9}  {'protocol':>9}  {'offset':>8}"]
+    for stop, mean, protocol, off in context["rows"]:
+        lines.append(f"{stop:>7}  {mean:>9.4f}  {protocol:>9.4f}  "
+                     f"{off:>+8.4f}")
+    lines.append(
+        f"measured offsets: {context['offset_lo']:+.4f} to "
+        f"{context['offset_hi']:+.4f}")
+    lines.append(
+        f"stop {context['stop']} has one draw, {context['score']:.4f}. Its "
+        f"band mean lands between {context['mean_lo']:.4f} and "
+        f"{context['mean_hi']:.4f}.")
+    lines.append(
+        f"against the {context['center']:.4f} band mean at 200000 steps: "
+        f"{context['rise_lo']:+.4f} to {context['rise_hi']:+.4f}")
+    if context["pooled_sd"]:
+        lines.append(
+            f"pooled head-seed sd {context['pooled_sd']:.4f}, so the rise is "
+            f"{context['sd_lo']:.1f} to {context['sd_hi']:.1f} of it")
+    return "\n".join(lines)
+
+
 def main(argv=None) -> int:
     study = os.path.dirname(HERE)
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -154,6 +235,10 @@ def main(argv=None) -> int:
     ap.add_argument("--write", default=None,
                     help="append the verdict to this file, once")
     ap.add_argument("--explain", action="store_true")
+    ap.add_argument("--offsets", action="store_true",
+                    help="what the one draw at a skipped stop bounds")
+    ap.add_argument("--offsets-out", default=None,
+                    help="write the offsets block to this file")
     args = ap.parse_args(argv)
 
     if args.radius < 0:
@@ -183,6 +268,15 @@ def main(argv=None) -> int:
             print(f"radius     {args.radius / sigma:.1f} pooled sd")
         if sigma_head:
             print(f"pooled sd  {sigma_head:.4f}  ({args.head} head only)")
+
+    if args.offsets or args.offsets_out:
+        block = offsets_text(skip_context(args.csv, score, args.stop,
+                                          args.head, args.center))
+        print(block)
+        if args.offsets_out:
+            with open(args.offsets_out, "w") as fh:
+                fh.write(block + "\n")
+            print(f"wrote {args.offsets_out}")
 
     if verdict == WAIT:
         line = f"WAIT   stop {args.stop} {args.head}: no score yet"

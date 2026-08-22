@@ -588,3 +588,214 @@ the tick loop, so no test could reach it without one.
 
 **What did not change.** Both heads stay at the 665,000-step stop, as the
 card asks. `band_queue.sh` owns no 665k stage and needed no change.
+
+## 2026-08-22, round 7 review gaps
+
+The reviewer returned eleven items. This section records what changed on
+disk and what the report must carry. Every claim below names its artefact.
+
+### 18:41 UTC — the wait for the last head
+
+`await_stop.sh 665 teacher` started again at 18:41 UTC. The round-6 copy of
+that waiter died with its session at about 13:00 UTC. The waiter carries no
+work, so nothing was lost. `read_back.sh` runs from the watchdog every
+thirty minutes and brings each number into the checkout on its own.
+
+### 18:44 UTC — the 665,000-step student stop crossed (item 1)
+
+`collect.sh` moved the student pair into this study: the score, the 97
+per-config rows, the eval log and the leg's losses CSV.
+
+| artefact | path |
+|---|---|
+| score | `results/score_A4_k3_bb665k_student.txt` |
+| 97 rows | `results/eval/A4_k3_bb665k_student/all_results.csv` |
+| summary | `results/eval/A4_k3_bb665k_student/summary.txt` |
+| losses | `results/curves/leg_665k__cf393_arm6_v2_combab_alignS_cf373k3_losses.csv` |
+
+### 18:50 UTC — the figure, redrawn (items 2, 3, 9, 10)
+
+The pooled ribbon is gone. Four changes:
+
+- The two lines join the PER-STOP MEANS. At 450,000 steps the old line ran
+  through the protocol draw, 1.0691, while the tables carried the band
+  mean, 1.0743. The picture and the text now agree.
+- Every head-seed draw is a small dot in its head colour. The dots are the
+  measured spread, so no pooled number stands between the reader and the
+  data. The old ribbon was one number, plus and minus 0.0029, over both
+  heads and every stop. The measured ranges run from 0.0018 to 0.0087.
+- A hollow ring marks the rollout-depth study's published point at 40k,
+  100k and 200k. At 200,000 steps that point is one of three draws, so the
+  ring shows which draw the parent study published.
+- The rule label reads "prior best, 1.0660" and the legend reads
+  "rollout-depth study point". No issue number reaches the axes.
+
+The 665,000-step point carries one draw, so it carries no spread.
+
+`results/figure_caption.txt` holds the caption, word for word.
+`results/figure_provenance.txt` holds the two checkpoint trees behind the
+three hollow points. The provenance stays off the axes.
+
+### 18:52 UTC — the paired bootstrap and the goal metrics (item 6)
+
+Both analyses read `all_results.csv` files that already exist, so both cost
+CPU seconds and no GPU time.
+
+`stop_bootstrap.sh` ran for every stop and head on disk. The resampling
+unit is the dataset, not the config. Output: `results/stop_bootstrap.csv`
+and `results/stop_bootstrap.txt`.
+
+| comparison | delta | 95% CI | improved |
+|---|---:|---|---:|
+| 200k to 300k, student | +0.0207 | [+0.0051, +0.0373] | 0.4% |
+| 200k to 450k, student | +0.0031 | [-0.0057, +0.0114] | 24.1% |
+| 200k to 665k, student | +0.0123 | [+0.0009, +0.0240] | 1.7% |
+| 200k to 300k, teacher | +0.0202 | [+0.0085, +0.0330] | 0.0% |
+| 200k to 450k, teacher | +0.0158 | [+0.0010, +0.0311] | 1.7% |
+
+A positive delta is worse. This bootstrap covers the protocol seed only,
+and it measures the spread over the 97 configs. It does not measure head
+noise or backbone noise.
+
+`metrics_table.py` ran for every stop, head and head seed. It writes the
+per-draw table and the per-stop means:
+
+| file | what |
+|---|---|
+| `results/metrics_table.csv`, `.md` | one row per (stop, head, seed) |
+| `results/metrics_table_means.csv`, `.md` | one row per (stop, head) |
+
+The recomputed GM-Relative MASE agrees with every published score to
+better than 5e-4, so one seasonal-naive denominator is in play.
+
+The three goal metrics do not all move the same way. Student head, band
+mean at 200,000 steps against the one draw at 665,000 steps:
+
+| metric | 200k mean | 200k range | 665k, one draw | reads |
+|---|---:|---:|---:|---|
+| GM-MASE | 1.4889 | 0.0024 | 1.5073 | worse, outside the range |
+| GM-MAPE_SN | 1.0481 | 0.0191 | 1.0846 | worse, outside the range |
+| GM-CRPS_SN | 0.7792 | 0.0063 | 0.7779 | inside the 200k range |
+
+The 200,000-step CRPS draws are 0.7755, 0.7802 and 0.7818. The 665,000-step
+draw, 0.7779, sits between them. So GM-CRPS_SN shows no readable move.
+
+`head_band.csv` gives the 200k teacher mean as 1.0800 and
+`metrics_table_means.csv` gives 1.0801. The first averages the 4-decimal
+score files. The second recomputes each draw from its 97 rows. The
+difference is 1.8e-5, and it is rounding.
+
+### 18:56 UTC — the band rule, and what the skip costs (item 4)
+
+The rule went in at 12:52 UTC on 2026-08-22. The leg was at step 631,200
+and no 665,000-step score was on disk. `band_decision.py` fires a band when
+the 665,000-step STUDENT score lands inside [1.0551, 1.0751], which is the
+200,000-step student band mean plus and minus 0.0100. The student scored
+1.0783 at 17:52 UTC, 0.0132 from the center, so the rule skipped the band.
+The order of those two events is what makes the skip legitimate.
+
+| fact | value | artefact |
+|---|---|---|
+| rule in place | 12:52 UTC, 2026-08-22, step 631,200 | `results/watchdog.log` |
+| window | [1.0551, 1.0751] | `band_decision.py --explain` |
+| score | 1.0783 at 17:52 UTC | `results/score_A4_k3_bb665k_student.txt` |
+| verdict | SKIP | `results/band_665k_decision.txt` |
+
+The skip does not move the verdict. `band_decision.py --offsets` measures
+how far the protocol draw sits from its own band mean, at every banded stop
+of this card, and applies the same offsets to the one draw at 665,000
+steps. Output: `results/band_665k_offsets.txt`.
+
+```
+   stop  band mean   protocol    offset
+ 200000     1.0651     1.0660   +0.0009
+ 300000     1.0864     1.0867   +0.0003
+ 450000     1.0743     1.0691   -0.0052
+measured offsets: -0.0052 to +0.0009
+stop 665000 has one draw, 1.0783. Its band mean lands between 1.0774 and 1.0835.
+against the 1.0651 band mean at 200000 steps: +0.0123 to +0.0184
+pooled head-seed sd 0.0029, so the rise is 4.2 to 6.3 of it
+```
+
+The band would have cost about 8 GPU-hours and it would not have changed
+the answer.
+
+### what the report may say about the last three points (item 7)
+
+The student means move -0.0121 from 300,000 to 450,000 steps, which is 4.2
+pooled standard deviations. They then move +0.0040 from 450,000 to 665,000
+steps, which is 1.4 pooled standard deviations and inside the widest
+measured head-seed range, 0.0087.
+
+The head-seed band bounds head noise only. Nothing in this card measures
+how much the score moves between two nearby checkpoints of one run.
+
+- The report may say that every stop past 200,000 steps is worse than
+  200,000 steps.
+- The report may not say that 665,000 steps is worse than 450,000 steps.
+- The report may not draw a trend through the last three points, and the
+  figure draws none.
+
+### what one run supports (item 8)
+
+Every point comes from one backbone seed and one continuous trajectory.
+`run_leg_k.sh` line 113 pins `SEED=20260520`.
+
+The recipe holds constant across the card's span. The launcher passes
+`--lr 1e-3` and no schedule flag, and `train.py` prints `lr=0.001` at the
+start of all four legs. The EMA momentum ramp is anchored to a fixed step
+count, `--ema-tau-ramp-steps 100000`, and it holds at 1.0 past that step.
+So no schedule change sits between 200,000 and 665,000 steps.
+
+- The report must write "this run did not improve past 200,000 steps".
+- The report must not write "A4 does not improve with more data".
+- The report must state the constant learning rate.
+- The report must give no mechanism for the rise at 300,000 steps. The run
+  measured that it happened, not why.
+
+### 1.0660 is a selected minimum (item 9)
+
+`results/selection_context.json`: rank 1 of 99 published scores, runner-up
+1.0801, gap 0.0141. A point near 1.0660 is not a plateau.
+
+The like-for-like comparison is band mean against band mean: 1.0651 at
+200,000 steps against 1.0783 at 665,000 steps, a rise of 0.0132.
+
+### one full pass, to the digit (item 11)
+
+The card claims one full pass. 665,000 steps is not exactly one pass, and
+the three row counts disagree:
+
+| source | rows | steps for one pass | 665,000 is |
+|---|---:|---:|---:|
+| `small_v1/manifest.json` | 42,571,692 | 665,182 | 99.97% |
+| shard arithmetic | 42,740,000 | 667,812 | 99.58% |
+| the card's own number | - | 665,156 | 99.98% |
+
+`full_pass.ROW_COUNTS` holds the first two. The report must name the count
+it uses and the percentage, next to the claim.
+
+### the smaller items (item 11)
+
+- `results/figure_caption.txt` was stale. `plot_full_pass.py` writes it now,
+  so the file cannot drift from the figure again.
+- The retracted "free null of 0.0046" stays out of the report. It appears in
+  four PR comments and in the `pr_comment_*.md` files under `results/`.
+  Those files are the round-by-round record and they stay where they are.
+  The corrected fact is the one to state: the teacher head loads 36 student
+  tensors, and 32 of them move at every stop.
+  Artefacts: `results/teacher_head_inputs_450k_665k.json`,
+  `results/teacher_frozen_track.txt`.
+- This card reuses the parent study's launcher, so the launcher writes the
+  scores and the training log into
+  `reports/2026-08-08_rollout_depth/results/`. `collect.sh` mirrors every
+  one of them into this study, and `read_back.sh` runs it from the watchdog
+  every thirty minutes. Nothing this card measured lives in one place only.
+- The report is one file at the study root, `a4_full_pass.md`. The eight
+  `pr_comment_*.md` files and this execution log stay under `results/`.
+
+### tests
+
+`tests/test_407_full_pass.py` is 240 tests and all pass. Round 7 replaced
+the ribbon caption tests with tests on the new figure contract, and it added
+tests on the offsets mode of the band rule.

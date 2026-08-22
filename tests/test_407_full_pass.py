@@ -2088,6 +2088,27 @@ class TestBandDecisionRule:
     def test_pooled_sd_survives_a_missing_file(self, bd, tmp_path):
         assert bd.pooled_std(tmp_path / "gone.csv") is None
 
+    def test_the_offsets_come_off_the_banded_rows(self, bd):
+        """One row per banded stop, and the offset is draw minus mean."""
+        rows = bd.protocol_offsets(STUDY / "results" / "head_band.csv")
+        got = {stop: round(off, 4) for stop, _, _, off in rows}
+        assert got == {200_000: 0.0009, 300_000: 0.0003, 450_000: -0.0052}
+
+    def test_the_skip_bounds_the_mean_it_did_not_measure(self, bd):
+        """The widest offset each way, applied to the one draw."""
+        ctx = bd.skip_context(STUDY / "results" / "head_band.csv",
+                              1.0783, 665_000, "student", bd.BAND_CENTER)
+        assert ctx["mean_lo"] == pytest.approx(1.0774, abs=5e-5)
+        assert ctx["mean_hi"] == pytest.approx(1.0835, abs=5e-5)
+        # Even the lowest bound sits far above the 200k band mean.
+        assert ctx["rise_lo"] == pytest.approx(0.0123, abs=5e-5)
+        assert ctx["sd_lo"] > 4.0
+
+    def test_the_skip_bound_needs_a_banded_row(self, bd, tmp_path):
+        assert bd.skip_context(tmp_path / "gone.csv", 1.0783, 665_000,
+                               "student", bd.BAND_CENTER) is None
+        assert "no bound" in bd.offsets_text(None)
+
 
 class TestBandDecisionCli:
     """The exit codes the watchdog branches on."""
@@ -2132,6 +2153,19 @@ class TestBandDecisionCli:
     def test_explain_prints_the_numbers(self):
         out = self.run("--explain", "--score", "1.0700")
         assert "pooled sd" in out.stdout and "window" in out.stdout
+
+    def test_offsets_bound_the_mean_the_skip_did_not_measure(self):
+        """A SKIP leaves one draw. The measured offsets bound its mean."""
+        out = self.run("--offsets", "--score", "1.0783")
+        assert out.returncode == 10
+        assert "1.0774" in out.stdout and "1.0835" in out.stdout
+        assert "+0.0123" in out.stdout
+
+    def test_offsets_write_a_file(self, tmp_path):
+        rec = tmp_path / "offsets.txt"
+        out = self.run("--offsets-out", str(rec), "--score", "1.0783")
+        assert out.returncode == 10
+        assert "band mean lands between" in rec.read_text()
 
 
 # The sandbox for the watchdog's own tick. Stubs stand in for everything the
