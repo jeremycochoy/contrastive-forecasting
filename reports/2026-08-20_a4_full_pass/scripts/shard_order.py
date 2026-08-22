@@ -159,7 +159,8 @@ def survey(shard_ids, fs=None):
 
 
 # The shard the run had reached at 200,000 steps. Shards below it are the
-# half #373 read; shards at or above it are the half the continuation reads.
+# half the rollout-depth study read. Shards at or above it are the half the
+# continuation reads.
 SPLIT_SHARD = 1280
 
 
