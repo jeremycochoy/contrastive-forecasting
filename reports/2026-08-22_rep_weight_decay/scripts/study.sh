@@ -52,6 +52,28 @@ CF409_ALIGN_TARGET_DEFAULT="${CF409_ALIGN_TARGET_DEFAULT:-student}"
 # The weight on L_rep at step 0. Every arm starts here, and the arms table
 # says where each one ends.
 CF409_REP_W_START="${CF409_REP_W_START:-1.0}"
+
+# ---- The latent-drift probe --------------------------------------------------
+#
+# The probe is a DIAGNOSTIC. It draws a fixed ARMA batch once, then does one
+# no-grad forward of it at every save step and writes the drift of h_t to
+# `<run>_latent_drift.csv`. At the trainer's own batch of 64 that forward
+# allocates a 4.32 GB block, and the allocator keeps it. So the probe, not the
+# training, sets what one leg of this cell holds: 5.4 GB, of which about 1 GB
+# is the training itself.
+#
+# elisa's two cards already carry other agents' runs, and this card must share
+# them. At 16 the block is about 1.1 GB, one leg holds about 2.2 GB, and both
+# lanes of this card fit beside the work that is already there.
+#
+# The probe cannot move the training. `generate_arma_batch` draws its batch
+# from `np.random.default_rng(seed)`, which is a LOCAL generator, and `probe()`
+# runs under `torch.no_grad()` on a model it puts back in train mode. So this
+# changes the drift CSV of every arm and nothing else.
+#
+# Every arm of this card takes the same value, so no arm's drift CSV is on a
+# different footing from another's.
+CF409_PROBE_BS="${CF409_PROBE_BS:-16}"
 CF409_ARMS_TSV="${CF409_ARMS_TSV:-$CF409_SCRIPTS/arms.tsv}"
 
 # ---- Trial mode --------------------------------------------------------------

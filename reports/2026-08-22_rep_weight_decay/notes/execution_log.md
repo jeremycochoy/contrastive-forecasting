@@ -8,9 +8,35 @@ the events (`reports/REPORT_STANDARD.md`).
 elisa runs every arm. It holds two RTX 4090 cards. Other agents already train
 on both cards, so this card shares them and stops no other run.
 
-One leg of this cell holds about 5.4 GB of VRAM. The latent-drift probe draws
-a 4.32 GB block at steps 0, 20,000 and 40,000, and the allocator keeps it. So
-one card holds one leg of this study, not two.
+## What each part of the card holds
+
+Measured on elisa, beside the other agents' runs.
+
+| part | VRAM | rate |
+|---|---|---|
+| one backbone leg, probe batch 64 | 5388 MiB | 3.5 steps/s |
+| one backbone leg, probe batch 16 | 1766 MiB | 3.5 steps/s |
+| one 30,000-step head | 5464 MiB | 6.7 steps/s |
+| one 97-config GIFT-Eval | none, CPU | about 2.9 core-hours |
+
+The latent-drift probe, not the training, set what one leg held. It draws a
+fixed batch and does one no-grad forward of it at every save step. At the
+trainer's own batch of 64 that forward allocates a 4.32 GB block, and the
+allocator keeps it for the run.
+
+Card 0 held 3.9 GB free and card 1 held 9.6 GB. At 5.4 GB a leg fitted on
+neither card beside a head, and a leg died in the probe on card 0 in its first
+seconds. So every arm of this card runs at `--latent-drift-probe-batch-size
+16`, which is `CF409_PROBE_BS` in `study.sh`.
+
+That flag cannot move the training. `generate_arma_batch` draws the probe
+batch from `np.random.default_rng(seed)`, a LOCAL generator, and `probe()`
+runs under `torch.no_grad()`. It changes the drift CSV of every arm, which
+this card does not read, and nothing else. Every arm takes the same value.
+
+The heads of both lanes run on card 1. `head_eval_bb.sh` holds one head at a
+time per card through a `flock`, so card 1 carries at most one backbone and
+one head: 7.2 GB of its 9.6 GB.
 
 ## The checkout
 
@@ -64,8 +90,10 @@ The two lanes hold disjoint arms, so no arm can train twice.
 Lane A holds the control and the whole decay walk at seed 20260520, so the
 card's main question has an answer even if lane B loses its card.
 
-Card 0 held 3.9 GB free at the start, and one leg needs about 5.4 GB. So lane
-B waits on `lane_when_free.sh` and starts when the card can hold it.
+`lane_when_free.sh` starts a lane when its card can hold it. The first lane B
+used it, because a 5.4 GB leg did not fit on card 0. The smaller probe made
+the wait unnecessary, and the script stays for the next agent who must share
+a full card.
 
 ## Events
 
@@ -73,5 +101,11 @@ B waits on `lane_when_free.sh` and starts when the card can hold it.
 |---|---|
 | 2026-08-22 22:44 | trial start |
 | 2026-08-22 22:47 | trial score written, path proved |
-| 2026-08-22 22:49 | lane A start on card 1 |
-| 2026-08-22 22:50 | lane B waits for card 0 |
+| 2026-08-22 22:49 | first lane A start, probe batch 64 |
+| 2026-08-22 23:05 | both lanes stopped after the VRAM measurements |
+| 2026-08-22 23:11 | lane A restart on card 1, probe batch 16 |
+| 2026-08-22 23:12 | lane B start on card 0 |
+
+The first lane A ran `ctrl_s20` to about 3,000 steps at probe batch 64. Its
+checkpoints were deleted, so no artefact of this card mixes the two probe
+settings.

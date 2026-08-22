@@ -65,13 +65,14 @@ DECAY_ARGS="$(cf409_decay_args "$ARM")"
 # trained rather than leaving the reader to infer the trainer's default. The
 # align target and the decay ride the same block, which is the LAST thing on
 # the trainer command line.
-GAP="--train-rollout-reduce $CF409_REDUCE --align-target $ARM_TARGET $DECAY_ARGS"
+PROBE_ARGS="--latent-drift-probe-batch-size $CF409_PROBE_BS"
+GAP="--train-rollout-reduce $CF409_REDUCE --align-target $ARM_TARGET $DECAY_ARGS $PROBE_ARGS"
 
 # Fault injection, for the test that proves the check below fires. It hands
 # the trainer a decay this arm does not carry, which is what a wiring defect
 # does. Nothing in the study sets it.
 [ -n "${CF409_FORCE_DECAY:-}" ] && \
-  GAP="--train-rollout-reduce $CF409_REDUCE --align-target $ARM_TARGET $CF409_FORCE_DECAY"
+  GAP="--train-rollout-reduce $CF409_REDUCE --align-target $ARM_TARGET $CF409_FORCE_DECAY $PROBE_ARGS"
 
 if [ -n "${CF409_DRY_RUN:-}" ]; then
   echo "arm $ARM cell=$CF409_CELL k=$CF409_K steps=$STOP gpu=$BB_GPU"
