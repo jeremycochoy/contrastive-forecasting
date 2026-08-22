@@ -1,0 +1,39 @@
+[08-20 15:56:40] [#404 finish6] START pid=2965971 driver_pidfile=/tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/round6.pid box=48192413
+[08-20 15:56:40] [#404 finish6] arms this round: r100_09 r100_08 w3_s08
+[08-20 15:56:40] [#404 finish6] ONLY=verify — the driver is not waited for
+[08-20 15:56:40] [#404 finish6] report assets
+[08-20 15:56:41] [#404 finish6]   [#404 assets] results/eval 440K, curves 25M
+[08-20 15:56:41] [#404 finish6] collect and draw
+[08-20 15:56:58] [#404 finish6]   scores.csv holds 6 arm(s)
+  wrote 72 rows -> /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/splits.csv
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/plots/momentum.png — 5 arm(s), 1 collapsed
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/plots/momentum_at_stop.png — 5 arm(s), 1 collapsed
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/plots/loss_curves.png — 8 curve(s)
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/plots/domain_radar.png — 6 arm(s), 7 domain(s)
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/plots/backbone_health.png — 8 arm(s)
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/seed_report.md
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/seed_table.csv — 2 row(s)
+[08-20 15:56:58] [#404 finish6] verify
+[08-20 15:56:59] [#404 finish6]   missing: 12
+[08-20 15:56:59] [#404 finish6]   seed table:
+    arm,alpha,schedule,ramp,seed,stop,auc_at_stop,score,collapsed
+    s08,0.8,ramp,200000,20260520,40000,0.956707,1.1782,0
+    s08b,0.8,ramp,200000,20260521,40000,0.574503,1.5459,1
+[08-20 15:56:59] [#404 finish6] ONLY=verify — stopping before the box
+[08-20 15:57:06] [#404 finish6] START pid=2967588 driver_pidfile=/tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/round6.pid box=48192413
+[08-20 15:57:06] [#404 finish6] arms this round: r100_09 r100_08 w3_s08
+[08-20 15:57:06] [#404 finish6] waiting for the driver, pid 2959282
+[08-20 16:27:07] [#404 finish6]   driver up 1800s, [08-20 15:56:33] [#404 round6]   spend $2.68 of $5.60
+[08-20 16:57:07] [#404 finish6]   driver up 3600s, [08-20 16:29:32] [#404 round6]   spend $2.92 of $5.60
+[08-20 17:27:07] [#404 finish6]   driver up 5400s, [08-20 17:01:59] [#404 round6]   spend $3.15 of $5.60
+[08-20 17:57:07] [#404 finish6]   driver up 7200s, [08-20 17:34:28] [#404 round6]   spend $3.38 of $5.60
+[08-20 18:27:07] [#404 finish6]   driver up 9000s, [08-20 18:06:59] [#404 round6]   spend $3.61 of $5.60
+[08-20 18:57:07] [#404 finish6]   driver up 10800s, [08-20 18:39:53] [#404 round6]   spend $3.85 of $5.60
+[08-20 19:27:07] [#404 finish6]   driver up 12600s, [08-20 19:12:41] [#404 round6]   spend $4.08 of $5.60
+[08-20 19:57:07] [#404 finish6]   driver up 14400s, [08-20 19:46:04] [#404 round6]   spend $4.32 of $5.60
+[08-20 20:27:07] [#404 finish6]   driver up 16200s, [08-20 20:26:59] [#404 round6]   spend $4.61 of $5.60
+[08-20 20:57:07] [#404 finish6]   driver up 18000s, started
+[08-20 21:27:07] [#404 finish6]   driver up 19800s, started
+[08-20 21:57:07] [#404 finish6]   driver up 21600s, started
+[08-20 22:27:07] [#404 finish6]   driver up 23400s, started
+[08-20 22:57:07] [#404 finish6]   driver up 25200s,   No running instances found.

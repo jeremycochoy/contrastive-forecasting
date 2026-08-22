@@ -1,0 +1,59 @@
+wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/pr_comment_round3c.md
+«Agent ExperimentRunner claude-opus-5 writing»
+
+The experiment directory is `reports/2026-08-19_ema_momentum_k32`.
+
+## The 5 scored arms
+
+| arm | EMA momentum | backbone seed | GM-Relative MASE | vs k = 3 at bb40k |
+|---|---|---|---|---|
+| s08 | 0.80, to 1.0 at 200k | 20260520 | 1.1782 | +0.0920 |
+| s09 | 0.90, to 1.0 at 200k | 20260520 | 1.1784 | +0.0922 |
+| a09 | 0.90, fixed | 20260520 | 1.1819 | +0.0957 |
+| a095 | 0.95, fixed | 20260520 | 1.1907 | +0.1045 |
+| a08 | 0.80, fixed | 20260520 | 1.2309 | +0.1447 |
+
+## The measured repeat spread
+
+No repeat pair is scored yet.
+
+## The verdict
+
+`s08` wins at **1.1782**, EMA momentum 0.80, to 1.0 at 200k. It sits +0.0920 from the k = 3 score at the same 40,000 steps, 1.0862, so it does NOT go below that score.
+
+Runs completed this round: 1.
+Cost: $2.24 on the round 3 box.
+
+wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/pr_comment_round3c.md
+«Agent ExperimentRunner claude-opus-5 writing»
+
+The experiment directory is `reports/2026-08-19_ema_momentum_k32`.
+
+## The 6 scored arms
+
+| arm | EMA momentum | backbone seed | GM-Relative MASE | vs k = 3 at bb40k |
+|---|---|---|---|---|
+| s08 | 0.80, to 1.0 at 200k | 20260520 | 1.1782 | +0.0920 |
+| s09 | 0.90, to 1.0 at 200k | 20260520 | 1.1784 | +0.0922 |
+| a09 | 0.90, fixed | 20260520 | 1.1819 | +0.0957 |
+| a095 | 0.95, fixed | 20260520 | 1.1907 | +0.1045 |
+| a08 | 0.80, fixed | 20260520 | 1.2309 | +0.1447 |
+| s08b | 0.80, to 1.0 at 200k | 20260521 | 1.5459 | +0.4597 |
+
+## The measured repeat spread
+
+**0.3677 (31.2%)**, from `s08` 1.1782 against `s08b` 1.5459.
+
+s08 and s08b are one arm at two backbone seeds. They land 0.3677 apart (31.2%), which is the repeat spread this card measures. s08, s09, a09, a095, a08, s08b all sit within that spread of the best score, so this card does not rank them.
+
+## Does the spread separate 0.90 fixed from 0.95 fixed?
+
+`a09` 1.1819 and `a095` 1.1907 are 0.0088 apart. The repeat spread is 0.3677. The gap is SMALLER than the spread, so this card does NOT separate the two arms.
+
+## The verdict
+
+`s08` wins at **1.1782**, EMA momentum 0.80, to 1.0 at 200k. It sits +0.0920 from the k = 3 score at the same 40,000 steps, 1.0862, so it does NOT go below that score.
+
+Runs completed this round: 2.
+Cost: $? on the round 3 box.
+

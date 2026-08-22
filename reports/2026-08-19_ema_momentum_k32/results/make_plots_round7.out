@@ -1,0 +1,53 @@
+/tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/scores.csv: 11 score(s)
+a08_bb40k_h30k_student       n= 97  all=1.2309  short=1.1137  medium=1.4209  long=1.3854
+a095_bb40k_h30k_student      n= 97  all=1.1907  short=1.0560  medium=1.4127  long=1.3743
+a09_bb40k_h30k_student       n= 97  all=1.1819  short=1.0820  medium=1.3320  long=1.3215
+r100_08_bb40k_h30k_student   n= 97  all=1.2235  short=1.0880  medium=1.4425  long=1.4112
+r100_095_bb40k_h30k_student  n= 97  all=1.2130  short=1.1035  medium=1.3975  long=1.3487
+r100_09_bb40k_h30k_student   n= 97  all=1.1507  short=1.0327  medium=1.3332  long=1.3186
+r60_09_bb40k_h30k_student    n= 97  all=1.1873  short=1.0701  medium=1.3749  long=1.3464
+s08_bb40k_h30k_student       n= 97  all=1.1782  short=1.0439  medium=1.4105  long=1.3513
+s08b_bb40k_h30k_student      n= 97  all=1.5459  short=1.4825  medium=1.6493  long=1.6166
+s09_bb40k_h30k_student       n= 97  all=1.1784  short=1.0291  medium=1.4379  long=1.3773
+w3_s08_bb40k_h30k_student    n= 97  all=1.2060  short=1.0595  medium=1.4468  long=1.4110
+wrote 132 rows -> /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/splits.csv
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/plots/momentum.png — 10 arm(s), 1 collapsed
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/plots/momentum_at_stop.png — 10 arm(s), 1 collapsed
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/plots/loss_curves.png — 13 curve(s)
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/plots/domain_radar.png — 11 arm(s), 7 domain(s)
+| arm | EMA momentum | holds at 40k | L_align weight | backbone seed | AUC at the stop | GM-Relative MASE | vs k = 3 at bb40k |
+|---|---|---|---|---|---|---|---|
+| r100_09 | 0.9, to 1.0 at 100k | 0.940 | 1 | 20260520 | 0.978 | 1.1507 | +0.0645 |
+| s08 | 0.8, to 1.0 at 200k | 0.840 | 1 | 20260520 | 0.957 | 1.1782 | +0.0920 |
+| s09 | 0.9, to 1.0 at 200k | 0.920 | 1 | 20260520 | 0.972 | 1.1784 | +0.0922 |
+| a09 | 0.9, fixed | 0.900 | 1 | 20260520 | 0.979 | 1.1819 | +0.0957 |
+| r60_09 | 0.9, to 1.0 at 60k | 0.967 | 1 | 20260520 | 0.976 | 1.1873 | +0.1011 |
+| a095 | 0.95, fixed | 0.950 | 1 | 20260520 | 0.982 | 1.1907 | +0.1045 |
+| w3_s08 | 0.8, to 1.0 at 200k | 0.840 | 3 | 20260520 | 0.936 | 1.2060 | +0.1198 |
+| r100_095 | 0.95, to 1.0 at 100k | 0.970 | 1 | 20260520 | 0.978 | 1.2130 | +0.1268 |
+| r100_08 | 0.8, to 1.0 at 100k | 0.880 | 1 | 20260520 | 0.954 | 1.2235 | +0.1373 |
+| a08 | 0.8, fixed | 0.800 | 1 | 20260520 | 0.927 | 1.2309 | +0.1447 |
+| s08b | 0.8, to 1.0 at 200k | 0.840 | 1 | 20260521 | 0.575 (collapsed) | 1.5459 | +0.4597 |
+
+| reference | GM-Relative MASE |
+|---|---|
+| k = 3, bb200k, the best score of the project | 1.0660 |
+| k = 3, bb40k | 1.0862 |
+| k = 32, mean, student, bb200k | 1.1637 |
+| k = 32, mean, student, bb40k | 1.2082 |
+| the k = 0 parent of this cell, bb40k | 1.1600 |
+
+`r100_09` wins, at 1.1507. Its momentum starts at 0.9 (to 1.0 at 100k) and holds 0.940 at 40,000 steps. It sits +0.0645 from the k = 3 score at bb40k, 1.0862, so it does not go below that score.
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/plots/backbone_health.png — 13 arm(s)
+wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/seed_report.md
+wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/seed_table.csv — 2 row(s)

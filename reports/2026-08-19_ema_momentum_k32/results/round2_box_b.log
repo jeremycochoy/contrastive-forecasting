@@ -1,0 +1,61 @@
+[08-19 22:03:08] [#404 box_b/a085] provisioning
+[08-19 22:03:09] [provision cf404-box-b] attempt 1: 5 offer(s)
+[08-19 22:03:13] [provision cf404-box-b]   offer 44173852 went away
+[08-19 22:03:16] [provision cf404-box-b]   offer 43982855 went away
+[08-19 22:03:20] [provision cf404-box-b]   offer 40999039 went away
+[08-19 22:05:09] [provision cf404-box-b] READY instance 48149747 at ssh4.vast.ai:29746
+[08-19 22:05:09] [#404 box_b/a085] instance 48149747 at ssh4.vast.ai:29746
+[08-19 22:05:12] [#404 box_b/a085] bootstrap
+[08-19 22:05:12] [#404 bootstrap ssh4.vast.ai:29746] parent bootstrap (#373)
+[08-19 22:05:12] [bootstrap ssh4.vast.ai:29746] packing code
+[08-19 22:05:12] [bootstrap ssh4.vast.ai:29746] uploading 512K
+Warning: Permanently added '[ssh4.vast.ai]:29746' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-19 22:05:18] [bootstrap ssh4.vast.ai:29746] installing
+Warning: Permanently added '[ssh4.vast.ai]:29746' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh4.vast.ai]:29746' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+started
+[08-19 22:08:05] [bootstrap ssh4.vast.ai:29746] waiting for BOOTSTRAP_OK (install is ~4 min)
+[08-19 22:08:09] [bootstrap ssh4.vast.ai:29746] OK
+Warning: Permanently added '[ssh4.vast.ai]:29746' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+BOX-ENV driver=580.95.05, NVIDIA GeForce RTX 5090, Default
++ echo BOOTSTRAP_OK
+BOOTSTRAP_OK
+[08-19 22:08:12] [#404 bootstrap ssh4.vast.ai:29746] shipping reports/2026-08-19_ema_momentum_k32
+Warning: Permanently added '[ssh4.vast.ai]:29746' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh4.vast.ai]:29746' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-19 22:08:23] [#404 bootstrap ssh4.vast.ai:29746] checking the box's checkout
+Warning: Permanently added '[ssh4.vast.ai]:29746' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+box reduce=mean root=/root/cf404_runs results=/root/cf/reports/2026-08-19_ema_momentum_k32/results
+arm a08 gpu=0 stops='40000' heads=0
+arm a09 gpu=1 stops='40000' heads=0
+arm s08 gpu=0 stops='40000' heads=0
+arm s09 gpu=1 stops='40000' heads=0
+arm a085 gpu=0 stops='40000' heads=0
+arm a095 gpu=1 stops='40000' heads=0
+arm s08b gpu=0 stops='40000' heads=0
+[08-19 22:08:27] [#404 bootstrap ssh4.vast.ai:29746] OK
+[08-19 22:08:27] [#404 box_b/a085] bootstrap OK
+box reduce=mean root=/root/cf404_runs results=/root/cf/reports/2026-08-19_ema_momentum_k32/results
+arm a085 gpu=0 stops='40000' heads=0
+[box_b] sync loop pid 1881950 -> /home/jupyter/cf404_sync/box_b
+[box_b] waiting for the first tick
+[box_b] WARNING: nothing landed in 10 minutes — check /home/jupyter/cf404_sync/box_b/sync_loop.log
+[08-19 22:18:33] [#404 box_b/a085] sync loop -> /home/jupyter/cf404_sync/box_b (1 file(s) here)
+[08-19 22:18:39] [#404 box_b/a085] a trainer already runs on the box
+[08-19 22:50:39] [#404 box_b/a085] WARNING: no guard line in 30 min, going on
+[08-19 22:50:39] [#404 box_b/a085] waiting for 40000 steps
+[08-19 22:50:40] [#404 box_b/a085]   step 

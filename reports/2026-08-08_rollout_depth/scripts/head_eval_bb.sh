@@ -31,14 +31,16 @@ CF_STOP_K="${CF_STOP_K:-40}"
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export WT="${WT:-/home/jupyter/wt-cf-373-train}"
-# Which study's directory takes the head log and the score file. #401 reuses
-# this head and this eval on its own backbones and points it at its own
-# directory. Unset, this is #373's own directory, unchanged.
+# Which study's directory takes the head log and the score file. Same rule as
+# run_leg_k.sh: a study that reuses this script keeps its own artefacts in its
+# own results/. #401 reuses this head and this eval on its own backbones and
+# points it at its own directory. Unset, this is #373's own directory,
+# unchanged.
 #
 # CF_RESULTS names that results directory OUTRIGHT, for a caller whose
 # results do not sit at `<study>/results` — #401's trial runs write to
 # `<study>/results/trial`, and a score file that landed one level up would be
-# collected as a real one.
+# collected as a real one. #404 sets it to its own results/.
 RES="${CF_RESULTS:-${CF_STUDY_DIR:-$WT/reports/2026-08-08_rollout_depth}/results}"
 mkdir -p "$RES"
 . "$HERE/cell_paths.sh"

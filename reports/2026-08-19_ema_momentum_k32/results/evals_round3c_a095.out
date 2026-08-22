@@ -1,0 +1,12 @@
+[08-20 03:38:16] [#404 evals] START arms='a095' root=/home/jupyter/cf404_sync/box_a/sync shards=4
+[08-20 03:38:16] [#404 evals] eval a095 head 450011 B
+[08-20 04:55:42] [#404 evals] eval a095 rc=0
+[08-20 04:55:42] [#404 evals] score a095 1.1907
+/tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/scores.csv: 5 score(s)
+a08_bb40k_h30k_student       n= 97  all=1.2309  short=1.1137  medium=1.4209  long=1.3854
+a095_bb40k_h30k_student      n= 97  all=1.1907  short=1.0560  medium=1.4127  long=1.3743
+a09_bb40k_h30k_student       n= 97  all=1.1819  short=1.0820  medium=1.3320  long=1.3215
+s08_bb40k_h30k_student       n= 97  all=1.1782  short=1.0439  medium=1.4105  long=1.3513
+s09_bb40k_h30k_student       n= 97  all=1.1784  short=1.0291  medium=1.4379  long=1.3773
+wrote 60 rows -> /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/splits.csv
+[08-20 04:55:43] [#404 evals] EVALS DONE — 0 failed, 0 skipped

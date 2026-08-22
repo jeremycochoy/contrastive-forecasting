@@ -1,0 +1,157 @@
+# #404 — the arms of the card, one row each. Tab separated.
+#
+# Columns: arm, α at step 0, α at the end of the ramp, the ramp length, the
+# backbone seed. A `-` in a column is a flag the arm does NOT pass.
+#
+# Only α and the seed change. Every other flag of every arm comes from #373's
+# cell `arm6_v2_combab_alignT` at k = 32, under the mean reduction.
+#
+# The card says to add arms if the four scores show a direction — a value
+# between two good values, or a smaller fixed value. Add a row here and
+# nothing else changes: every script, guard and figure reads this file.
+#
+# Rows 1 to 4 are the card's own four arms. Rows 5 and 6 answer the review of
+# PR #405:
+#
+#   a095  above 0.9. The fixed row falls 0.0490 from 0.8 to 0.9 and does not
+#         turn, so the next value belongs above 0.9 and not inside that
+#         segment.
+#   s08b  s08 again at a second backbone seed. It measures THIS cell's repeat
+#         spread. Before it, the card quoted #373's spread, which was measured
+#         at k = 3 against the student target.
+#
+# Rows 7 and 8 answer what `s08b` then showed. `s08b` did not measure noise:
+# its backbone LOST THE CONTRASTIVE TASK while it trained. Its AUC went 0.91
+# at 10,000 steps to 0.57 at 40,000, its top1 went 0.273 to 0.009, and it
+# scored 1.5459 against s08's 1.1782. Every other arm holds AUC 0.93 to 0.98,
+# and every one of those five carries backbone seed 20260520. So one seed
+# collapsed and one seed did not, and two readings fit that:
+#
+#   - 20260521 was unlucky, and a collapse in this cell is rare, or
+#   - 20260520 was lucky, and this cell is unstable.
+#
+# Under the second reading every ranking of this card rests on one seed. Two
+# more seeds of the SAME arm tell the two apart:
+#
+#   s08c  s08 at backbone seed 20260522
+#   s08d  s08 at backbone seed 20260523
+#
+# `a085` was planned and then DROPPED. Alpha 0.85 interpolates inside the
+# 0.8-to-0.9 segment, and that segment already falls in one direction. The
+# value above 0.9 buys more.
+#
+# 20260521 is the project's second backbone seed. #373 measured its own seed
+# band with it (cell B5·s2), so this repeat stays in that family. 20260522 and
+# 20260523 continue that count.
+#
+# Rows 9 and 10 turn the card back to the SCORE. The card wants a lower
+# GM-Relative MASE. Rows 7 and 8 measure the collapse rate, and no arm of this
+# card beats the k = 0 parent at 1.1600. The best arm here holds 1.1782.
+#
+# The RAMP LENGTH is the one axis this card never moved. Every ramp arm of
+# rows 1 to 8 runs 200,000 steps. The EMA schedule ladder,
+# reports/2026-08-04_ema_sched_ladder/, trained ten runs on that axis. A
+# momentum that reaches 1.0 at step 100,000 scored 0.0259 BELOW the fixed 0.9
+# reference at the 40,000-step stop, where the momentum held 0.94. The same run
+# scored 0.0251 ABOVE at the 100,000-step stop, where the momentum held 1.0.
+# The ladder's latent table gives the reason: past step 100,000 the teacher
+# latent moves 0.019 or less per 20,000 steps, so a momentum at 1.0 freezes the
+# teacher.
+#
+#   r100_09  0.9 to 1.0 over 100,000 steps. It holds 0.940 at the stop, which
+#            is the value the ladder measured as its best.
+#   r100_08  0.8 to 1.0 over 100,000 steps. It holds 0.880 at the stop, and
+#            brackets r100_09 from below.
+#
+# The two 200,000-step ramps hold 0.840 and 0.920 at the stop, so the four
+# ramp arms give one ordered row: 0.840, 0.880, 0.920, 0.940. Neither new arm
+# reaches 1.0 at the stop, so neither freezes its teacher there.
+#
+# Both new arms carry backbone seed 20260520, the seed of the six scored arms.
+# A new seed here would move two values at once.
+# Row 11 moves a flag no row above it has moved: the L_align WEIGHT.
+#
+# For this loss shape the rollout depth touches the align term alone.
+# src/loss.py line 2156 says a depth copy of cosine_similarity_batch_rep_only
+# "has nothing to substitute and adds exactly zero", because that shape is
+# h-anchored, and that the align add-on "IS duplicated". The reduction is a
+# mean, so 33 copies of L_align average back to about one copy's magnitude.
+# The loss then holds ONE copy of the h-anchored repel term against the MEAN
+# of 33 copies of the f-anchored pull term, and --align-loss-weight is the
+# only flag that sets that balance.
+#
+#   w3_s08  the best-scoring arm of this card, s08 at 1.1782, with the align
+#           weight at 3.0 instead of 1.0. One flag moves and nothing else:
+#           the same momentum schedule, the same 200,000-step ramp and the
+#           same backbone seed 20260520.
+#
+# So column 6 is the align weight. A `-` or an absent column takes the cell's
+# own 1.0, which is what run_leg_k.sh already puts on every command line.
+# w3_s08 differs from s08 in that column ALONE, so a weight that does not
+# reach the trainer gives two identical runs under two names — the same
+# failure the seed column carries, and run_arm.sh guards it the same way.
+#
+#
+# Rows 12 and 13 extend the direction that WINS. `r100_09` is the first arm of
+# this card below the k = 0 parent: it scores 1.1507 against 1.1600, and it
+# holds 0.940 at the 40,000-step stop. No arm of rows 1 to 11 holds more than
+# 0.950 there.
+#
+# The nine scored arms say two things about the ramp. Two arms start at 0.9,
+# and the faster ramp wins by 0.0277. Two arms start at 0.8, and the faster
+# ramp LOSES by 0.0453. So a fast ramp helps from a high start only.
+#
+#   r60_09    0.9 to 1.0 over 60,000 steps. It holds 0.967 at the stop.
+#   r100_095  0.95 to 1.0 over 100,000 steps. It holds 0.970 at the stop.
+#
+# Both go past 0.940 and neither reaches 1.0. A momentum of 1.0 freezes the
+# teacher, and reports/2026-08-04_ema_sched_ladder/ measured that as bad.
+#
+# The two arms differ in the START value at one similar END value: 0.967
+# against 0.970. So the pair says whether the start or the end sets the score.
+#
+# Both carry backbone seed 20260520, the seed of the nine scored arms, and the
+# cell's own align weight 1.0. Column 6 is absent on both rows, which is that
+# 1.0.
+#
+# Row 14 answers the review of round 7. Eleven arms carry ONE backbone seed
+# each, and ten of the eleven carry seed 20260520. The one repeat, `s08b` at
+# seed 20260521, COLLAPSED: its contrastive AUC fell to 0.5745. So the card
+# ranks eleven arms and measures no spread between two STABLE runs. Every gap
+# it reads as a result stands against 0.007 to 0.015, and that band comes from
+# #373's cell at k = 3 against the STUDENT target.
+#
+# The winner is where this matters most. `r100_09` scores 1.1507 and the k = 0
+# parent scores 1.1600. The margin is 0.0093, and 0.0093 sits INSIDE the
+# borrowed band. So the card cannot yet say the winner beats the parent.
+#
+# Two measurements close that gap, and rows 7, 8 and 14 carry them:
+#
+#   s08, s08c, s08d   three STABLE seeds of one arm. Their range is this
+#                     cell's OWN repeat spread, measured and not borrowed.
+#                     Rows 7 and 8 already hold healthy backbones, at AUC
+#                     0.9776 and 0.9746. Round 8 trains their heads.
+#   r100_09b          `r100_09` again at backbone seed 20260524. The pair says
+#                     whether the WINNER holds at a second seed.
+#
+#   r100_09b  0.9 to 1.0 over 100,000 steps, at seed 20260524. It holds 0.940
+#             at the 40,000-step stop, which is `r100_09`'s value.
+#
+# `r100_09b` differs from `r100_09` in column 5 ALONE. Every other flag is
+# round 1's: k = 32, the mean reduction, the align target teacher, align
+# weight 1.0, 40,000 backbone steps, 30,000 head steps, head seed 20260722.
+# arm	tau	end	ramp	seed	align_w
+a08	0.8	-	-	20260520
+a09	0.9	-	-	20260520
+s08	0.8	1.0	200000	20260520
+s09	0.9	1.0	200000	20260520
+a095	0.95	-	-	20260520
+s08b	0.8	1.0	200000	20260521
+s08c	0.8	1.0	200000	20260522
+s08d	0.8	1.0	200000	20260523
+r100_09	0.9	1.0	100000	20260520
+r100_08	0.8	1.0	100000	20260520
+w3_s08	0.8	1.0	200000	20260520	3.0
+r60_09	0.9	1.0	60000	20260520
+r100_095	0.95	1.0	100000	20260520
+r100_09b	0.9	1.0	100000	20260524

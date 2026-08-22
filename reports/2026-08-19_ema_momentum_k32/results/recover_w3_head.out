@@ -1,0 +1,39 @@
+[08-20 23:11:27] [#404 recover] START arm=w3_s08 tag=w3_s08_bb40k_h30k_student label=cf404-w3-head max_spend=$1.20
+[08-20 23:11:27] [#404 recover] backbone here: cf393_arm6_v2_combab_alignT_cf373k32_mean_w3_s08_40k.pth 5196231 B
+[08-20 23:11:29] [#404 recover] credit before: Credit:  $6.91 Total:   $6.91 
+[08-20 23:11:29] [#404 recover] searching — 1 card, datacenter, reliability >= 0.99, <= $0.45/h
+[08-20 23:13:26] [#404 recover] instance 48246956 at ssh6.vast.ai:16956
+[08-20 23:13:30] [#404 recover] card: 0, NVIDIA GeForce RTX 5090, 32607 MiB, Default|
+[08-20 23:13:33] [#404 recover] bootstrap
+[08-20 23:16:55] [#404 recover] bootstrap OK
+[08-20 23:16:58] [#404 recover] pushing the backbone, 5196231 B
+[08-20 23:17:14] [#404 recover] the backbone is on the box, 5196231 B
+  heads box root=/root/cf404_runs results=/root/cf/reports/2026-08-19_ema_momentum_k32/results gpus='0'
+    budget=30000 enc=student stop=40000
+  head w3_s08 gpu=0 bb=/root/cf404_runs/w3_s08/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_mean_w3_s08_40k.pth
+    head=/root/cf404_runs/w3_s08/eval/w3_s08_bb40k_h30k_student/qhead_w3_s08_bb40k_h30k_student_s20260722_final.pth
+[08-20 23:17:33] [#404 recover] sync loop: 1 for /home/jupyter/cf404_sync/box_a
+[08-20 23:17:36] [#404 recover] starting the head: 30000 steps, seed 20260722, card 0
+started
+[08-20 23:22:09] [#404 recover] box process: 2661 python3 -u /root/cf/experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py --backbone-path /root/cf404_runs/w3_s08/arm6_v2_
+[08-20 23:22:12] [#404 recover] box card: 5616 MiB, 73 %
+[08-20 23:22:23] [#404 recover]   head=0 B <no step line> trainer=1 spent=$0.06 waited=0 min
+[08-20 23:27:34] [#404 recover]   head=0 B <no step line> trainer=1 spent=$0.09 waited=5 min
+[08-20 23:32:47] [#404 recover]   head=0 B <no step line> trainer=1 spent=$0.13 waited=10 min
+[08-20 23:38:02] [#404 recover]   head=0 B <no step line> trainer=1 spent=$0.16 waited=15 min
+[08-20 23:43:13] [#404 recover]   head=0 B <no step line> trainer=1 spent=$0.19 waited=20 min
+[08-20 23:48:16] [#404 recover] the head is on the box: 450079 B
+[08-20 23:48:16] [#404 recover] stopping the sync loop (1 loop(s))
+  ✓ /root/cf404_runs/w3_s08/eval/w3_s08_bb40k_h30k_student/qhead_w3_s08_bb40k_h30k_student_s20260722_final.pth → /home/jupyter/cf404_sync/box_a/sync/w3_s08/eval/w3_s08_bb40k_h30k_student/qhead_w3_s08_bb40k_h30k_student_s20260722_final.pth (450079 bytes)
+[08-20 23:48:30] [#404 recover] the head is HERE: /home/jupyter/cf404_sync/box_a/sync/w3_s08/eval/w3_s08_bb40k_h30k_student/qhead_w3_s08_bb40k_h30k_student_s20260722_final.pth 450079 B
+[08-20 23:48:30] [#404 recover] teardown: the head is here — destroying 48246956 (cf404-w3-head)
+  Destroyed instance 48246956
+    Label:  cf404-w3-head
+    GPU:    1× RTX 5090
+    Uptime: 36m
+    Spent:  $0.22
+  No running instances found.
+[08-20 23:48:42] [#404 recover] credit after: Credit:  $6.61 Total:   $6.61 
+[08-20 23:48:42] [#404 recover] starting the 97-config GIFT-Eval for w3_s08 on elisa's CPUs
+[08-20 23:49:12] [#404 recover] eval process: 3810563 bash /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/scripts/head_eval.sh w3_s08 40000
+[08-20 23:49:12] [#404 recover] DONE — the head is here and its eval runs

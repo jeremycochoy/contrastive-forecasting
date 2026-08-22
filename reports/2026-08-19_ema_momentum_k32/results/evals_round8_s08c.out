@@ -1,0 +1,19 @@
+[08-21 09:15:12] [#404 evals] START arms='s08c' root=/home/jupyter/cf404_sync/box_a/sync shards=4
+[08-21 09:15:12] [#404 evals] eval s08c head 450011 B
+[08-21 10:29:29] [#404 evals] eval s08c rc=0
+[08-21 10:29:29] [#404 evals] score s08c 1.3214
+/tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/scores.csv: 12 score(s)
+a08_bb40k_h30k_student       n= 97  all=1.2309  short=1.1137  medium=1.4209  long=1.3854
+a095_bb40k_h30k_student      n= 97  all=1.1907  short=1.0560  medium=1.4127  long=1.3743
+a09_bb40k_h30k_student       n= 97  all=1.1819  short=1.0820  medium=1.3320  long=1.3215
+r100_08_bb40k_h30k_student   n= 97  all=1.2235  short=1.0880  medium=1.4425  long=1.4112
+r100_095_bb40k_h30k_student  n= 97  all=1.2130  short=1.1035  medium=1.3975  long=1.3487
+r100_09_bb40k_h30k_student   n= 97  all=1.1507  short=1.0327  medium=1.3332  long=1.3186
+r60_09_bb40k_h30k_student    n= 97  all=1.1873  short=1.0701  medium=1.3749  long=1.3464
+s08_bb40k_h30k_student       n= 97  all=1.1782  short=1.0439  medium=1.4105  long=1.3513
+s08b_bb40k_h30k_student      n= 97  all=1.5459  short=1.4825  medium=1.6493  long=1.6166
+s08c_bb40k_h30k_student      n= 97  all=1.3214  short=1.2415  medium=1.4672  long=1.4013
+s09_bb40k_h30k_student       n= 97  all=1.1784  short=1.0291  medium=1.4379  long=1.3773
+w3_s08_bb40k_h30k_student    n= 97  all=1.2060  short=1.0595  medium=1.4468  long=1.4110
+wrote 144 rows -> /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/splits.csv
+[08-21 10:29:29] [#404 evals] EVALS DONE — 0 failed, 0 skipped

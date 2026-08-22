@@ -1,0 +1,55 @@
+[08-20 15:34:49] [#404 finish5] START pid=2941336 driver_pidfile=/tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/round5.pid box=48192413
+[08-20 15:34:49] [#404 finish5] arms this round: r100_09 r100_08
+[08-20 15:34:49] [#404 finish5] ONLY=verify — the driver is not waited for
+[08-20 15:34:49] [#404 finish5] report assets
+[08-20 15:34:50] [#404 finish5]   [#404 assets] results/eval 428K, curves 19M
+[08-20 15:34:50] [#404 finish5] collect and draw
+[08-20 15:35:06] [#404 finish5]   scores.csv holds 6 arm(s)
+  wrote 72 rows -> /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/splits.csv
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/plots/momentum.png — 5 arm(s), 1 collapsed
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/plots/momentum_at_stop.png — 5 arm(s), 1 collapsed
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/plots/loss_curves.png — 6 curve(s)
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/plots/domain_radar.png — 6 arm(s), 7 domain(s)
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/plots/backbone_health.png — 8 arm(s)
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/seed_report.md
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/seed_table.csv — 2 row(s)
+[08-20 15:35:06] [#404 finish5] verify
+[08-20 15:35:06] [#404 finish5]   missing: 16
+[08-20 15:35:06] [#404 finish5]   seed table:
+    arm,alpha,schedule,ramp,seed,stop,auc_at_stop,score,collapsed
+    s08,0.8,ramp,200000,20260520,40000,0.956707,1.1782,0
+    s08b,0.8,ramp,200000,20260521,40000,0.574503,1.5459,1
+[08-20 15:35:06] [#404 finish5] ONLY=verify — stopping before the box
+[08-20 15:36:03] [#404 finish5] START pid=2943714 driver_pidfile=/tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/round5.pid box=48192413
+[08-20 15:36:03] [#404 finish5] arms this round: r100_09 r100_08
+[08-20 15:36:03] [#404 finish5] ONLY=verify — the driver is not waited for
+[08-20 15:36:03] [#404 finish5] report assets
+[08-20 15:36:04] [#404 finish5]   [#404 assets] results/eval 436K, curves 25M
+[08-20 15:36:04] [#404 finish5] collect and draw
+[08-20 15:36:21] [#404 finish5]   scores.csv holds 6 arm(s)
+  wrote 72 rows -> /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/splits.csv
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/plots/momentum.png — 5 arm(s), 1 collapsed
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/plots/momentum_at_stop.png — 5 arm(s), 1 collapsed
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/plots/loss_curves.png — 6 curve(s)
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/plots/domain_radar.png — 6 arm(s), 7 domain(s)
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/plots/backbone_health.png — 8 arm(s)
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/seed_report.md
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/seed_table.csv — 2 row(s)
+  wrote 72 rows -> /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/splits.csv
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/plots/momentum.png — 5 arm(s), 1 collapsed
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/plots/momentum_at_stop.png — 5 arm(s), 1 collapsed
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/plots/loss_curves.png — 8 curve(s)
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/plots/domain_radar.png — 6 arm(s), 7 domain(s)
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/plots/backbone_health.png — 8 arm(s)
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/seed_report.md
+  wrote /tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/seed_table.csv — 2 row(s)
+[08-20 15:36:21] [#404 finish5] verify
+[08-20 15:36:21] [#404 finish5]   missing: 8
+[08-20 15:36:21] [#404 finish5]   seed table:
+    arm,alpha,schedule,ramp,seed,stop,auc_at_stop,score,collapsed
+    s08,0.8,ramp,200000,20260520,40000,0.956707,1.1782,0
+    s08b,0.8,ramp,200000,20260521,40000,0.574503,1.5459,1
+[08-20 15:36:21] [#404 finish5] ONLY=verify — stopping before the box
+[08-20 15:37:38] [#404 finish5] START pid=2947274 driver_pidfile=/tmp/contrastive-forecasting-404/reports/2026-08-19_ema_momentum_k32/results/round5.pid box=48192413
+[08-20 15:37:38] [#404 finish5] arms this round: r100_09 r100_08
+[08-20 15:37:38] [#404 finish5] waiting for the driver, pid 2906374

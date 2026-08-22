@@ -1,0 +1,11 @@
+# `scripts/smoke.sh` drives every arm at a few hundred steps through the same
+# wrapper and the same runner. Its numbers are a wiring check, not a
+# measurement, and a `score_a08_bb300_h150_student.txt` beside the study's own
+# score files is one glob away from being read as a study number.
+#
+# `smoke.csv` and `smoke.log` are the exception, and they are committed: they
+# carry the momentum each arm's trainer actually ran, the depth-column count
+# and the step time the run plan is sized from.
+results/trial/*
+!results/trial/smoke.csv
+!results/trial/smoke.log

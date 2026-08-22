@@ -1,0 +1,43 @@
+[08-19 23:02:54] [#404 round3b] START arms='a095 s08b' box=cf404-box-r3 card=0
+[08-19 23:02:54] [#404 round3b]   deadline=22h max_spend=$11.00
+[08-19 23:02:55] [#404 round3b] credit before: Credit:  $17.90 Total:   $17.90 
+[08-19 23:02:58] [#404 round3b] reusing instance 48152799 at ssh2.vast.ai:32798
+[08-19 23:03:02] [#404 round3b] card(s): 0, NVIDIA GeForce RTX 5090, 32607 MiB, Default  count=1
+[08-19 23:03:05] [#404 round3b] the box's own plan, at GPUS='0'
+  box reduce=mean root=/root/cf404_runs results=/root/cf/reports/2026-08-19_ema_momentum_k32/results
+  arm a095 gpu=0 stops='40000' heads=0
+  arm s08b gpu=0 stops='40000' heads=0
+[08-19 23:03:15] [#404 round3b] sync loop already up for /home/jupyter/cf404_sync/box_r3
+[08-19 23:03:15] [#404 round3b] sync loop: 1 for /home/jupyter/cf404_sync/box_r3, 1 file(s) here
+[08-19 23:03:15] [#404 round3b] ==== a095 : alpha 0.95 fixed seed 20260520 ====
+[08-19 23:03:21] [#404 round3b] a095: starting the backbone on card 0
+[08-19 23:06:21] [#404 round3b] a095: waiting for the guard line (it reads alpha and the seed back off
+[08-19 23:06:21] [#404 round3b]   the trainer's own command line)
+  [08-19 22:03:30] [#404] arm a095 ema='0.95 - -' reduce=mean seed=20260520 OK — all three reached the trainer
+[08-19 23:06:30] [#404 round3b] a095: waiting for the first rows of the losses CSV
+  === a095 ===
+  index, memory.used [MiB], memory.total [MiB], utilization.gpu [%]
+  0, 5684 MiB, 32607 MiB, 12 %
+  pid, used_gpu_memory [MiB]
+  3036, 5674 MiB
+  csv /root/cf404_runs/a095/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_mean_a095_losses.csv
+  depth_cols 33
+  rows 501
+  step,loss,loss_tau_ref,gap,gap_ratio,ff,fp,tp,cross_batch,hf_rows_consumed,synth_rows_consumed,mixup_applied,r2_random,r2_naive,u_temporal,u_batch,auc,top1,top3
+  1,14.275238037109375,20.217866897583008,-0.37705084681510925,2.5106503626259995,0.37335410714149475,0.750404953956604,0.46970441937446594,0.185420423746109,64,0
+  2,13.832304954528809,18.705602645874023,-0.3970735967159271,2.570511153645495,0.35009559988975525,0.7471691966056824,0.41841065883636475,0.14971472322940826,128
+[08-19 23:06:53] [#404 round3b] a095: GPU memory in use 5684 MiB, 1 compute app(s), 33 depth columns, 501 CSV row(s)
+[08-19 23:06:53] [#404 round3b] a095: STEP RATE 2.8 sps  ETA 4.0h
+[08-19 23:06:53] [#404 round3b] a095: VERIFIED — one trainer on card 0 at 33 depth columns
+[08-19 23:06:53] [#404 round3b] a095: waiting for 40000 steps
+[08-19 23:06:59] [#404 round3b]   a095 [    600] loss=12.2137  ema_loss=12.2453  gap=0.0025  ema_gap=-0.0256  mixup=65/200  2.8 sps  ETA 3.9h
+[08-19 23:37:22] [#404 round3b]   a095 [   5800] loss=12.4218  ema_loss=12.4048  gap=0.0812  ema_gap=0.0856  mixup=64/200  2.9 sps  ETA 3.3h
+[08-20 00:07:45] [#404 round3b]   a095 [  11200] loss=12.6268  ema_loss=12.6106  gap=0.0831  ema_gap=0.0799  mixup=61/200  2.9 sps  ETA 2.8h
+[08-20 00:38:13] [#404 round3b]   a095 [  16400] loss=12.6147  ema_loss=12.5772  gap=0.0571  ema_gap=0.0592  mixup=55/200  2.9 sps  ETA 2.3h
+[08-20 01:08:42] [#404 round3b]   a095 [  21800] loss=12.5652  ema_loss=12.6253  gap=0.0944  ema_gap=0.0652  mixup=65/200  2.9 sps  ETA 1.7h
+[08-20 01:39:13] [#404 round3b]   a095 [  27000] loss=12.5133  ema_loss=12.5929  gap=0.0762  ema_gap=0.0635  mixup=60/200  2.9 sps  ETA 1.2h
+[08-20 02:09:37] [#404 round3b]   a095 [  32400] loss=12.5766  ema_loss=12.5588  gap=0.0837  ema_gap=0.0521  mixup=56/200  2.9 sps  ETA 0.7h
+[08-20 02:40:05] [#404 round3b]   a095 [  37600] loss=12.5416  ema_loss=12.5545  gap=0.0548  ema_gap=0.0533  mixup=65/200  2.9 sps  ETA 0.2h
+[08-20 02:55:15] [#404 round3b] a095: the backbone is done
+[08-20 02:55:21] [#404 round3b] a095: starting the head on card 0
+[08-20 02:58:28] [#404 round3b]   a095 head 0 B

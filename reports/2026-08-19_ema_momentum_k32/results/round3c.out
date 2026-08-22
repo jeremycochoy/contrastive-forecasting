@@ -1,0 +1,139 @@
+[08-20 03:03:04] [#404 round3c] START live=a095 next=s08b box=cf404-box-r3 card=0
+[08-20 03:03:04] [#404 round3c]   deadline=16h max_spend=$9.00
+[08-20 03:03:05] [#404 round3c] credit before: Credit:  $16.42 Total:   $16.42 
+[08-20 03:03:09] [#404 round3c] reusing instance 48152799 at ssh2.vast.ai:32798
+[08-20 03:03:13] [#404 round3c] card(s): 0, NVIDIA GeForce RTX 5090, 32607 MiB, Default  count=1
+[08-20 03:03:13] [#404 round3c] sync loop: 1 for /home/jupyter/cf404_sync/box_r3, 34 file(s) here
+[08-20 03:03:13] [#404 round3c] ==== a095 : alpha 0.95 fixed seed 20260520 ====
+[08-20 03:03:20] [#404 round3c] a095: a head trainer already runs on the box
+[08-20 03:03:27] [#404 round3c]   a095 head 0 B
+[08-20 03:33:50] [#404 round3c] a095: the head is done, 450011 B
+[08-20 03:33:50] [#404 round3c] a095: waiting for the head process to leave card 0
+[08-20 03:33:53] [#404 round3c] a095: the card is free after 0s
+[08-20 03:33:59] [#404 round3c] s08b: starting the backbone on card 0
+[08-20 03:36:59] [#404 round3c] s08b: waiting for the guard line (it reads alpha and the seed back off
+[08-20 03:36:59] [#404 round3c]   the trainer's own command line)
+  [08-20 02:34:08] [#404] arm s08b ema='0.8 1.0 200000' reduce=mean seed=20260521 OK — all three reached the trainer
+[08-20 03:37:07] [#404 round3c] s08b: waiting for the first rows of the losses CSV
+  === s08b ===
+  index, memory.used [MiB], memory.total [MiB], utilization.gpu [%]
+  0, 5684 MiB, 32607 MiB, 32 %
+  pid, used_gpu_memory [MiB]
+  8149, 5674 MiB
+  csv /root/cf404_runs/s08b/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_mean_s08b_losses.csv
+  depth_cols 33
+  rows 501
+  step,loss,loss_tau_ref,gap,gap_ratio,ff,fp,tp,cross_batch,hf_rows_consumed,synth_rows_consumed,mixup_applied,r2_random,r2_naive,u_temporal,u_batch,auc,top1,top3
+  1,14.387253761291504,20.681228637695312,-0.3724861443042755,2.471109497281665,0.37431302666664124,0.7467991709709167,0.5063657164573669,0.18325479328632355,64,0
+  2,14.001620292663574,19.30051040649414,-0.4156646132469177,2.6483392976169653,0.33216363191604614,0.7478282451629639,0.4238576591014862,0.0936264619231224,128,0
+[08-20 03:37:30] [#404 round3c] s08b: GPU memory in use 5684 MiB, 1 compute app(s), 33 depth columns, 501 CSV row(s)
+[08-20 03:37:30] [#404 round3c] s08b: STEP RATE 2.8 sps  ETA 4.0h
+[08-20 03:37:30] [#404 round3c] s08b: VERIFIED — one trainer on card 0 at 33 depth columns
+[08-20 03:37:30] [#404 round3c] a095: pulling into /home/jupyter/cf404_sync/box_a/sync
+[08-20 03:37:36] [#404 round3c]   cf393_arm6_v2_combab_alignT_cf373k32_mean_a095_40k.pth 5195999 B
+[08-20 03:37:42] [#404 round3c]   cf393_arm6_v2_combab_alignT_cf373k32_mean_a095_40k_optimizer.pth 5794468 B
+[08-20 03:37:58] [#404 round3c]   cf393_arm6_v2_combab_alignT_cf373k32_mean_a095_losses.csv 42793760 B
+[08-20 03:38:03] [#404 round3c]   cf393_arm6_v2_combab_alignT_cf373k32_mean_a095_attn_amplitude.csv 177083 B
+[08-20 03:38:07] [#404 round3c]   cf393_arm6_v2_combab_alignT_cf373k32_mean_a095_latent_drift.csv 510 B
+[08-20 03:38:12] [#404 round3c]   qhead_a095_bb40k_h30k_student_s20260722_final.pth 450011 B
+[08-20 03:38:16] [#404 round3c]   run_cf393_arm6_v2_combab_alignT_cf373k32_mean_a095.log 57294 B
+[08-20 03:38:16] [#404 round3c] a095: starting the 97-config GIFT-Eval on elisa CPUs, detached
+[08-20 03:38:36] [#404 round3c] a095: eval launched, 6 eval process(es) on elisa
+[08-20 03:38:36] [#404 round3c] s08b: waiting for 40000 steps, while a095 scores on elisa
+[08-20 03:38:43] [#404 round3c]   s08b [    600] loss=12.9552  ema_loss=12.9219  gap=0.0801  ema_gap=0.0128  mixup=51/200  2.8 sps  ETA 3.8h
+[08-20 04:09:06] [#404 round3c]   s08b [   6000] loss=13.0240  ema_loss=13.0141  gap=0.0420  ema_gap=0.0608  mixup=55/200  2.9 sps  ETA 3.3h
+[08-20 04:39:29] [#404 round3c]   s08b [  11200] loss=13.0311  ema_loss=13.0267  gap=0.0715  ema_gap=0.0619  mixup=43/200  2.9 sps  ETA 2.8h
+[08-20 05:09:58] [#404 round3c]   s08b [  16600] loss=13.1532  ema_loss=13.1603  gap=0.0298  ema_gap=0.0264  mixup=55/200  2.9 sps  ETA 2.2h
+[08-20 05:40:20] [#404 round3c]   s08b [  21800] loss=13.2116  ema_loss=13.2477  gap=-0.0048  ema_gap=-0.0038  mixup=69/200  2.9 sps  ETA 1.7h
+[08-20 06:10:42] [#404 round3c]   s08b [  27000] loss=13.4139  ema_loss=13.4322  gap=-0.0217  ema_gap=-0.0248  mixup=67/200  2.9 sps  ETA 1.2h
+[08-20 06:41:12] [#404 round3c]   s08b [  32400] loss=13.2547  ema_loss=13.3052  gap=-0.0208  ema_gap=-0.0259  mixup=54/200  2.9 sps  ETA 0.7h
+[08-20 07:11:35] [#404 round3c]   s08b [  37600] loss=13.5584  ema_loss=13.4883  gap=-0.0294  ema_gap=-0.0262  mixup=58/200  2.9 sps  ETA 0.2h
+[08-20 07:26:45] [#404 round3c] s08b: the backbone is done
+[08-20 07:26:45] [#404 round3c] a095: waiting for the score
+[08-20 07:26:45] [#404 round3c] ==== s08b : alpha 0.8 ramp seed 20260521 ====
+[08-20 07:26:51] [#404 round3c] s08b: starting the head on card 0
+[08-20 07:29:59] [#404 round3c]   s08b head 0 B
+[08-20 08:00:28] [#404 round3c]   s08b head 0 B
+[08-20 08:05:34] [#404 round3c] s08b: the head is done, 450011 B
+[08-20 08:05:34] [#404 round3c] s08b: pulling into /home/jupyter/cf404_sync/box_a/sync
+[08-20 08:05:40] [#404 round3c]   cf393_arm6_v2_combab_alignT_cf373k32_mean_s08b_40k.pth 5195999 B
+[08-20 08:05:46] [#404 round3c]   cf393_arm6_v2_combab_alignT_cf373k32_mean_s08b_40k_optimizer.pth 5794340 B
+[08-20 08:06:01] [#404 round3c]   cf393_arm6_v2_combab_alignT_cf373k32_mean_s08b_losses.csv 42910053 B
+[08-20 08:06:07] [#404 round3c]   cf393_arm6_v2_combab_alignT_cf373k32_mean_s08b_attn_amplitude.csv 175360 B
+[08-20 08:06:11] [#404 round3c]   cf393_arm6_v2_combab_alignT_cf373k32_mean_s08b_latent_drift.csv 510 B
+[08-20 08:06:16] [#404 round3c]   qhead_s08b_bb40k_h30k_student_s20260722_final.pth 450011 B
+[08-20 08:06:20] [#404 round3c]   run_cf393_arm6_v2_combab_alignT_cf373k32_mean_s08b.log 56377 B
+[08-20 08:06:20] [#404 round3c] s08b: starting the 97-config GIFT-Eval on elisa CPUs, detached
+[08-20 08:06:40] [#404 round3c] s08b: eval launched, 2 eval process(es) on elisa
+[08-20 08:06:40] [#404 round3c] s08b: waiting for the score
+[08-20 08:06:40] [#404 round3c]   s08b eval running
+[08-20 08:36:40] [#404 round3c]   s08b eval running
+[08-20 09:06:40] [#404 round3c]   s08b eval running
+[08-20 09:21:40] [#404 round3c] SCORE s08b 1.5459
+[08-20 09:21:40] [#404 round3c] 2 of 2 arm(s) scored — tearing the box down
+[08-20 09:21:40] [#404 round3c] teardown: destroying 48152799 (cf404-box-r3)
+  Destroyed instance 48152799
+    Label:  cf404-box-r3
+    GPU:    1× RTX 5090
+    Uptime: 10h 33m
+    Spent:  $3.82
+[08-20 09:21:48] [#404 round3c] teardown: stopping the sync loop (1 loop(s))
+  No running instances found.
+[08-20 09:21:51] [#404 round3c] credit after: Credit:  $13.97 Total:   $13.97 
+[08-20 09:21:51] [#404 round3c] shard check
+  shard_1: 25 row(s), last row complete
+  shard_2: 25 row(s), last row complete
+  shard_3: 24 row(s), last row complete
+  merged: 97 row(s), 97 distinct config(s)
+
+s08b_bb40k_h30k_student: PASS
+  shard_0: 23 row(s), last row complete
+  shard_1: 25 row(s), last row complete
+  shard_2: 25 row(s), last row complete
+  shard_3: 24 row(s), last row complete
+  merged: 97 row(s), 97 distinct config(s)
+
+s09_bb40k_h30k_student: PASS
+  shard_0: 23 row(s), last row complete
+  shard_1: 25 row(s), last row complete
+  shard_2: 25 row(s), last row complete
+  shard_3: 24 row(s), last row complete
+  merged: 97 row(s), 97 distinct config(s)
+
+6 of 6 eval(s) pass
+[08-20 09:21:51] [#404 round3c] report assets
+[08-20 09:21:58] [#404 round3c] comment: posted to PR #405
+  «Agent ExperimentRunner claude-opus-5 writing»
+  
+  **Round 3 is complete: 2 of 2 arms scored.**
+  
+  The experiment directory is `reports/2026-08-19_ema_momentum_k32`.
+  
+  ## The 6 scored arms
+  
+  | arm | EMA momentum | backbone seed | GM-Relative MASE | vs k = 3 at bb40k |
+  |---|---|---|---|---|
+  | s08 | 0.80, to 1.0 at 200k | 20260520 | 1.1782 | +0.0920 |
+  | s09 | 0.90, to 1.0 at 200k | 20260520 | 1.1784 | +0.0922 |
+  | a09 | 0.90, fixed | 20260520 | 1.1819 | +0.0957 |
+  | a095 | 0.95, fixed | 20260520 | 1.1907 | +0.1045 |
+  | a08 | 0.80, fixed | 20260520 | 1.2309 | +0.1447 |
+  | s08b | 0.80, to 1.0 at 200k | 20260521 | 1.5459 | +0.4597 |
+  
+  ## The measured repeat spread
+  
+  **0.3677 (31.2%)**, from `s08` 1.1782 against `s08b` 1.5459.
+  
+  s08 and s08b are one arm at two backbone seeds. They land 0.3677 apart (31.2%), which is the repeat spread this card measures. s08, s09, a09, a095, a08, s08b all sit within that spread of the best score, so this card does not rank them.
+  
+  ## Does the spread separate 0.90 fixed from 0.95 fixed?
+  
+  `a09` 1.1819 and `a095` 1.1907 are 0.0088 apart. The repeat spread is 0.3677. The gap is SMALLER than the spread, so this card does NOT separate the two arms.
+  
+  ## The verdict
+  
+  `s08` wins at **1.1782**, EMA momentum 0.80, to 1.0 at 200k. It sits +0.0920 from the k = 3 score at the same 40,000 steps, 1.0862, so it does NOT go below that score.
+  
+  Runs completed this round: 2.
+  Cost: $? on the round 3 box.
+[08-20 09:21:58] [#404 round3c] ROUND 3C DONE — 2 of 2 arm(s) scored

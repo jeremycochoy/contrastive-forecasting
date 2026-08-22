@@ -1,0 +1,129 @@
+[08-20 09:39:38] [#404 round4] START arms='s08c s08d' box=cf404-box-r4 deadline=14h max_spend=$6.00
+[08-20 09:39:39] [#404 round4] credit before: Credit:  $13.95 Total:   $13.95 
+[08-20 09:39:39] [#404 round4] searching — 2 card(s), datacenter, reliability >= 0.99, max bid $0.45/h, desktop CPU
+[08-20 09:39:40] [#404 round4]   0 offer(s) with a desktop CPU, 0 in all
+[08-20 09:39:42] [provision cf404-box-r4] attempt 1: no offer matched
+[08-20 09:40:02] [provision cf404-box-r4] gave up after 1 attempts
+[08-20 09:40:02] [#404 round4] no two-card offer carries a desktop CPU — taking one card of the same class
+[08-20 09:40:02] [#404 round4]   (a two-card server box runs this cell about six times slower per step)
+[08-20 09:40:02] [#404 round4] searching — 1 card(s), datacenter, reliability >= 0.99, max bid $0.45/h, desktop CPU
+[08-20 09:40:03] [#404 round4]   4 offer(s) with a desktop CPU, 5 in all
+[08-20 09:40:07] [provision cf404-box-r4] attempt 1: 4 offer(s)
+[08-20 09:40:10] [provision cf404-box-r4]   offer 44173860 went away
+[08-20 09:40:13] [provision cf404-box-r4]   offer 39051838 went away
+[08-20 09:42:07] [provision cf404-box-r4] READY instance 48192413 at ssh9.vast.ai:32412
+[08-20 09:42:07] [#404 round4] instance 48192413 at ssh9.vast.ai:32412
+[08-20 09:42:10] [#404 round4] card(s): 0, NVIDIA GeForce RTX 5090, 32607 MiB, Default  count=1
+[08-20 09:42:13] [#404 round4] cpu: AMD Ryzen 7 7800X3D 8-Core Processor
+8 
+[08-20 09:42:17] [#404 round4] ram: 30 GB total, 28 GB available
+[08-20 09:42:17] [#404 round4] 2 arms on card 0, lanes '0 0' (Default compute mode)
+[08-20 09:42:20] [#404 round4] bootstrap
+[08-20 09:42:20] [#404 bootstrap ssh9.vast.ai:32412] parent bootstrap (#373)
+[08-20 09:42:20] [bootstrap ssh9.vast.ai:32412] packing code
+[08-20 09:42:20] [bootstrap ssh9.vast.ai:32412] uploading 512K
+Warning: Permanently added '[ssh9.vast.ai]:32412' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-20 09:42:26] [bootstrap ssh9.vast.ai:32412] installing
+Warning: Permanently added '[ssh9.vast.ai]:32412' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh9.vast.ai]:32412' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+started
+[08-20 09:45:14] [bootstrap ssh9.vast.ai:32412] waiting for BOOTSTRAP_OK (install is ~4 min)
+[08-20 09:45:18] [bootstrap ssh9.vast.ai:32412] OK
+Warning: Permanently added '[ssh9.vast.ai]:32412' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+BOX-ENV driver=580.105.08, NVIDIA GeForce RTX 5090, Default
++ echo BOOTSTRAP_OK
+BOOTSTRAP_OK
+[08-20 09:45:21] [#404 bootstrap ssh9.vast.ai:32412] shipping reports/2026-08-19_ema_momentum_k32
+Warning: Permanently added '[ssh9.vast.ai]:32412' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+Warning: Permanently added '[ssh9.vast.ai]:32412' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+[08-20 09:45:35] [#404 bootstrap ssh9.vast.ai:32412] checking the box's checkout
+Warning: Permanently added '[ssh9.vast.ai]:32412' (ED25519) to the list of known hosts.
+Welcome to vast.ai. If authentication fails, try again after a few seconds, and double check your ssh key.
+Have fun!
+box reduce=mean root=/root/cf404_runs results=/root/cf/reports/2026-08-19_ema_momentum_k32/results
+arm a08 gpu=0 stops='40000' heads=0
+arm a09 gpu=0 stops='40000' heads=0
+arm s08 gpu=0 stops='40000' heads=0
+arm s09 gpu=0 stops='40000' heads=0
+arm a095 gpu=0 stops='40000' heads=0
+arm s08b gpu=0 stops='40000' heads=0
+arm s08c gpu=0 stops='40000' heads=0
+arm s08d gpu=0 stops='40000' heads=0
+[08-20 09:45:38] [#404 bootstrap ssh9.vast.ai:32412] OK
+[08-20 09:45:38] [#404 round4] bootstrap OK
+box reduce=mean root=/root/cf404_runs results=/root/cf/reports/2026-08-19_ema_momentum_k32/results
+arm s08c gpu=0 stops='40000' heads=0
+arm s08d gpu=0 stops='40000' heads=0
+  box reduce=mean root=/root/cf404_runs results=/root/cf/reports/2026-08-19_ema_momentum_k32/results
+  arm s08c gpu=0 stops='40000' heads=0
+  arm s08d gpu=0 stops='40000' heads=0
+[box_r4] sync loop pid 2588325 -> /home/jupyter/cf404_sync/box_r4
+[box_r4] waiting for the first tick
+[box_r4] WARNING: nothing landed in 10 minutes — check /home/jupyter/cf404_sync/box_r4/sync_loop.log
+[08-20 09:55:47] [#404 round4] sync loop: 1 for /home/jupyter/cf404_sync/box_r4, 1 file(s) here
+[08-20 09:55:58] [#404 round4] starting 2 backbone(s), lanes '0 0'
+started
+[08-20 09:58:58] [#404 round4] waiting for the guard line of each arm (it reads alpha AND THE SEED
+[08-20 09:58:58] [#404 round4]   back off the trainer's own command line)
+  [08-20 08:56:06] [#404] arm s08c ema='0.8 1.0 200000' reduce=mean seed=20260522 OK — all three reached the trainer
+  [08-20 08:59:06] [#404] arm s08d ema='0.8 1.0 200000' reduce=mean seed=20260523 OK — all three reached the trainer
+[08-20 09:59:41] [#404 round4] waiting for the first rows of each losses CSV
+  index, memory.used [MiB], memory.total [MiB], utilization.gpu [%]
+  0, 11363 MiB, 32607 MiB, 89 %
+  pid, used_gpu_memory [MiB]
+  2679, 5674 MiB
+  2848, 5674 MiB
+  --- s08c seed 20260522 ---
+  csv /root/cf404_runs/s08c/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_mean_s08c_losses.csv
+  depth_cols 33
+  rows 701
+  step,loss,loss_tau_ref,gap,gap_ratio,ff,fp,tp,cross_batch,hf_rows_consumed,synth_rows_consumed,mixup_applied,r2_random,r2_naive,u_temporal,u_batch,auc,top1,top3
+  1,14.439492225646973,20.038715362548828,-0.38758185505867004,2.3401939181890636,0.32321980595588684,0.7108016610145569,0.4970789849758148,0.15510785579681396,64
+  2,14.038125038146973,18.634279251098633,-0.428547739982605,2.5474236859730954,0.29450953006744385,0.7230572700500488,0.415813684463501,0.11011393368244171,128,0
+  --- s08d seed 20260523 ---
+  csv /root/cf404_runs/s08d/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_mean_s08d_losses.csv
+  depth_cols 33
+  rows 201
+  step,loss,loss_tau_ref,gap,gap_ratio,ff,fp,tp,cross_batch,hf_rows_consumed,synth_rows_consumed,mixup_applied,r2_random,r2_naive,u_temporal,u_batch,auc,top1,top3
+  1,14.414872169494629,20.422948837280273,-0.39181289076805115,2.679469557243889,0.3748914897441864,0.7667043805122375,0.48369428515434265,0.22928333282470703,64,
+  2,13.978572845458984,18.337263107299805,-0.43644651770591736,2.8406832216165396,0.32644233107566833,0.7628888487815857,0.38494768738746643,0.1247837245464325,12
+[08-20 10:00:45] [#404 round4] GPU memory in use 11363 MiB over 1 card(s), 2 compute app(s), 2 arm(s) wanted
+[08-20 10:00:45] [#404 round4] VERIFIED — 2 trainer(s) up, each at 33 depth columns
+[08-20 10:00:49] [#404 round4]   s08c STEP RATE 2.8 sps  ETA 3.9h
+[08-20 10:00:52] [#404 round4]   s08d STEP RATE 2.2 sps  ETA 4.9h
+[08-20 10:00:52] [#404 round4] waiting for 40000 steps on 2 arm(s)
+[08-20 10:01:04] [#404 round4]   s08c [    800] loss=12.1810  ema_loss=12.1686  gap=0.0080  ema_gap=-0.0022  mixup=67/200  2.7 sps  ETA 4.0h
+[08-20 10:01:09] [#404 round4]   s08d [    200] loss=12.4374  ema_loss=12.8579  gap=-0.1011  ema_gap=-0.1751  mixup=53/200  2.2 sps  ETA 4.9h
+[08-20 10:31:53] [#404 round4]   s08c [   5600] loss=12.5586  ema_loss=12.5495  gap=0.0568  ema_gap=0.0771  mixup=51/200  2.6 sps  ETA 3.7h
+[08-20 10:31:57] [#404 round4]   s08d [   5000] loss=12.3499  ema_loss=12.4380  gap=0.0304  ema_gap=0.0371  mixup=52/200  2.6 sps  ETA 3.8h
+[08-20 11:02:44] [#404 round4]   s08c [  10400] loss=12.4123  ema_loss=12.4832  gap=0.1172  ema_gap=0.1283  mixup=59/200  2.6 sps  ETA 3.1h
+[08-20 11:02:47] [#404 round4]   s08d [   9800] loss=12.5035  ema_loss=12.5365  gap=0.0664  ema_gap=0.0721  mixup=52/200  2.6 sps  ETA 3.2h
+[08-20 11:33:38] [#404 round4]   s08c [  15200] loss=12.4914  ema_loss=12.5436  gap=0.1725  ema_gap=0.1800  mixup=72/200  2.6 sps  ETA 2.6h
+[08-20 11:33:41] [#404 round4]   s08d [  14600] loss=12.6853  ema_loss=12.6224  gap=0.1388  ema_gap=0.1171  mixup=57/200  2.6 sps  ETA 2.7h
+[08-20 12:04:35] [#404 round4]   s08c [  20000] loss=12.6897  ema_loss=12.6739  gap=0.2733  ema_gap=0.2496  mixup=55/200  2.6 sps  ETA 2.1h
+[08-20 12:04:39] [#404 round4]   s08d [  19600] loss=12.5371  ema_loss=12.5378  gap=0.1374  ema_gap=0.1540  mixup=67/200  2.6 sps  ETA 2.2h
+[08-20 12:35:26] [#404 round4]   s08c [  25000] loss=12.4358  ema_loss=12.4002  gap=0.2112  ema_gap=0.2059  mixup=62/200  2.6 sps  ETA 1.6h
+[08-20 12:35:29] [#404 round4]   s08d [  24400] loss=12.5984  ema_loss=12.5654  gap=0.2576  ema_gap=0.2505  mixup=53/200  2.6 sps  ETA 1.7h
+[08-20 13:06:15] [#404 round4]   s08c [  29800] loss=12.3188  ema_loss=12.2567  gap=0.1913  ema_gap=0.1910  mixup=58/200  2.6 sps  ETA 1.1h
+[08-20 13:06:19] [#404 round4]   s08d [  29200] loss=12.4445  ema_loss=12.5625  gap=0.2235  ema_gap=0.2451  mixup=52/200  2.6 sps  ETA 1.1h
+[08-20 13:37:05] [#404 round4]   s08c [  34600] loss=12.6317  ema_loss=12.5862  gap=0.2323  ema_gap=0.2219  mixup=69/200  2.6 sps  ETA 0.6h
+[08-20 13:37:08] [#404 round4]   s08d [  34000] loss=12.6270  ema_loss=12.6032  gap=0.1548  ema_gap=0.1735  mixup=53/200  2.6 sps  ETA 0.6h
+[08-20 14:07:56] [#404 round4]   s08c [  39400] loss=12.1875  ema_loss=12.1886  gap=0.2115  ema_gap=0.1890  mixup=51/200  2.6 sps  ETA 0.1h
+[08-20 14:08:00] [#404 round4]   s08d [  39000] loss=12.2777  ema_loss=12.3160  gap=0.1505  ema_gap=0.1174  mixup=66/200  2.6 sps  ETA 0.1h
+[08-20 14:18:14] [#404 round4] both backbones are done
+[08-20 14:18:25] [#404 round4] starting 2 head(s), lanes '0 0', seed 20260722
+started
+[08-20 14:21:53] [#404 round4]   heads left 2, sizes: s08c=0 s08d=0 
+[08-20 14:52:50] [#404 round4]   heads left 1, sizes: s08c=450011 s08d=0 
