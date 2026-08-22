@@ -111,25 +111,48 @@ def binned(points, bins=260):
     return xs, ys
 
 
-def draw(runs, out, turn=None):
-    fig, axes = plt.subplots(1, len(PANELS), figsize=(3.5 * len(PANELS), 4.4),
+def draw(runs, out, turn=None, cols=3, grey_red=False):
+    """One panel per term, over `cols` columns.
+
+    `grey_red` draws every run that held in one grey and the run that fell
+    in red, the encoding the other figures of this study use. It is what a
+    figure with fourteen runs needs, because fourteen colours read as none.
+    """
+    rows_n = (len(PANELS) + cols - 1) // cols
+    fig, axes = plt.subplots(rows_n, cols,
+                             figsize=(4.6 * cols, 3.9 * rows_n),
                              squeeze=False)
+    flat = [axes[r][c] for r in range(rows_n) for c in range(cols)]
     colours = ("#1f77b4", "#d95f02", "#7570b3", "#66a61e", "#e7298a")
-    for col, (term, title) in enumerate(PANELS):
-        ax = axes[0][col]
+    for slot, (term, title) in enumerate(PANELS):
+        ax = flat[slot]
+        named = set()
         for i, (label, terms) in enumerate(runs):
             xs, ys = binned(terms[term])
-            ax.plot(xs, ys, linewidth=1.6, color=colours[i % len(colours)],
-                    label=label)
+            if grey_red:
+                fell = label.startswith("!")
+                clean = label.lstrip("!")
+                first = clean not in named
+                named.add(clean)
+                ax.plot(xs, ys, linewidth=2.2 if fell else 1.0,
+                        color="#d62728" if fell else "0.55",
+                        alpha=1.0 if fell else 0.75, zorder=3 if fell else 2,
+                        label=clean if first else None)
+            else:
+                ax.plot(xs, ys, linewidth=1.6,
+                        color=colours[i % len(colours)], label=label)
         if turn:
             ax.axvline(turn, color="0.55", linestyle=":", linewidth=1.2)
         ax.set_xscale("log")
         ax.set_title(title, fontsize=10)
         ax.set_xlabel("backbone step")
         ax.grid(True, alpha=0.3)
-        if col == 0:
+        if slot % cols == 0:
             ax.set_ylabel("loss")
-    handles, labels = axes[0][0].get_legend_handles_labels()
+    # A slot with no term left carries no empty frame.
+    for spare in flat[len(PANELS):]:
+        spare.set_visible(False)
+    handles, labels = flat[0].get_legend_handles_labels()
     if len(labels) > 1:
         fig.legend(handles, labels, fontsize=8, loc="lower center",
                    ncol=min(len(labels), 4), framealpha=0.9)
@@ -147,6 +170,11 @@ def main(argv=None):
     p.add_argument("--curve", action="append", default=[],
                    metavar="LABEL=CSV", help="one run's losses CSV")
     p.add_argument("--out", required=True)
+    p.add_argument("--cols", type=int, default=3,
+                   help="panels per row")
+    p.add_argument("--grey-red", action="store_true",
+                   help="one grey for every run, red for a label "
+                        "that starts with !")
     p.add_argument("--turn", type=int, default=None,
                    help="draw a dotted line at this step")
     args = p.parse_args(argv)
@@ -158,7 +186,7 @@ def main(argv=None):
         if not Path(path).is_file():
             raise SystemExit(f"ABORT: no losses CSV at {path}")
         runs.append((label, read_terms(path, DEFAULT_WEIGHTS)))
-    draw(runs, args.out, args.turn)
+    draw(runs, args.out, args.turn, args.cols, args.grey_red)
     return 0
 
 

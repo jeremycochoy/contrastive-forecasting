@@ -17,6 +17,10 @@ Tripling the align-loss weight moves the score less than the seed spread.
 
 ![The training loss of every run](plots/loss_curves.png)
 
+![The total loss and each term that makes it](plots/loss_terms.png)
+
+The total loss turns near step 500 and rises. L_align carries that rise.
+
 ![GM-Relative MASE per domain](plots/domain_grid.png)
 
 ## Protocol
