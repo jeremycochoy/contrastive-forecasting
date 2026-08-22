@@ -340,3 +340,41 @@ class TestAucWatch:
         lines = out.stdout.strip().splitlines()
         assert lines[0].startswith("run\t")
         assert len(lines) == 3
+
+    def test_a_nan_hides_no_collapse(self, tmp_path):
+        """`float("nan")` succeeds, and `statistics.median` of a list that
+        holds a NaN gives an arbitrary element. A NaN median is under no
+        threshold, so one NaN row would read a dead arm as healthy."""
+        path = self._csv(tmp_path, [0.97] * 20 + [0.40] * 10 + ["nan"] * 2)
+        out = self._run(path, "--window", "3")
+        assert out.returncode == 1, out.stdout
+        assert out.stdout.split("\t")[1] == "lost"
+
+    def test_no_nan_reaches_the_table(self, tmp_path):
+        """The report reads this table. `nan` in the floor column is not a
+        measurement."""
+        path = self._csv(tmp_path, ["nan"] + [0.97] * 30)
+        out = self._run(path, "--window", "3")
+        assert out.returncode == 0, out.stdout
+        assert "nan" not in out.stdout.lower()
+
+    def test_skip_rows_drops_the_rows_of_the_leg_before(self, tmp_path):
+        """A re-fired leg appends to the CSV of the leg that crashed, so the
+        gate must read the rows above the ones already there."""
+        path = self._csv(tmp_path, [0.40] * 50 + [0.97] * 50)
+        whole = self._run(path, "--window", "10").stdout.split("\t")
+        after = self._run(path, "--window", "10",
+                          "--skip-rows", "50").stdout.split("\t")
+        assert float(whole[3]) < 0.55
+        assert float(after[3]) > 0.90
+
+    def test_a_collapse_in_the_skipped_rows_is_not_this_legs(self, tmp_path):
+        path = self._csv(tmp_path, [0.40] * 50 + [0.97] * 20)
+        assert self._run(path, "--window", "60").returncode == 1
+        out = self._run(path, "--window", "60", "--skip-rows", "50")
+        assert out.returncode == 0, out.stdout
+
+    def test_a_skip_past_the_run_is_not_a_verdict(self, tmp_path):
+        """This leg has written no row yet. That is a wait, not a verdict."""
+        path = self._csv(tmp_path, [0.40] * 20)
+        assert self._run(path, "--skip-rows", "20").returncode == 2

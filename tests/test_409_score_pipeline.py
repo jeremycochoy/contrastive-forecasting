@@ -433,7 +433,12 @@ class TestTheAucWarmup:
 class TestTheAucGuard:
     """The guard is what makes the watch save GPU time. Four arms decay to
     0.0 and cross the known-dead ratio near step 5,600, and each collapsed
-    arm would otherwise burn about 30,000 dead steps."""
+    arm would otherwise burn about 30,000 dead steps.
+
+    Every test writes the rows of THIS leg while the guard runs, because that
+    is what the trainer does. Rows already on disk when the guard starts
+    belong to the leg before it.
+    """
 
     # A leg the gate must NOT stop ends by itself, so the guard returns in
     # seconds. A leg the gate must stop outlives the test.
@@ -459,25 +464,67 @@ class TestTheAucGuard:
         except (OSError, ProcessLookupError):
             pass
 
-    def _guard(self, base, aucs, pid, env=None):
-        base.mkdir(parents=True, exist_ok=True)
-        root = base / "root"
-        csv_path = Path(study_out(f"cf409_losses_csv dec0_s20 {STOP}",
-                                  {"CF409_ROOT": str(root)}))
-        csv_path.parent.mkdir(parents=True, exist_ok=True)
-        losses_csv(csv_path, aucs)
+    def _env(self, base, env=None):
         full = dict(os.environ)
-        full.update({"CF409_ROOT": str(root),
+        full.update({"CF409_ROOT": str(base / "root"),
                      "CF409_RESULTS": str(base / "results"),
                      "CF409_AUC_POLL": "1",
                      "CF409_AUC_WINDOW": "10",
                      "CF409_AUC_WARMUP": "0"})
         full.update(env or {})
+        return full
+
+    def _csv_path(self, base, name=None):
+        path = Path(study_out(f"cf409_losses_csv dec0_s20 {STOP}",
+                              {"CF409_ROOT": str(base / "root")}))
+        if name:
+            path = path.parent / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        return path
+
+    def _guard(self, base, aucs, pid, env=None):
+        """The guard over a CSV that is whole before it starts."""
+        base.mkdir(parents=True, exist_ok=True)
+        losses_csv(self._csv_path(base), aucs)
+        full = self._env(base, env)
         out = subprocess.run(
             ["bash", str(AUC_GUARD), "dec0_s20", str(STOP), str(pid)],
             capture_output=True, text=True, env=full, cwd=str(REPO_ROOT),
             timeout=120)
         return out, base / "results"
+
+    def _start(self, base, before, pid, env=None):
+        """Start the guard over a CSV that holds `before`, and return once it
+        has read its baseline. Rows appended after this are the leg's own."""
+        base.mkdir(parents=True, exist_ok=True)
+        losses_csv(self._csv_path(base), before)
+        full = self._env(base, env)
+        proc = subprocess.Popen(
+            ["bash", str(AUC_GUARD), "dec0_s20", str(STOP), str(pid)],
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+            env=full, cwd=str(REPO_ROOT))
+        log = base / "results" / "auc_guard.log"
+        for _ in range(300):
+            if log.exists():
+                return proc, base / "results"
+            time.sleep(0.1)
+        proc.kill()
+        raise AssertionError("the guard logged no start")
+
+    def _append(self, base, aucs, name=None, first_step=1):
+        """The rows this leg writes, in the trainer's shape."""
+        path = self._csv_path(base, name)
+        if path.exists():
+            first_step = sum(1 for _ in path.read_text().splitlines())
+            with open(path, "a") as fh:
+                for i, auc in enumerate(aucs):
+                    fh.write(f"{first_step + i},1.0,{auc},1.0,11.5,0.9\n")
+        else:
+            losses_csv(path, aucs, first_step)
+
+    def _drain(self, proc, timeout=120):
+        out = proc.communicate(timeout=timeout)[0]
+        return proc.returncode, out
 
     def test_it_is_called_from_the_leg(self):
         assert "auc_guard.sh" in RUN_ARM.read_text()
@@ -485,8 +532,10 @@ class TestTheAucGuard:
     def test_a_collapsed_leg_is_stopped(self, tmp_path):
         pid = self._victim()
         try:
-            out, res = self._guard(tmp_path, [0.97] * 60 + [0.42] * 60, pid)
-            assert out.returncode == 1, out.stdout + out.stderr
+            proc, res = self._start(tmp_path, [0.97] * 60, pid)
+            self._append(tmp_path, [0.42] * 60)
+            rc, out = self._drain(proc)
+            assert rc == 1, out
             assert not self._alive(pid)
             note = (res / "collapsed_dec0_s20.txt").read_text()
             assert "dec0_s20" in note
@@ -495,10 +544,12 @@ class TestTheAucGuard:
             self._reap(pid)
 
     def test_a_healthy_leg_runs_on(self, tmp_path):
-        pid = self._victim(6)
+        pid = self._victim(8)
         try:
-            out, res = self._guard(tmp_path, [0.97] * 120, pid)
-            assert out.returncode == 0, out.stdout + out.stderr
+            proc, res = self._start(tmp_path, [0.97] * 20, pid)
+            self._append(tmp_path, [0.97] * 100)
+            rc, out = self._drain(proc)
+            assert rc == 0, out
             assert not (res / "collapsed_dec0_s20.txt").exists()
         finally:
             self._reap(pid)
@@ -510,6 +561,44 @@ class TestTheAucGuard:
         assert out.returncode == 0
         assert not (res / "collapsed_dec0_s20.txt").exists()
 
+    def test_a_collapse_before_this_leg_does_not_stop_it(self, tmp_path):
+        """A re-fired leg writes no CSV row for its first 100 steps. The
+        newest CSV is then the dead leg's, and a verdict on it would stop a
+        leg that has trained nothing yet."""
+        pid = self._victim(6)
+        try:
+            out, res = self._guard(tmp_path, [0.97] * 30 + [0.40] * 60, pid)
+            assert out.returncode == 0, out.stdout + out.stderr
+            assert not (res / "collapsed_dec0_s20.txt").exists()
+        finally:
+            self._reap(pid)
+
+    def test_the_gate_reads_the_csv_this_leg_opened(self, tmp_path):
+        """train.py branches a re-fired leg's run name to `<name>_r2`, so the
+        dead leg's collapsed CSV stays on disk beside the new one."""
+        pid = self._victim(8)
+        name = study_out("cf409_run_name dec0_s20")
+        try:
+            proc, res = self._start(tmp_path, [0.97] * 20 + [0.40] * 60, pid)
+            self._append(tmp_path, [0.97] * 100, f"{name}_r2_losses.csv")
+            rc, out = self._drain(proc)
+            assert rc == 0, out
+            assert not (res / "collapsed_dec0_s20.txt").exists()
+        finally:
+            self._reap(pid)
+
+    def test_a_collapse_this_leg_wrote_is_still_read(self, tmp_path):
+        """The skipped rows must not hold the gate off the rows above them."""
+        pid = self._victim()
+        try:
+            proc, _ = self._start(tmp_path, [0.97] * 40, pid)
+            self._append(tmp_path, [0.97] * 20 + [0.41] * 60)
+            rc, out = self._drain(proc)
+            assert rc == 1, out
+            assert not self._alive(pid)
+        finally:
+            self._reap(pid)
+
     def test_the_warmup_holds_the_gate_off_the_start_of_a_run(self, tmp_path):
         """Without it the gate stops every arm in its first minute: the AUC of
         a fresh run starts near 0.5 and climbs."""
@@ -517,16 +606,20 @@ class TestTheAucGuard:
         window = {"CF409_AUC_WINDOW": "500"}
         cold = self._victim()
         try:
-            out, _ = self._guard(tmp_path / "cold", climb, cold, window)
-            assert out.returncode == 1
+            proc, _ = self._start(tmp_path / "cold", [], cold, window)
+            self._append(tmp_path / "cold", climb)
+            rc, out = self._drain(proc)
+            assert rc == 1, out
             assert not self._alive(cold)
         finally:
             self._reap(cold)
-        warm = self._victim(6)
+        warm = self._victim(8)
         try:
-            out, res = self._guard(tmp_path / "warm", climb, warm,
-                                   {**window, "CF409_AUC_WARMUP": "120"})
-            assert out.returncode == 0, out.stdout + out.stderr
+            proc, res = self._start(tmp_path / "warm", [], warm,
+                                    {**window, "CF409_AUC_WARMUP": "120"})
+            self._append(tmp_path / "warm", climb)
+            rc, out = self._drain(proc)
+            assert rc == 0, out
             assert not (res / "collapsed_dec0_s20.txt").exists()
         finally:
             self._reap(warm)
@@ -537,6 +630,71 @@ class TestTheAucGuard:
         warmup = int(study_out('printf %s "$CF409_AUC_WARMUP"'))
         assert 0 < warmup <= 2000
         assert float(study_out(f"cf409_rep_w_at dec0_s20 {warmup}")) >= 0.9
+
+
+class TestTheLaneHoldsOneHead:
+    """`phase1.sh` puts each head in the background on the lane's own card,
+    and a lane holds four arms. Without a queue, three heads and one backbone
+    share one card."""
+
+    def _lane(self, tmp_path, arms, head_body, env=None):
+        marks = tmp_path / "marks"
+        run_arm = tmp_path / "fake_run_arm.sh"
+        run_arm.write_text("#!/bin/bash\nexit 0\n")
+        run_arm.chmod(0o755)
+        head = tmp_path / "fake_head.sh"
+        head.write_text("#!/bin/bash\n"
+                        f'printf "start %s\\n" "$1" >>"{marks}"\n'
+                        f"{head_body}\n"
+                        f'printf "end %s\\n" "$1" >>"{marks}"\n')
+        head.chmod(0o755)
+        full = dict(os.environ)
+        full.update({"ARMS": " ".join(arms),
+                     "CF409_RUN_ARM": str(run_arm),
+                     "CF409_HEAD_EVAL": str(head),
+                     "CF409_RESULTS": str(tmp_path / "results"),
+                     "HEAD_BG": "1"})
+        full.update(env or {})
+        out = subprocess.run(["bash", str(PHASE1)], capture_output=True,
+                             text=True, env=full, cwd=str(REPO_ROOT),
+                             timeout=300)
+        rows = marks.read_text().splitlines() if marks.exists() else []
+        return out, rows
+
+    def _peak(self, rows):
+        """The most heads that ran at the same time."""
+        live = peak = 0
+        for row in rows:
+            live += 1 if row.startswith("start") else -1
+            peak = max(peak, live)
+        return peak
+
+    def test_one_head_runs_at_a_time(self, tmp_path):
+        out, rows = self._lane(tmp_path, ARMS[:3], "sleep 1")
+        assert self._peak(rows) == 1, rows
+        assert len([r for r in rows if r.startswith("start")]) == 3
+        assert out.returncode == 0, out.stdout + out.stderr
+
+    def test_every_head_ends_before_the_lane_does(self, tmp_path):
+        """`collect.sh` runs after the queue, so it must see every score."""
+        _, rows = self._lane(tmp_path, ARMS[:3], "sleep 1")
+        assert len([r for r in rows if r.startswith("end")]) == 3
+
+    def test_a_head_that_fails_fails_the_lane(self, tmp_path):
+        out, rows = self._lane(tmp_path, ARMS[:2], "exit 7")
+        assert out.returncode != 0
+        assert len([r for r in rows if r.startswith("start")]) == 2
+
+    def test_the_next_backbone_does_not_wait_for_the_head(self, tmp_path):
+        """The queue holds the heads apart. It must not hold the card idle
+        between two backbones."""
+        out, _ = self._lane(tmp_path, ARMS[:2], "sleep 3")
+        lines = out.stdout.splitlines()
+        second_arm = next(i for i, line in enumerate(lines)
+                          if f"arm {ARMS[1]} ->" in line)
+        first_head_done = next(i for i, line in enumerate(lines)
+                               if f"head {ARMS[0]}" in line and "rc=" in line)
+        assert second_arm < first_head_done, out.stdout
 
 
 # --- 4. the loss-by-term formula of the doc ------------------------------

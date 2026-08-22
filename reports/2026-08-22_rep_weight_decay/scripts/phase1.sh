@@ -22,10 +22,15 @@
 # Each arm's head starts as soon as its checkpoint lands, while the next arm
 # trains. Head training and backbone training both want the card, so
 # `head_eval_bb.sh` waits for free VRAM and the GIFT-Eval that follows runs on
-# the CPU. HEAD_BG=0 runs each head inline instead, which is slower to drain
-# and easier to read.
+# the CPU.
 #
-# CF409_HEADS=0 trains the backbones and nothing else.
+# A lane holds four arms, so four heads would pile onto one card. This lane
+# holds ONE: it queues each head and a single worker runs them in turn. The
+# queue does not hold the card idle — the next backbone starts the moment the
+# one before it ends, whatever the worker is doing.
+#
+# HEAD_BG=0 runs each head inline instead, which is slower to drain and easier
+# to read. CF409_HEADS=0 trains the backbones and nothing else.
 #
 # Usage:  bash phase1.sh                          # every arm of the card
 #         ARMS="dec0_s20 flr05_s20" bash phase1.sh
@@ -50,12 +55,19 @@ mkdir -p "$CF409_RESULTS"
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#409 lane $BB_GPU] $*" \
   | tee -a "$CF409_RESULTS/phase1.log"; }
 
+# One arm is refused before any head is queued, so a bad name never leaves a
+# worker holding heads this lane will not wait for.
+for arm in $ARMS; do cf409_require_arm "$arm" || exit $?; done
+
 # One arm's backbone, re-fired while the exit code says "crash". Prints the
 # final code.
 run_leg(){  # <arm> <stop steps>
   local arm="$1" stop="$2" try=1 rc
   while :; do
-    BB_GPU="$BB_GPU" bash "$RUN_ARM" "$arm" "$stop"
+    # `8>&-` closes the write end of the head queue for this child. A child
+    # that held it open would keep the worker waiting for a line that never
+    # comes.
+    BB_GPU="$BB_GPU" bash "$RUN_ARM" "$arm" "$stop" 8>&-
     rc=$?
     [ "$rc" -eq 0 ] && return 0
     cf409_retryable "$rc" || return "$rc"
@@ -67,9 +79,45 @@ run_leg(){  # <arm> <stop steps>
   done
 }
 
-heads=(); head_names=(); inline_failed=0; legs_failed=0
+# The lane's head worker: one head at a time, in the order the lane queues
+# them. It reads `<arm> <stop>` lines on stdin and ends at end of file, which
+# the lane sends by closing the write end of the queue.
+head_worker(){
+  local arm stop rc failed=0
+  # The old code put each head under `nohup`. This keeps that: a hangup on the
+  # lane must not stop a head that holds hours of GIFT-Eval.
+  trap '' HUP
+  while read -r arm stop; do
+    log "head $arm stop=$stop start"
+    BB_GPU="$HEAD_GPU" bash "$HEAD_EVAL" "$arm" "$stop" \
+      >>"$CF409_RESULTS/head_${arm}_bb$(cf409_steps_label "$stop").out" \
+      2>&1 </dev/null
+    rc=$?
+    log "head $arm stop=$stop rc=$rc"
+    [ "$rc" -eq 0 ] || failed=$(( failed + 1 ))
+  done
+  return "$failed"
+}
+
+# A named pipe, not a file: the worker blocks on `read` between heads and needs
+# no poll. The worker opens the read end first, so the lane's own open returns.
+worker=""; queue=""
+if [ "$HEADS" = "1" ] && [ "$HEAD_BG" = "1" ] && [ -z "${CF409_DRY_RUN:-}" ]; then
+  queue="$CF409_RESULTS/head_queue_gpu${BB_GPU}"
+  rm -f "$queue"
+  if mkfifo "$queue" 2>/dev/null; then
+    head_worker <"$queue" &
+    worker=$!
+    exec 8>"$queue"
+    log "head queue on — one head at a time, worker pid $worker"
+  else
+    log "no queue at $queue — the heads run inline"
+    HEAD_BG=0
+  fi
+fi
+
+inline_failed=0; legs_failed=0
 for arm in $ARMS; do
-  cf409_require_arm "$arm" || exit $?
   for stop in $CF409_STOPS; do
     if [ -n "${CF409_DRY_RUN:-}" ]; then
       echo "arm $arm steps=$stop gpu=$BB_GPU tries=$CF409_LEG_TRIES" \
@@ -98,17 +146,12 @@ for arm in $ARMS; do
 
     if [ "$HEADS" != "1" ]; then
       log "head $arm SKIPPED (CF409_HEADS=0)"
-    elif [ "$HEAD_BG" = "1" ]; then
-      log "head $arm stop=$stop (background)"
-      # `nohup`, not `nohup setsid`. setsid forks when the caller already leads
-      # its process group, and then `$!` is the PID of a process that exits at
-      # once — so the `wait` below would return before the head had started.
-      BB_GPU="$HEAD_GPU" nohup bash "$HEAD_EVAL" "$arm" "$stop" \
-        >>"$CF409_RESULTS/head_${arm}_bb$(cf409_steps_label "$stop").out" 2>&1 &
-      heads+=($!); head_names+=("$arm stop=$stop")
+    elif [ -n "$worker" ]; then
+      log "head $arm stop=$stop (queued)"
+      echo "$arm $stop" >&8
     else
       log "head $arm stop=$stop (inline)"
-      BB_GPU="$HEAD_GPU" bash "$HEAD_EVAL" "$arm" "$stop"
+      BB_GPU="$HEAD_GPU" bash "$HEAD_EVAL" "$arm" "$stop" 8>&-
       rc=$?
       log "head $arm stop=$stop rc=$rc"
       [ $rc -eq 0 ] || inline_failed=$(( inline_failed + 1 ))
@@ -120,19 +163,16 @@ done
 
 # A head still running when the last backbone finishes is the normal case, and
 # its GIFT-Eval is hours of CPU. Waiting here is what makes `collect.sh`
-# afterwards see every score.
+# afterwards see every score. The worker ends at end of file, which is what
+# closing fd 8 sends.
 failed="$inline_failed"
-if [ "${#heads[@]}" -gt 0 ]; then
-  log "waiting for ${#heads[@]} head+eval job(s)"
-  for i in "${!heads[@]}"; do
-    wait "${heads[$i]}"; rc=$?
-    if [ $rc -eq 0 ]; then
-      log "head ${head_names[$i]} rc=0"
-    else
-      failed=$(( failed + 1 ))
-      log "head ${head_names[$i]} rc=$rc — see head_*.out in $CF409_RESULTS"
-    fi
-  done
+if [ -n "$worker" ]; then
+  exec 8>&-
+  log "waiting for the head queue to drain"
+  wait "$worker"; rc=$?
+  rm -f "$queue"
+  [ "$rc" -eq 0 ] || log "$rc head(s) failed — see head_*.out in $CF409_RESULTS"
+  failed=$(( failed + rc ))
 fi
 
 # A backbone-only lane scores nothing, so there is nothing to collect. Running

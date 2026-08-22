@@ -26,6 +26,11 @@ step N or below, and the verdict then reads what is left. `auc_guard.sh` needs
 this: without it the gate would stop every arm in its first minute. The default
 is 0, which reads the whole run.
 
+THE SKIP. One arm can hold rows from more than one leg: a re-fired leg appends
+to the CSV of the leg that crashed. `--skip-rows N` drops the first N rows in
+FILE order, so the verdict reads the rows of one leg alone. `auc_guard.sh`
+counts N before the leg starts.
+
 TWO USES. The report reads the verdict of every arm. `auc_guard.sh` reads the
 exit code and stops an arm that has nothing left to train:
 
@@ -42,6 +47,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import math
 import statistics
 import sys
 from pathlib import Path
@@ -54,29 +60,42 @@ DEFAULT_THRESHOLD = 0.55
 DEFAULT_WINDOW = 500
 
 
-def read_auc(path, warmup=0):
+def read_auc(path, warmup=0, skip_rows=0):
     """`[(step, auc), ...]` for one run, in file order.
 
-    Rows with a blank or unreadable `auc` are dropped: the column is blank on
-    a run whose trainer wrote no diagnostic that step. Rows at step `warmup`
-    or below are dropped as well.
+    Three kinds of row are dropped:
+
+      * a blank or unreadable `auc`. The column is blank on a run whose
+        trainer wrote no diagnostic that step.
+      * an `auc` that is not finite. `float("nan")` succeeds, and
+        `statistics.median` of a list that holds a NaN gives an arbitrary
+        element. A NaN median is under no threshold, so one NaN row would
+        read a dead arm as healthy.
+      * a row at step `warmup` or below, or in the first `skip_rows` rows of
+        the file.
     """
     with open(path, newline="") as fh:
         reader = csv.DictReader(fh)
         if not reader.fieldnames or "auc" not in reader.fieldnames:
             raise ValueError(f"{path}: no `auc` column")
         out = []
-        for row in reader:
+        for n, row in enumerate(reader):
+            if n < skip_rows:
+                continue
             try:
                 step, auc = int(row["step"]), float(row["auc"])
             except (KeyError, TypeError, ValueError):
                 continue
-            if step > warmup:
+            if math.isfinite(auc) and step > warmup:
                 out.append((step, auc))
     if not out:
-        raise ValueError(
-            f"{path}: no readable `auc` row above step {warmup}"
-            if warmup else f"{path}: no readable `auc` row")
+        where = []
+        if warmup:
+            where.append(f"above step {warmup}")
+        if skip_rows:
+            where.append(f"after row {skip_rows}")
+        raise ValueError(f"{path}: no readable `auc` row"
+                         + (" " + " and ".join(where) if where else ""))
     return out
 
 
@@ -141,6 +160,10 @@ def main(argv=None):
     p.add_argument("--warmup", type=int, default=0,
                    help="drop every row at this step or below. The AUC of a "
                         "fresh run starts near 0.5 and climbs. Default 0")
+    p.add_argument("--skip-rows", type=int, default=0,
+                   help="drop this many rows from the START of the file. A "
+                        "re-fired leg appends to the CSV of the leg that "
+                        "crashed. Default 0")
     p.add_argument("--tsv", action="store_true",
                    help="write a header row, for a table the report reads")
     p.add_argument("--quiet", action="store_true", help="exit code only")
@@ -151,8 +174,8 @@ def main(argv=None):
     any_lost, any_error = False, False
     for path in args.csv:
         try:
-            v = verdict(read_auc(path, args.warmup), args.window,
-                        args.threshold)
+            v = verdict(read_auc(path, args.warmup, args.skip_rows),
+                        args.window, args.threshold)
         except (OSError, ValueError) as e:
             any_error = True
             if not args.quiet:

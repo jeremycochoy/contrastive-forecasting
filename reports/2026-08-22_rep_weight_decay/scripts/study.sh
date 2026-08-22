@@ -322,6 +322,18 @@ cf409_live_losses_csv(){  # <arm> <stop steps>
   cf409_losses_csvs "${1:?arm}" "${2:?stop}" | tail -1
 }
 
+# How many DATA rows a losses CSV holds. The header does not count, and a file
+# that is missing or empty holds none.
+#
+# The AUC gate counts these before a leg starts. A leg that resumes with no
+# checkpoint on disk keeps its run name, and train.py then APPENDS to the CSV
+# of the leg that crashed — so "the newest CSV" alone does not say which rows
+# this leg wrote. The count does.
+cf409_csv_rows(){  # <csv>
+  awk 'END { n = NR - 1; if (n < 0) n = 0; print n }' "${1:?csv}" 2>/dev/null \
+    || printf '0\n'
+}
+
 # ---- The AUC gate ------------------------------------------------------------
 #
 # L_rep carries the negatives. Four arms decay it to 0.0 and cross the
