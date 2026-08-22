@@ -1,11 +1,8 @@
 # A momentum that rises from 0.9 to 1.0 over 100,000 steps gives the best score at rollout depth 32
 
-That schedule scores 1.1491 and 1.1507 at two backbone seeds. No arm beats the k = 3 score of 1.0862 at the same stop.
+That schedule scores 1.1491 and 1.1507 at two backbone seeds, but no arm beats the k = 3 score of 1.0862 at the same stop.
 
 ![Every run, by arm](plots/arm_ranking.png)
-
-The arms that carry one seed do not separate from each other.
-Tripling the align-loss weight moves the score less than the seed spread.
 
 ![The momentum each arm reaches at the stop, against its score](plots/reached_vertical.png)
 
@@ -15,11 +12,7 @@ Tripling the align-loss weight moves the score less than the seed spread.
 
 ![The contrastive AUC of every arm against the backbone step](plots/backbone_health.png)
 
-![The training loss of every run](plots/loss_curves.png)
-
 ![The total loss and each term that makes it](plots/loss_terms.png)
-
-The total loss turns near step 500 and rises. L_align carries that rise.
 
 ![GM-Relative MASE per domain](plots/domain_grid.png)
 

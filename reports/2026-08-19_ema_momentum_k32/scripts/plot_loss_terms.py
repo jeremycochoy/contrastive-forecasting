@@ -143,6 +143,13 @@ def draw(runs, out, turn=None, cols=3, grey_red=False):
                         color=colours[i % len(colours)], label=label)
         if turn:
             ax.axvline(turn, color="0.55", linestyle=":", linewidth=1.2)
+            # The report keeps no sentence for the turn, so the two panels
+            # that show it name the step themselves.
+            if term in ("total", "align"):
+                ax.annotate(f"step {turn}", xy=(turn, 0.97),
+                            xycoords=("data", "axes fraction"),
+                            xytext=(4, 0), textcoords="offset points",
+                            ha="left", va="top", fontsize=9, color="0.35")
         ax.set_xscale("log")
         ax.set_title(title, fontsize=10)
         ax.set_xlabel("backbone step")

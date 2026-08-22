@@ -6,7 +6,7 @@
 #                              the stop (deliverable 1)
 #   plots/by_start.png         the score against the start of the schedule
 #   plots/by_ramp.png          the score against the length of the ramp
-#   plots/loss_curves.png      one training-loss curve per arm, log-log
+#   plots/loss_terms.png       the total loss and each term that makes it
 #                              (deliverable 2)
 #   plots/domain_grid.png      GM-Relative MASE per domain (deliverable 3)
 #   results/table.md           the table and the statement (deliverable 4)
@@ -75,8 +75,17 @@ draw "by_ramp" "$HERE/plot_two_axes.py" --by ramp \
   --scores "$CF404_RESULTS/scores.csv" --out "$CF404_PLOTS/by_ramp.png" \
   --sync-root "$SYNC_TREE"
 
-draw "loss_curves" "$HERE/plot_loss_curves.py" \
-  --sync-root "$SYNC_TREE" --out "$CF404_PLOTS/loss_curves.png"
+# The loss decomposition reads the COMMITTED curves, so a redraw with no sync
+# tree still draws it. `s08b` is the run whose contrastive AUC fell to 0.57.
+LT_BASE="$HERE/../curves/box_a/cf393_arm6_v2_combab_alignT_cf373k32_mean"
+LT_ARGS=()
+for tag in a08 a095 a09 r100_08 r100_095 r100_09b r100_09 r60_09 \
+           s08c s08d s08 s09 w3_s08; do
+  LT_ARGS+=(--curve "13 runs that held=${LT_BASE}_${tag}_losses.csv")
+done
+LT_ARGS+=(--curve "!1 whose contrastive AUC fell to 0.57=${LT_BASE}_s08b_losses.csv")
+draw "loss_terms" "$HERE/plot_loss_terms.py" "${LT_ARGS[@]}" \
+  --grey-red --cols 3 --turn 500 --out "$CF404_PLOTS/loss_terms.png"
 
 draw "domain_grid" "$HERE/plot_domain_grid.py" \
   --splits "$CF404_RESULTS/splits.csv" --out "$CF404_PLOTS/domain_grid.png"

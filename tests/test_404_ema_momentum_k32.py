@@ -1885,7 +1885,7 @@ class TestMakePlots:
     def test_it_draws_every_deliverable(self):
         code = strip_comments(MAKE_PLOTS.read_text())
         for script in ("plot_arm_ranking.py", "plot_reached_two_colours.py",
-                       "plot_two_axes.py", "plot_loss_curves.py",
+                       "plot_two_axes.py", "plot_loss_terms.py",
                        "plot_domain_grid.py", "make_table.py",
                        "plot_backbone_health.py"):
             assert script in code, script
