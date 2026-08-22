@@ -84,6 +84,8 @@ state(){  # <note>
     echo "- arms: $ARMS"
     echo "- cards: $GPUS, launcher pid $$"
     echo "- root: \`$CF409_ROOT\`"
+    echo "- artefacts: elisa holds them all, and no sync loop runs." \
+         "See \`notes/artefacts.md\`."
     echo
     echo "## Scores"
     echo
@@ -107,6 +109,9 @@ state(){  # <note>
 }
 
 log "START arms='$ARMS' gpus='$GPUS' root=$CF409_ROOT"
+# The remote-launch checklist asks for a sync loop. This card trains on elisa
+# and writes to elisa's own disk, so there is nothing to pull.
+log "artefacts stay on elisa — no sync loop. See notes/artefacts.md"
 nvidia-smi --query-gpu=index,name,memory.total --format=csv,noheader \
   2>/dev/null | sed 's/^/  gpu /' | tee -a "$LOG"
 state "starting"

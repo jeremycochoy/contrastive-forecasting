@@ -78,6 +78,9 @@ fi
 # The durable root. Never /tmp, never inside the checkout (CLAUDE.md
 # checkpoint safety rule 4), and never #373's or #404's root — one root for
 # two studies is a sync loop that cannot tell their checkpoints apart.
+#
+# This card trains on elisa, so this root is on elisa's own disk and no sync
+# loop runs. `notes/artefacts.md` names every artefact and its path.
 CF409_ROOT_DEFAULT="/home/jupyter/checkpoints_backup/cf-409"
 CF409_ROOT="${CF409_ROOT:-$CF409_ROOT_DEFAULT}"
 CF409_RESULTS="${CF409_RESULTS:-$CF409_STUDY/results}"
@@ -176,10 +179,10 @@ cf409_align_target(){  # <arm>
 
 # The trainer flags of one arm's decay, as ONE unit.
 #
-# An arm that holds the weight passes NEITHER flag: train.py reads "no end
-# value" as "the weight is constant", and there is no value of the flag that
-# means the same. So the control arms carry the cell's command line unchanged,
-# which is what makes them a control.
+# An arm that holds the weight names the start weight and NO end value:
+# train.py reads "no end value" as "the weight is constant", and there is no
+# value of the flag that means the same. So the control arms carry the cell's
+# command line unchanged, which is what makes them a control.
 cf409_decay_args(){  # <arm>
   local end ramp
   end="$(cf409_rep_end "${1:?arm}")" || return 1
@@ -229,8 +232,8 @@ cf409_align_target_of_cmdline(){
 # The formula is `src.models.linear_schedule_at_step`, which is linear and
 # clamps the step into the ramp. It is repeated here, and not imported,
 # because the shell readers of this study must not need a Python interpreter
-# to print a table. `scripts/test_rep_w_at.sh` holds the two against each
-# other.
+# to print a table. `tests/test_409_launcher_shape.py` holds the two against
+# each other.
 cf409_rep_w_at(){  # <arm> <step>
   local end ramp
   end="$(cf409_rep_end "${1:?arm}")" || return 1
@@ -514,9 +517,10 @@ cf409_require_gpus(){  # <space separated indices>
 
 # ---- The checkout this study needs -------------------------------------------
 #
-# Three things this card depends on are NOT in every checkout of this
+# Four things this card depends on are NOT in every checkout of this
 # repository. A machine bootstrapped from a stale branch would train, log
-# nothing unusual, and hand back eight copies of the control.
+# nothing unusual, and hand back eight copies of the control — or eight
+# backbones and an empty scores.csv.
 #
 #   --rep-loss-weight-end in the trainer (#409). Without it every arm holds the
 #   weight at 1.0, so the eight arms are the control, eight times.
@@ -526,14 +530,21 @@ cf409_require_gpus(){  # <space separated indices>
 #   off the trainer's own command line. This check is the cheap one, before the
 #   first leg.
 #
+#   The head path: #373's `head_eval_bb.sh`, which must read CF_RESULTS, and
+#   the GIFT-Eval head trainer it runs. Both refuse on their own, but only
+#   AFTER the backbone — so a missing one costs the arm's hours and gives no
+#   score.
+#
 #   The HF token. Every run that streams from HF must authenticate, or the
 #   anonymous rate limit idles the card at about 20 percent use.
 #
 # Prints what is missing and returns non-zero.
 cf409_check_checkout(){  # [checkout]
-  local wt="${1:-$CF409_WT}" missing=0 runner trainer token
+  local wt="${1:-$CF409_WT}" missing=0 runner trainer token head head_train
   runner="$wt/reports/2026-08-08_rollout_depth/scripts/run_leg_k.sh"
   trainer="$wt/experiments/2026-04-27_freq-embedding/scripts/train.py"
+  head="$wt/reports/2026-08-08_rollout_depth/scripts/head_eval_bb.sh"
+  head_train="$wt/experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py"
   token="$wt/experiments/hf_token.txt"
   if ! grep -q -- '--rep-loss-weight-end' "$trainer" 2>/dev/null; then
     echo "ABORT: $trainer has no --rep-loss-weight-end." >&2
@@ -545,6 +556,22 @@ cf409_check_checkout(){  # [checkout]
     echo "ABORT: $runner takes no GAP_ARGS." >&2
     echo "  The decay, the seed and the align target would not reach the" >&2
     echo "  trainer." >&2
+    missing=1
+  fi
+  if [ ! -f "$head" ]; then
+    echo "ABORT: no head script at $head." >&2
+    echo "  Every arm would train a backbone for hours, and then every head" >&2
+    echo "  would exit 2 and scores.csv would be empty." >&2
+    missing=1
+  elif ! grep -q 'CF_RESULTS' "$head" 2>/dev/null; then
+    echo "ABORT: $head does not read CF_RESULTS." >&2
+    echo "  It would write every score_<tag>.txt under #373's results/," >&2
+    echo "  where collect.sh does not look." >&2
+    missing=1
+  fi
+  if [ ! -f "$head_train" ]; then
+    echo "ABORT: no GIFT-Eval head trainer at $head_train." >&2
+    echo "  The head script refuses without it, after the backbone." >&2
     missing=1
   fi
   if [ ! -s "$token" ]; then

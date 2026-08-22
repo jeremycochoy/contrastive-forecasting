@@ -16,8 +16,8 @@ That is the contract these tests hold:
     repeat seed on three of them.
   * every arm's decay flags follow `src.models.linear_schedule_at_step`, so
     the shell table and the trainer agree on the weight at every step.
-  * the two control arms pass NO decay flag, because the trainer reads "no
-    end value" as "the weight is constant".
+  * the two control arms name the start weight and no end value, because
+    the trainer reads "no end value" as "the weight is constant".
   * no two arms share a file.
   * the runner is #373's `run_leg_k.sh` — no second trainer invocation
     exists in this study.
@@ -29,6 +29,7 @@ from __future__ import annotations
 import csv
 import importlib.util
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -53,7 +54,7 @@ RAMP = 10_000
 # Every arm of the card, in the order it runs them.
 ARMS = ("ctrl_s20", "ctrl_s24", "dec0_s20", "dec0_s24",
         "flr05_s20", "flr05_s24", "flr02_s20", "dec0T_s20")
-# The floors the card walks. 1.0 is the control, which passes no decay flag.
+# The floors the card walks. `-` is the control, which names no end value.
 FLOORS = ("-", "-", "0.0", "0.0", "0.5", "0.5", "0.2", "0.0")
 
 
@@ -212,6 +213,31 @@ class TestTheDecayFlags:
         assert float(study_out(f'cf409_rep_w_at dec0_s20 {RAMP}')) == 0.0
         assert float(study_out(f'cf409_rep_w_at flr05_s20 {RAMP}')) == 0.5
         assert float(study_out(f'cf409_rep_w_at ctrl_s20 {RAMP}')) == 1.0
+
+
+class TestTheCommentsNameFilesThatExist:
+    """A comment that names a file the branch does not carry sends the next
+    reader to look for it. The reader then trusts less of the rest."""
+
+    PATH = re.compile(
+        r"(?:scripts|notes|tests|docs)/[A-Za-z0-9_.-]+\.(?:sh|py|tsv|md)")
+    # A `scripts/` or `notes/` path is this study's. A `tests/` or `docs/` path
+    # is the repository's.
+    AT_REPO_ROOT = ("tests/", "docs/")
+
+    def test_every_path_a_comment_names_is_on_the_branch(self):
+        missing = []
+        for script in sorted(EXP.glob("scripts/*.sh")) \
+                + sorted(EXP.glob("scripts/*.py")):
+            for n, line in enumerate(script.read_text().splitlines(), 1):
+                if not line.lstrip().startswith("#"):
+                    continue
+                for path in self.PATH.findall(line):
+                    root = (REPO_ROOT if path.startswith(self.AT_REPO_ROOT)
+                            else EXP)
+                    if not (root / path).exists():
+                        missing.append(f"{script.name}:{n}: {path}")
+        assert not missing, missing
 
 
 class TestNoTwoArmsShareAFile:

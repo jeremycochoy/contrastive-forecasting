@@ -281,16 +281,25 @@ class TestTheCheckoutTheStudyNeeds:
     """A machine bootstrapped from a stale branch trains eight copies of the
     control and logs nothing unusual. The launcher asks first."""
 
-    def _checkout(self, tmp_path, trainer=True, gap=True, token=True):
+    def _checkout(self, tmp_path, trainer=True, gap=True, token=True,
+                  head=True, head_results=True, head_trainer=True):
         wt = tmp_path / "wt"
         train = wt / "experiments" / "2026-04-27_freq-embedding" / "scripts"
         runner = wt / "reports" / "2026-08-08_rollout_depth" / "scripts"
+        gift = wt / "experiments" / "2026-04-13_gift-eval" / "scripts"
         train.mkdir(parents=True)
         runner.mkdir(parents=True)
+        gift.mkdir(parents=True)
         (train / "train.py").write_text(
             "--rep-loss-weight-end\n" if trainer else "# stale\n")
         (runner / "run_leg_k.sh").write_text(
             "GAP_ARGS\n" if gap else "# stale\n")
+        if head:
+            (runner / "head_eval_bb.sh").write_text(
+                'RES="${CF_RESULTS:-x}"\nSCORE_OUT="$RES/score_${TAG}.txt"\n'
+                if head_results else 'SCORE_OUT="$RES/score_${TAG}.txt"\n')
+        if head_trainer:
+            (gift / "train_forecasting_head.py").write_text("# head\n")
         (wt / "experiments" / "hf_token.txt").write_text(
             "hf_abc\n" if token else "")
         return wt
@@ -316,15 +325,43 @@ class TestTheCheckoutTheStudyNeeds:
         assert out.returncode != 0
         assert "token" in out.stderr
 
-    def test_this_checkout_carries_both_pieces(self):
-        """The HF token is gitignored, so a worktree has none. The other two
-        are on the branch."""
+    def test_a_checkout_without_the_head_script_is_refused(self, tmp_path):
+        """Without it the study trains eight backbones for hours, and then
+        every head exits 2 and `scores.csv` is empty."""
+        wt = self._checkout(tmp_path, head=False)
+        out = study_call(f'cf409_check_checkout "{wt}"')
+        assert out.returncode != 0
+        assert "head_eval_bb.sh" in out.stderr
+
+    def test_a_head_script_that_ignores_cf_results_is_refused(self, tmp_path):
+        """`collect.sh` reads `score_<tag>.txt` under THIS study's results/. A
+        head script without CF_RESULTS writes them under #373's."""
+        wt = self._checkout(tmp_path, head_results=False)
+        out = study_call(f'cf409_check_checkout "{wt}"')
+        assert out.returncode != 0
+        assert "CF_RESULTS" in out.stderr
+
+    def test_a_checkout_without_the_head_trainer_is_refused(self, tmp_path):
+        """`head_eval_bb.sh` runs it, and refuses without it — after the
+        backbone."""
+        wt = self._checkout(tmp_path, head_trainer=False)
+        assert study_call(f'cf409_check_checkout "{wt}"').returncode != 0
+
+    def test_this_checkout_carries_the_pieces_on_the_branch(self):
+        """The HF token is gitignored, so a worktree has none. The rest are
+        on the branch."""
         trainer = (REPO_ROOT / "experiments" / "2026-04-27_freq-embedding"
                    / "scripts" / "train.py").read_text()
         runner = (REPO_ROOT / "reports" / "2026-08-08_rollout_depth"
                   / "scripts" / "run_leg_k.sh").read_text()
+        head = (REPO_ROOT / "reports" / "2026-08-08_rollout_depth"
+                / "scripts" / "head_eval_bb.sh").read_text()
         assert "--rep-loss-weight-end" in trainer
         assert "GAP_ARGS" in runner
+        assert "CF_RESULTS" in head
+        assert 'score_${TAG}.txt' in head
+        assert (REPO_ROOT / "experiments" / "2026-04-13_gift-eval" / "scripts"
+                / "train_forecasting_head.py").exists()
 
 
 class TestALaneRefiresACrashedLeg:
