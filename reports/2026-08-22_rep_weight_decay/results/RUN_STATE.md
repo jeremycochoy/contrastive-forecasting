@@ -1,7 +1,7 @@
 # #409 run state — the L_rep weight decay at k = 3
 
-- updated: 2026-08-22 22:49:52
-- note: starting
+- updated: 2026-08-22 22:52:52
+- note: 1 lane(s) running
 - cell: `arm6_v2_combab_alignS`, k = 3, reduce `sum`
 - arms: ctrl_s20 dec0_s20 flr05_s20 flr02_s20
 - cards: 1, launcher pid 4006844
@@ -11,13 +11,14 @@
 ## Scores
 
 ```
-(none yet)
+arm,rep_end,ramp,seed,align_target,rep_w_at_stop,stop,head_steps,encoder,score
 ```
 
 ## Contrastive AUC
 
 ```
-(none yet)
+run	verdict	lost_at	floor	floor_step	last	last_step	note
+cf393_arm6_v2_combab_alignS_cf373k3_cf409_ctrl_s20_losses.csv	error	-	-	-	-	-	/home/jupyter/checkpoints_backup/cf-409/ctrl_s20/arm6_v2_combab_alignS/leg_40k/cf393_arm6_v2_combab_alignS_cf373k3_cf409_ctrl_s20_losses.csv: no readable `auc` row above step 1000
 ```
 
 ## Backbones on disk
