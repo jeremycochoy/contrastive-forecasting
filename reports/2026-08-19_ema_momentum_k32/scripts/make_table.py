@@ -2,16 +2,21 @@
 """#404 deliverable 4 — the table of scores, and the one statement that reads it.
 
 The table holds every arm and the five published references. The statement
-names the momentum that wins, gives its distance to the k = 3 score at bb40k,
-and says whether that arm goes below it.
+names the momentum that wins, gives its distance to the k = 3 score at the
+same 40,000 steps, and says whether that arm beats it.
+
+"BEATS", NOT "GOES BELOW". A lower GM-Relative MASE is a better score, so
+"goes below" reads as "is worse than" to anyone who has not just read the
+axis. One direction word, everywhere.
 
 It then gives the card's own repeat spread. Four arms of this table are ONE arm
 at four backbone seeds, and the distance between their scores is what says
 whether the winner is ahead of the next arm or level with it. Round 1 named a
 winner with no such number, and the review of PR #405 asked for one.
 
-ONE OF THOSE FOUR MUST NOT COUNT. `s08b` did not measure noise: its backbone
-fell to chance while it trained. The distance between a collapsed run and a
+ONE OF THOSE FOUR MUST NOT COUNT. `s08b` did not measure noise: its
+contrastive AUC fell to 0.57 while it trained, against 0.93 to 0.98 for every
+other run. The distance between a collapsed run and a
 healthy one is not a spread, and quoting it as one calls every arm of the card
 unranked. So `--sync-root` lets this script read the contrastive AUC of every
 arm, drop the collapsed runs, and quote the spread over the rest.
@@ -132,19 +137,23 @@ def table_markdown(rows: list[dict], stop: int = 40000) -> str:
     """The card's table: this card's arms first, then the references.
 
     The backbone seed is a column because four arms of this card are ONE arm at
-    four seeds, and the contrastive AUC is a column because one of them fell to
-    chance while it trained. A score table without the AUC shows a collapsed
-    run as a bad arm.
+    four seeds, and the contrastive AUC is a column because one of them lost
+    the contrastive task while it trained. A score table without the AUC shows
+    a collapsed run as a bad arm.
 
     The L_align weight is a column because one arm moves it and every other
     arm holds it at the cell's 1.0. Two rows that agree in every other column
     read as one arm trained twice without it.
     """
     span = seed_ranges(rows)
-    out = [f"| arm | EMA momentum | holds at {stop // 1000}k "
+    # "reaches at 40k", not "holds at 40k". Two rows of this table hold one
+    # momentum for the whole run, and "holds" is the word for what they do.
+    # Every figure of this study calls the value at the stop the value the
+    # schedule REACHES.
+    out = [f"| arm | EMA momentum | reaches at {stop // 1000}k "
            "| L_align weight | backbone seed "
            "| AUC at the stop | GM-Relative MASE | seed range "
-           "| vs k = 3 at bb40k |",
+           "| vs k = 3 at the same 40,000 steps |",
            "|---|---|---|---|---|---|---|---|---|"]
     for r in rows:
         alpha = f"{r['alpha']:g}, {schedule_text(r)}"
@@ -162,9 +171,11 @@ def table_markdown(rows: list[dict], stop: int = 40000) -> str:
                    f"{r.get('seed') or '?'} | "
                    f"{auc_text} | {r['score']:.4f} | {range_text} | "
                    f"{r['score'] - REF.K3_BB40K:+.4f} |")
-    out += ["", "| reference | GM-Relative MASE |", "|---|---|"]
-    for label, value in REF.TABLE:
-        out.append(f"| {label} | {value:.4f} |")
+    # THE SOURCE COLUMN IS NOT DECORATION. Two of these five trace to a
+    # committed splits table and three come from the issue card alone.
+    out += ["", "| reference | GM-Relative MASE | source |", "|---|---|---|"]
+    for label, value, source in REF.TABLE:
+        out.append(f"| {label} | {value:.4f} | {source} |")
     return "\n".join(out)
 
 
@@ -177,13 +188,13 @@ def statement(rows: list[dict], stop: int = 40000) -> str:
     """
     win = best(rows)
     delta = win["score"] - REF.K3_BB40K
-    verdict = ("goes below" if delta < 0 else "does not go below")
+    verdict = ("beats" if delta < 0 else "does not beat")
     band = (" It lands inside the k = 3 repeat band."
             if REF.enters_band(win["score"]) else "")
     return (f"`{win['arm']}` wins, at {win['score']:.4f}. Its momentum starts "
             f"at {win['alpha']:g} ({schedule_text(win)}) and holds "
             f"{holds_at(win, stop):.3f} at {stop:,} steps. It sits "
-            f"{delta:+.4f} from the k = 3 score at bb40k, "
+            f"{delta:+.4f} from the k = 3 score at the same 40,000 steps, "
             f"{REF.K3_BB40K:.4f}, so it {verdict} that score.{band}")
 
 

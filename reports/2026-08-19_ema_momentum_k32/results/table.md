@@ -1,4 +1,4 @@
-| arm | EMA momentum | holds at 40k | L_align weight | backbone seed | AUC at the stop | GM-Relative MASE | seed range | vs k = 3 at bb40k |
+| arm | EMA momentum | reaches at 40k | L_align weight | backbone seed | AUC at the stop | GM-Relative MASE | seed range | vs k = 3 at the same 40,000 steps |
 |---|---|---|---|---|---|---|---|---|
 | r100_09b | 0.9, to 1.0 at 100k | 0.940 | 1 | 20260524 | 0.974 | 1.1491 | 0.0016 | +0.0629 |
 | r100_09 | 0.9, to 1.0 at 100k | 0.940 | 1 | 20260520 | 0.978 | 1.1507 | 0.0016 | +0.0645 |
@@ -15,15 +15,15 @@
 | s08c | 0.8, to 1.0 at 200k | 0.840 | 1 | 20260522 | 0.978 | 1.3214 | 0.1432 | +0.2352 |
 | s08b | 0.8, to 1.0 at 200k | 0.840 | 1 | 20260521 | 0.575 (collapsed) | 1.5459 | not counted | +0.4597 |
 
-| reference | GM-Relative MASE |
-|---|---|
-| k = 3, bb200k, the best score of the project | 1.0660 |
-| k = 3, bb40k | 1.0862 |
-| k = 32, mean, student, bb200k | 1.1637 |
-| k = 32, mean, student, bb40k | 1.2082 |
-| the same backbone with no rollout (k = 0), at 40,000 steps | 1.1600 |
+| reference | GM-Relative MASE | source |
+|---|---|---|
+| k = 3, 200,000 steps, the best score of the project | 1.0660 | measured, sibling report |
+| k = 3, same 40,000 steps | 1.0862 | measured, sibling report |
+| k = 32, mean, student, 200,000 steps | 1.1637 | stated by the issue card |
+| k = 32, mean, student, same 40,000 steps | 1.2082 | stated by the issue card |
+| the same backbone with no rollout (k = 0), same 40,000 steps | 1.1600 | stated by the issue card |
 
-`r100_09b` wins, at 1.1491. Its momentum starts at 0.9 (to 1.0 at 100k) and holds 0.940 at 40,000 steps. It sits +0.0629 from the k = 3 score at bb40k, 1.0862, so it does not go below that score.
+`r100_09b` wins, at 1.1491. Its momentum starts at 0.9 (to 1.0 at 100k) and holds 0.940 at 40,000 steps. It sits +0.0629 from the k = 3 score at the same 40,000 steps, 1.0862, so it does not beat that score.
 
 `s08`, `s08c`, `s08d` are one arm at 3 backbone seeds that did not collapse. They span 0.1432 (12.2%), which is the widest repeat this card measures. The best cell holds 2 seeds of its own, 1.1491 to 1.1507, a span of 0.0016. Its worst seed sits 0.0275 from the best seed of every other arm, 1.1782. `s09`, `a09`, `r60_09`, `a095`, `w3_s08`, `r100_095`, `r100_08`, `a08` carry one seed each, and this card does not separate them from each other.
 

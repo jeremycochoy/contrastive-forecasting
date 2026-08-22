@@ -9,9 +9,10 @@ the score files, so the comment cannot disagree with the figures.
 of this card share all three and differ in the backbone seed alone, so the
 distance between their scores IS the run-to-run spread of this cell.
 
-ONE OF THOSE FOUR MUST NOT COUNT. `s08b` did not measure noise: its backbone
-fell to chance while it trained, AUC 0.91 at 10,000 steps to 0.57 at 40,000. A
-collapsed run is a different event from a noisy one, and its distance from a
+ONE OF THOSE FOUR MUST NOT COUNT. `s08b` did not measure noise: its
+contrastive AUC went 0.91 at 10,000 steps to 0.57 at 40,000, against 0.93 to
+0.98 for every other run. A collapsed run is a different event from a noisy
+one, and its distance from a
 healthy run is not a spread. So `--sync-root` lets this script read the AUC of
 every arm and report the spread over the seeds that did NOT collapse.
 `seed_report.py` holds the one definition of a collapse in this study.
@@ -148,7 +149,7 @@ def main() -> int:
     out.append("")
 
     # The repeat spread. When a sync tree is given, the AUC of every arm at
-    # the stop decides which runs count: a backbone that fell to chance is a
+    # the stop decides which runs count: a backbone whose AUC fell is a
     # collapse, not a draw from the noise, and its distance from a healthy run
     # is not a spread.
     d = None
@@ -199,7 +200,9 @@ def main() -> int:
                        f"contrastive AUC at {a.stop // 1000}k | verdict |")
             out.append("|---|---|---|---|---|")
             for t, auc in trained:
-                verdict = ("fell to chance"
+                # The verdict names the LINE the AUC crossed, not "chance".
+                # Chance is 0.50 and no run of this study reached it.
+                verdict = (f"fell, at or under {seed_report.AUC_THRESHOLD:g}"
                            if seed_report.collapsed(auc) else "healthy")
                 out.append(f"| {t['arm']} | {momentum(t)} | "
                            f"{t['seed'] or '?'} | {auc:.4f} | {verdict} |")

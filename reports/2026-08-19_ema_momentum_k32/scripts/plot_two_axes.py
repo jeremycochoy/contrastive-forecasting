@@ -8,6 +8,9 @@ one direction.
 `--by start` holds the ramp length and moves the start.
 `--by ramp` holds the start and moves the ramp length.
 
+The two figures take DISJOINT palettes, because their series are two different
+variables. See `START_COLOURS`.
+
 A point is the mean over the backbone seeds of one arm. A bar joins its lowest
 and its highest seed. An arm with one seed has no bar.
 
@@ -52,7 +55,21 @@ MOM = _load("cf404_momentum", "plot_momentum.py")
 RAMP_ORDER = (60000, 100000, 200000, 0)
 RAMP_NAME = {60000: "over 60k steps", 100000: "over 100k steps",
              200000: "over 200k steps", 0: "never rises"}
-COLOURS = ("#1f77b4", "#d95f02", "#7570b3", "#2ca02c", "#e7298a")
+
+# TWO DISJOINT PALETTES, ONE PER FIGURE. The two figures sit next to each other
+# and their series are two DIFFERENT variables: `--by start` draws one line per
+# ramp length, `--by ramp` draws one line per start value. One shared palette
+# made blue mean "rises over 60k steps" on the first figure and "starts at 0.8"
+# on the second, so a reader who carried a colour across read the wrong series.
+#
+# Purple for a ramp length, orange for a start value, and the marker doubles
+# the key. Both palettes run dark to light in the order the axis runs, so the
+# colour also carries the direction. "Never rises" is not a ramp length, so it
+# takes green and sits outside the purple family.
+START_COLOURS = ("#3F007D", "#6A51A3", "#8C6BB1", "#006D2C")
+START_MARKERS = ("o", "s", "^", "D")
+RAMP_COLOURS = ("#7F2704", "#D94801", "#FD8D3C")
+RAMP_MARKERS = ("v", "P", "*")
 
 
 def cells(rows):
@@ -124,6 +141,7 @@ def draw(rows, out, by):
         title = ("The start of the schedule against the score\n"
                  "one line per ramp length, at 40,000 backbone steps")
         ticks, tick_labels = xs, [f"{x:g}" for x in xs]
+        colours, markers = START_COLOURS, START_MARKERS
     else:
         xs = [r for r in RAMP_ORDER if any(k[1] == r for k in grid)]
         series = sorted({k[0] for k in grid})
@@ -135,6 +153,7 @@ def draw(rows, out, by):
         ticks = list(range(len(xs)))
         tick_labels = [RAMP_NAME[r].replace("over ", "").replace(" steps", "")
                        for r in xs]
+        colours, markers = RAMP_COLOURS, RAMP_MARKERS
 
     labels = []
     for i, s in enumerate(series):
@@ -150,10 +169,11 @@ def draw(rows, out, by):
             hi.append(max(vals) - mean)
         if not px:
             continue
-        ax.errorbar(px, py, yerr=[lo, hi], marker="o", markersize=8,
-                    linewidth=1.8, capsize=5, elinewidth=1.6,
-                    color=COLOURS[i % len(COLOURS)], zorder=3, label=name(s))
-        labels += [(x, y, COLOURS[i % len(COLOURS)]) for x, y in zip(px, py)]
+        colour = colours[i % len(colours)]
+        ax.errorbar(px, py, yerr=[lo, hi], marker=markers[i % len(markers)],
+                    markersize=8, linewidth=1.8, capsize=5, elinewidth=1.6,
+                    color=colour, zorder=3, label=name(s))
+        labels += [(x, y, colour) for x, y in zip(px, py)]
 
     ax.axhline(REF.K3_BB40K, color="0.35", linewidth=1.3, zorder=1)
     ax.axhline(REF.K0_PARENT_BB40K, color="0.35", linestyle="--",
@@ -168,7 +188,8 @@ def draw(rows, out, by):
     ax.set_xticks(ticks)
     ax.set_xticklabels(tick_labels)
     ax.set_xlabel(xlabel)
-    ax.set_ylabel("GM-Relative MASE over 97 configs, lower is better")
+    ax.set_ylabel("GM-Relative MASE over 97 configs, mean over seeds, "
+                  "lower is better")
     ax.set_title(title)
     ax.grid(True, alpha=0.3)
     ax.legend(fontsize=8, loc="upper center", bbox_to_anchor=(0.5, -0.11),

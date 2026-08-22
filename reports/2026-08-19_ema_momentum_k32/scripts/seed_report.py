@@ -47,7 +47,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import repeat_spread  # noqa: E402
 
-# A backbone at or below this AUC at the stop has fallen to chance. See above.
+# A backbone at or below this AUC at the stop has collapsed. The line is 0.80,
+# not 0.50: no run of this study reached chance. See above.
 AUC_THRESHOLD = 0.80
 
 # The two arms the card asks about, and the schedule they share.
@@ -107,7 +108,7 @@ def auc_at(sync_root: Path, arm: str, stop: int = 40000) -> float | None:
 
 
 def collapsed(auc: float | None) -> bool:
-    """Whether an arm at this AUC has fallen to chance.
+    """Whether an arm at this AUC has collapsed, against `AUC_THRESHOLD`.
 
     An arm with no CSV is NOT called collapsed. A missing file is a missing
     measurement, and reporting it as a collapse would invent a result.

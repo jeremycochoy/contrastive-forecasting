@@ -120,7 +120,7 @@ def draw_vertical(rows, out, fell=(), stop=40000):
         ax.plot([r["score"]], [y], linestyle="none",
                 marker=MOM.FELL["marker"], markersize=11,
                 color=MOM.FELL["colour"], zorder=4,
-                label=MOM.FELL["label"])
+                label=MOM.fell_label(fell))
     ax.axvline(REF.K3_BB40K, color="0.35", linewidth=1.3, zorder=1)
     ax.axvline(REF.K0_PARENT_BB40K, color="0.35", linestyle="--",
                linewidth=1.3, zorder=1)
@@ -140,7 +140,7 @@ def draw_vertical(rows, out, fell=(), stop=40000):
                         sorted({k[1] for k in grid})], fontsize=9)
     ax.set_ylabel(f"the momentum the backbone trains against at "
                   f"{stop:,} steps")
-    ax.set_xlabel("GM-Relative MASE over 97 configs, "
+    ax.set_xlabel("GM-Relative MASE over 97 configs, mean over seeds, "
                   "lower is better")
     ax.set_title("A held momentum and a rising momentum,\n"
                  f"against the value each reaches at {stop:,} steps")
@@ -186,7 +186,8 @@ def draw(rows, out, fell=(), stop=40000):
               for r in fell]
         ax.plot(fx, [min(r["score"], top) for r in fell], linestyle="none",
                 marker=MOM.FELL["marker"], markersize=11,
-                color=MOM.FELL["colour"], zorder=4, label=MOM.FELL["label"])
+                color=MOM.FELL["colour"], zorder=4,
+                label=MOM.fell_label(fell))
 
     ax.set_ylim(y_lo, y_hi)
     ax.set_xlim(x_lo, x_hi)
@@ -202,7 +203,8 @@ def draw(rows, out, fell=(), stop=40000):
     ax.set_xticks(ticks)
     ax.set_xticklabels([f"{v:.3f}" for v in ticks], fontsize=8)
     ax.set_xlabel(f"the momentum the backbone trains against at {stop:,} steps")
-    ax.set_ylabel("GM-Relative MASE over 97 configs, lower is better")
+    ax.set_ylabel("GM-Relative MASE over 97 configs, mean over seeds, "
+                  "lower is better")
     ax.set_title("A held momentum and a rising momentum, against the value\n"
                  f"each one reaches at {stop:,} steps")
     ax.grid(True, alpha=0.3)
@@ -233,6 +235,7 @@ def main(argv=None):
         alive = []
         for r in rows:
             auc = SEEDS.auc_at(root, r["arm"], args.stop)
+            r["auc"] = auc
             (fell if SEEDS.collapsed(auc) else alive).append(r)
         rows = alive
     (draw_vertical if args.vertical else draw)(

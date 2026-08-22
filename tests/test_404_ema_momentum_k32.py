@@ -55,7 +55,6 @@ PLOT_REACHED = EXP / "scripts" / "plot_reached_two_colours.py"
 PLOT_CURVES = EXP / "scripts" / "plot_loss_curves.py"
 PLOT_GRID = EXP / "scripts" / "plot_domain_grid.py"
 MAKE_TABLE = EXP / "scripts" / "make_table.py"
-ARM_COLOURS = EXP / "scripts" / "arm_colours.py"
 
 PARENT_LEG = PARENT / "scripts" / "run_leg_k.sh"
 PARENT_HEAD = PARENT / "scripts" / "head_eval_bb.sh"
@@ -190,7 +189,7 @@ class TestLayout:
         "script", [STUDY_SH, ARMS_TSV, RUN_ARM, HEAD_EVAL, PHASE1, HEADS_WATCH,
                    COLLECT, SMOKE, MAKE_PLOTS, LAUNCH_BOX, LAUNCH_ELISA,
                    LAUNCH_SYNC, RUN_SH, REFERENCES_PY, PLOT_MOMENTUM,
-                   PLOT_CURVES, PLOT_GRID, MAKE_TABLE, ARM_COLOURS])
+                   PLOT_CURVES, PLOT_GRID, MAKE_TABLE])
     def test_file_exists(self, script):
         assert script.is_file(), f"{script} missing"
 
@@ -1161,6 +1160,17 @@ K3_BB40K = 1.0862
 K32_BB200K = 1.1637
 K32_BB40K = 1.2082
 K0_PARENT_BB40K = 1.1600
+
+# WHERE EACH ONE COMES FROM. Two trace to the rollout-depth report's
+# `results/splits.csv`, rows `A4_k3_bb200k_student` and `A4_k3_bb40k_student`.
+# The other three come from the issue card and no run in this repository
+# measures them. A figure or a table that prints one prints its source, so a
+# reader can tell a measured baseline from a quoted one.
+MEASURED = "measured, sibling report"
+STATED = "stated by the issue card"
+SOURCE = {"K3_BB200K": MEASURED, "K3_BB40K": MEASURED,
+          "K32_BB200K": STATED, "K32_BB40K": STATED,
+          "K0_PARENT_BB40K": STATED}
 # The repeat spread of #373, 0.6% to 1.3%, which the band around K3_BB40K
 # holds.
 SPREAD = (0.006, 0.013)
@@ -1201,6 +1211,24 @@ class TestReferences:
         ("K0_PARENT_BB40K", K0_PARENT_BB40K)])
     def test_the_published_number(self, name, value):
         assert getattr(references(), name) == pytest.approx(value)
+
+    @pytest.mark.parametrize("name,source", sorted(SOURCE.items()))
+    def test_every_reference_says_where_it_comes_from(self, name, source):
+        assert references().SOURCE[name] == source
+
+    def test_the_table_carries_the_source_of_every_row(self):
+        rows = references().TABLE
+        assert len(rows) == len(SOURCE)
+        for _label, _value, src in rows:
+            assert src in (MEASURED, STATED), src
+        assert {src for _l, _v, src in rows} == {MEASURED, STATED}
+
+    def test_the_k0_line_says_the_card_states_it(self):
+        """No run in this repository measures 1.1600, so the dashed line on
+        four figures has to carry that. The sibling report's k = 0 aggregates
+        at the same stop are 1.2189, 1.2025, 1.1513 and 1.2590."""
+        assert STATED in references().K0_LINE
+        assert STATED not in references().K3_LINE
 
     def test_the_band_holds_the_373_repeat_spread(self):
         assert references().SPREAD == pytest.approx(SPREAD)
@@ -1447,24 +1475,46 @@ class TestLossCurves:
         assert ax.get_xscale() == "log"
         assert ax.get_yscale() == "log"
 
-    def test_one_curve_per_arm(self, tmp_path):
-        """Every arm handed over gets a curve, under a label that names what
-        makes that arm unique.
+    def test_one_curve_per_run_in_one_grey(self, tmp_path):
+        """Every run handed over gets a curve, and every run that held takes
+        the SAME grey.
 
         THE FIGURE HAS TWO PANELS. `w3_s08` multiplies the align term by 3,
         so its loss sits on another scale, and on a shared axes it read as
         the worst run of the study. It takes a panel of its own, so the
         curves are counted over the whole figure and not over one axes.
 
-        No two arms share a label. A shared label draws two runs as one arm.
+        THIRTEEN COLOURS WERE THIRTEEN TOO MANY. Six of them fell in one
+        green-to-brown family inside a band 0.6 wide, under a thirteen-row
+        legend no reader could map to a curve. This figure asks one question
+        — did the run hold — and `backbone_health.png` already answers that
+        question on the same fourteen runs in one grey and one red.
         """
         arms = [a for a, *_ in ARMS]
         lc, fig, _ax, _out = self.draw(tmp_path, arms)
-        drawn = {str(ln.get_label()) for axes in fig.axes
-                 for ln in axes.get_lines()}
-        for arm in arms:
-            assert lc.ARM_LABEL[arm] in drawn, (arm, lc.ARM_LABEL[arm], drawn)
-        assert len({lc.ARM_LABEL[a] for a in arms}) == len(arms), lc.ARM_LABEL
+        # One raw trace and one median curve per run, over both panels.
+        drawn = [ln for axes in fig.axes for ln in axes.get_lines()]
+        assert len(drawn) == 2 * len(arms), len(drawn)
+        assert {ln.get_color() for ln in drawn} == {lc.STABLE_COLOUR}
+
+    def test_the_run_that_fell_is_red_and_the_legend_names_its_auc(
+            self, tmp_path):
+        """"Chance" is 0.50 and no run of this study reached it. The one that
+        fell ends at 0.5745, so that is what the legend says."""
+        lc = load_module(PLOT_CURVES, "cf404_plot_curves")
+        arms = [a for a, *_ in ARMS]
+        series = [(arm, lc.read_losses(
+            losses_csv(tmp_path / arm / "losses.csv", scale=1 + i)))
+            for i, arm in enumerate(arms)]
+        fig, _ax = lc.draw(series, tmp_path / "curves.png",
+                           fell={arms[0]: 0.5745})
+        red = [ln for axes in fig.axes for ln in axes.get_lines()
+               if ln.get_color() == lc.COLLAPSED_COLOUR]
+        assert len(red) == 2, len(red)
+        labels = [x.get_text() for x in fig.legends[0].get_texts()]
+        assert len(labels) == 2, labels
+        assert any("0.57" in x for x in labels), labels
+        assert not any("chance" in x.lower() for x in labels), labels
 
     def test_the_figure_is_written(self, tmp_path):
         _lc, _fig, _ax, out = self.draw(tmp_path)
@@ -1665,14 +1715,20 @@ class TestTheTableAndTheStatement:
         assert f"{K3_BB40K:.4f}" in said
         assert f"{1.1962 - K3_BB40K:+.4f}" in said
 
-    def test_the_statement_says_when_no_arm_goes_below(self, tmp_path):
+    def test_the_statement_says_when_no_arm_beats_the_reference(self, tmp_path):
+        """"Beats", not "goes below". A lower GM-Relative MASE is a BETTER
+        score, so "goes below" reads as "is worse than" to a reader who has
+        not just checked the direction of the axis."""
         mt, rows = self.rows(tmp_path, {"a08": 1.19, "s09": 1.11})
-        assert "below" in mt.statement(rows).lower()
+        said = mt.statement(rows).lower()
+        assert "does not beat" in said, said
+        assert "below" not in said, said
 
-    def test_the_statement_says_when_an_arm_does_go_below(self, tmp_path):
+    def test_the_statement_says_when_an_arm_does_beat_it(self, tmp_path):
         mt, rows = self.rows(tmp_path, {"a08": 1.0700})
         said = mt.statement(rows).lower()
-        assert "below" in said
+        assert "beats" in said, said
+        assert "does not beat" not in said, said
 
     def test_the_verdict_flips_on_the_k3_bb40k_score(self, tmp_path):
         mt, above = self.rows(tmp_path, {"a08": K3_BB40K + 0.01})
@@ -1684,67 +1740,6 @@ class TestTheTableAndTheStatement:
         mt, rows = self.rows(tmp_path, {})
         with pytest.raises(SystemExit):
             mt.statement(rows)
-
-
-class TestOneColourPerArm:
-    """Three figures draw the same arms. A reader who learns a colour on one
-    carries it to the next, so the map lives in one file."""
-
-    def colours(self):
-        return load_module(ARM_COLOURS, "cf404_arm_colours").colours
-
-    def test_every_arm_of_the_card_has_its_own_colour(self):
-        got = self.colours()([a for a, *_ in ARMS])
-        assert len(set(got.values())) == len(ARMS), got
-
-    def test_an_added_arm_gets_its_own_colour(self):
-        """The card says to add arms when the scores show a direction, and
-        the study did that ten times. Two added arms in one fallback colour
-        would read as one arm."""
-        arms = [a for a, *_ in ARMS] + ["a085", "s09b"]
-        got = self.colours()(arms)
-        assert len(set(got.values())) == len(arms), got
-
-    def test_a_named_arm_keeps_its_colour_whatever_else_is_drawn(self):
-        c = self.colours()
-        alone = c(["s09"])["s09"]
-        crowded = c(["a085", "s09b", "s09", "a08"])["s09"]
-        assert alone == crowded
-
-    def test_the_fallback_list_cycles_rather_than_repeating_one_entry(self):
-        """It used to hand every arm past the list the SAME last entry, so
-        two added arms drew in one colour and read as one arm."""
-        mod = load_module(ARM_COLOURS, "cf404_arm_colours")
-        n = len(mod.EXTRA)
-        got = mod.colours([f"x{i}" for i in range(n + 2)])
-        assert len(set(got.values())) == n, got
-        assert got["x0"] == got[f"x{n}"]
-        assert got[f"x{n}"] != got[f"x{n + 1}"]
-
-    def test_the_whole_fallback_list_is_distinct(self):
-        mod = load_module(ARM_COLOURS, "cf404_arm_colours")
-        every = list(mod.NAMED.values()) + list(mod.EXTRA)
-        assert len(set(every)) == len(every), every
-
-    def test_no_fallback_colour_is_a_grey(self):
-        """The momentum figure draws every reference in grey — the k = 3
-        band, #401's arm, the two 200,000-step lines. A grey arm reads as a
-        reference."""
-        mod = load_module(ARM_COLOURS, "cf404_arm_colours")
-        for c in mod.EXTRA:
-            r, g, b = (int(c[i:i + 2], 16) for i in (1, 3, 5))
-            assert max(r, g, b) - min(r, g, b) > 24, f"{c} is a grey"
-
-    # The figures that give a colour to an ARM. Every other score figure of
-    # this study now colours by KIND — a held momentum against a rising one.
-    # Fourteen arms in fourteen colours needed a fourteen-row legend in a
-    # palette that repeated blue, orange and green, and no reader could map a
-    # curve to a row. A figure that colours by kind has no arm colour to
-    # share, so it is not under this guard.
-    @pytest.mark.parametrize("script", [PLOT_CURVES])
-    def test_every_figure_reads_the_shared_map(self, script):
-        text = script.read_text()
-        assert "arm_colours" in text, f"{script.name} carries its own palette"
 
 
 class TestMakePlots:

@@ -9,8 +9,9 @@ This figure asks the simpler question: which arm scores best, and how far do
 its own seeds move? One row is one arm. One dot is one run. A bar joins the
 lowest and the highest seed of an arm that holds more than one.
 
-An arm whose backbone fell to chance keeps its dot, in red, because a reader
-must see that the run happened and what a dead backbone scores.
+An arm whose backbone lost the contrastive task keeps its dot, in red,
+because a reader must see that the run happened and what a dead backbone
+scores.
 
 Usage:
   plot_arm_ranking.py --scores results/scores.csv --out plots/arm_ranking.png \
@@ -123,7 +124,7 @@ def draw(rows, out, fell=()):
         handles.append(plt.Line2D([], [], marker=MOM.FELL["marker"],
                                   linestyle="none", markersize=9,
                                   color=MOM.FELL["colour"],
-                                  label=MOM.FELL["label"]))
+                                  label=MOM.fell_label(fell)))
     # BELOW the axes. Inside, at the lower right, the legend covered the
     # k = 0 reference label that sits along the bottom.
     ax.legend(handles=handles, fontsize=8, loc="upper center",
@@ -159,6 +160,9 @@ def main(argv=None):
         alive = []
         for r in rows:
             auc = SEEDS.auc_at(root, r["arm"], args.stop)
+            # The AUC rides on the row, so the legend can name the value the
+            # run reached instead of an adjective.
+            r["auc"] = auc
             (fell if SEEDS.collapsed(auc) else alive).append(r)
         rows = alive
     draw(rows, args.out, fell)

@@ -7,12 +7,26 @@ momentum figure and the table both read them, and two copies would drift.
 
 Every number is a GM-Relative MASE on the 97 GIFT-Eval configs.
 
-  K3_BB200K        1.0660  k = 3, the best score of the project
-  K3_BB40K         1.0862  k = 3 at the stop this card's arms reach
-  K32_BB200K       1.1637  k = 32, mean, student — the best score at k = 32
-  K32_BB40K        1.2082  the same arm at bb40k, which is where this card
-                           starts
-  K0_PARENT_BB40K  1.1600  the same backbone with no rollout (k = 0)
+TWO OF THE FIVE ARE MEASURED AND THREE ARE NOT. `SOURCE` says which is which,
+and every figure and table that prints a number prints its source with it. A
+reader who cannot tell a measured baseline from a quoted one cannot falsify
+the comparison it carries.
+
+  K3_BB200K        1.0660  k = 3 at 200,000 steps, the best score of the
+                           project. Measured: the rollout-depth report's
+                           `results/splits.csv`, row `A4_k3_bb200k_student`.
+  K3_BB40K         1.0862  k = 3 at the stop this card's arms reach.
+                           Measured: the same file, row `A4_k3_bb40k_student`.
+  K32_BB200K       1.1637  k = 32, mean, student, at 200,000 steps. The issue
+                           card states it. No run in this repository measures
+                           it.
+  K32_BB40K        1.2082  the same arm at 40,000 steps. The issue card states
+                           it. No run in this repository measures it.
+  K0_PARENT_BB40K  1.1600  the same backbone with no rollout (k = 0), at
+                           40,000 steps. The issue card states it. No run in
+                           this repository measures it, and the sibling
+                           report's k = 0 aggregates at the same stop are
+                           1.2189, 1.2025, 1.1513 and 1.2590.
 
 The arms of this card stop at 40,000 backbone steps, so K3_BB40K and
 K32_BB40K are the fair comparison. The two 200,000-step numbers are a
@@ -28,9 +42,23 @@ K32_BB200K = 1.1637
 K32_BB40K = 1.2082
 K0_PARENT_BB40K = 1.1600
 
+# The two ways a number on this page can be known. A figure or a table that
+# prints a reference prints its source beside it.
+MEASURED = "measured, sibling report"
+STATED = "stated by the issue card"
+
+SOURCE = {
+    "K3_BB200K": MEASURED,
+    "K3_BB40K": MEASURED,
+    "K32_BB200K": STATED,
+    "K32_BB40K": STATED,
+    "K0_PARENT_BB40K": STATED,
+}
+
 # What every figure calls that line. "parent" and "cell" named no run a reader
 # can look up, and "cell" already means a group of arms in the results table.
-K0_LINE = "k = 0, same 40,000 steps"
+# The k = 0 line carries its source, because no run here measures it.
+K0_LINE = f"k = 0, same 40,000 steps, {STATED}"
 K3_LINE = "k = 3, same 40,000 steps"
 
 # #401's k = 32 arm is not only a horizontal reference: it IS a cell of this
@@ -46,14 +74,19 @@ K32_BB40K_RAMP = 100_000
 # whether an arm enters the range where k = 3 itself lands.
 SPREAD = (0.006, 0.013)
 
-# What the table prints, in the card's own order and wording.
+# What the table prints, in the card's own order. `bb40k` and `bb200k` are
+# gone: the figures spell the same stop out as "40,000 steps", and one item
+# takes one name. Each row carries its source.
 TABLE = (
-    ("k = 3, bb200k, the best score of the project", K3_BB200K),
-    ("k = 3, bb40k", K3_BB40K),
-    ("k = 32, mean, student, bb200k", K32_BB200K),
-    ("k = 32, mean, student, bb40k", K32_BB40K),
-    ("the same backbone with no rollout (k = 0), at 40,000 steps",
-     K0_PARENT_BB40K),
+    ("k = 3, 200,000 steps, the best score of the project", K3_BB200K,
+     SOURCE["K3_BB200K"]),
+    ("k = 3, same 40,000 steps", K3_BB40K, SOURCE["K3_BB40K"]),
+    ("k = 32, mean, student, 200,000 steps", K32_BB200K,
+     SOURCE["K32_BB200K"]),
+    ("k = 32, mean, student, same 40,000 steps", K32_BB40K,
+     SOURCE["K32_BB40K"]),
+    ("the same backbone with no rollout (k = 0), same 40,000 steps",
+     K0_PARENT_BB40K, SOURCE["K0_PARENT_BB40K"]),
 )
 
 

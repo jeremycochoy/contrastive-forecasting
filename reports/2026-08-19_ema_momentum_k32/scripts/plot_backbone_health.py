@@ -4,9 +4,12 @@
 The AUC says whether the backbone still tells a true future from a false one.
 A value near 0.5 is chance, and a backbone at chance has learned nothing.
 
-The figure exists because one arm fell to chance while it trained. A score
-table alone cannot show that, because a collapsed backbone still produces a
-score.
+The figure exists because one arm lost the contrastive task while it trained.
+A score table alone cannot show that, because a collapsed backbone still
+produces a score.
+
+The legend names the AUC each group REACHED. "Chance" is 0.50, the dashed line
+alone is at 0.50, and no run of this study got there.
 
 Usage:
   plot_backbone_health.py --sync-root /home/jupyter/cf404_sync --out plots/backbone_health.png
@@ -115,7 +118,7 @@ def draw(sync_root: Path, out: str):
     ax.text(0.99, 0.512, "chance", fontsize=9, color="0.25",
             transform=ax.get_yaxis_transform(), ha="right")
     drawn = 0
-    fell = 0
+    held_end, fell_end = [], []
     for arm, _ in ARMS:
         steps, auc = series(sync_root, arm)
         if not steps:
@@ -123,6 +126,7 @@ def draw(sync_root: Path, out: str):
         # Classified BEFORE the thinning, so the verdict reads the AUC at the
         # stop and not the AUC at the last row the thinning kept.
         collapse = arm_collapsed(auc[-1])
+        (fell_end if collapse else held_end).append(auc[-1])
         steps, auc = thin(steps, auc)
         ax.plot(steps, auc,
                 color=COLLAPSED_COLOUR if collapse else STABLE_COLOUR,
@@ -130,17 +134,26 @@ def draw(sync_root: Path, out: str):
                 zorder=3 if collapse else 2,
                 alpha=1.0 if collapse else 0.55)
         drawn += 1
-        fell += 1 if collapse else 0
+    fell = len(fell_end)
     ax.set_xlabel("backbone step")
     ax.set_ylabel("contrastive AUC, higher is better")
     ax.set_title("Contrastive AUC against backbone step")
     ax.set_ylim(0.45, 1.02)
     ax.grid(True, alpha=0.3)
-    # Two rows, because the figure draws two kinds of curve.
+    # Two rows, because the figure draws two kinds of curve. Each row gives
+    # the AUC its curves REACHED at the stop, so the reader compares two
+    # measured levels and not two adjectives.
+    held_text = (f"{drawn - fell} backbones that held"
+                 if not held_end else
+                 f"{drawn - fell} backbones that held, "
+                 f"{min(held_end):.2f} to {max(held_end):.2f}")
+    fell_text = (f"{fell} that fell"
+                 if not fell_end else
+                 f"{fell} that fell to {min(fell_end):.2f}")
     handles = [plt.Line2D([], [], color=STABLE_COLOUR, lw=1.6,
-                          label=f"{drawn - fell} backbones that held"),
+                          label=held_text),
                plt.Line2D([], [], color=COLLAPSED_COLOUR, lw=2.4,
-                          label=f"{fell} that fell to chance")]
+                          label=fell_text)]
     ax.legend(handles=handles, fontsize=9, loc="lower left", framealpha=0.9)
     fig.tight_layout()
     Path(out).parent.mkdir(parents=True, exist_ok=True)

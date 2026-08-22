@@ -19,8 +19,9 @@ Two or more arms that share a momentum, a schedule and a ramp are a repeat
 family. The figure draws their mean, and a vertical bar over their scores.
 That bar is the run-to-run spread this card measures for itself.
 
-A COLLAPSED ARM IS NOT PART OF THAT BAR. One backbone of this card fell to
-chance while it trained, and its score says what a dead backbone scores, not
+A COLLAPSED ARM IS NOT PART OF THAT BAR. One backbone of this card lost the
+contrastive task while it trained, and its score says what a dead backbone
+scores, not
 what its momentum is worth. Inside the mean it would move a marker, and inside
 the bar it would stretch the spread over every other arm. So it takes its own
 red marker, off the line, and `--sync-root` is what tells the two apart.
@@ -131,10 +132,28 @@ def series_of(rows) -> list[tuple[str, int, float, dict]]:
 EARLIER = {"colour": "0.45", "marker": "^",
            "label": "published, same depth, the align loss on the student"}
 
-# The arm whose backbone fell to chance. Red, off the line, and out of every
-# mean and every bar.
+# The arm whose backbone lost the contrastive task. Red, off the line, and out
+# of every mean and every bar.
+#
+# THE LABEL NAMES THE MEASURED AUC, NOT "CHANCE". Chance is 0.50 and no run of
+# this study reached it: the one that fell ends at 0.5745, and the study's own
+# line for a collapse is 0.80. `fell_label` reads the number off the run.
 FELL = {"colour": "#d62728", "marker": "X",
-        "label": "the backbone fell to chance while it trained"}
+        "label": "the contrastive AUC fell while the backbone trained"}
+
+
+def fell_label(rows=()) -> str:
+    """What a legend calls the runs in `rows`, with the AUC they reached.
+
+    Each row carries its own `auc`, read at the stop. With no AUC on any row
+    the generic label stands, because a number no file backs is worse than no
+    number.
+    """
+    aucs = [r["auc"] for r in rows if r.get("auc") is not None]
+    if not aucs:
+        return FELL["label"]
+    return (f"the contrastive AUC fell to {min(aucs):.2f} "
+            f"while the backbone trained")
 
 
 def read_scores(path) -> list[dict]:
