@@ -799,3 +799,57 @@ it uses and the percentage, next to the claim.
 `tests/test_407_full_pass.py` is 240 tests and all pass. Round 7 replaced
 the ribbon caption tests with tests on the new figure contract, and it added
 tests on the offsets mode of the band rule.
+
+### 18:59 UTC — the teacher case, decided by the same rule (item 5)
+
+The student rule covers the student head only. The teacher at 665,000 steps
+also gets one draw, so item 5 asks for the same rule against the teacher
+score.
+
+`band_decision.py --head teacher` reads its own center off `head_band.csv`,
+row `200000,teacher`. That center is 1.0800, so the teacher window is
+[1.0700, 1.0900]. The radius is the same 0.0100.
+
+```
+stop       665000
+head       teacher
+center     1.0800  (mean of the 200k teacher band)
+radius     0.0100
+window     [1.0700, 1.0900]
+pooled sd  0.0029  (both heads, every banded stop)
+```
+
+The `--center` flag no longer defaults to a typed number. The rule reads
+the center out of the CSV for whichever head it is asked about, and the
+1.0651 literal stays only as the fallback for a run with no CSV beside it.
+
+`teacher_verdict_at_last_stop` in `watchdog.sh` runs that call every tick.
+It RECORDS a verdict and it fires nothing. Two more teacher head seeds cost
+about 8 GPU-hours and the card did not buy them.
+
+- SKIP, outside the window: the score reads on one draw.
+- FIRE, inside the window: one draw cannot decide the teacher comparison at
+  665,000 steps, and the report must say that it is undecided.
+
+It writes `results/band_665k_teacher_decision.txt` and
+`results/band_665k_teacher_offsets.txt`. It latches on the verdict file, so
+it decides once. It runs before the loop tests `open_stops`, so the tick
+that lands the teacher score also decides it.
+
+The rule lives in the watchdog, not in an agent. The teacher score is the
+last number of the card, and the watchdog outlives any session.
+
+**The restart.** `watchdog.sh` changed, so the watchdog restarted at
+18:59:02 UTC on the new code. The old process (pid 2588827) was asleep
+between ticks and its only child was `sleep 1800`, so the restart
+interrupted no work. It carried the same environment: `WT`, `RUNS`,
+`BB_GPU=1`, `HEAD_GPU=1`, `BAND_GPU=1`, `WATCHDOG_PERIOD=1800`. Its first
+tick read:
+
+```
+[2026-08-22T18:59:03Z] tick driver=yes step=665000 quiet=0 open='665000'
+WAIT   stop 665000 teacher: no score yet
+```
+
+The student verdict did not repeat, so the SKIP latch held. `run_pass.sh`
+(pid 1741671) kept its teacher head-train on card 1 through the restart.

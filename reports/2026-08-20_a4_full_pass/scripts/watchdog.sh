@@ -183,6 +183,42 @@ band_at_last_stop(){
       >>"$RES/replicate_${k}k.out" 2>&1 &
 }
 
+# The same rule, read against the TEACHER score, as a record only.
+#
+# Round 7, item 5. The student rule covers the student head. The teacher at
+# the last stop also gets one draw, and its own window is its own
+# 200,000-step band mean plus and minus the same 0.0100, which is
+# [1.0700, 1.0900]. `band_decision.py --head teacher` reads that center off
+# `head_band.csv`, so no second copy of it exists.
+#
+# This FIRES NOTHING. Two more teacher head seeds cost about 8 GPU-hours,
+# and the card did not buy them. Inside the window, one draw cannot decide
+# the teacher comparison at the last stop, and the report says so. Outside
+# it, the score reads on its own.
+#
+# It runs beside `band_at_last_stop` and before the loop tests
+# `open_stops`, so the tick that lands the teacher score also decides it.
+# The verdict file is the latch, so a second tick re-reads and returns.
+teacher_verdict_at_last_stop(){
+  local last="${BAND_STOP:-665000}" k rc dec
+  k=$(( last / 1000 ))
+  dec="$RES/band_${k}k_teacher_decision.txt"
+  [ -s "$dec" ] && return 0                        # decided once
+
+  WT="$WT" python3 "$HERE/band_decision.py" --stop "$last" --head teacher \
+    --results "$WT/reports/2026-08-08_rollout_depth/results" \
+    --csv "$RES/head_band.csv" --write "$dec" \
+    --offsets-out "$RES/band_${k}k_teacher_offsets.txt" >>"$LOG" 2>&1
+  rc=$?
+  case "$rc" in
+    20) ;;
+    10) log "BAND at ${k}k, teacher: SKIP. The score sits outside its window, so one draw reads on its own." ;;
+    0)  log "BAND at ${k}k, teacher: the score sits INSIDE its window. One draw cannot decide the teacher comparison at ${k}k." ;;
+    *)  log "WARN: teacher band_decision rc=$rc" ;;
+  esac
+  return 0
+}
+
 log "start period=${PERIOD}s stall=$STALL wt=$WT runs=$RUNS bb_gpu=$BB_GPU"
 prev_step=""; prev_mark=""; quiet=0; fires=0
 
@@ -199,6 +235,7 @@ while :; do
     log "WARN: teacher_check rc=$?"
 
   band_at_last_stop
+  teacher_verdict_at_last_stop
 
   step="$(last_step)"; mark="$(driver_mark)"
   stops="$(open_stops 2>/dev/null)"

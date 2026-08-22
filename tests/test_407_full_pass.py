@@ -2269,6 +2269,87 @@ class TestBandAtTheLastStopIsConditional:
         assert (results / "fired.txt").read_text().strip() == "STUB 665000"
 
 
+class TestTheTeacherVerdictAtTheLastStop:
+    """Item 5. The same rule, read against the teacher score.
+
+    It records a verdict. It fires no band: two more teacher head seeds
+    cost about 8 GPU-hours and the card did not buy them.
+    """
+
+    REC = "band_665k_teacher_decision.txt"
+
+    def test_the_teacher_window_is_its_own_band_mean(self, bd):
+        """1.0800 plus and minus 0.0100, off `head_band.csv`."""
+        center = bd.band_center(STUDY / "results" / "head_band.csv",
+                                "teacher")
+        assert center == pytest.approx(1.0800, abs=5e-5)
+        assert center - bd.BAND_RADIUS == pytest.approx(1.0700, abs=5e-5)
+        assert center + bd.BAND_RADIUS == pytest.approx(1.0900, abs=5e-5)
+
+    def test_the_student_center_still_comes_off_the_csv(self, bd):
+        got = bd.band_center(STUDY / "results" / "head_band.csv", "student")
+        assert got == pytest.approx(bd.BAND_CENTER, abs=5e-5)
+
+    def test_a_missing_row_has_no_center(self, bd, tmp_path):
+        assert bd.band_center(tmp_path / "gone.csv", "teacher") is None
+
+    def test_no_teacher_score_records_nothing(self, tmp_path):
+        scripts, results, wt = watchdog_sandbox(
+            tmp_path, {(665_000, "student"): "1.0450"})
+        watchdog_tick(scripts, results, wt)
+        assert not (results / self.REC).exists()
+
+    def test_outside_the_window_records_a_skip(self, tmp_path):
+        scripts, results, wt = watchdog_sandbox(
+            tmp_path, {(665_000, "student"): "1.0450",
+                       (665_000, "teacher"): "1.0952"})
+        out = watchdog_tick(scripts, results, wt)
+        assert "SKIP" in (results / self.REC).read_text()
+        assert "teacher: SKIP" in out.stdout
+        assert not (results / "fired.txt").exists()
+
+    def test_inside_the_window_records_that_it_is_undecided(self, tmp_path):
+        """A teacher score inside its window must not fire a band."""
+        scripts, results, wt = watchdog_sandbox(
+            tmp_path, {(665_000, "student"): "1.0450",
+                       (665_000, "teacher"): "1.0800"})
+        out = watchdog_tick(scripts, results, wt)
+        assert "FIRE" in (results / self.REC).read_text()
+        assert "cannot decide the teacher comparison" in out.stdout
+        assert not (results / "fired.txt").exists()
+
+    def test_it_decides_once(self, tmp_path):
+        scripts, results, wt = watchdog_sandbox(
+            tmp_path, {(665_000, "student"): "1.0450",
+                       (665_000, "teacher"): "1.0952"})
+        watchdog_tick(scripts, results, wt)
+        watchdog_tick(scripts, results, wt)
+        rec = (results / self.REC).read_text().splitlines()
+        assert len(rec) == 1
+
+    def test_it_writes_the_offsets_beside_the_verdict(self, tmp_path):
+        scripts, results, wt = watchdog_sandbox(
+            tmp_path, {(665_000, "student"): "1.0450",
+                       (665_000, "teacher"): "1.0952"})
+        watchdog_tick(scripts, results, wt)
+        block = (results / "band_665k_teacher_offsets.txt").read_text()
+        assert "teacher head" in block
+        assert "band mean lands between" in block
+
+    def test_the_last_tick_decides_the_teacher_too(self, tmp_path):
+        """`open_stops` is empty on the tick the teacher score lands."""
+        scripts, results, wt = watchdog_sandbox(
+            tmp_path, {(300_000, "student"): "1.0867",
+                       (300_000, "teacher"): "1.1030",
+                       (450_000, "student"): "1.0691",
+                       (450_000, "teacher"): "1.0986",
+                       (665_000, "student"): "1.0450",
+                       (665_000, "teacher"): "1.0952"})
+        out = watchdog_tick(scripts, results, wt)
+        assert "watchdog stops" in out.stdout
+        assert "SKIP" in (results / self.REC).read_text()
+
+
 class TestTheBandIsNoLongerArmed:
     """The checkpoint gate is gone. Two firers must not race either."""
 

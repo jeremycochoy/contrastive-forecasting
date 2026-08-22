@@ -32,20 +32,33 @@ three banded stops. The window is 0.01 wide, which is about 3.4 of those
 standard deviations. A point outside it reads on its own, and the band
 buys no information. So the card does not spend the 8 GPU-hours.
 
+The teacher head
+----------------
+
+The teacher at 665,000 steps also gets one draw. `--head teacher` reads its
+own center off the same CSV, 1.0800, so its window is [1.0700, 1.0900].
+
+That call RECORDS a verdict. It fires nothing. Two more teacher head seeds
+cost about 8 GPU-hours and the card did not buy them. Inside the window,
+one draw cannot decide the teacher comparison at 665,000 steps, and the
+report must say so.
+
 Exit codes
 ----------
 
   0   FIRE   the score is inside the window.
   10  SKIP   the score is outside the window.
-  20  WAIT   that stop has no student score yet.
+  20  WAIT   that stop has no score for that head yet.
   2   bad input.
 
 Usage
 -----
 
     band_decision.py                        # read the live score
+    band_decision.py --head teacher         # the same rule, teacher window
     band_decision.py --score 1.0700         # the test seam
     band_decision.py --explain              # the numbers behind the rule
+    band_decision.py --offsets              # what one draw bounds
     band_decision.py --write <path>         # record the verdict, once
 """
 
@@ -64,9 +77,14 @@ import full_pass  # noqa: E402
 # The stop this rule covers. The earlier stops already carry bands.
 BAND_STOP = 665_000
 
+# The stop the window is centered on. It is where the parent study stopped
+# and where the card's question starts.
+CENTER_STOP = 200_000
+
 # The mean of the 200,000-step student band. `results/head_band.csv`, row
 # `200000,student`, column `mean`. `test_the_center_is_the_measured_200k_mean`
-# holds the two together.
+# holds the two together. `band_center` reads the same cell back, so this
+# literal is the fallback for a run with no CSV beside it.
 BAND_CENTER = 1.0651
 
 # Half the width of the window that buys a band. About 3.4 pooled standard
@@ -95,6 +113,26 @@ def decide(score, center: float = BAND_CENTER, radius: float = BAND_RADIUS):
         return WAIT, None
     distance = abs(float(score) - center)
     return (FIRE if distance <= radius + EDGE_TOL else SKIP), distance
+
+
+def band_center(csv_path, head: str = BAND_HEAD, stop: int = CENTER_STOP):
+    """The mean of the `stop` band for `head`, off `head_band.csv`.
+
+    The window sits on the number the card compares against, and that
+    number is measured. Reading it back keeps the rule from carrying a
+    second copy of it, and it gives the teacher head its own center:
+    1.0800, so its window is [1.0700, 1.0900].
+
+    It returns None when no such row is on disk.
+    """
+    try:
+        with open(csv_path, newline="") as fh:
+            for row in csv.DictReader(fh):
+                if int(row["stop"]) == stop and row["head"] == head:
+                    return float(row["mean"])
+    except (OSError, KeyError, ValueError):
+        return None
+    return None
 
 
 def pooled_std(csv_path, head: str | None = None):
@@ -230,7 +268,8 @@ def main(argv=None) -> int:
                     help="#373's results directory")
     ap.add_argument("--csv", default=os.path.join(study, "results",
                                                   "head_band.csv"))
-    ap.add_argument("--center", type=float, default=BAND_CENTER)
+    ap.add_argument("--center", type=float, default=None,
+                    help="the window's center. Read off --csv by default")
     ap.add_argument("--radius", type=float, default=BAND_RADIUS)
     ap.add_argument("--write", default=None,
                     help="append the verdict to this file, once")
@@ -245,33 +284,47 @@ def main(argv=None) -> int:
         print("ABORT: the radius must not be negative", file=sys.stderr)
         return 2
 
+    # The center is measured, not typed. `BAND_CENTER` is the fallback for
+    # the student head when no CSV is beside the rule.
+    center = args.center
+    if center is None:
+        center = band_center(args.csv, args.head)
+    if center is None and args.head == BAND_HEAD:
+        center = BAND_CENTER
+    if center is None:
+        print(f"ABORT: no {CENTER_STOP} band mean for the {args.head} head "
+              f"in {args.csv}", file=sys.stderr)
+        return 2
+
     score = args.score
     if score is None:
         results = args.results or full_pass.parent_results(
             os.environ.get("WT", full_pass.REPO_ROOT))
         score = live_score(args.stop, args.head, results)
 
-    verdict, distance = decide(score, args.center, args.radius)
+    verdict, distance = decide(score, center, args.radius)
 
     if args.explain:
         sigma = pooled_std(args.csv)
         sigma_head = pooled_std(args.csv, args.head)
         print(f"stop       {args.stop}")
         print(f"head       {args.head}")
-        print(f"center     {args.center:.4f}  "
-              "(mean of the 200k student band)")
+        print(f"center     {center:.4f}  "
+              f"(mean of the {CENTER_STOP // 1000}k {args.head} band)")
         print(f"radius     {args.radius:.4f}")
-        print(f"window     [{args.center - args.radius:.4f}, "
-              f"{args.center + args.radius:.4f}]")
+        print(f"window     [{center - args.radius:.4f}, "
+              f"{center + args.radius:.4f}]")
         if sigma:
             print(f"pooled sd  {sigma:.4f}  (both heads, every banded stop)")
             print(f"radius     {args.radius / sigma:.1f} pooled sd")
         if sigma_head:
             print(f"pooled sd  {sigma_head:.4f}  ({args.head} head only)")
 
-    if args.offsets or args.offsets_out:
+    # No score, no bound. A file written on a WAIT tick would say only
+    # that the stop has no number yet.
+    if (args.offsets or args.offsets_out) and verdict != WAIT:
         block = offsets_text(skip_context(args.csv, score, args.stop,
-                                          args.head, args.center))
+                                          args.head, center))
         print(block)
         if args.offsets_out:
             with open(args.offsets_out, "w") as fh:
@@ -282,7 +335,7 @@ def main(argv=None) -> int:
         line = f"WAIT   stop {args.stop} {args.head}: no score yet"
     else:
         line = (f"{verdict}   stop {args.stop} {args.head} = {score:.4f}, "
-                f"{distance:.4f} from {args.center:.4f}, "
+                f"{distance:.4f} from {center:.4f}, "
                 f"radius {args.radius:.4f}")
     print(line)
 

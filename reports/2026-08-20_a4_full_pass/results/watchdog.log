@@ -325,3 +325,8 @@ SKIP   stop 665000 student = 1.0783, 0.0132 from 1.0651, radius 0.0100
 [2026-08-22T18:52:52Z] [cf407-readback] read-back done for stops 200 300 450 665 (fail=0)
 [cf407-teacher] wrote 0, already had 8
 [2026-08-22T18:52:52Z] [cf407-watchdog] tick driver=yes step=665000 quiet=2 open='665000'
+[2026-08-22T18:59:02Z] [cf407-watchdog] start period=1800s stall=2 wt=/tmp/contrastive-forecasting-407 runs=/home/jupyter/cf373_r3/sync bb_gpu=1
+[2026-08-22T18:59:03Z] [cf407-readback] read-back done for stops 200 300 450 665 (fail=0)
+[cf407-teacher] wrote 0, already had 8
+WAIT   stop 665000 teacher: no score yet
+[2026-08-22T18:59:03Z] [cf407-watchdog] tick driver=yes step=665000 quiet=0 open='665000'
