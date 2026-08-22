@@ -1,4 +1,4 @@
-# One full pass over small_v1 scores 1.0783 and does not improve on 200,000 steps
+# One full pass over small_v1 does not improve on 200,000 steps
 
 More backbone training past 200,000 steps makes the score worse. One full pass over the training dataset `small_v1` does not beat the 200,000-step stop, on either head (GM-Relative MASE, defined in [the rollout-depth study](../2026-08-08_rollout_depth/rollout_depth.md)).
 
@@ -18,7 +18,7 @@ The head-seed 20260722 re-draw at 200,000 steps returns the published values on 
 
 ## The 450,000 and 665,000 stops are not separated
 
-The 665,000-step stop has one draw for each head, and its +0.0040 student-mean gap to the 450,000-step stop sits inside the measured head-seed ranges.
+The 665,000-step stop has one draw for each head, and its +0.0040 student-mean gap to the 450,000-step stop is smaller than the largest measured head-seed range, 0.0087.
 
 ## Tables
 
@@ -45,7 +45,6 @@ The 665,000-step stop has one draw for each head, and its +0.0040 student-mean g
 | 450k checkpoint | md5 `f505688b3168e32b72eb45dad0a897e0` |
 | 665k checkpoint | md5 `ec1f64a5d4bc1e12d830a625b89cad84` |
 | launcher | `scripts/run_pass.sh`, which calls the rollout-depth study's `run_leg_k.sh` and `stop_k.sh` |
-| head recipe | arm6_v2, 30,000 head steps |
 
 ## Protocol
 
