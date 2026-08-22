@@ -1937,6 +1937,7 @@ class TestProcessGuardIsShared:
 
 BAND_DECISION_PY = SCRIPTS / "band_decision.py"
 WATCHDOG_SH = SCRIPTS / "watchdog.sh"
+AWAIT_STOP_SH = SCRIPTS / "await_stop.sh"
 
 
 @pytest.fixture(scope="module")
@@ -2172,3 +2173,55 @@ class TestTheBandIsNoLongerArmed:
     def test_the_queue_still_owns_no_665k_stage(self):
         code = strip_comments(BAND_QUEUE_SH.read_text())
         assert "665000" not in code
+
+
+class TestAwaitStopCarriesNoWork:
+    """`await_stop.sh` wakes an agent. It must lose nothing when it dies."""
+
+    def test_it_does_no_read_back(self):
+        code = strip_comments(AWAIT_STOP_SH.read_text())
+        for name in ("read_back.sh", "collect_replicates.sh", "head_band.py",
+                     "teacher_frozen_track.py", "plot_full_pass.py",
+                     "mirror_durable.sh", "replicate_heads.sh"):
+            assert name not in code, f"await_stop.sh runs {name}"
+
+    def test_it_exits_zero_when_both_heads_scored(self, tmp_path):
+        scripts, parent = self.sandbox(tmp_path)
+        for head in ("student", "teacher"):
+            (parent / f"score_A4_k3_bb665k_{head}.txt").write_text("1.0662\n")
+        out = self.run(scripts, tmp_path)
+        assert out.returncode == 0 and "SCORED" in out.stdout
+        assert "1.0662" in out.stdout
+
+    def test_one_head_short_is_not_scored(self, tmp_path):
+        """A stop with a student number and no teacher one is not done."""
+        scripts, parent = self.sandbox(tmp_path)
+        (parent / "score_A4_k3_bb665k_student.txt").write_text("1.0662\n")
+        out = self.run(scripts, tmp_path)
+        assert out.returncode == 3
+
+    def test_it_gives_up_when_both_keepers_are_gone(self, tmp_path):
+        """No driver and no watchdog means nothing will produce the score."""
+        scripts, _ = self.sandbox(tmp_path)
+        out = self.run(scripts, tmp_path)
+        assert out.returncode == 3
+        assert "both gone" in out.stdout or "are both gone" in out.stdout
+
+    # --- sandbox helpers ---
+    def sandbox(self, tmp_path):
+        scripts = tmp_path / "scripts"
+        scripts.mkdir()
+        (tmp_path / "results").mkdir()
+        (scripts / "await_stop.sh").write_text(AWAIT_STOP_SH.read_text())
+        parent = (tmp_path / "wt" / "reports" / "2026-08-08_rollout_depth"
+                  / "results")
+        parent.mkdir(parents=True)
+        return scripts, parent
+
+    def run(self, scripts, tmp_path):
+        env = dict(os.environ, CF407_RESULTS=str(tmp_path / "results"),
+                   WT=str(tmp_path / "wt"), AWAIT_TIMEOUT="20",
+                   AWAIT_POLL="1", AWAIT_HEARTBEAT="1")
+        return subprocess.run(["bash", str(scripts / "await_stop.sh"), "665"],
+                              env=env, capture_output=True, text=True,
+                              timeout=90)
