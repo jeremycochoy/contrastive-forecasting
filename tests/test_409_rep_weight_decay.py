@@ -470,6 +470,27 @@ class TestEndToEnd:
         assert {r["l_rep"] for r in rows} == {""}
 
 
+class TestResumeSchema:
+    """The four new columns change the losses-CSV header. A run started on the
+    pre-#409 code must not take the new rows: every value after `ema_tau`
+    would read four columns left of its name."""
+
+    def test_a_pre_409_losses_csv_is_refused(self, tmp_path):
+        _assert_train_deps_available()
+        save_dir = tmp_path / "runs"
+        save_dir.mkdir()
+        path = save_dir / "a409old_losses.csv"
+        header = ("step,loss,loss_tau_ref,gap,gap_ratio,ff,fp,tp,cross_batch,"
+                  "hf_rows_consumed,synth_rows_consumed,mixup_applied,"
+                  "r2_random,r2_naive,u_temporal,u_batch,auc,top1,top3,"
+                  "cpc_aux,sigreg_e,sigreg_h,u_temporal_e,u_batch_e,"
+                  "u_batchtime,u_batchtime_e,ema_tau")
+        path.write_text(header + "\n" + ",".join("0" * 27) + "\n")
+        res, _ = _run_train(tmp_path, "a409old", CELL)
+        assert res.returncode != 0
+        assert "schema mismatch" in res.stdout + res.stderr
+
+
 class TestGuards:
     """Every refusal below stops a run whose command line says one thing and
     whose objective is another."""
