@@ -1,0 +1,15 @@
+[08-16 12:15:32] [#401 diag] start c1_pathbound_b5pub_bb40k_h30k_student steps=30000 published@15k=1.2751 bb=bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[08-16 12:15:32] [c1_pathbound_b5pub_bb40k_h30k_student] head-train start enc=student steps=30000 seed=20260722 gpu=0 bb=bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+[08-16 13:34:57] [c1_pathbound_b5pub_bb40k_h30k_student] head-train rc=0
+[08-16 13:34:57] [c1_pathbound_b5pub_bb40k_h30k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-16 14:47:55] [c1_pathbound_b5pub_bb40k_h30k_student] eval rc=0
+[08-16 14:47:55] [c1_pathbound_b5pub_bb40k_h30k_student] DONE — GM-Relative MASE 1.2910
+[08-16 14:47:55] [#401 diag] done c1_pathbound_b5pub_bb40k_h30k_student rc=0 score=1.2910 published@15k=1.2751
+[08-16 14:47:55] [#401 diag] start c2_k0anchor_a4parent_bb40k_h30k_student steps=30000 published@15k=- bb=cf393_arm6_v2_combab_alignS_40k.pth
+[08-16 15:00:44] [c2_k0anchor_a4parent_bb40k_h30k_student] head-train start enc=student steps=30000 seed=20260722 gpu=0 bb=cf393_arm6_v2_combab_alignS_40k.pth
+[08-16 16:34:46] [c2_k0anchor_a4parent_bb40k_h30k_student] head-train rc=0
+[08-16 16:34:46] [c2_k0anchor_a4parent_bb40k_h30k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-16 17:49:38] [c2_k0anchor_a4parent_bb40k_h30k_student] eval rc=0
+[08-16 17:49:38] [c2_k0anchor_a4parent_bb40k_h30k_student] DONE — GM-Relative MASE 1.1600
+[08-16 17:49:38] [#401 diag] done c2_k0anchor_a4parent_bb40k_h30k_student rc=0 score=1.1600 published@15k=-
+[08-16 17:49:38] [#401 diag] controls drained rc=0

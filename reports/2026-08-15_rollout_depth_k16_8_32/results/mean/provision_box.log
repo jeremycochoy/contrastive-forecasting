@@ -1,0 +1,6 @@
+[#401] pass 1: --num-gpus 2 --gpu-model RTX_4090,RTX_5090 --min-reliability 0.99 --max-bid 2.40  (cpu ~ /Ryzen|Threadripper|Xeon.*Gold|EPYC 9|EPYC 7[VB]|EPYC 7[0-9][0-9]3/)
+[08-17 22:50:59] [provision cf401-mean-box] attempt 1: 1 offer(s)
+[08-17 22:51:47] [provision cf401-mean-box]   offer 31183539: instance 47975987 never reached running — destroying it
+[08-17 22:52:02] [provision cf401-mean-box] attempt 2: 1 offer(s)
+[08-17 22:52:37] [provision cf401-mean-box] READY instance 47976049 at ssh2.vast.ai:16048
+47976049 ssh2.vast.ai 16048

@@ -1,0 +1,27 @@
+[08-16 00:23:46] [#401 phase1] arm k=16 -> 40000
+[08-16 00:26:46] [#401 phase1] arm k=8 -> 40000
+[08-16 03:53:11] [#401 phase1] head k=8 stop=40000 (background)
+[08-16 03:53:11] [#401 phase1] arm k=8 -> 100000
+[08-16 05:04:05] [#401 phase1] head k=16 stop=40000 (background)
+[08-16 05:04:05] [#401 phase1] arm k=16 -> 100000
+[08-16 09:30:57] [#401 phase1] head k=8 stop=100000 (background)
+[08-16 09:30:57] [#401 phase1] arm k=8 -> 200000
+[08-16 12:24:44] [#401 phase1] head k=16 stop=100000 (background)
+[08-16 12:24:44] [#401 phase1] arm k=16 -> 200000
+[08-16 19:08:25] [#401 phase1] head k=8 stop=200000 (background)
+[08-16 19:08:25] [#401 phase1] waiting for 3 head+eval job(s)
+[08-16 19:08:25] [#401 phase1] head k=8 stop=40000 rc=0
+[08-16 19:08:25] [#401 phase1] head k=8 stop=100000 rc=0
+[08-16 21:28:21] [#401 phase1] head k=8 stop=200000 rc=0
+[08-16 21:28:21] [#401 phase1] phase 1 drained — 6 row(s) in scores.csv, 0 leg(s) and 0 head(s) failed
+[08-16 21:29:01] [#401 phase1] arm k=32 -> 40000
+[08-17 00:19:07] [#401 phase1] head k=16 stop=200000 (background)
+[08-17 00:19:07] [#401 phase1] waiting for 3 head+eval job(s)
+[08-17 00:19:07] [#401 phase1] head k=16 stop=40000 rc=0
+[08-17 00:19:07] [#401 phase1] head k=16 stop=100000 rc=0
+[08-17 02:29:09] [#401 phase1] head k=16 stop=200000 rc=0
+[08-17 02:29:09] [#401 phase1] phase 1 drained — 7 row(s) in scores.csv, 0 leg(s) and 0 head(s) failed
+[08-17 03:55:56] [#401 phase1] head k=32 stop=40000 (background)
+[08-17 03:55:56] [#401 phase1] arm k=32 -> 100000
+[08-17 13:58:45] [#401 phase1] head k=32 stop=100000 (background)
+[08-17 13:58:45] [#401 phase1] arm k=32 -> 200000

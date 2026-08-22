@@ -33,7 +33,7 @@ import re
 import sys
 
 # ---------------------------------------------------------------------------
-# The registry. One row per backbone; the two heads share it.
+# The registry. One row per backbone. The two heads share it.
 #
 # `run` is the name the launcher gave the training run. It is what ties a
 # score back to a trainer log and a losses CSV, and it is not derivable from
@@ -136,8 +136,9 @@ ARM_ORDER = ["B9", "B1", "B5·s1", "B5·s2", "B5·s3", "B5·pub", "A3"]
 # and figure that still draws the arm has to say so where the number is,
 # not four sections later.
 RETRACTED = {"B5·s1"}
-RETRACTED_WHY = ("B5·s1's `k = 0` trained on a rented box and misses its "
-                 "published value by 0.1169. `B5·s3` retrains it at the same "
+RETRACTED_WHY = ("B5·s1's `k = 0` trained on a rented box. It misses its "
+                 "published value by 0.1169 on the student head. `B5·s3` "
+                 "retrains it at the same "
                  "seed on elisa and lands 0.0003 away. The baseline the "
                  "-5.1% rests on is therefore a rented-box artifact, and the "
                  "delta is retracted")
@@ -264,8 +265,8 @@ def retrainings(k=0):
     this study already trained once at this depth.
 
     B5 is the only such cell today: three backbones, two seeds, two
-    machines. A control belongs here when it re-runs the cell's own recipe;
-    one that changes the objective does not.
+    machines. A control belongs here when it re-runs the cell's own recipe.
+    A control that changes the objective does not belong here.
     """
     out = [(arm, kk, role, run)
            for stem, cell, arm, kk, _seed, role, _note, run in _ROWS

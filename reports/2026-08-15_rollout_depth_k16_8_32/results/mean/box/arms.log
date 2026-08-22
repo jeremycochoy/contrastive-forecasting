@@ -1,0 +1,18 @@
+[08-17 22:58:39] [#401] arm k=8 reduce=mean -> 40000 steps on gpu 0
+[08-17 22:58:49] [#401] arm k=8 reduce=mean OK — the flag reached the trainer
+[08-18 00:20:50] [#401] arm k=32 reduce=mean -> 40000 steps on gpu 1
+[08-18 00:21:00] [#401] arm k=32 reduce=mean OK — the flag reached the trainer
+[08-18 00:21:44] [#401] arm k=8 stop=40000 rc=0
+[08-18 00:21:44] [#401] arm k=8 reduce=mean -> 100000 steps on gpu 0
+[08-18 00:21:54] [#401] arm k=8 reduce=mean OK — the flag reached the trainer
+[08-18 03:02:04] [#401] arm k=32 stop=40000 rc=0
+[08-18 03:02:04] [#401] arm k=32 reduce=mean -> 100000 steps on gpu 1
+[08-18 03:02:14] [#401] arm k=32 reduce=mean OK — the flag reached the trainer
+[08-18 04:29:03] [#401] arm k=8 stop=100000 rc=0
+[08-18 04:29:03] [#401] arm k=8 reduce=mean -> 200000 steps on gpu 0
+[08-18 04:29:13] [#401] arm k=8 reduce=mean OK — the flag reached the trainer
+[08-18 11:12:34] [#401] arm k=32 stop=100000 rc=0
+[08-18 11:12:34] [#401] arm k=32 reduce=mean -> 200000 steps on gpu 1
+[08-18 11:12:44] [#401] arm k=32 reduce=mean OK — the flag reached the trainer
+[08-18 11:32:02] [#401] arm k=8 stop=200000 rc=0
+[08-19 00:41:37] [#401] arm k=32 stop=200000 rc=0

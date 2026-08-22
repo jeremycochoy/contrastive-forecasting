@@ -29,13 +29,13 @@ added terms, not a re-weighted baseline. At depth `j` the anchors run
 `t = 0 .. T-2-j`.
 
 `F` is `TransformerBlock.forecaster_forward` — the operator the eval rollout
-composes. Gradient flows through the whole chain; no detach between passes.
+composes. Gradient flows through the whole chain. No detach between passes.
 
 Two arguments let each caller keep the policy it always ran at:
 
 | argument | training forward and rollout depth | eval `rollout_latent` |
 |---|---|---|
-| `fp32_tail` | `True` — last layer and output in fp32, what the contrastive loss reads; `BACKBONE_CKPT=1` still checkpoints the non-last layers | `False` — every layer at the ambient precision, no cast, no gradient-checkpointing |
+| `fp32_tail` | `True` — last layer and output in fp32, what the contrastive loss reads. `BACKBONE_CKPT=1` still checkpoints the non-last layers | `False` — every layer at the ambient precision, no cast, no gradient-checkpointing |
 | `cache_mask` | `True` — fixed `T`, so the cache hits every call | `False` — the sequence grows per token, so the cache would never hit and the write would leave module state behind |
 
 ## What it does not change
@@ -125,7 +125,7 @@ happens three ways:
 |---|---|
 | `--no-main-contrastive-loss` | the term never runs |
 | `--loss-shape cosine_similarity_batch_rep_only` | h-anchored end to end, so the depth copy returns zeros |
-| `--loss-shape cosine_similarity_batch_split_pred_rep --pred-loss-weight 0` | `L_pred` is the f-bearing half; at weight 0 every depth copy is zero |
+| `--loss-shape cosine_similarity_batch_split_pred_rep --pred-loss-weight 0` | `L_pred` is the f-bearing half. At weight 0 every depth copy is zero |
 
 `train.py` states the rule once, in `main_term_depth_gap()` and
 `rollout_depth_has_no_consumer()`, and the message names the route it

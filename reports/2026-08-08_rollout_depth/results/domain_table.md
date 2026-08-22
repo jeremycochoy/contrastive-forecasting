@@ -1,4 +1,4 @@
-**arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the student, no CPC, EMA 0.9 to 1.0), at bb100k on the student-encoder head [A4].** The cell that sets this study's frontier, at the deepest stop its parent published. Published `k = 0`.
+**arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the student, no CPC, EMA 0.9 to 1.0).** At bb100k, on the student-encoder head [A4]. The cell that sets this study's frontier, at the deepest stop its parent published. Published `k = 0`.
 
 | family | configs | rollout steps | k = 0 | k = 3 | difference | where k = 3 leaves it |
 |---|---:|---:|---:|---:|---:|---|
@@ -11,7 +11,7 @@
 | Sales | 4 | 1.5 (1–2) | 0.800 | 0.797 | -0.003 | stays below 1.0, lower |
 
 
-**arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the student, no CPC, EMA 0.9), at bb40k on the student-encoder head [B1].** The pair whose `k = 0` side this study trained, so the depth is the only change.
+**arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the student, no CPC, EMA 0.9).** At bb40k, on the student-encoder head [B1]. The pair whose `k = 0` side this study trained, so the depth is the only change.
 
 | family | configs | rollout steps | k = 0 | k = 3 | difference | where k = 3 leaves it |
 |---|---:|---:|---:|---:|---:|---|
@@ -24,7 +24,7 @@
 | Sales | 4 | 1.5 (1–2) | 0.772 | 0.775 | +0.004 | stays below 1.0, higher |
 
 
-**arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the teacher, no CPC, EMA 0.9), at bb200k on the student-encoder head [B2].** The arm and stop the card quotes its own per-family numbers from. Published `k = 0`.
+**arm6_v2 (L_rep MoCo keys, tau_rep 1 + L_align on the teacher, no CPC, EMA 0.9).** At bb200k, on the student-encoder head [B2]. The arm and stop the card quotes its own per-family numbers from. Published `k = 0`.
 
 | family | configs | rollout steps | k = 0 | k = 3 | difference | where k = 3 leaves it |
 |---|---:|---:|---:|---:|---:|---|

@@ -585,11 +585,24 @@ class TestParentResultsDirectory:
     @pytest.mark.parametrize("script", [PARENT_LEG, PARENT_HEAD])
     def test_the_default_is_the_parents_own_results(self, script):
         """A caller that sets nothing writes where every published leg of
-        #373 and #393 wrote."""
-        code = strip_comments(script.read_text())
-        default = code.split("${CF_RESULTS:-", 1)[1].split("}", 1)[0]
-        assert default.endswith("2026-08-08_rollout_depth/results") or \
-            default.endswith("$OUT/results"), default
+        #373 and #393 wrote.
+
+        #401 put a second default inside this one — `CF_STUDY_DIR` names the
+        study directory, and `CF_RESULTS` names the results directory
+        outright. A string match on the text between `${CF_RESULTS:-` and the
+        first `}` reads the inner default, not the path. So bash expands the
+        assignments here, with both variables unset, and the assertion reads
+        the path that comes out."""
+        lines = [ln.strip()
+                 for ln in strip_comments(script.read_text()).splitlines()
+                 if ln.strip().startswith(("OUT=", "RES="))]
+        lines = lines[:[ln.startswith("RES=") for ln in lines].index(True) + 1]
+        script_sh = "\n".join(
+            ["WT=/wt", "unset CF_RESULTS CF_STUDY_DIR"] + lines + ['echo "$RES"'])
+        out = subprocess.run(["bash", "-c", script_sh],
+                             capture_output=True, text=True)
+        assert out.returncode == 0, out.stderr
+        assert out.stdout.strip() == "/wt/reports/2026-08-08_rollout_depth/results"
 
     def test_this_studys_leg_log_is_in_this_studys_results(self):
         got = study_call('cf404_leg_log a08').stdout.strip()
@@ -1763,7 +1776,7 @@ class TestOneArmOneName:
     """
 
     # Every figure script that puts an arm's name on the page. The health
-    # figure holds the two functions; the other two read them.
+    # figure holds the two functions. The other two read them.
     READERS = ("plot_arm_ranking.py", "plot_domain_grid.py")
 
     # The names the study dropped, each as the whole literal that carried it:

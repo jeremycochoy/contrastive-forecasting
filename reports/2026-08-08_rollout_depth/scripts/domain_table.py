@@ -103,8 +103,8 @@ def main(argv=None):
         if not d0 or not d3:
             print(f"skip {cell} bb{stop}k: one side missing")
             continue
-        out += [f"**{CC.name(cell)}, at bb{stop}k on the {head}-encoder "
-                f"head [{cell}].** {why}", "",
+        out += [f"**{CC.name(cell)}.** At bb{stop}k, on the {head}-encoder "
+                f"head [{cell}]. {why}", "",
                 "| family | configs | rollout steps | k = 0 | k = 3 | "
                 "difference | where k = 3 leaves it |",
                 "|---|---:|---:|---:|---:|---:|---|"]

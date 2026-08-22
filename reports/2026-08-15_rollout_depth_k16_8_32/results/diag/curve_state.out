@@ -1,0 +1,68 @@
+
+n/a  k=0   leg_40k   steps 1..40000  start above  crossings=0  cf393_arm6_v2_combab_alignS_losses.csv
+    AUC median first500=0.9636 last=0.9573   u_batch last=0.3836
+
+n/a  k=0   leg_100k  steps 40001..100000  start above  crossings=0  cf393_arm6_v2_combab_alignS_losses.csv
+    AUC median first500=0.9581 last=0.9621   u_batch last=0.4030
+
+sum  k=8   leg_40k   steps 1..40000  start above  crossings=3  cf393_arm6_v2_combab_alignS_cf373k8_losses.csv
+    step    4404  AUC goes down
+    step    5072  AUC goes up
+    step    7845  AUC goes down
+    AUC median first500=0.6753 last=0.4998   u_batch last=0.0177
+
+sum  k=8   leg_100k  steps 40001..100000  start below  crossings=0  cf393_arm6_v2_combab_alignS_cf373k8_losses.csv
+    AUC median first500=0.4999 last=0.5000   u_batch last=0.0177
+
+sum  k=8   leg_200k  steps 100001..200000  start below  crossings=0  cf393_arm6_v2_combab_alignS_cf373k8_losses.csv
+    AUC median first500=0.5001 last=0.4997   u_batch last=0.0188
+
+sum  k=16  leg_40k   steps 1..40000  start above  crossings=1  cf393_arm6_v2_combab_alignS_cf373k16_losses.csv
+    step     347  AUC goes down
+    AUC median first500=0.5178 last=0.5002   u_batch last=0.0175
+
+sum  k=16  leg_100k  steps 40001..100000  start below  crossings=0  cf393_arm6_v2_combab_alignS_cf373k16_losses.csv
+    AUC median first500=0.5005 last=0.4999   u_batch last=0.0169
+
+sum  k=16  leg_200k  steps 100001..200000  start below  crossings=0  cf393_arm6_v2_combab_alignS_cf373k16_losses.csv
+    AUC median first500=0.5002 last=0.5000   u_batch last=0.0174
+
+sum  k=32  leg_40k   steps 1..40000  start above  crossings=5  cf393_arm6_v2_combab_alignS_cf373k32_losses.csv
+    step    1343  AUC goes down
+    step    3137  AUC goes up
+    step    3391  AUC goes down
+    step    4276  AUC goes up
+    step    4968  AUC goes down
+    AUC median first500=0.5935 last=0.5000   u_batch last=0.0168
+
+sum  k=32  leg_100k  steps 40001..100000  start below  crossings=0  cf393_arm6_v2_combab_alignS_cf373k32_losses.csv
+    AUC median first500=0.5006 last=0.5002   u_batch last=0.0170
+
+sum  k=32  leg_200k  steps 100001..144800  start below  crossings=0  cf393_arm6_v2_combab_alignS_cf373k32_losses.csv
+    AUC median first500=0.5003 last=0.5001   u_batch last=0.0169
+
+mean k=8   leg_20k   steps 1..22600  start above  crossings=0  cf393_arm6_v2_combab_alignS_cf373k8_mean_losses.csv
+    AUC median first500=0.9342 last=0.9946   u_batch last=0.1699
+
+mean k=8   leg_40k   steps 20001..40000  start above  crossings=0  cf393_arm6_v2_combab_alignS_cf373k8_mean_losses.csv
+    AUC median first500=0.9889 last=0.9982   u_batch last=0.1539
+
+mean k=8   leg_100k  steps 40001..100000  start above  crossings=0  cf393_arm6_v2_combab_alignS_cf373k8_mean_losses.csv
+    AUC median first500=0.9981 last=0.9976   u_batch last=0.1763
+
+mean k=8   leg_200k  steps 100001..200000  start above  crossings=0  cf393_arm6_v2_combab_alignS_cf373k8_mean_losses.csv
+    AUC median first500=0.9975 last=0.9980   u_batch last=0.1739
+
+mean k=32  leg_20k   steps 1..20100  start above  crossings=0  cf393_arm6_v2_combab_alignS_cf373k32_mean_losses.csv
+    AUC median first500=0.9364 last=0.9482   u_batch last=0.2403
+
+mean k=32  leg_40k   steps 20001..40000  start above  crossings=0  cf393_arm6_v2_combab_alignS_cf373k32_mean_losses.csv
+    AUC median first500=0.9497 last=0.9641   u_batch last=0.3013
+
+mean k=32  leg_100k  steps 40001..100000  start above  crossings=0  cf393_arm6_v2_combab_alignS_cf373k32_mean_losses.csv
+    AUC median first500=0.9632 last=0.9649   u_batch last=0.3405
+
+mean k=32  leg_200k  steps 100001..199800  start above  crossings=0  cf393_arm6_v2_combab_alignS_cf373k32_mean_losses.csv.prev
+    AUC median first500=0.9601 last=0.9619   u_batch last=0.3393
+
+-> results/diag/curve_state.csv

@@ -1,0 +1,8 @@
+label,k,reduce,stop_k,step_k,pair_cos,dim_std,eff_rank,cos_err_d0,n_series,H,checkpoint
+393 parent  k=0  bb40k,0,n/a,40,40,0.06531168520450592,0.1695093959569931,7.221456142772299,0.32742804288864136,21,64,/home/jupyter/checkpoints_backup/cf-393/arm6_v2_combab_alignS/leg_40k/cf393_arm6_v2_combab_alignS_40k.pth
+379 B5pub   k=0  bb40k,0,n/a,40,40,0.07939492166042328,0.16505752503871918,10.757096128671142,0.19283902645111084,21,64,/home/jupyter/checkpoints_backup/cf-379/runs/bb_small_arm4_combab_xshh_allt_moco_enc3l3_b64_200k_sigreg_ema_qk_aon_cpc_tau090_40k.pth
+401 arm     k=8  bb40k,8,sum,40,40,1.0,0.3819938004016876,1.000013319512766,0.00015991926193237305,21,64,/home/jupyter/checkpoints_backup/cf-401/k8/arm6_v2_combab_alignS/leg_40k/cf393_arm6_v2_combab_alignS_cf373k8_40k.pth
+401 arm     k=8  bb100k,8,sum,100,100,1.0,3.6947667598724365,1.000221968458027,0.00036919116973876953,21,64,/home/jupyter/checkpoints_backup/cf-401/k8/arm6_v2_combab_alignS/leg_100k/cf393_arm6_v2_combab_alignS_cf373k8_100k.pth
+401 arm     k=16 bb40k,16,sum,40,40,0.9999984502792358,0.11779540032148361,1.0149552670895698,2.7894973754882812e-05,21,64,/home/jupyter/checkpoints_backup/cf-401/k16/arm6_v2_combab_alignS/leg_40k/cf393_arm6_v2_combab_alignS_cf373k16_40k.pth
+401 mean    k=8  bb40k,8,mean,40,40,0.08698580414056778,0.22806432843208313,4.19632096757653,0.017178356647491455,21,64,/home/jupyter/cf401_sync/box_a/sync/k8/arm6_v2_combab_alignS/leg_40k/cf393_arm6_v2_combab_alignS_cf373k8_mean_40k.pth
+401 mean    k=32 bb200k,32,mean,200,200,0.10894576460123062,0.16101965308189392,7.404061948060341,0.4274645447731018,21,64,/home/jupyter/cf401_sync/box_a/sync/k32/arm6_v2_combab_alignS/leg_200k/cf393_arm6_v2_combab_alignS_cf373k32_mean_200k.pth

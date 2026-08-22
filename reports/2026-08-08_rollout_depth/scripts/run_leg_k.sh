@@ -27,11 +27,18 @@ CELL="${1:?usage: run_leg.sh <cell_slug> <target_steps>}"
 TARGET_STEPS="${2:?usage: run_leg.sh <cell_slug> <target_steps>}"
 
 WT="${WT:-$HOME/workspaces/contrastive-forecasting}"
-OUT="$WT/reports/2026-08-08_rollout_depth"
-# Where the leg's log, its claim file and its HOLD marker land. A study that
-# reuses this runner keeps its own artefacts in its own directory
-# (REPORT_STANDARD), so the path is a variable — but the DEFAULT is #373's own
-# results/, which is where every published leg of #373 and #393 wrote.
+# Which study's directory takes this leg's logs, claims and HOLD file. A study
+# that reuses this runner keeps its own artefacts in its own directory
+# (REPORT_STANDARD), so the path is a variable. #401 reuses this runner at
+# k = 16 / 8 / 32 and points it at its own directory, so its artefacts do not
+# land in #373's results/. Unset, this is #373's own directory, which is where
+# every published leg of #373 and #393 wrote, and every #373 command line
+# reproduces.
+OUT="${CF_STUDY_DIR:-$WT/reports/2026-08-08_rollout_depth}"
+# CF_RESULTS names the results directory outright, for a caller whose results
+# do not sit at `<study>/results` — #401's trial runs write to
+# `<study>/results/trial`. Unset, this is `<study>/results` as before. #404
+# sets it to its own results/ for the same reason.
 RES="${CF_RESULTS:-$OUT/results}"
 # Durable root, per-leg save dirs and step-ordered checkpoint lookup all
 # come from one place — see the header of leg_paths.sh for why each of the

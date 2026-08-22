@@ -1,0 +1,5 @@
+[08-17 21:56:54] [#401] arm k=8 reduce=mean -> 40000 steps on gpu 0
+[08-17 21:56:54] [arm6_v2_combab_alignS] FRESH start at step 0
+[08-17 21:56:54] [arm6_v2_combab_alignS] START target=40000 gpu=0 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-401-mean/k8/arm6_v2_combab_alignS/leg_40k
+Terminated
+[08-18 01:00:12] [arm6_v2_combab_alignS] train exited rc=143 — tail:               R²_rand=0.8177  R²_naive=0.6712  U_t=0.0686  U_b=0.1379  AUC=0.9905  Top1=0.3696   timing: data=3.7ms  fwd=154.6ms  bwd=131.0ms  total=290.0ms   -> Saved /home/jupyter/checkpoints_backup/cf-401-mean/k8/arm6_v2_combab_alignS/leg_40k/cf393_arm6_v2_combab_alignS_cf373k8_mean_best_gap.pth 

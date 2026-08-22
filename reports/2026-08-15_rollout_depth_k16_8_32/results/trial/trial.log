@@ -1,0 +1,25 @@
+[08-15 23:41:47] [#401 trial] steps=400 k=16 gpu=0 config=^us_births/M/short$
+[08-15 23:41:47] [#401 trial] root=/home/jupyter/checkpoints_backup/cf-401-trial results=/tmp/contrastive-forecasting-401/reports/2026-08-15_rollout_depth_k16_8_32/results/trial
+[08-15 23:41:47] [#401 trial] head budgets: phase 1 200, phase 2 400
+[08-15 23:41:47] [#401 trial] START backbone k=16 -> 400 steps
+[08-15 23:44:24] [#401 trial] backbone k=16 -> 400 steps rc=0
+[08-15 23:44:24] [#401 trial] backbone at /home/jupyter/checkpoints_backup/cf-401-trial/k16/arm6_v2_combab_alignS/leg_0k/cf393_arm6_v2_combab_alignS_cf373k16_0k.pth (5.0M)
+[08-15 23:44:24] [#401 trial] START phase 1
+[08-15 23:45:03] [#401 trial] phase 1 rc=0
+[08-15 23:45:03] [#401 trial] START collect
+[08-15 23:45:03] [#401 trial] collect rc=0
+[08-15 23:45:03] [#401 trial] START phase 2
+[08-15 23:46:05] [#401 trial] phase 2 rc=0
+[08-15 23:46:05] [#401 trial] --- /tmp/contrastive-forecasting-401/reports/2026-08-15_rollout_depth_k16_8_32/results/trial/scores.csv ---
+phase,k,stop,head_steps,encoder,score
+1,16,400,200,student,3.1847
+2,16,400,400,student,2.5287
+[08-15 23:46:05] [#401 trial] --- /tmp/contrastive-forecasting-401/reports/2026-08-15_rollout_depth_k16_8_32/results/trial/splits.csv (6 rows) ---
+stop,split,name,n,gm_rel_mase
+k16_bb400_h200_student,all,all,1,3.184657
+k16_bb400_h200_student,term,short,1,3.184657
+k16_bb400_h200_student,domain,Healthcare,1,3.184657
+k16_bb400_h400_student,all,all,1,2.528694
+k16_bb400_h400_student,term,short,1,2.528694
+k16_bb400_h400_student,domain,Healthcare,1,2.528694
+[08-15 23:46:05] [#401 trial] TRIAL PASSED

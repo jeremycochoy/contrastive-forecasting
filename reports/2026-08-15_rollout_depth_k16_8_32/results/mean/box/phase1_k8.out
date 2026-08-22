@@ -1,0 +1,25 @@
+[08-17 22:58:39] [#401 phase1] arm k=8 -> 40000
+[08-17 22:58:39] [#401] arm k=8 reduce=mean -> 40000 steps on gpu 0
+[08-17 22:58:39] [arm6_v2_combab_alignS] RESUME from cf393_arm6_v2_combab_alignS_cf373k8_mean_20k.pth (step 20k)
+[08-17 22:58:39] [arm6_v2_combab_alignS] START target=40000 gpu=0 save_every=20000 leg=/root/cf401_runs/k8/arm6_v2_combab_alignS/leg_40k
+[08-17 22:58:49] [#401] arm k=8 reduce=mean OK — the flag reached the trainer
+[08-18 00:21:44] [arm6_v2_combab_alignS] DONE target=40000 (5.0M) -> /root/cf401_runs/k8/arm6_v2_combab_alignS/leg_40k/cf393_arm6_v2_combab_alignS_cf373k8_mean_40k.pth
+[08-18 00:21:44] [#401] arm k=8 stop=40000 rc=0
+[08-18 00:21:44] [#401 phase1] head k=8 stop=40000 SKIPPED (CF401_HEADS=0, this box trains backbones)
+[08-18 00:21:44] [#401 phase1] arm k=8 -> 100000
+[08-18 00:21:44] [#401] arm k=8 reduce=mean -> 100000 steps on gpu 0
+[08-18 00:21:44] [arm6_v2_combab_alignS] RESUME from cf393_arm6_v2_combab_alignS_cf373k8_mean_40k.pth (step 40k)
+[08-18 00:21:44] [arm6_v2_combab_alignS] START target=100000 gpu=0 save_every=20000 leg=/root/cf401_runs/k8/arm6_v2_combab_alignS/leg_100k
+[08-18 00:21:54] [#401] arm k=8 reduce=mean OK — the flag reached the trainer
+[08-18 04:29:03] [arm6_v2_combab_alignS] DONE target=100000 (5.0M) -> /root/cf401_runs/k8/arm6_v2_combab_alignS/leg_100k/cf393_arm6_v2_combab_alignS_cf373k8_mean_100k.pth
+[08-18 04:29:03] [#401] arm k=8 stop=100000 rc=0
+[08-18 04:29:03] [#401 phase1] head k=8 stop=100000 SKIPPED (CF401_HEADS=0, this box trains backbones)
+[08-18 04:29:03] [#401 phase1] arm k=8 -> 200000
+[08-18 04:29:03] [#401] arm k=8 reduce=mean -> 200000 steps on gpu 0
+[08-18 04:29:03] [arm6_v2_combab_alignS] RESUME from cf393_arm6_v2_combab_alignS_cf373k8_mean_100k.pth (step 100k)
+[08-18 04:29:03] [arm6_v2_combab_alignS] START target=200000 gpu=0 save_every=20000 leg=/root/cf401_runs/k8/arm6_v2_combab_alignS/leg_200k
+[08-18 04:29:13] [#401] arm k=8 reduce=mean OK — the flag reached the trainer
+[08-18 11:32:02] [arm6_v2_combab_alignS] DONE target=200000 (5.0M) -> /root/cf401_runs/k8/arm6_v2_combab_alignS/leg_200k/cf393_arm6_v2_combab_alignS_cf373k8_mean_200k.pth
+[08-18 11:32:02] [#401] arm k=8 stop=200000 rc=0
+[08-18 11:32:02] [#401 phase1] head k=8 stop=200000 SKIPPED (CF401_HEADS=0, this box trains backbones)
+[08-18 11:32:02] [#401 phase1] phase 1 backbones drained — 0 leg(s) failed, heads run elsewhere

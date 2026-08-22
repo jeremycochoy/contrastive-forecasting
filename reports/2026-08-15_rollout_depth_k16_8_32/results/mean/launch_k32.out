@@ -1,0 +1,5 @@
+[08-17 21:56:56] [#401] arm k=32 reduce=mean -> 40000 steps on gpu 0
+[08-17 21:56:56] [arm6_v2_combab_alignS] FRESH start at step 0
+[08-17 21:56:56] [arm6_v2_combab_alignS] START target=40000 gpu=0 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-401-mean/k32/arm6_v2_combab_alignS/leg_40k
+Terminated
+[08-18 01:32:28] [arm6_v2_combab_alignS] train exited rc=143 — tail: [  21400] loss=12.8308  ema_loss=12.8032  gap=0.0241  ema_gap=0.0796  mixup=67/200  1.7 sps  ETA 3.1h               R²_rand=0.5019  R²_naive=0.3356  U_t=0.1768  U_b=0.2618  AUC=0.9558  Top1=0.2757   timing: data=29.8ms  fwd=274.3ms  bwd=315.3ms  total=620.1ms 
