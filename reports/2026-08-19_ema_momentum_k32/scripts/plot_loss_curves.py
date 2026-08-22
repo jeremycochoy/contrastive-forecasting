@@ -208,8 +208,9 @@ def draw(series, out, bins=320, fell=()):
     fell = dict(fell) if isinstance(fell, dict) else {a: None for a in fell}
     base = [s for s in series if align_weight(s[0]) == 1.0]
     other = [s for s in series if align_weight(s[0]) != 1.0]
-    panels = [(base, "align weight 1")] + \
-             ([(other, "align weight 3")] if other else [])
+    panels = [(base, "L_align weight 1")] + \
+             ([(other, f"L_align weight {align_weight(other[0][0]):g}")]
+              if other else [])
 
     fig, axes = plt.subplots(
         1, len(panels), figsize=(6.6 * len(panels), 5.2), squeeze=False)
