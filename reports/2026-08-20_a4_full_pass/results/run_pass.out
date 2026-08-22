@@ -80,3 +80,16 @@ teacher  bb40k=1.0855  bb100k=1.0874  bb200k=1.0828  bb300k=1.1030  bb450k=1.098
 [08-22 19:13:30] [A4_k3_bb665k_teacher] waiting for VRAM on GPU 1: 6933 MiB free, need 7000
 [08-22 19:18:00] [A4_k3_bb665k_teacher] GPU 1 has 24207 MiB free after 2670s
 [08-22 19:18:00] [A4_k3_bb665k_teacher] head-train start enc=teacher steps=30000 seed=20260722 gpu=1 bb=cf393_arm6_v2_combab_alignS_cf373k3_665k.pth
+[08-22 20:44:50] [A4_k3_bb665k_teacher] head-train rc=0
+[08-22 20:44:50] [A4_k3_bb665k_teacher] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-22 21:55:52] [A4_k3_bb665k_teacher] eval rc=0
+[08-22 21:55:52] [A4_k3_bb665k_teacher] DONE — GM-Relative MASE 1.1038
+[08-22 21:55:52] [cf407] HEAD 665k teacher rc=0
+A4  arm6_v2_combab_alignS  k=3  seed 20260520
+resume  cf393_arm6_v2_combab_alignS_cf373k3_r2_200k.pth  (+ optimizer)
+stops   300000, 450000, 665000
+heads   student, teacher  30000 steps  seed 20260722
+best before this card: 1.0660 (A4_k3_bb200k_student)
+student  bb40k=1.0862  bb100k=1.0801  bb200k=1.0660  bb300k=1.0867  bb450k=1.0691  bb665k=1.0783
+teacher  bb40k=1.0855  bb100k=1.0874  bb200k=1.0828  bb300k=1.1030  bb450k=1.0986  bb665k=1.1038
+[08-22 21:55:56] [cf407] drained: 665000

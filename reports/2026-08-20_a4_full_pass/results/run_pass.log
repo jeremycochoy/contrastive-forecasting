@@ -46,3 +46,13 @@ leg 665000 continued the run
 [08-22 18:33:28] [cf407] HEAD 665k student rc=0
 student scored 1.0783 at 665000
 [08-22 18:33:28] [cf407] HEAD 665k teacher (attempt 1)
+[08-22 21:55:52] [cf407] HEAD 665k teacher rc=0
+teacher scored 1.1038 at 665000
+A4  arm6_v2_combab_alignS  k=3  seed 20260520
+resume  cf393_arm6_v2_combab_alignS_cf373k3_r2_200k.pth  (+ optimizer)
+stops   300000, 450000, 665000
+heads   student, teacher  30000 steps  seed 20260722
+best before this card: 1.0660 (A4_k3_bb200k_student)
+student  bb40k=1.0862  bb100k=1.0801  bb200k=1.0660  bb300k=1.0867  bb450k=1.0691  bb665k=1.0783
+teacher  bb40k=1.0855  bb100k=1.0874  bb200k=1.0828  bb300k=1.1030  bb450k=1.0986  bb665k=1.1038
+[08-22 21:55:56] [cf407] drained: 665000

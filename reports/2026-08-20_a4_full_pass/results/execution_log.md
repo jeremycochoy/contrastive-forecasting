@@ -867,3 +867,84 @@ That is why the 665,000-step student pair reached this study by hand at
 `read_back.sh` now runs both. The watchdog starts `read_back.sh` fresh
 every tick, so the fix took effect with no restart. Both scripts are
 idempotent and both gate on 97 configs.
+
+### 20:55 UTC — the last head scored, and the card is complete (item 1)
+
+```
+[08-22 21:55:56] [A4_k3_bb665k_teacher] DONE — GM-Relative MASE 1.1038
+[08-22 21:55:56] [cf407] drained: 665000
+```
+
+Both heads now carry a score at all four stops. `read_back.sh` brought the
+teacher pair across at 20:56 UTC: the score, the 97 per-config rows, the
+summary and the eval log.
+
+| stop | student | teacher | draws each |
+|---|---:|---:|---:|
+| 200,000 | 1.0651 | 1.0800 | 3 |
+| 300,000 | 1.0864 | 1.1009 | 3 |
+| 450,000 | 1.0743 | 1.0952 | 3 |
+| 665,000 | 1.0783 | 1.1038 | 1 |
+
+### 20:56 UTC — the teacher verdict (item 5)
+
+The teacher scored 1.1038. Its window is [1.0700, 1.0900], so the score
+sits 0.0238 from the center and the rule returns SKIP. One draw reads on
+its own, and the teacher comparison at 665,000 steps is decided, not
+undecided.
+
+`results/band_665k_teacher_decision.txt`:
+
+```
+SKIP   stop 665000 teacher = 1.1038, 0.0238 from 1.0800, radius 0.0100
+```
+
+`results/band_665k_teacher_offsets.txt` bounds the mean the band did not
+measure. The teacher protocol draw sat between 0.0021 and 0.0034 above its
+own band mean at the three banded stops, so the 665,000-step teacher band
+mean lands between 1.1004 and 1.1017. That is 0.0204 to 0.0217 above the
+200,000-step teacher band mean, which is 7.0 to 7.4 pooled standard
+deviations.
+
+### the paired bootstrap, complete
+
+`results/stop_bootstrap.csv`, all 97 configs, resampled by dataset:
+
+| comparison | delta | 95% CI | improved |
+|---|---:|---|---:|
+| 200k to 300k, student | +0.0207 | [+0.0051, +0.0373] | 0.4% |
+| 200k to 450k, student | +0.0031 | [-0.0057, +0.0114] | 24.1% |
+| 200k to 665k, student | +0.0123 | [+0.0009, +0.0240] | 1.7% |
+| 200k to 300k, teacher | +0.0202 | [+0.0085, +0.0330] | 0.0% |
+| 200k to 450k, teacher | +0.0158 | [+0.0010, +0.0311] | 1.7% |
+| 200k to 665k, teacher | +0.0210 | [+0.0037, +0.0385] | 0.8% |
+
+A positive delta is worse. Every interval at 665,000 steps excludes zero.
+
+### the three goal metrics, complete (item 6)
+
+`results/metrics_table_means.csv` holds the per-stop means. Each move below
+is the 200,000-step band mean against the one draw at 665,000 steps. The
+scale beside it is the largest head-seed range this card measured for that
+metric, over the six banded rows.
+
+| metric | largest range | head | 200k mean | 665k draw | move | reads |
+|---|---:|---|---:|---:|---:|---|
+| GM-Relative MASE | 0.0087 | student | 1.0651 | 1.0783 | +0.0132 | outside |
+| GM-Relative MASE | 0.0087 | teacher | 1.0801 | 1.1038 | +0.0237 | outside |
+| GM-MASE | 0.0122 | student | 1.4889 | 1.5073 | +0.0184 | outside |
+| GM-MASE | 0.0122 | teacher | 1.5098 | 1.5430 | +0.0332 | outside |
+| GM-MAPE_SN | 0.0419 | student | 1.0481 | 1.0846 | +0.0365 | inside |
+| GM-MAPE_SN | 0.0419 | teacher | 1.0893 | 1.0590 | -0.0303 | inside |
+| GM-CRPS_SN | 0.0083 | student | 0.7792 | 0.7779 | -0.0012 | inside |
+| GM-CRPS_SN | 0.0083 | teacher | 0.8038 | 0.8127 | +0.0089 | outside |
+
+The card's deliverable and GM-MASE agree: both heads are worse at 665,000
+steps, by more than the head-seed spread. GM-MAPE_SN moves less than its
+own head-seed spread, and the two heads move in opposite directions on it,
+so it resolves nothing at this scale. GM-CRPS_SN resolves nothing on the
+student head and moves 0.0089 on the teacher head, against a spread of
+0.0083.
+
+The report must not read a GM-MAPE_SN or a GM-CRPS_SN improvement out of
+this table.
