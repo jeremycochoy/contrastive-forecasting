@@ -61,6 +61,9 @@ MAKE_TABLE = EXP / "scripts" / "make_table.py"
 
 PARENT_LEG = PARENT / "scripts" / "run_leg_k.sh"
 PARENT_HEAD = PARENT / "scripts" / "head_eval_bb.sh"
+# #373 builds every configuration name from its runner. This card
+# edits that runner, so the name resolver is in this suite too.
+PARENT_NAMES = PARENT / "scripts" / "cell_config.py"
 TRAIN_PY = REPO_ROOT / "experiments" / "2026-04-27_freq-embedding" / "scripts" / "train.py"
 
 # The card's configuration. One cell, one depth, one reduction, one stop.
@@ -396,6 +399,82 @@ class TestParentRunnerEmaOverride:
         code = strip_comments(PARENT_LEG.read_text())
         call = code.split("python3 -u", 1)[1].split("rc=$?", 1)[0]
         assert "--ema-tau" not in call
+
+
+# The #373 cells that run this runner. Their names carry the schedule, so
+# they are the cells the hook can break. `cell_config.py --check` on
+# `experiments` prints `EMA 0.9 to 1.0` for each one.
+PARENT_SCHEDULED_CELLS = ("A1", "A2", "A3", "A4")
+
+
+class TestTheParentCardStillNamesItsCells:
+    """The runner serves two cards, so the hook must leave #373 whole.
+
+    #373 hand-types no configuration name. `cell_config.py` reads this same
+    runner, takes the trainer call, and replays argparse over it. The hook
+    puts the three EMA flags behind `${EMA_ARGS_ARR[@]}`, so that resolver
+    must expand the array to the runner's own default. An array it expands
+    to nothing takes the flags with it: every group-A cell then loses its
+    EMA words, and #401, which draws those names, stops with a KeyError.
+    """
+
+    def cfg(self):
+        return load_module(PARENT_NAMES, "cf373_cell_config")
+
+    def test_every_scheduled_cell_keeps_the_published_schedule(self):
+        cfg = self.cfg()
+        for cell in PARENT_SCHEDULED_CELLS:
+            assert cfg.ema(cell) == "scheduled", cell
+            assert cfg.ema_words(cell) == "EMA 0.9 to 1.0", cell
+
+    def test_the_ramp_length_survives_the_hook_too(self):
+        """The name shows two of the three flags. The third must arrive."""
+        cfg = self.cfg()
+        for cell in PARENT_SCHEDULED_CELLS:
+            assert cfg.FLAGS[cell]["--ema-tau-ramp-steps"] == "100000", cell
+
+    def test_every_cell_of_the_parent_card_still_names_an_alpha(self):
+        cfg = self.cfg()
+        for cell in cfg.CELLS:
+            assert cfg.ema_words(cell).startswith("EMA "), cell
+
+    def test_the_parent_cards_own_check_passes(self):
+        """`--check` compares all 14 names against the ladder and the
+        report. It is #373's own gate, and it has to stay green."""
+        out = subprocess.run(
+            [sys.executable, str(PARENT_NAMES), "--check"],
+            capture_output=True, text=True, timeout=180)
+        assert out.returncode == 0, out.stdout + out.stderr
+        assert "0 mismatch(es)" in out.stdout
+
+    def test_an_array_the_resolver_cannot_expand_is_an_error(self):
+        """This regression was silent: the resolver dropped the array it did
+        not know about, and the flags left with it. The next card gets a
+        message instead."""
+        cfg = self.cfg()
+        text = ('case "$ARM" in\n'
+                'a)\n'
+                'LOSS_ARGS=(--tau 0.1)\n'
+                ';;\n'
+                'esac\n'
+                'python3 -u "$TRAIN" "${LOSS_ARGS[@]}" "${LATER_ARGS[@]}" '
+                '>>"$tlog"\n')
+        blocks = cfg._case_blocks(text)
+        with pytest.raises(SystemExit) as caught:
+            cfg._flags(cfg._invocation(text), cfg._arrays(blocks["a"]), {})
+        assert "LATER_ARGS" in str(caught.value)
+
+    def test_the_default_of_a_replaceable_array_comes_from_the_source(self):
+        """The resolver reads the default off the `read -r -a` line, so a
+        change to the runner's schedule needs no edit here."""
+        cfg = self.cfg()
+        line = ('read -r -a EMA_ARGS_ARR <<<"${EMA_ARGS:---ema-tau 0.7 '
+                '--ema-tau-end 0.99}"\n'
+                'read -r -a GAP_ARGS_ARR <<<"${GAP_ARGS:-}"\n')
+        assert cfg._shell_defaults(line) == {
+            "EMA_ARGS_ARR": ["--ema-tau", "0.7", "--ema-tau-end", "0.99"],
+            "GAP_ARGS_ARR": [],
+        }
 
 
 @pytest.fixture

@@ -25,6 +25,13 @@ override, and replays argparse's last-wins rule over the two. So
 `--cpc-infonce-weight 0.0` in EXTRA_ARGS beats the `1.0` in the shared
 block, exactly as the trainer saw it.
 
+A launcher can also hold a group of shared flags in one array, so that a
+later card replaces the group as a unit. #404 sweeps the EMA momentum over
+cell A3 that way. Those arrays carry their default on their own
+`read -r -a` line, and this module reads it there. The module stops when
+neither source gives an array a value. An array that expands to nothing
+takes its flags with it, and the name that comes out still looks correct.
+
 `tau_rep` is the one term that is not a flag the launcher writes. The
 trainer's `--tau-rep` defaults to None and the loss then falls back to
 `--tau`, so `arm6_v2 combab` and `arm6_v2 ncpc` — identical in every other
@@ -44,10 +51,11 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 
 # The launcher's own array names, and the placeholder each one appears as
-# inside the trainer invocation.
+# inside the trainer invocation. A per-arm `case` block assigns these three.
 _ARRAYS = ("LOSS_ARGS", "ALIGN_ARGS", "EXTRA_ARGS")
-# Empty for every cell of the card; a control run sets it.
-_EMPTY = ("GAP_ARGS_ARR", "RESUME")
+# Empty for every cell of the card, and the launcher declares no default for
+# it: a fresh leg leaves `RESUME=()`, and only a resumed leg fills it.
+_EMPTY = ("RESUME",)
 
 
 # --------------------------------------------------------------------------
@@ -88,6 +96,27 @@ def _tokens(s):
     return [t.strip('"') for t in s.split() if t.strip('"')]
 
 
+def _shell_defaults(text):
+    """`{array name: [tokens]}` for the launcher's own top-level defaults.
+
+    A launcher can hold a group of flags in one array, so that a caller
+    replaces the group as a unit. #404 sweeps the EMA momentum over #373's
+    cell that way, and the launcher writes:
+
+        read -r -a EMA_ARGS_ARR <<<"${EMA_ARGS:---ema-tau 0.9 ...}"
+
+    The default in that line is the command line every published leg ran,
+    so this function takes it from the launcher and never from prose. A
+    caller that overrides the array runs a different card, and that card
+    names its own arms.
+    """
+    out = {}
+    for name, default in re.findall(
+            r'read\s+-r\s+-a\s+(\w+)\s+<<<"\$\{\w+:-(.*?)\}"', text):
+        out[name] = _tokens(default)
+    return out
+
+
 def _invocation(text):
     """The trainer command line, as one token list with placeholders kept."""
     m = re.search(r'python3 -u "\$TRAIN"(.*?)>>"\$tlog"', text, re.S)
@@ -108,15 +137,27 @@ def _tokens_keep(s):
     return out
 
 
-def _flags(invocation, arrays):
-    """Replay argparse over the real token order. Last value wins."""
+def _flags(invocation, arrays, defaults=None):
+    """Replay argparse over the real token order. Last value wins.
+
+    Each `${ARRAY[@]}` placeholder takes its tokens from the case block
+    first, then from the launcher's own default for that array. The module
+    stops if neither source has the array. A silent expansion to nothing
+    drops every flag the array carries, and the name that comes out still
+    looks right.
+    """
+    defaults = defaults or {}
     flat = []
     for t in invocation:
         if isinstance(t, tuple):
             name = t[1]
-            if name in _EMPTY:
-                continue
-            flat.extend(arrays.get(name, []))
+            if name in arrays:
+                flat.extend(arrays[name])
+            elif name in defaults:
+                flat.extend(defaults[name])
+            elif name not in _EMPTY:
+                raise SystemExit(f"{name} in the trainer invocation, but the "
+                                 f"launcher gives it no value")
         else:
             flat.append(t)
     out, i = {}, 0
@@ -150,11 +191,12 @@ def _resolve():
     for cell, (launcher, arg) in _read_cells().items():
         if launcher not in cache:
             text = _unwrap((HERE / launcher).read_text())
-            cache[launcher] = (_case_blocks(text), _invocation(text))
-        blocks, inv = cache[launcher]
+            cache[launcher] = (_case_blocks(text), _invocation(text),
+                               _shell_defaults(text))
+        blocks, inv, defaults = cache[launcher]
         if arg not in blocks:
             raise SystemExit(f"{launcher} has no case for '{arg}'")
-        out[cell] = _flags(inv, _arrays(blocks[arg]))
+        out[cell] = _flags(inv, _arrays(blocks[arg]), defaults)
         out[cell]["_arg"] = arg
     return out
 
@@ -185,7 +227,8 @@ TAU_NOTE = {
 
 
 def arm(cell):
-    """The launcher recipe, e.g. `arm6_v2 combab`. Matches the run names."""
+    """The launcher recipe, for example `arm6_v2 combab`. It matches the
+    run names."""
     a = re.sub(r"_align[ST]$", "", FLAGS[cell]["_arg"])
     m = re.match(r"(arm\d+(?:_v\d+)?)(?:_(\w+))?$", a)
     base, abl = m.group(1), m.group(2)
@@ -193,7 +236,7 @@ def arm(cell):
 
 
 def base_arm(cell):
-    """The arm alone, e.g. `arm6_v2`."""
+    """The arm alone, for example `arm6_v2`."""
     return arm(cell).split(" ")[0]
 
 
@@ -221,7 +264,7 @@ def ema_words(cell):
 def terms(cell, target=True, short=False):
     """The loss terms, in short names.
 
-    `target` puts L_align's target in; `short` trims the pooled term's
+    `target` puts L_align's target in. `short` trims the pooled term's
     wording for a figure legend, which has no room for the long form.
     """
     f = FLAGS[cell]
