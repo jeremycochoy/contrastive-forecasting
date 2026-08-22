@@ -60,6 +60,31 @@ _NORMALIZED_FORM_SHAPES = (
 # at all — L_rep, L_rep_moco, and `mse`'s − mse(h_t, h_{t+1}) half — are
 # computed once and added once (`depth_index` in `contrastive_latent_loss`).
 
+def resolve_rep_loss_weight(train_config, rep_loss_weight):
+    """The weight on L_rep for this call: the function argument, else the
+    config key, else 1.0.
+
+    The argument wins so a schedule can move the weight every step (#409,
+    the training script's ``--rep-loss-weight-end``) while the config key
+    keeps the run's fixed base value for the ``loss_tau_ref`` diagnostic.
+    """
+    if rep_loss_weight is not None:
+        return float(rep_loss_weight)
+    return float(train_config.get('rep_loss_weight', 1.0))
+
+
+def _record_term(term_out, name, value):
+    """Write one UNWEIGHTED loss term into the caller's dict, as a float.
+
+    `term_out=None` (the default everywhere) makes this a no-op, so a loss
+    call that wants no per-term readout pays nothing. A term the loss skips
+    never calls this, which is what leaves the key absent (#409).
+    """
+    if term_out is not None:
+        term_out[name] = float(value.detach()) if torch.is_tensor(value) \
+            else float(value)
+
+
 def rollout_depth_views(forecasted_latent, original_latent, depth,
                         teacher_original_latent=None):
     """Depth-`j` views of the latents, for an unchanged loss body.
@@ -1024,7 +1049,9 @@ def contrastive_latent_loss(predicted_position, validation, spec,
                             train_rollout_depth=None,
                             train_rollout_reduce=None,
                             depth_index=0,
-                            f_terms_only=False):
+                            f_terms_only=False,
+                            rep_loss_weight=None,
+                            term_out=None):
     """Compute the contrastive divergence loss.
 
     Args:
@@ -1116,6 +1143,25 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     weights on L_pred and L_rep in the ``..._split_pred_rep`` shape.
     Setting one to 0.0 isolates the other term for the loss-term-
     isolation ablation. No-op for every other loss shape.
+
+    ``rep_loss_weight`` (#409) is the same weight as a function argument, and
+    it wins over the config key. A schedule changes the weight every step
+    (the training script's ``--rep-loss-weight-end``), and an argument keeps
+    the run-level config key free to stay the run's fixed base value — which
+    is what the ``loss_tau_ref`` diagnostic reads. Since #409 the weight also
+    scales ``cosine_similarity_batch_rep_only``, whose whole body IS L_rep.
+    At 0.0 the term is skipped: no Gram matmul, no gradient, and the loss
+    keeps only its add-ons (L_align, SIGReg, the CPC auxiliary).
+
+    ``term_out`` (#409): an optional dict this call fills with the
+    UNWEIGHTED value of each term it computes — ``l_pred``, ``l_rep``,
+    ``l_align`` — as plain floats. A term the call skips leaves NO key, so a
+    reader tells "the term was off" from "the term read 0". The training
+    script writes the three to ``<run>_losses.csv``, where the total loss
+    alone cannot say which term moves. Only the outermost call fills it: a
+    rollout-depth copy (``depth_index > 0``) and the ``mean``-reduction
+    f-side probe both pass None, so ``l_align`` is the depth-0 copy's value
+    and the ``cos_err_d*`` columns carry the rest of the depths.
 
     Rollout depth (#373. Config key ``train_rollout_depth``, default 0 →
     historical objective unchanged). ``rollout_latents`` carries
@@ -1972,7 +2018,10 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # can short-circuit the Gram compute for a disabled side entirely
         # (see the `w_pred != 0.0` / `w_rep != 0.0` guards below).
         w_pred = float(train_config.get('pred_loss_weight', 1.0))
-        w_rep = float(train_config.get('rep_loss_weight', 1.0))
+        # #409: the function argument wins over the config key, so a
+        # schedule can move the weight per step without touching the
+        # run-level config the `loss_tau_ref` diagnostic reads.
+        w_rep = resolve_rep_loss_weight(train_config, rep_loss_weight)
         # L_rep holds no forecaster output, so a rollout-depth copy (#373)
         # must not duplicate it: the depth-0 call already added it once, at
         # its configured weight.
@@ -2037,6 +2086,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
                 dim=0,
             )
             loss_pred = (log_denom_pred - log_pos).mean()
+            _record_term(term_out, 'l_pred', loss_pred)
         else:
             loss_pred = zero_scalar
 
@@ -2148,6 +2198,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
                 loss_rep = (log_denom_rep - log_pos_h).mean()
             else:
                 loss_rep = log_neg_total_rep.mean()
+            _record_term(term_out, 'l_rep', loss_rep)
         else:
             loss_rep = zero_scalar
 
@@ -2159,6 +2210,17 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # copy has nothing to substitute and adds exactly zero. The f-bearing
         # `align_loss_weight` add-on this arm pairs L_rep with IS duplicated,
         # in the shared tail below.
+        loss = hy_hat_norm.new_zeros(())
+
+    elif train_config.get('loss_shape') == 'cosine_similarity_batch_rep_only' \
+            and resolve_rep_loss_weight(train_config, rep_loss_weight) == 0.0:
+        # #409: this shape's only term is L_rep, and its weight is 0.0 — the
+        # end of a decay schedule. Skip the body whole: no Gram matmul, no
+        # xs_allt chunked accumulator, no gradient. The tail below still adds
+        # L_align, and the training script still adds SIGReg and the CPC
+        # auxiliary, so the run keeps training on what is left. No key
+        # reaches `term_out`, so the CSV column stays blank rather than
+        # reading 0.
         loss = hy_hat_norm.new_zeros(())
 
     elif train_config.get('loss_shape') == 'cosine_similarity_batch_rep_only':
@@ -2176,6 +2238,15 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         #
         # #379: the entire loss IS L_rep here, so every τ divisor is
         # tau_rep (which aliases tau when --tau-rep is unset).
+        #
+        # #409: and so the weight on L_rep is the weight on this whole
+        # branch. Before #409 the branch read no weight, so the cell that
+        # holds the project's best score could not decay its only main
+        # term. Default 1.0 keeps every published run byte-for-byte. At 0.0
+        # the branch is skipped whole — no Gram matmul, no xs_allt chunked
+        # accumulator, no gradient — and the run trains on its add-ons
+        # alone (L_align, SIGReg, the CPC auxiliary).
+        w_rep = resolve_rep_loss_weight(train_config, rep_loss_weight)
         neg_inf = float('-inf')
         moco_rep = (
             moco_rep_keys if moco_rep_keys is not None
@@ -2256,9 +2327,11 @@ def contrastive_latent_loss(predicted_position, validation, spec,
                 ),
                 dim=0,
             )
-            loss = (log_denom_rep - log_pos_h).mean()
+            loss_rep = (log_denom_rep - log_pos_h).mean()
         else:
-            loss = log_neg_total_rep.mean()
+            loss_rep = log_neg_total_rep.mean()
+        _record_term(term_out, 'l_rep', loss_rep)
+        loss = w_rep * loss_rep
 
     elif train_config.get('loss_shape') == 'cosine_similarity_batch_add_f_cross_negs':
         # NON-cumulative variant: identical to `cosine_similarity_batch` except
@@ -2842,7 +2915,9 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         align_ref = (hy_teacher_norm if align_tgt == 'teacher' else hy_norm)
         cos_align = cosine_similarity_from_normalized(
             hy_hat_norm, align_ref.detach())
-        loss = loss + align_w * (2.0 - 2.0 * cos_align).mean()
+        loss_align = (2.0 - 2.0 * cos_align).mean()
+        _record_term(term_out, 'l_align', loss_align)
+        loss = loss + align_w * loss_align
 
     if sub_floor:
         # Re-base the loss by the (constant) uniformity floor so the logged
@@ -2897,7 +2972,8 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             moco_rep_keys=moco_rep_keys,
             teacher_original_latent=teacher_view,
             train_rollout_depth=0,
-            depth_index=j))
+            depth_index=j,
+            rep_loss_weight=rep_loss_weight))
 
     if depth_copies and reduce == 'sum':
         # #373's objective, byte for byte: the copies are added to a `loss`
@@ -2935,7 +3011,8 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             moco_rep_keys=moco_rep_keys,
             teacher_original_latent=teacher_original_latent,
             train_rollout_depth=0,
-            f_terms_only=True)
+            f_terms_only=True,
+            rep_loss_weight=rep_loss_weight)
         h_side = loss - f_side_depth0
         loss = h_side + reduce_depth_terms(
             [f_side_depth0] + depth_copies, 'mean')

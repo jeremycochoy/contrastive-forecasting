@@ -96,7 +96,7 @@ class ConfigurableModel(torch.nn.Module):
         # Stored as `log_inv_tau` so τ = exp(-log_inv_tau). Trainer is
         # responsible for clamping log_inv_tau to [0, log(100)] after each
         # optimizer.step (→ τ ∈ [0.01, 1.0]). When learnable_tau=False the
-        # parameter is not registered; loss falls back to the dict-driven
+        # parameter is not registered. Loss falls back to the dict-driven
         # scalar.
         self.learnable_tau = bool(learnable_tau)
         if self.learnable_tau:
@@ -105,10 +105,10 @@ class ConfigurableModel(torch.nn.Module):
                              dtype=torch.float32))
 
         # CPC InfoNCE auxiliary term (#344): a new learnable log-bilinear
-        # W_1 (van den Oord et al. 2018, Eq. 3) used ONLY by the auxiliary
+        # W_1 (van den Oord and others 2018, Eq. 3) used ONLY by the auxiliary
         # loss `cpc_infonce_aux_loss` to score e_{t+1}^T W_1 h_t. Registered
         # here (not in the forecaster) so it is captured by the optimizer and
-        # checkpoint; it plays no role in the forward pass / downstream head,
+        # checkpoint. It plays no role in the forward pass / downstream head,
         # so head-training and eval strip `cpc_w1.*` before loading. Default
         # off ⇒ the parameter is not created (state_dict byte-for-byte
         # unchanged for every prior run).
@@ -119,7 +119,7 @@ class ConfigurableModel(torch.nn.Module):
         # Reversible normalization (optional). Two kinds:
         #   ewma  → RevEWMNorm(span=rev_norm_span)  (default, dynamic)
         #   revin → RevIN()                         (single per-instance z-score)
-        # rev_norm_span is only used by ewma; revin ignores it.
+        # rev_norm_span is only used by ewma. revin ignores it.
         if rev_norm_kind == 'ewma' and rev_norm_span is not None:
             self.rev_norm = RevEWMNorm(
                 num_features=C, span=rev_norm_span, patch_size=W,
@@ -192,7 +192,7 @@ class ConfigurableModel(torch.nn.Module):
         self.forecaster_d_model = eff_fcst_d_model
         self.forecaster_n_heads = eff_fcst_n_heads
         # Forecaster variant (#316). "transformer" (default) is the legacy
-        # causal forecaster; "linear_cpc" replaces it with K linear heads
+        # causal forecaster. "linear_cpc" replaces it with K linear heads
         # predicting h_{t+1..t+K}. Stored so forward_step / downstream code
         # can branch on the multi-step output contract.
         self.forecaster_kind = forecaster_kind
@@ -250,7 +250,7 @@ class ConfigurableModel(torch.nn.Module):
         # forecaster, and the CPC term stay on the student. Teacher is held in
         # eval() mode regardless of `model.train()` so dropkey/dropout never
         # touch it. Update via update_teacher(tau) after optimizer.step.
-        # Saved in state_dict; head-train / eval strip `teacher_*.*` before
+        # Saved in state_dict. Head-train / eval strip `teacher_*.*` before
         # strict-loading (the teacher has no downstream role).
         self.ema_embedding = bool(ema_embedding)
         self.ema_encoder = bool(ema_encoder)
@@ -341,7 +341,7 @@ class ConfigurableModel(torch.nn.Module):
 
         Buffers (none on the layers here in practice — LayerNorm has none)
         are hard-copied from the student each call. τ closer to 1 → slower
-        teacher; the issue ships τ=0.99 constant.
+        teacher. The issue ships τ=0.99 constant.
         """
         if self.ema_embedding:
             _ema_update(self.teacher_input_to_latent,
@@ -435,7 +435,7 @@ class ConfigurableModel(torch.nn.Module):
         x = x_norm.view(B, T, W, C).permute(0, 1, 3, 2)  # [B, T, C, W]
 
         # Order: [W | stats | freq | seasonality]. Stats first so they sit
-        # next to the raw patch values; the two label embeddings are
+        # next to the raw patch values. The two label embeddings are
         # series-level so they tail.
         if self.patch_stats_kind != 'none':
             stats = compute_patch_stats(
@@ -474,11 +474,40 @@ class ConfigurableModel(torch.nn.Module):
 
 
 def _ema_update(teacher: torch.nn.Module, student: torch.nn.Module, tau: float):
-    """In-place θ_T ← τ·θ_T + (1−τ)·θ_S over params; hard-copy buffers."""
+    """In-place θ_T ← τ·θ_T + (1−τ)·θ_S over params. Hard-copy buffers."""
     for t, s in zip(teacher.parameters(), student.parameters()):
         t.data.mul_(tau).add_(s.data.detach(), alpha=1.0 - tau)
     for t, s in zip(teacher.buffers(), student.buffers()):
         t.data.copy_(s.data)
+
+
+def linear_schedule_at_step(step: int, total_steps: int, value_start: float,
+                            value_end: float | None,
+                            ramp_steps: int | None = None) -> float:
+    """Linear ramp from `value_start` to `value_end`, clamped at both ends.
+
+    The ramp spans `ramp_steps` when given, else `total_steps`. A fixed
+    anchor is what makes the value comparable across runs of different
+    length: legs that stop at 40k, 100k and 200k all follow one curve when
+    they share `ramp_steps`, and all hold at `value_end` past it.
+
+    `value_end=None` returns `value_start` at every step, which is the
+    constant behaviour of a run that asks for no schedule.
+
+    `step` is clamped into ``[0, span]``, so a resume that overshoots stays
+    at the end value instead of extrapolating past it.
+
+    Two schedules use this ramp: the EMA momentum alpha (#388, see
+    :func:`ema_tau_at_step`) and the weight on L_rep (#409, the training
+    script's ``--rep-loss-weight-end``).
+    """
+    if value_end is None:
+        return float(value_start)
+    span = ramp_steps if ramp_steps else total_steps
+    if span <= 0:
+        return float(value_end)
+    frac = min(max(step / span, 0.0), 1.0)
+    return float(value_start) + frac * (float(value_end) - float(value_start))
 
 
 def ema_tau_at_step(step: int, total_steps: int, tau_start: float,
@@ -504,13 +533,8 @@ def ema_tau_at_step(step: int, total_steps: int, tau_start: float,
     exactly: a 0.9 → 1.0 schedule over 100k steps first updates the teacher
     at α(1) = 0.900001 and last at α(100000) = 1.0, a no-op update.
     """
-    if tau_end is None:
-        return float(tau_start)
-    span = ramp_steps if ramp_steps else total_steps
-    if span <= 0:
-        return float(tau_end)
-    frac = min(max(step / span, 0.0), 1.0)
-    return float(tau_start) + frac * (float(tau_end) - float(tau_start))
+    return linear_schedule_at_step(step, total_steps, tau_start, tau_end,
+                                  ramp_steps)
 
 
 def generate_random_batch(batch_size=16, T_raw=4096, C=4, seed=None, dimension=4):
@@ -536,7 +560,7 @@ def compute_metrics(f_lat, o_lat, cld):
     # einsum so the [B, B, T, C, H] broadcast intermediate is never
     # materialised (~26 GB fp32 at B=256, T-cld=255, H=384 — the OOM that
     # this diagnostic used to trigger every training step). einsum routes
-    # to a batched matmul; peak is the [B, B, T, C] output (~67 MB).
+    # to a batched matmul. Peak is the [B, B, T, C] output (~67 MB).
     # sims[i,j,t,c] = Σ_h hyn[i,t,c,h]·hyh[j,t,c,h]. This is *directly*
     # the previous (hyh.unsqueeze(0) * hyn.unsqueeze(1)).sum(-1): there
     # hyn.unsqueeze(1)=[B,1,…] put hyn on dim0 and hyh.unsqueeze(0)=[1,B,…]

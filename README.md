@@ -90,7 +90,7 @@ Total ~6.8M series, ~9 GB.
 
 The full pretraining mix also includes
 [GiftEvalPretrain](https://huggingface.co/datasets/Salesforce/GiftEvalPretrain)
-and synthetic ARMA/trend/sinusoid series; see the `training_data_prep`
+and synthetic ARMA/trend/sinusoid series. Refer to the `training_data_prep`
 README for mix ratios and pipeline details.
 
 ## Training
@@ -108,6 +108,9 @@ python scripts/recover.py --device cuda --model-path model.pth --epochs 20000
 - [`docs/train_rollout_depth.md`](docs/train_rollout_depth.md) —
   `--train-rollout-depth K`, which trains the forecaster composed with itself
   `K` more times instead of one step only.
+- [`docs/rep_loss_weight_schedule.md`](docs/rep_loss_weight_schedule.md) —
+  `--rep-loss-weight-end`, which decays the weight on `L_rep` to a floor, and
+  the four per-term columns of `<run>_losses.csv`.
 
 ## License
 
