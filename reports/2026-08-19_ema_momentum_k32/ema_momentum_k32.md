@@ -12,7 +12,9 @@ That schedule scores 1.1491 and 1.1507 at two backbone seeds, but no arm beats t
 
 ![The contrastive AUC of every arm against the backbone step](plots/backbone_health.png)
 
-![The total loss and each term that makes it](plots/loss_terms.png)
+![The total loss and each term that makes it, two runs](plots/loss_terms_two_runs.png)
+
+![The total loss and each term that makes it, every run](plots/loss_terms.png)
 
 ![GM-Relative MASE per domain](plots/domain_grid.png)
 

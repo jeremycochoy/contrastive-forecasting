@@ -7,6 +7,7 @@
 #   plots/by_start.png         the score against the start of the schedule
 #   plots/by_ramp.png          the score against the length of the ramp
 #   plots/loss_terms.png       the total loss and each term that makes it
+#   plots/loss_terms_two_runs.png  the same, over two runs alone
 #                              (deliverable 2)
 #   plots/domain_grid.png      GM-Relative MASE per domain (deliverable 3)
 #   results/table.md           the table and the statement (deliverable 4)
@@ -86,6 +87,13 @@ done
 LT_ARGS+=(--curve "!1 whose contrastive AUC fell to 0.57=${LT_BASE}_s08b_losses.csv")
 draw "loss_terms" "$HERE/plot_loss_terms.py" "${LT_ARGS[@]}" \
   --grey-red --cols 3 --turn 500 --out "$CF404_PLOTS/loss_terms.png"
+
+# The same decomposition over two runs alone. Fourteen greys show that the
+# shape holds; two colours show the shape itself.
+draw "loss_terms_two_runs" "$HERE/plot_loss_terms.py" \
+  --curve "0.9, to 1.0 at 100k, the best arm=${LT_BASE}_r100_09_losses.csv" \
+  --curve "0.8, to 1.0 at 200k, the run whose contrastive AUC fell to 0.57=${LT_BASE}_s08b_losses.csv" \
+  --cols 3 --turn 500 --out "$CF404_PLOTS/loss_terms_two_runs.png"
 
 draw "domain_grid" "$HERE/plot_domain_grid.py" \
   --splits "$CF404_RESULTS/splits.csv" --out "$CF404_PLOTS/domain_grid.png"
