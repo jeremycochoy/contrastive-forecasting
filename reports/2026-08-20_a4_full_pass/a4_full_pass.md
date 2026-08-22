@@ -1,28 +1,28 @@
 # One full pass over small_v1 scores 1.0783 and does not improve on 200,000 steps
 
-The rollout-depth study stopped its best backbone, A4, at 200,000 steps, and this card gives the same run one full pass over `small_v1`. No stop after 200,000 steps beats 200,000 steps, on either head. The student mean rises from 1.0651 at 200,000 steps to 1.0783 at the full pass, and the teacher mean rises from 1.0800 to 1.1038 (GM-Relative MASE, lower is better).
+More backbone training past 200,000 steps makes the score worse. One full pass over the training dataset `small_v1` does not beat the 200,000-step stop, on either head (GM-Relative MASE, defined in [the rollout-depth study](../2026-08-08_rollout_depth/rollout_depth.md)).
 
 ![GM-Relative MASE against backbone train step](plots/full_pass.png)
 
-*GM-Relative MASE against backbone train step, student and teacher heads, lower is better. Lines join the per-stop means. Small dots are single head-seed draws. Hollow marks are the published points from the rollout-depth study. The dashed line is the prior best, 1.0660.*
+*GM-Relative MASE against backbone train step, student and teacher heads.*
 
 Every student draw after 200,000 steps scores above every student draw at 200,000 steps, with the closest pair at 1.0691 against 1.0660. The teacher draws show the same shape. The rise at 300,000 steps, +0.021 on both heads, is larger than the largest measured head-seed range, 0.0087.
 
-## The teacher points are measurements, not repeats
+## The teacher head keeps changing after step 100,000
 
-The teacher encoder freezes at step 100,000. But the teacher head also loads 36 student-owned tensors, and 32 of them keep training. So each teacher point after 100,000 steps is a different model.
+The teacher encoder freezes at step 100,000. The teacher head also loads 36 student-owned tensors, and 32 of them keep training. So each teacher point after 100,000 steps is a different model.
 
 ## Reproduction check
 
-The head-seed 20260722 re-draw at 200,000 steps returns 1.0660 on the student head and 1.0828 on the teacher head, identical to the published values. Machine drift and code drift are zero.
+The head-seed 20260722 re-draw at 200,000 steps returns the published values on both heads.
 
-## What one draw cannot order
+## The 450,000 and 665,000 stops are not separated
 
-The 665,000-step stop has one draw for each head. The 450k-to-665k gap, +0.0040 on the student mean, sits inside the measured head-seed ranges, so this report does not order 450,000 against 665,000 steps.
+The 665,000-step stop has one draw for each head, and its +0.0040 student-mean gap to the 450,000-step stop sits inside the measured head-seed ranges.
 
 ## Tables
 
-Table 1: GM-Relative MASE for every (stop, head, seed) draw, with the per-stop mean and range.
+**Table 1: scores**
 
 | stop | head | s20260722 | s20260723 | s20260724 | mean | range |
 |---:|:---|---:|---:|---:|---:|---:|
@@ -35,7 +35,7 @@ Table 1: GM-Relative MASE for every (stop, head, seed) draw, with the per-stop m
 | 665k | student | 1.0783 | — | — | 1.0783 | — |
 | 665k | teacher | 1.1038 | — | — | 1.1038 | — |
 
-Table 2: checkpoint and head provenance.
+**Table 2: provenance**
 
 | item | value |
 |:---|:---|
@@ -46,9 +46,7 @@ Table 2: checkpoint and head provenance.
 | 665k checkpoint | md5 `ec1f64a5d4bc1e12d830a625b89cad84` |
 | launcher | `scripts/run_pass.sh`, which calls the rollout-depth study's `run_leg_k.sh` and `stop_k.sh` |
 | head recipe | arm6_v2, 30,000 head steps |
-| head seeds | 20260722 to 20260724 at 200k, 300k, 450k. 20260722 at 665k |
-| eval spec | 97 GIFT-Eval configs, B4 strategy, horizon 16 |
 
 ## Protocol
 
-The run continues cell `arm6_v2_combab_alignS` (k = 3) from the 200,000-step checkpoint of the rollout-depth study, with its saved optimizer state, the same flags (constant lr 1e-3, no schedule) and the same data seed. 665,000 steps is 99.97% of one pass over `small_v1` (42,571,692 rows, 665,182 steps for one pass). Each stop trains a fresh head for 30,000 steps, with seeds 20260722 to 20260724 at 200k, 300k and 450k, and seed 20260722 at 665k. Each head scores on 97 GIFT-Eval configs with the B4 strategy at horizon 16. The arm6_v2 head recipe and the GM-Relative MASE metric are defined in [the rollout-depth study](../2026-08-08_rollout_depth/rollout_depth.md).
+The rollout-depth study stopped its best backbone, A4 (the `arm6_v2_combab_alignS` cell at rollout depth k = 3), at 200,000 steps, and this card gives the same run one full pass. The run continues from that 200,000-step checkpoint, with its saved optimizer state, the same flags (constant lr 1e-3, no schedule) and the same data seed. 665,000 steps is 99.97% of one pass over `small_v1` (42,571,692 rows, 665,182 steps for one pass). Each stop trains a fresh head for 30,000 steps, with seeds 20260722 to 20260724 at 200k, 300k and 450k, and seed 20260722 at 665k. Each head scores on 97 GIFT-Eval configs with the B4 strategy at horizon 16. The arm6_v2 head recipe and the GM-Relative MASE metric are defined in the rollout-depth study.

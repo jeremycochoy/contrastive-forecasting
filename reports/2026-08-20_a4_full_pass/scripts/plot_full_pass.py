@@ -71,11 +71,8 @@ INK, INK_SOFT, GRID, RULE = "#0b0b0b", "#52514e", "#e6e5e1", "#8f8e8a"
 # The caption, word for word. It names every mark on the axes and nothing
 # else. `main` writes it beside the PNG so the report and the figure cannot
 # drift apart.
-CAPTION = (
-    "GM-Relative MASE against backbone train step, student and teacher "
-    "heads, lower is better. Lines join the per-stop means. Small dots are "
-    "single head-seed draws. Hollow marks are the published points from "
-    "the rollout-depth study. The dashed line is the prior best, 1.0660.")
+CAPTION = ("GM-Relative MASE against backbone train step, student and "
+           "teacher heads.")
 
 
 def means(head, results, parent):
@@ -250,10 +247,10 @@ def main():
     for head in FP.HEADS:
         draw(ax, head, curves[head], pubs[head], sides, drawn[head])
 
-    ax.set_xlabel("backbone train step (thousands)", fontsize=10, color=INK)
+    ax.set_xlabel("backbone train step", fontsize=10, color=INK)
     ax.set_ylabel("GM-Relative MASE, 97 GIFT-Eval configs (lower is better)",
                   fontsize=10, color=INK)
-    ax.set_title("A4 to one full pass over small_v1",
+    ax.set_title("arm6_v2 backbone, rollout depth 3: score against train step",
                  fontsize=12.5, color=INK, loc="left", pad=12)
     ticks = [s // 1000 for s in FP.PARENT_STOPS + FP.STOPS]
     ax.set_xticks(ticks)
