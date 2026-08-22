@@ -1,21 +1,22 @@
 """Tests for #404: an EMA-momentum sweep for L_align on the teacher, at k = 32.
 
-The card trains four arms. They share one configuration — #373's cell
-`arm6_v2_combab_alignT`, depth k = 32, the mean over the depth copies — and
-differ in one hyperparameter, the EMA momentum α. So every guard here asks
-one of two questions:
+The card started with four arms. It now holds fourteen runs. They share one
+configuration — #373's cell `arm6_v2_combab_alignT`, depth k = 32, the mean
+over the depth copies — and differ in the EMA momentum α, in the backbone
+seed, and on one row in the L_align weight. So every guard here asks one of
+two questions:
 
-1. Do the four arms differ ONLY in α, and does each arm's α reach the
-   trainer? Four arms that share a configuration also share a failure: a
-   command line that carries the wrong α trains arm 2 under arm 1's name,
+1. Do the arms differ ONLY in the columns of `arms.tsv`, and does each arm's
+   α reach the trainer? Arms that share a configuration also share a failure:
+   a command line that carries the wrong α trains arm 2 under arm 1's name,
    and no artefact says so. `run_arm.sh` reads α and the reduction back off
    the trainer's own command line for that reason.
 2. Does this study write anywhere #373 or #401 wrote? The card compares its
    arms to published numbers, so one overwritten score file is the
    comparison gone.
 
-The card's own deliverables — the momentum figure, the loss curves, the
-radar and the table — are covered in section 8.
+The card's own deliverables — the reached-momentum figure, the loss curves,
+the domain grid and the table — are covered in section 8.
 """
 
 from __future__ import annotations
@@ -50,6 +51,7 @@ RUN_SH = EXP / "run.sh"
 
 REFERENCES_PY = EXP / "scripts" / "references.py"
 PLOT_MOMENTUM = EXP / "scripts" / "plot_momentum.py"
+PLOT_REACHED = EXP / "scripts" / "plot_reached_two_colours.py"
 PLOT_CURVES = EXP / "scripts" / "plot_loss_curves.py"
 PLOT_GRID = EXP / "scripts" / "plot_domain_grid.py"
 MAKE_TABLE = EXP / "scripts" / "make_table.py"
@@ -67,16 +69,44 @@ STOP = 40_000
 HEAD_STEPS = 30_000
 ENC = "student"
 
-# The four arms, exactly as the card's table gives them:
-#   arm, α at step 0, α at the end of the ramp, the ramp length.
-# A `-` is a flag the arm does not pass. Arms 1 and 2 hold α fixed, so they
-# pass no `--ema-tau-end` at all — a repeated flag cannot unset one.
-ARMS = (
-    ("a08", "0.8", "-", "-"),
-    ("a09", "0.9", "-", "-"),
-    ("s08", "0.8", "1.0", "200000"),
-    ("s09", "0.9", "1.0", "200000"),
+# Every arm, exactly as `arms.tsv` gives it, row for row and column for
+# column:
+#   arm, α at step 0, α at the end of the ramp, the ramp length, the backbone
+#   seed, and the L_align weight when the arm moves it.
+#
+# A `-` is a flag the arm does not pass. An arm that holds α fixed passes no
+# `--ema-tau-end` at all — a repeated flag cannot unset one. A row of five
+# columns takes the cell's own align weight, 1.0.
+#
+# Rows 1 to 4 are the card's own four arms. The card says to add an arm when
+# the scores show a direction, and the study did that over eight rounds, so
+# the table now holds fourteen runs over ten settings. `arms.tsv` states why
+# each row exists.
+ARM_ROWS = (
+    ("a08", "0.8", "-", "-", "20260520"),
+    ("a09", "0.9", "-", "-", "20260520"),
+    ("s08", "0.8", "1.0", "200000", "20260520"),
+    ("s09", "0.9", "1.0", "200000", "20260520"),
+    ("a095", "0.95", "-", "-", "20260520"),
+    ("s08b", "0.8", "1.0", "200000", "20260521"),
+    ("s08c", "0.8", "1.0", "200000", "20260522"),
+    ("s08d", "0.8", "1.0", "200000", "20260523"),
+    ("r100_09", "0.9", "1.0", "100000", "20260520"),
+    ("r100_08", "0.8", "1.0", "100000", "20260520"),
+    ("w3_s08", "0.8", "1.0", "200000", "20260520", "3.0"),
+    ("r60_09", "0.9", "1.0", "60000", "20260520"),
+    ("r100_095", "0.95", "1.0", "100000", "20260520"),
+    ("r100_09b", "0.9", "1.0", "100000", "20260524"),
 )
+
+# The four EMA columns of every arm. That is what the guards, `study.sh` and
+# the trainer's command line carry, and it is what most of this file reads.
+ARMS = tuple(row[:4] for row in ARM_ROWS)
+
+# The backbone seed and the L_align weight of each arm, for the tables and the
+# figures that carry them.
+SEED = {row[0]: row[4] for row in ARM_ROWS}
+ALIGN_W = {row[0]: (row[5] if len(row) > 5 else "1.0") for row in ARM_ROWS}
 
 # #373's flag block for this cell, which the card reproduces flag for flag.
 ISSUE_FLAGS = (
@@ -212,10 +242,10 @@ class TestLayout:
 class TestTheArms:
     """The card's table, and nothing else, decides what runs."""
 
-    def test_arms_tsv_holds_the_cards_four_rows(self):
+    def test_arms_tsv_holds_the_cards_rows(self):
         rows = [ln.split("\t") for ln in ARMS_TSV.read_text().splitlines()
                 if ln.strip() and not ln.startswith("#")]
-        assert tuple(tuple(r) for r in rows) == ARMS
+        assert tuple(tuple(r) for r in rows) == ARM_ROWS
 
     def test_study_lists_the_arms_in_the_cards_order(self):
         assert study_value("CF404_ARMS").split() == [a[0] for a in ARMS]
@@ -506,14 +536,14 @@ class TestTheLegTrainsTheArm:
         _, argv = trainer_argv(fake_checkout, "a08")
         assert argv_value(argv, "--total-steps") == str(STOP)
 
-    def test_the_four_arms_write_four_run_names(self, fake_checkout):
+    def test_every_arm_writes_its_own_run_name(self, fake_checkout):
         names = set()
         for arm, *_ in ARMS:
             _, argv = trainer_argv(fake_checkout, arm)
             names.add(argv_value(argv, "--run-name"))
         assert len(names) == len(ARMS), names
 
-    def test_the_four_arms_write_four_save_dirs(self, fake_checkout):
+    def test_every_arm_writes_its_own_save_dir(self, fake_checkout):
         dirs = set()
         for arm, *_ in ARMS:
             _, argv = trainer_argv(fake_checkout, arm)
@@ -657,14 +687,31 @@ class TestNoCollision:
         name = study_call('cf404_run_name a08').stdout.strip()
         assert CELL in name
 
-    def test_no_run_name_is_a_prefix_of_another(self):
-        """`ckpt_at_step` globs `<name>*_<N>k.pth`, so a name that prefixes
-        another resolves to the other arm's checkpoint."""
-        names = sorted(study_call(f'cf404_run_name {a}').stdout.strip()
-                       for a, *_ in ARMS)
-        for i, a in enumerate(names):
-            for b in names[i + 1:]:
-                assert not b.startswith(a), f"{a!r} prefixes {b!r}"
+    def test_no_run_name_is_a_prefix_of_another_in_one_leg_directory(self):
+        """`ckpt_at_step` globs `<name>*_<N>k.pth` inside ONE leg directory,
+        so a name that prefixes another resolves to the other arm's
+        checkpoint when the two share that directory.
+
+        Three names of this card DO prefix another. `a09` prefixes `a095`,
+        `s08` prefixes `s08b`, `s08c` and `s08d`, and `r100_09` prefixes
+        `r100_095` and `r100_09b`. Each of those names says what the arm is,
+        which is worth more than a name the glob could tell apart on its own.
+        `cf404_arm_root` gives every arm a root of its own, so no two of them
+        ever land in one leg directory and the glob never sees the pair. This
+        guard is on the directory for that reason, and it fires the moment
+        two arms share one.
+        """
+        by_dir: dict[str, list[str]] = {}
+        for arm, *_ in ARMS:
+            leg = study_call(f'cf404_leg_dir {arm} {STOP}').stdout.strip()
+            by_dir.setdefault(leg, []).append(
+                study_call(f'cf404_run_name {arm}').stdout.strip())
+        assert len(by_dir) == len(ARMS), sorted(by_dir)
+        for leg, names in by_dir.items():
+            names = sorted(names)
+            for i, a in enumerate(names):
+                for b in names[i + 1:]:
+                    assert not b.startswith(a), f"{a!r} prefixes {b!r} in {leg}"
 
     def test_each_arm_has_its_own_checkpoint_root(self):
         roots = {study_call(f'cf404_arm_root {a}').stdout.strip()
@@ -751,13 +798,16 @@ class TestPhase1Plan:
         assert len(heads) == len(ARMS), out.stdout
 
     def test_the_box_pairs_the_arms_with_its_cards(self):
-        """Two GPUs, four arms: two run at a time, so the card finishes in
-        two passes rather than four."""
+        """Two GPUs: two arms run at a time, so a box finishes the arms it
+        carries in half as many passes. The deal is round-robin, so the two
+        lanes never differ by more than one arm."""
         out = dry_run(LAUNCH_BOX, env={"GPUS": "0 1"})
         assert out.returncode == 0, out.stderr
         gpus = [ln.split("gpu=")[1].split()[0]
                 for ln in out.stdout.splitlines() if "gpu=" in ln]
-        assert sorted(gpus) == ["0", "0", "1", "1"], out.stdout
+        half = len(ARMS) // 2
+        assert sorted(gpus) == ["0"] * (len(ARMS) - half) + ["1"] * half, \
+            out.stdout
 
     def test_the_box_checks_its_checkout_before_it_rents_time(self):
         """A box bootstrapped from a branch without `EMA_ARGS` trains one arm
@@ -938,9 +988,12 @@ class TestTheHeadsAreDone:
     def test_an_arm_that_used_its_tries_no_longer_blocks(self, tmp_path):
         """A head that fails for a stable reason would otherwise hold a GPU
         lane and the whole watcher for as long as the session runs."""
-        write_score(tmp_path, "a08", 1.19)
-        write_score(tmp_path, "a09", 1.19)
-        for arm in ("s08", "s09"):
+        scored = {a for a, *_ in ARMS[:2]}
+        for arm in scored:
+            write_score(tmp_path, arm, 1.19)
+        for arm, *_ in ARMS:
+            if arm in scored:
+                continue
             tries = study_call(f'cf404_tries_file {arm} {STOP}',
                                env=self.state(tmp_path)).stdout.strip()
             Path(tries).write_text("3\n")
@@ -972,21 +1025,26 @@ class TestHeadsWatch:
     arm lands, and it exits when no pair is left to fire."""
 
     def test_it_keeps_waiting_while_an_arm_is_still_on_the_box(self, watch_study):
-        """The four backbones arrive about five hours apart. A watcher that
-        exits at the first scored arm leaves three arms with no head, and
+        """The backbones arrive about five hours apart. A watcher that exits
+        at the first scored arm leaves every other arm with no head, and
         `launch_elisa.sh`, which waits on it, stops redrawing the figures."""
         import time
         w = watch_study
-        w["backbone"]("a08")
+        first, rest = ARMS[0][0], [a for a, *_ in ARMS[1:]]
+        w["backbone"](first)
         proc = w["start"]()
-        assert wait_for(lambda: w["scored"]() == {"a08"}), w["out"]()
+        assert wait_for(lambda: w["scored"]() == {first}), w["out"]()
         time.sleep(3.0)  # three polls at POLL=1
         assert proc.poll() is None, (
-            "the watcher exited with three arms unscored:\n" + w["out"]())
+            f"the watcher exited with {len(rest)} arms unscored:\n"
+            + w["out"]())
 
-        for arm in ("a09", "s08", "s09"):
+        for arm in rest:
             w["backbone"](arm)
-        assert wait_for(lambda: proc.poll() is not None), w["out"]()
+        # The watcher runs the pairs one after the other, so the wait covers
+        # every arm of the table and not four of them.
+        assert wait_for(lambda: proc.poll() is not None,
+                        timeout=20.0 * len(ARMS)), w["out"]()
         assert proc.returncode == 0, w["out"]()
         assert w["scored"] () == {a for a, *_ in ARMS}, w["out"]()
 
@@ -999,7 +1057,10 @@ class TestHeadsWatch:
         for arm, *_ in ARMS:
             w["backbone"](arm)
         proc = w["start"](env={"CF404_HEAD_TRIES": "2"})
-        assert wait_for(lambda: proc.poll() is not None), w["out"]()
+        # Two tries of every arm, in series, so the wait scales with the
+        # table.
+        assert wait_for(lambda: proc.poll() is not None,
+                        timeout=20.0 * len(ARMS)), w["out"]()
         assert Counter(arm for arm, _stop in w["fired"]()) == {
             arm: 2 for arm, *_ in ARMS}, w["fired"]()
         assert "GAVE UP" in w["out"](), w["out"]()
@@ -1110,17 +1171,23 @@ def references():
 
 
 def scores_csv(path: Path, by_arm: dict[str, float]):
+    """`collect.sh`'s table, for the arms in `by_arm`.
+
+    The columns are the ones `collect.sh` writes, the seed and the L_align
+    weight with them. A figure keys its repeat families on those two, so a
+    fixture without them hands every arm one seed and one weight.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     alpha = {a: t for a, t, _e, _r in ARMS}
     sched = {a: ("fixed" if e == "-" else "ramp") for a, _t, e, _r in ARMS}
     ramp = {a: ("0" if r == "-" else r) for a, _t, _e, r in ARMS}
     with open(path, "w", newline="") as fh:
         w = csv.writer(fh)
-        w.writerow(["arm", "alpha", "schedule", "ramp", "stop", "head_steps",
-                    "encoder", "score"])
+        w.writerow(["arm", "alpha", "schedule", "ramp", "seed", "align_w",
+                    "stop", "head_steps", "encoder", "score"])
         for arm, score in by_arm.items():
-            w.writerow([arm, alpha[arm], sched[arm], ramp[arm], STOP,
-                        HEAD_STEPS, ENC, f"{score:.4f}"])
+            w.writerow([arm, alpha[arm], sched[arm], ramp[arm], SEED[arm],
+                        ALIGN_W[arm], STOP, HEAD_STEPS, ENC, f"{score:.4f}"])
     return path
 
 
@@ -1160,7 +1227,18 @@ class TestReferences:
 
 
 class TestMomentumFigure:
-    """Deliverable 1 — one point per arm, against the EMA momentum."""
+    """`plot_momentum.py` — the momentum at STEP 0 on the x axis.
+
+    THE REPORT NO LONGER EMBEDS THIS FIGURE. The axis stopped separating the
+    arms when the card added a second ramp length: `s08` and `r100_08` both
+    start at 0.8. `plot_reached_two_colours.py` replaced it, and the class
+    below covers that one.
+
+    The module stays, and every guard here with it, because it holds what
+    every score figure of this study draws from: `read_scores`, the reference
+    lines, the repeat band and the y range. `plot_reached_two_colours.py` and
+    `plot_two_axes.py` both import it.
+    """
 
     def draw(self, tmp_path, by_arm):
         mp = load_module(PLOT_MOMENTUM, "cf404_plot_momentum")
@@ -1168,14 +1246,6 @@ class TestMomentumFigure:
         out = tmp_path / "momentum.png"
         fig, ax = mp.draw(mp.read_scores(src), out)
         return mp, fig, ax, out
-
-    def test_it_draws_one_point_per_arm(self, tmp_path):
-        _mp, _fig, ax, out = self.draw(
-            tmp_path, {"a08": 1.19, "a09": 1.17, "s08": 1.14, "s09": 1.11})
-        assert out.is_file() and out.stat().st_size > 0
-        drawn = {t.get_text() for t in ax.texts}
-        for arm, *_ in ARMS:
-            assert any(arm in d for d in drawn), f"{arm} is not labelled"
 
     def test_the_x_axis_is_the_ema_momentum(self, tmp_path):
         _mp, _fig, ax, _out = self.draw(tmp_path, {"a08": 1.19, "s09": 1.11})
@@ -1228,55 +1298,6 @@ class TestMomentumFigure:
                   and len(ln.get_ydata())}
         assert {round(K3_BB200K, 4), round(K32_BB200K, 4)} <= dotted, dotted
 
-    def test_the_caption_says_the_dotted_lines_are_not_a_fair_comparison(self):
-        """The card asks for this in the caption, not in the report body."""
-        text = PLOT_MOMENTUM.read_text()
-        assert "CAPTION" in text
-        caption = text.split("CAPTION", 1)[1]
-        assert "200" in caption and "40" in caption
-
-    def test_a_schedule_arm_and_a_fixed_arm_are_told_apart(self, tmp_path):
-        """s08 and a08 share α = 0.8 at step 0, so the marker has to carry
-        the schedule or the two points land on one another unexplained."""
-        mp, _fig, ax, _out = self.draw(tmp_path, {"a08": 1.19, "s08": 1.14})
-        labels = {t.get_text() for t in ax.texts} | {
-            ln.get_label() for ln in ax.get_lines()}
-        assert any("fixed" in str(v) for v in labels), labels
-        assert any("200k" in str(v) or "ramp" in str(v) for v in labels), labels
-
-    def test_no_two_markers_land_on_one_x(self, tmp_path):
-        """a09, s09 and #401's arm all hold α = 0.9 at step 0. Three markers
-        on one x position hide two of them, and the two open squares differ
-        by colour alone."""
-        _mp, _fig, ax, _out = self.draw(
-            tmp_path, {"a08": 1.19, "a09": 1.17, "s08": 1.14, "s09": 1.11})
-        xs = [round(float(ln.get_xdata()[0]), 6) for ln in ax.get_lines()
-              if len(ln.get_xdata()) == 1]
-        assert len(xs) == len(ARMS) + 1, xs
-        assert len(set(xs)) == len(xs), xs
-
-    def test_the_offset_orders_a_momentum_by_its_ramp_length(self, tmp_path):
-        """Under one tick the markers read left to right by how long the ramp
-        is: fixed, then #401's 100,000 steps, then this card's 200,000."""
-        mp, _fig, _ax, _out = self.draw(
-            tmp_path, {"a08": 1.19, "a09": 1.17, "s08": 1.14, "s09": 1.11})
-        xs = mp.x_positions(mp.read_scores(tmp_path / "scores.csv"))
-        assert xs["a09"] < xs[mp.REF_KEY] < xs["s09"]
-        assert xs["a08"] < xs["s08"]
-
-    def test_no_marker_leaves_its_own_momentum(self, tmp_path):
-        """The offset separates a group. It must not carry an arm halfway to
-        the next tick, or a reader takes it for another momentum."""
-        mp, _fig, _ax, _out = self.draw(
-            tmp_path, {"a08": 1.19, "a09": 1.17, "s08": 1.14, "s09": 1.11})
-        rows = mp.read_scores(tmp_path / "scores.csv")
-        xs = mp.x_positions(rows)
-        alpha = {r["arm"]: r["alpha"] for r in rows}
-        alpha[mp.REF_KEY] = references().K32_BB40K_ALPHA
-        gap = 0.9 - 0.8
-        for key, x in xs.items():
-            assert abs(x - alpha[key]) < gap / 4, (key, x, alpha[key])
-
     def test_two_arms_at_one_momentum_get_two_label_positions(self, tmp_path):
         """a09 and s09 can score within a hair of one another, and one
         offset for every arm then prints two labels on top of each other."""
@@ -1301,11 +1322,101 @@ class TestMomentumFigure:
         _mp, _fig, _ax, out = self.draw(tmp_path, {"a08": 1.19})
         assert out.is_file()
 
+
+class TestTheReachedMomentumFigure:
+    """Deliverable 1 — `plot_reached_two_colours.py`, which the report embeds
+    as `reached_vertical.png`.
+
+    The x axis of `momentum.png` was the momentum at step 0, and it stopped
+    separating the arms: `s08` and `r100_08` both start at 0.8 and reach
+    0.840 and 0.880 by the stop. This figure puts the REACHED value on the
+    axis, and gives one colour to a momentum that holds its value and another
+    to one that rises toward 1.0.
+
+    The seeds of one arm are one point, and a bar joins the lowest and the
+    highest of them.
+    """
+
+    def reached(self, tmp_path, by_arm, vertical=True):
+        """Draw the figure `make_plots.sh` draws. Returns its module, its
+        rows, the figure, the axes and the file."""
+        rt = load_module(PLOT_REACHED, "cf404_plot_reached")
+        src = scores_csv(tmp_path / "scores.csv", by_arm)
+        rows = rt.MOM.read_scores(src)
+        out = tmp_path / "reached.png"
+        drawer = rt.draw_vertical if vertical else rt.draw
+        fig, ax = drawer(rows, out)
+        return rt, rows, fig, ax, out
+
+    def test_every_scored_arm_reaches_the_figure(self, tmp_path):
+        """One point per (schedule, reached momentum) cell, and the seeds of
+        one arm inside one cell. The figure prints each cell's mean, so an
+        arm the grouping drops is an arm a reader cannot find.
+
+        `s08` and `s08b` are one cell here: same momentum, same ramp, two
+        backbone seeds. The other four arms are a cell each.
+        """
+        by_arm = {"a08": 1.19, "a09": 1.17, "s08": 1.14, "s08b": 1.16,
+                  "s09": 1.11, "r100_09": 1.15}
+        rt, rows, _fig, ax, out = self.reached(tmp_path, by_arm)
+        assert out.is_file() and out.stat().st_size > 0
+        grid = rt.cells(rows, STOP)
+        assert sum(len(v) for v in grid.values()) == len(by_arm), grid
+        assert len(grid) == len(by_arm) - 1, grid
+        printed = {t.get_text().strip() for t in ax.texts}
+        for scores in grid.values():
+            mean = sum(scores) / len(scores)
+            assert f"{mean:.4f}" in printed, (mean, printed)
+
+    def test_every_reference_line_gives_the_step_count_it_ran(self, tmp_path):
+        """`momentum.png` drew two 200,000-step scores as dotted lines, and
+        its caption had to say that they are not a fair comparison. This
+        figure draws the two references that ran the arms' OWN 40,000 steps,
+        and each label carries that number. A reference whose step count is
+        not on it is a comparison a reader cannot check.
+        """
+        _rt, _rows, _fig, ax, _out = self.reached(
+            tmp_path, {"a08": 1.19, "s09": 1.11})
+        texts = [t.get_text() for t in ax.texts]
+        refs = [t for t in texts if "k = " in t]
+        assert len(refs) == 2, texts
+        for text in refs:
+            assert "40,000 steps" in text, text
+        assert not any("200,000" in t for t in texts), texts
+
+    def test_a_schedule_arm_and_a_fixed_arm_are_told_apart(self, tmp_path):
+        """This axis is the momentum an arm trains against at the stop, and
+        it says nothing about how the arm got there. A held 0.9 and a 0.9
+        that rose from a lower value are two different runs, so the colour
+        and the marker carry the schedule. Both must differ, and the legend
+        has to name each one."""
+        rt, _rows, _fig, ax, _out = self.reached(
+            tmp_path, {"a09": 1.17, "r60_09": 1.15})
+        held, rises = rt.KIND["fixed"], rt.KIND["ramp"]
+        assert held["colour"] != rises["colour"]
+        assert held["marker"] != rises["marker"]
+        drawn = {(ln.get_color(), ln.get_marker()) for ln in ax.get_lines()}
+        assert (held["colour"], held["marker"]) in drawn, drawn
+        assert (rises["colour"], rises["marker"]) in drawn, drawn
+        labels = ax.get_legend_handles_labels()[1]
+        assert held["label"] in labels, labels
+        assert rises["label"] in labels, labels
+
     def test_no_score_yet_is_refused_with_a_message_not_a_traceback(self, tmp_path):
-        mp = load_module(PLOT_MOMENTUM, "cf404_plot_momentum")
-        empty = scores_csv(tmp_path / "scores.csv", {})
-        with pytest.raises(SystemExit):
-            mp.draw(mp.read_scores(empty), tmp_path / "x.png")
+        """`make_plots.sh` redraws every 30 minutes, from the first hour of
+        the study. It prints the LAST line of a failed draw as its SKIP line,
+        so a traceback there tells a reader `ValueError: min() arg is an
+        empty sequence` instead of what is missing."""
+        rt = load_module(PLOT_REACHED, "cf404_plot_reached")
+        rows = rt.MOM.read_scores(scores_csv(tmp_path / "scores.csv", {}))
+        for drawer in (rt.draw, rt.draw_vertical):
+            with pytest.raises(SystemExit):
+                drawer(rows, tmp_path / "x.png")
+
+    def test_it_draws_with_one_arm_scored(self, tmp_path):
+        """The figure is redrawn every 30 minutes while the study runs."""
+        _rt, _rows, _fig, _ax, out = self.reached(tmp_path, {"a08": 1.19})
+        assert out.is_file() and out.stat().st_size > 0
 
 
 def losses_csv(path: Path, n=40, scale=1.0):
@@ -1337,10 +1448,23 @@ class TestLossCurves:
         assert ax.get_yscale() == "log"
 
     def test_one_curve_per_arm(self, tmp_path):
-        _lc, _fig, ax, _out = self.draw(tmp_path, ("a08", "a09", "s08", "s09"))
-        labels = {ln.get_label() for ln in ax.get_lines()}
-        for arm, *_ in ARMS:
-            assert any(arm in str(v) for v in labels), labels
+        """Every arm handed over gets a curve, under a label that names what
+        makes that arm unique.
+
+        THE FIGURE HAS TWO PANELS. `w3_s08` multiplies the align term by 3,
+        so its loss sits on another scale, and on a shared axes it read as
+        the worst run of the study. It takes a panel of its own, so the
+        curves are counted over the whole figure and not over one axes.
+
+        No two arms share a label. A shared label draws two runs as one arm.
+        """
+        arms = [a for a, *_ in ARMS]
+        lc, fig, _ax, _out = self.draw(tmp_path, arms)
+        drawn = {str(ln.get_label()) for axes in fig.axes
+                 for ln in axes.get_lines()}
+        for arm in arms:
+            assert lc.ARM_LABEL[arm] in drawn, (arm, lc.ARM_LABEL[arm], drawn)
+        assert len({lc.ARM_LABEL[a] for a in arms}) == len(arms), lc.ARM_LABEL
 
     def test_the_figure_is_written(self, tmp_path):
         _lc, _fig, _ax, out = self.draw(tmp_path)
@@ -1521,8 +1645,8 @@ class TestTheTableAndTheStatement:
         return mt, mt.read_scores(scores_csv(tmp_path / "scores.csv", by_arm))
 
     def test_the_table_holds_every_arm_and_every_reference(self, tmp_path):
-        mt, rows = self.rows(tmp_path, {"a08": 1.19, "a09": 1.17,
-                                        "s08": 1.14, "s09": 1.11})
+        mt, rows = self.rows(tmp_path, {
+            arm: 1.19 - 0.001 * i for i, (arm, *_) in enumerate(ARMS)})
         md = mt.table_markdown(rows)
         for arm, *_ in ARMS:
             assert arm in md
@@ -1569,13 +1693,14 @@ class TestOneColourPerArm:
     def colours(self):
         return load_module(ARM_COLOURS, "cf404_arm_colours").colours
 
-    def test_the_cards_four_arms_have_four_colours(self):
+    def test_every_arm_of_the_card_has_its_own_colour(self):
         got = self.colours()([a for a, *_ in ARMS])
         assert len(set(got.values())) == len(ARMS), got
 
     def test_an_added_arm_gets_its_own_colour(self):
-        """The card says to add arms when the four scores show a direction.
-        Two added arms in one fallback colour would read as one arm."""
+        """The card says to add arms when the scores show a direction, and
+        the study did that ten times. Two added arms in one fallback colour
+        would read as one arm."""
         arms = [a for a, *_ in ARMS] + ["a085", "s09b"]
         got = self.colours()(arms)
         assert len(set(got.values())) == len(arms), got
@@ -1610,7 +1735,13 @@ class TestOneColourPerArm:
             r, g, b = (int(c[i:i + 2], 16) for i in (1, 3, 5))
             assert max(r, g, b) - min(r, g, b) > 24, f"{c} is a grey"
 
-    @pytest.mark.parametrize("script", [PLOT_MOMENTUM, PLOT_CURVES])
+    # The figures that give a colour to an ARM. Every other score figure of
+    # this study now colours by KIND — a held momentum against a rising one.
+    # Fourteen arms in fourteen colours needed a fourteen-row legend in a
+    # palette that repeated blue, orange and green, and no reader could map a
+    # curve to a row. A figure that colours by kind has no arm colour to
+    # share, so it is not under this guard.
+    @pytest.mark.parametrize("script", [PLOT_CURVES])
     def test_every_figure_reads_the_shared_map(self, script):
         text = script.read_text()
         assert "arm_colours" in text, f"{script.name} carries its own palette"

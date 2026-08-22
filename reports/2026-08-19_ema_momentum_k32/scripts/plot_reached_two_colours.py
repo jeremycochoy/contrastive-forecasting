@@ -69,6 +69,21 @@ def cells(rows, stop):
     return out
 
 
+def require_cells(grid):
+    """Stop with a message when no arm of the cell's own weight is scored.
+
+    `make_plots.sh` redraws every 30 minutes, from the first hour of the
+    study, and it prints the LAST line of a failed draw as its SKIP line. An
+    empty grid otherwise reaches `min()` and that line reads
+    `ValueError: min() arg is an empty sequence`.
+    """
+    if not grid:
+        raise SystemExit(
+            "ABORT: no arm at L_align weight 1.0 is scored yet — "
+            "nothing to draw")
+    return grid
+
+
 def draw_vertical(rows, out, fell=(), stop=40000):
     """The reached momentum on the y axis, at its own value.
 
@@ -77,7 +92,7 @@ def draw_vertical(rows, out, fell=(), stop=40000):
     side and the score across. The y axis stays numeric, so 0.967
     and 0.970 sit as close together as their values are.
     """
-    grid = cells(rows, stop)
+    grid = require_cells(cells(rows, stop))
     fig, ax = plt.subplots(figsize=(9.0, 6.6))
     for kind, style in KIND.items():
         pts = sorted((k[1], v) for k, v in grid.items()
@@ -139,7 +154,7 @@ def draw_vertical(rows, out, fell=(), stop=40000):
 
 
 def draw(rows, out, fell=(), stop=40000):
-    grid = cells(rows, stop)
+    grid = require_cells(cells(rows, stop))
     fig, ax = plt.subplots(figsize=(9.5, 6.0))
     xs_all = [k[1] for k in grid] + [
         AT.momentum_at(r["alpha"], r["schedule"], r["ramp"], stop)
