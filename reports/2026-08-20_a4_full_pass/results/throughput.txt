@@ -1,0 +1,10 @@
+measured 2026-08-20T18:37:53Z
+window   step 200200 -> 203400 over 900 s
+sps      3.556
+stop 300000  backbone ETA 2026-08-21 02:10 UTC  (+7.5 h)
+stop 450000  backbone ETA 2026-08-21 13:53 UTC  (+19.3 h)
+stop 665000  backbone ETA 2026-08-22 06:41 UTC  (+36.1 h)
+train.py sps field: 3.6 sps
+
+NOTE: the ETAs above are backbone only. They leave out the two heads and the
+two GIFT-Eval passes each stop needs. `schedule.txt` adds that cost.

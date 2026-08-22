@@ -1,0 +1,12 @@
+a  /home/jupyter/cf373_r3/sync/arm6_v2_combab_alignS/leg_200k/cf393_arm6_v2_combab_alignS_cf373k3_r2_200k.pth
+b  /home/jupyter/cf373_r3/sync/arm6_v2_combab_alignS/leg_300k/cf393_arm6_v2_combab_alignS_cf373k3_300k.pth
+side      tensors identical  moved     max |d|      rel L2
+teacher        52        52      0   0.000e+00   0.000e+00
+student       110         4    106   1.136e+00   4.952e-01
+            encoder.gru.bias_hh_l0_reverse  max |d| 1.136e+00
+            encoder.gru.bias_ih_l0_reverse  max |d| 1.136e+00
+            transformer.input_to_latent.gru.bias_hh_l0_reverse  max |d| 1.136e+00
+            transformer.input_to_latent.gru.bias_ih_l0_reverse  max |d| 1.136e+00
+            transformer.layers.0.linear2.weight  max |d| 1.070e+00
+the teacher is FROZEN: every teacher tensor is equal bit for bit, while the student moved
+wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/results/teacher_move_200k_300k.json

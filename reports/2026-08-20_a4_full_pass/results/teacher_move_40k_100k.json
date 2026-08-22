@@ -1,0 +1,67 @@
+{
+  "a": "/home/jupyter/cf373_r2/A4/sync/arm6_v2_combab_alignS/leg_40k/cf393_arm6_v2_combab_alignS_cf373k3_40k.pth",
+  "b": "/home/jupyter/cf373_r3/sync/arm6_v2_combab_alignS/leg_100k/cf393_arm6_v2_combab_alignS_cf373k3_100k.pth",
+  "teacher": {
+    "tensors": 52,
+    "identical": 0,
+    "moved": 52,
+    "max_abs_diff": 2.3243888476863503,
+    "rel_l2": 0.9813969522658539,
+    "only_in_a": [],
+    "only_in_b": [],
+    "largest_moves": [
+      [
+        "teacher_encoder_layers.0.linear2.weight",
+        2.3243888476863503
+      ],
+      [
+        "teacher_encoder_layers.1.linear2.weight",
+        1.833814114332199
+      ],
+      [
+        "teacher_encoder_layers.2.linear2.weight",
+        1.6716732531785965
+      ],
+      [
+        "teacher_input_to_latent.gru.weight_hh_l0",
+        1.6128836274147034
+      ],
+      [
+        "teacher_input_to_latent.skip.weight",
+        1.2774119675159454
+      ]
+    ]
+  },
+  "student": {
+    "tensors": 110,
+    "identical": 4,
+    "moved": 106,
+    "max_abs_diff": 2.3630572110414505,
+    "rel_l2": 0.7463772728788268,
+    "only_in_a": [],
+    "only_in_b": [],
+    "largest_moves": [
+      [
+        "transformer.encoder_layers.0.linear2.weight",
+        2.3630572110414505
+      ],
+      [
+        "transformer.encoder_layers.1.linear2.weight",
+        1.7957065291702747
+      ],
+      [
+        "transformer.encoder_layers.2.linear2.weight",
+        1.667104996740818
+      ],
+      [
+        "encoder.gru.weight_hh_l0",
+        1.6177096366882324
+      ],
+      [
+        "transformer.input_to_latent.gru.weight_hh_l0",
+        1.6177096366882324
+      ]
+    ]
+  },
+  "verdict": "the teacher MOVED: 52 of 52 tensors differ, max |d| 2.324e+00, rel L2 9.814e-01"
+}
