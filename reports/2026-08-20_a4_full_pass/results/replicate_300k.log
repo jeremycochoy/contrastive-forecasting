@@ -7,3 +7,23 @@
 [2026-08-21T06:14:09Z] [rep300k] DRAW A4_k3_bb300k_student_s20260724 DONE 1.0841
 [2026-08-21T06:14:09Z] [rep300k] DRAW A4_k3_bb300k_teacher_s20260724 start
 [2026-08-21T07:50:15Z] [rep300k] DRAW A4_k3_bb300k_teacher_s20260723 DONE 1.0992
+[2026-08-21T09:11:32Z] [rep300k] DRAW A4_k3_bb300k_teacher_s20260724 DONE 1.1004
+[cf407-collect-rep] replicate pairs 4  skipped 0
+   stop  head     draws     mean      std    range  seeds
+ 300000  student      3   1.0864   0.0021   0.0042  s20260722=1.0867  s20260723=1.0883  s20260724=1.0841
+ 300000  teacher      3   1.1009   0.0019   0.0038  s20260722=1.1030  s20260723=1.0992  s20260724=1.1004
+pooled head-seed std over the rows with 2 draws or more: 0.0020
+
+review gap 2 — the protocol re-draw has not landed yet
+
+review gap 6 — this band against the published one
+  published pooled range, #393                 0.0384  largest range at either head budget, over every cell
+    same cell, bb40k teacher                   0.0118  #393, arm6_v2_combab_alignS
+    same cell, bb100k teacher                  0.0080  #393, arm6_v2_combab_alignS
+    same cell, bb40k student                   0.0049  #393, arm6_v2_combab_alignS
+    same cell, bb100k student                  0.0047  #393, arm6_v2_combab_alignS
+  gap that made 1.0660 the best                0.0141  rank 1 of 99, runner-up 1.0801
+  this card's largest head-seed range          0.0042  over 2 (stop, head) rows
+  this card's pooled head-seed std             0.0020
+  VERDICT: the band (0.0042) is narrower than the 0.0141 gap that made 1.0660 the best, so a move larger than the band is readable.
+[2026-08-21T09:11:32Z] [rep300k] band drained at 300k

@@ -432,3 +432,75 @@ scored, 2 on its deadline, and 3 when no chain for that stop is alive. When
 it dies with its session, nothing is lost.
 
 Tests: 196 in `test_407_full_pass.py`.
+
+## 2026-08-22
+
+### 00:52 UTC — the 450k stop drained and the driver hit a wall
+
+The driver scored the 450k stop and then blocked at its VRAM gate:
+
+```
+[08-22 01:52:37] [cf407] waiting for VRAM on GPU 0: 3883 MiB free, need 6500
+```
+
+Card 0 carried another project, 17,270 MiB, and three Jupyter kernels. The
+665k leg is 215,000 steps, about 17.6 hours, so each hour in the gate is an
+hour of the card lost.
+
+### 00:57 UTC — the last leg moved to card 1
+
+Card 1 held 24,207 MiB free and 0 percent. The 450k band's last draw
+(teacher, seed 20260724) was already past its head training and inside
+GIFT-Eval, which runs `--device cpu`. So card 1 was free of GPU work.
+
+The blocked driver (pid 3369703) waited in `wait_vram`. Its only child was
+`sleep 60`, so `kill` lost no training. The relaunch:
+
+```
+WT=/tmp/contrastive-forecasting-407 RUNS=/home/jupyter/cf373_r3/sync \
+  BB_GPU=1 HEAD_GPU=1 nohup setsid bash scripts/run_pass.sh 665000 &
+```
+
+One stop, not three. That is what `open_stops` returns and what the
+watchdog's own re-fire would pass.
+
+The continuity gates passed and the leg resumed:
+
+```
+[08-22 01:57:55] [cf407] start stops=665000 ... bb_gpu=1 head_gpu=1
+[08-22 01:57:55] [arm6_v2_combab_alignS] RESUME from ..._450k.pth (step 450k)
+[08-22 01:57:55] [arm6_v2_combab_alignS] START target=665000 gpu=1
+```
+
+Card 1 then read 5,396 MiB and 37 percent, and the step counter moved.
+
+### 00:58 UTC — the watchdog moved with it
+
+The watchdog carried `BB_GPU=0` from its own launch. Two things follow from
+that variable, and both were wrong after the move:
+
+- a re-fire would put the driver back on the blocked card;
+- `band_at_last_stop` takes `BAND_GPU` as `1 - BB_GPU`, so the 665k band
+  would fire on card 0.
+
+So the watchdog restarted with `BB_GPU=1 HEAD_GPU=1 BAND_GPU=1`. It was
+asleep between ticks, so the restart interrupted no work. Its first tick
+read `driver=yes step=450200 quiet=0 open='665000'`.
+
+The 665k band stays armed: `replicate_665k.log` does not exist, so
+`band_at_last_stop` still fires when the 665k checkpoint lands. Card 1 holds
+24 GB, the leg holds 5.4 GB, and `head_vram_gate` holds one flock per card,
+so the driver's own heads and the band draws take the card in turn.
+
+`band_queue.sh` needed no change. It already ran with `BAND_GPU=1`.
+
+### the numbers read back at this point
+
+| stop | student | teacher |
+|---|---|---|
+| 200k | 1.0660 | 1.0828 |
+| 300k | 1.0867 | 1.1030 |
+| 450k | 1.0691 | 1.0986 |
+
+Band draws at 450k: student 1.0761 and 1.0778, teacher 1.0924. The second
+teacher draw (seed 20260724) is still in GIFT-Eval.

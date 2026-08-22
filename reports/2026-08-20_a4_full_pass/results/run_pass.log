@@ -19,3 +19,24 @@ student  bb40k=1.0862  bb100k=1.0801  bb200k=1.0660  bb300k=1.0867
 teacher  bb40k=1.0855  bb100k=1.0874  bb200k=1.0828  bb300k=1.1030
 leg 450000 will continue from cf393_arm6_v2_combab_alignS_cf373k3_300k.pth
 [08-21 08:45:28] [cf407] LEG -> 450k
+leg 450000 continued the run
+[08-21 20:29:33] [cf407] LEG done 450k
+[08-21 20:29:33] [cf407] HEAD 450k student (attempt 1)
+[08-21 22:45:34] [cf407] HEAD 450k student rc=0
+student scored 1.0691 at 450000
+[08-21 22:45:34] [cf407] HEAD 450k teacher (attempt 1)
+[08-22 01:52:35] [cf407] HEAD 450k teacher rc=0
+teacher scored 1.0986 at 450000
+A4  arm6_v2_combab_alignS  k=3  seed 20260520
+resume  cf393_arm6_v2_combab_alignS_cf373k3_r2_200k.pth  (+ optimizer)
+stops   300000, 450000, 665000
+heads   student, teacher  30000 steps  seed 20260722
+best before this card: 1.0660 (A4_k3_bb200k_student)
+student  bb40k=1.0862  bb100k=1.0801  bb200k=1.0660  bb300k=1.0867  bb450k=1.0691
+teacher  bb40k=1.0855  bb100k=1.0874  bb200k=1.0828  bb300k=1.1030  bb450k=1.0986
+leg 665000 will continue from cf393_arm6_v2_combab_alignS_cf373k3_450k.pth
+[08-22 01:52:37] [cf407] waiting for VRAM on GPU 0: 3883 MiB free, need 6500
+resume OK: /home/jupyter/cf373_r3/sync/arm6_v2_combab_alignS/leg_200k
+[08-22 01:57:55] [cf407] start stops=665000 runs=/home/jupyter/cf373_r3/sync wt=/tmp/contrastive-forecasting-407 bb_gpu=1 head_gpu=1
+leg 665000 will continue from cf393_arm6_v2_combab_alignS_cf373k3_450k.pth
+[08-22 01:57:55] [cf407] LEG -> 665k

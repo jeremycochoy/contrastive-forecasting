@@ -1,0 +1,16 @@
+a  /home/jupyter/cf373_r3/sync/arm6_v2_combab_alignS/leg_300k/cf393_arm6_v2_combab_alignS_cf373k3_300k.pth
+b  /home/jupyter/cf373_r3/sync/arm6_v2_combab_alignS/leg_450k/cf393_arm6_v2_combab_alignS_cf373k3_450k.pth
+loaded 110   from teacher 74   from student 36
+moved: from teacher 0, from student 32
+   student-owned move  transformer.layers.1.self_attn.out_proj.weight  max |d| 1.584e+00
+   student-owned move  transformer.layers.1.linear2.weight  max |d| 1.069e+00
+   student-owned move  transformer.layers.0.self_attn.out_proj.weight  max |d| 1.027e+00
+   student-owned move  transformer.layers.0.linear2.weight  max |d| 9.718e-01
+   student-owned move  transformer.layers.2.self_attn.out_proj.weight  max |d| 9.014e-01
+   student-owned move  transformer.layers.1.self_attn.in_proj_weight  max |d| 7.473e-01
+   student-owned move  transformer.layers.2.self_attn.in_proj_weight  max |d| 6.205e-01
+   student-owned move  transformer.layers.2.linear2.weight  max |d| 5.965e-01
+encoder_latents      identical=False  max |d| 4.622e-02  rel L2 1.137e-02
+forecaster_latents   identical=False  max |d| 3.377e-01  rel L2 1.120e-01
+NOT A NULL: the teacher head does not read teacher tensors only. The teacher encoder stack is frozen, but 32 of 36 student-owned tensors move between these two steps. The latents the head reads differ by up to 3.377e-01
+wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/results/teacher_head_inputs_300k_450k.json

@@ -3,10 +3,12 @@ Each row is a DIFFERENT model. These are not draws of one model.
   bb100k  1.0874
   bb200k  1.0828
   bb300k  1.1030
+  bb450k  1.0986
 
 change from one stop to the next
   bb100k -> bb200k   -0.0046
   bb200k -> bb300k   +0.0202
+  bb300k -> bb450k   -0.0044
 
 why these points are models and not draws
   src/checkpoint.py:266    out = dict(state_dict)
@@ -21,9 +23,12 @@ measured, from teacher_head_inputs_*.json
   teacher_head_inputs_200k_300k.json: loaded 110, teacher 74, student 36. Moved: teacher 0, student 32
      encoder_latents      identical=False  rel L2 6.227e-03
      forecaster_latents   identical=False  rel L2 8.931e-02
+  teacher_head_inputs_300k_450k.json: loaded 110, teacher 74, student 36. Moved: teacher 0, student 32
+     encoder_latents      identical=False  rel L2 1.137e-02
+     forecaster_latents   identical=False  rel L2 1.120e-01
   teacher_head_inputs_40k_100k.json: loaded 110, teacher 74, student 36. Moved: teacher 74, student 32
      encoder_latents      identical=False  rel L2 1.288e+00
      forecaster_latents   identical=False  rel L2 1.400e+00
 
-VERDICT: NOT a null, and NOT pooled. The teacher ENCODER STACK is common to these 3 points, but the head also reads student-owned tensors that keep training, so the head inputs differ. Each delta above is a change between two models. The card's noise band comes from head_band.csv instead: three head seeds on one backbone, student range 0.0018, teacher range 0.0064.
+VERDICT: NOT a null, and NOT pooled. The teacher ENCODER STACK is common to these 4 points, but the head also reads student-owned tensors that keep training, so the head inputs differ. Each delta above is a change between two models. The card's noise band comes from head_band.csv instead: three head seeds on one backbone, student range 0.0018, teacher range 0.0064.
 wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/results/teacher_frozen_track.csv
