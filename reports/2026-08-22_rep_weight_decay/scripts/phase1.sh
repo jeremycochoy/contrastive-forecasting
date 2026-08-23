@@ -101,9 +101,13 @@ head_worker(){
 
 # A named pipe, not a file: the worker blocks on `read` between heads and needs
 # no poll. The worker opens the read end first, so the lane's own open returns.
+#
+# The name carries the lane's PID, not the card index alone. This cell holds
+# the card at about 26 percent, so elisa runs SEVERAL lanes on one card, and
+# two lanes with one queue name would each delete the other's pipe.
 worker=""; queue=""
 if [ "$HEADS" = "1" ] && [ "$HEAD_BG" = "1" ] && [ -z "${CF409_DRY_RUN:-}" ]; then
-  queue="$CF409_RESULTS/head_queue_gpu${BB_GPU}"
+  queue="$CF409_RESULTS/head_queue_gpu${BB_GPU}_$$"
   rm -f "$queue"
   if mkfifo "$queue" 2>/dev/null; then
     head_worker <"$queue" &
