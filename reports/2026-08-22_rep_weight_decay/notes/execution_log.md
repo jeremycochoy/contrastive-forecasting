@@ -92,3 +92,12 @@ Measured over 900 s, with the trial's GIFT-Eval on the CPU beside them:
 Three lanes take 2.3 times the work of one. The card is full at three, so this
 run adds no fourth lane. Six arms at 40,000 steps is 240,000 steps, which is
 about 14.6 hours of backbone.
+
+## Card 0 came free for four minutes, and was taken again
+
+At 03:06 card 0 showed 21 GB free. The plan was to move the three arms that had
+not started onto it, which needs the lane managers to release their second arm.
+At 03:10, before any process was touched, the same agent's run was back on card
+0 with 17.3 GB. The move was dropped and no process of this run was stopped.
+
+The card-0 watch now asks for 20 minutes free, not one reading.
