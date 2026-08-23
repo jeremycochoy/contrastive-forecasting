@@ -55,3 +55,28 @@ one copy of the token before the gate passes.
 | 2026-08-22 22:44 | first attempt, at the k = 3 cell |
 | 2026-08-23 01:48 | the user stopped it. Its two legs killed, its GPUs cleared |
 | 2026-08-23 02:00 | its checkpoints and results deleted |
+
+## The cards, as this run found them
+
+Card 0 carried another agent's run at the launch, 17.3 GB and about 50
+percent. This card never touched it.
+
+Card 1 was free. One leg of this cell holds 2.1 GB and takes the card to 26
+percent, so card 1 holds SEVERAL legs. This run put three lanes on it, two
+arms each. `scripts/launch.sh` with `GPUS="1 1 1"` deals them.
+
+Two lanes on one card each deleted the other's head queue, because the queue
+name carried the card index alone. The name now carries the lane's PID.
+
+## The trial
+
+`CF409_TRIAL=400` ran the whole pipeline on card 1 before the arms:
+
+| stage | result |
+|---|---|
+| backbone, 400 steps | rc=0, 3.4 minutes, 1.96 steps/s |
+| the five flags | decay `1.0 0.0 100`, seed 20260520, teacher, mean, ema `0.9 1.0 100000` |
+| `rep_w` at step 200 | 0.0, and `l_rep` blank, which is the decay |
+| head, 200 steps | rc=0, 31 seconds |
+| GIFT-Eval, 97 configs | start 02:27, 4 shards on the CPU |
+
