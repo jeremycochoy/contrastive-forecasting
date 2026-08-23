@@ -119,3 +119,27 @@ no score.
 
 `head_eval.sh` is idempotent, so a head that aborts is re-run. The watch reads
 `results/stops.log` for `waiting for VRAM`, `TIMEOUT` and `ABORT`.
+
+## The head needs the card, and card 1 could not give it
+
+At 08:59 card 1 held 4805 MiB free: `rnd-472` had 11.5 GB and this card's three
+backbones 7.1 GB. A head trainer started there dies at once —
+
+```
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 4.32 GiB.
+```
+
+so `head_eval_bb.sh`'s 7000 MiB gate is a real need, not a margin. The head
+batch is 256 and the references come from it, so the batch does not move.
+
+A lane frees only its own 2.4 GB when a backbone ends, and it starts the next
+backbone at once. So the three heads of the first three arms would have waited
+out their four-hour ceiling and aborted.
+
+`results/HOLD_ABOVE` holds 1000. `run_leg_k.sh` reads it fresh at every leg,
+so the three arms that had not started refuse with exit 9, which is a code the
+lane does not re-fire. The lanes then drain their head queues, and the heads
+get the 7.1 GB back.
+
+The three arms that refuse start again after that, at a lane count this run
+takes from the head's own measured footprint.
