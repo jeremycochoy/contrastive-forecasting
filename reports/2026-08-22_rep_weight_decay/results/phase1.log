@@ -4,3 +4,22 @@
 [08-23 02:30:43] [#409 lane 1] arm dec_s24 -> 40000
 [08-23 02:32:43] [#409 lane 1] head queue on — one head at a time, worker pid 270663
 [08-23 02:32:43] [#409 lane 1] arm dec_s22 -> 40000
+[08-23 09:47:33] [#409 lane 1] head dec_s20 stop=40000 (queued)
+[08-23 09:47:33] [#409 lane 1] head dec_s20 stop=40000 start
+[08-23 09:47:33] [#409 lane 1] arm dec_s23 -> 40000
+[08-23 09:47:40] [#409 lane 1] arm dec_s23 stop=40000 rc=9 — no head for this arm
+[08-23 09:47:40] [#409 lane 1] waiting for the head queue to drain
+[08-23 09:48:29] [#409 lane 1] head dec_s22 stop=40000 (queued)
+[08-23 09:48:29] [#409 lane 1] arm dec_s26 -> 40000
+[08-23 09:48:29] [#409 lane 1] head dec_s22 stop=40000 start
+[08-23 09:48:36] [#409 lane 1] arm dec_s26 stop=40000 rc=9 — no head for this arm
+[08-23 09:48:36] [#409 lane 1] waiting for the head queue to drain
+[08-23 09:50:34] [#409 lane 1] head dec_s24 stop=40000 (queued)
+[08-23 09:50:34] [#409 lane 1] arm dec_s25 -> 40000
+[08-23 09:50:34] [#409 lane 1] head dec_s24 stop=40000 start
+[08-23 09:50:41] [#409 lane 1] arm dec_s25 stop=40000 rc=9 — no head for this arm
+[08-23 09:50:41] [#409 lane 1] waiting for the head queue to drain
+[08-23 09:52:05] [#409 lane 1] head queue on — one head at a time, worker pid 688969
+[08-23 09:52:05] [#409 lane 1] arm dec_s23 -> 40000
+[08-23 09:52:30] [#409 lane 1] head queue on — one head at a time, worker pid 689459
+[08-23 09:52:30] [#409 lane 1] arm dec_s25 -> 40000

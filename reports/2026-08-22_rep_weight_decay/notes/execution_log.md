@@ -160,3 +160,16 @@ for 7000. Two lanes leave 7804 MiB, which passes.
 
 The three held arms therefore start again as two lanes. The third starts when
 the heads of the first three arms are done.
+
+## The two waves
+
+| time | event |
+|---|---|
+| 02:28 | arms dec_s20, dec_s24, dec_s22 start, three lanes on card 1 |
+| 09:47 to 09:50 | all three reach 40,000 steps |
+| 09:47 to 09:51 | dec_s23, dec_s26, dec_s25 refuse on `HOLD_ABOVE`, exit 9 |
+| 09:47 | the head of dec_s20 takes the card. Two heads queue behind it |
+| 09:51 | `HOLD_ABOVE` removed |
+| 09:52 | dec_s23 and dec_s25 start as two lanes |
+
+dec_s26 starts when the three heads release the card.
