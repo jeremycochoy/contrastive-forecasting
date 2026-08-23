@@ -69,3 +69,5 @@
 [08-23 09:52:30] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_s25/arm6_v2_combab_alignT/leg_40k
 [08-23 09:52:35] [#409] arm dec_s25 decay='1.0 0.0 10000' seed=20260525 target=teacher reduce=mean ema='0.9 1.0 100000' OK — all five reached the trainer
 [08-23 09:52:35] [#409] arm dec_s25 AUC gate pid 689680 — window 500, threshold 0.55, warmup 1000
+[08-23 12:31:21] [#409 lane 1] head dec_s20 stop=40000 rc=0
+[08-23 12:31:25] [#409 lane 1] lane drained — 1 leg(s) and 0 head(s) failed
