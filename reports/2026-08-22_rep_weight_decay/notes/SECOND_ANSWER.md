@@ -45,10 +45,11 @@ best arm of this cell to 40,000 steps only, so no longer stop exists for it.
 The nearest measured curve is #373's k = 3 cell, which is another cell. Say so.
 The report must not borrow it as this cell's own trajectory.
 
-**4. The seed spread of this card.** Six arms are the same decay at six
-backbone seeds, so their range IS this treatment's run-to-run spread, measured
-and not borrowed. The reference has its own range, 0.0016 over two seeds. A
-score difference under the larger of the two is not a rank.
+**4. The seed spread of this card.** Arm 1 is one EMA schedule at three
+backbone seeds, so its range IS this treatment's run-to-run spread, measured
+and not borrowed. The other seven arms are one seed each, because the axis is
+the schedule. The reference has its own range, 0.0016 over two seeds. A score
+difference under the larger of the two is not a rank.
 
 ## What the report must not say
 
@@ -58,7 +59,7 @@ as indirect, and stop there.
 
 ## The follow-up
 
-The decay's mean over six seeds can beat 1.1491 by more than the two spreads of
-measurement 4. The next card then trains the decay to 200,000 steps and
+The best schedule under the decay can beat 1.1491 by more than the two spreads
+of measurement 4. The next card then trains the decay to 200,000 steps and
 compares it against a reference at the same stop. That is the direct answer. Do
 not run it inside this card.

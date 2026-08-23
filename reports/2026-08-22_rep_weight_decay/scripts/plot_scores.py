@@ -1,22 +1,20 @@
 #!/usr/bin/env python3
-"""The GM-Relative MASE of every run, against the two published references.
+"""The GM-Relative MASE of every EMA schedule, with and without the decay.
 
-WHY THIS FIGURE EXISTS. This is the card's first answer. One dot is one run of
-the decay arm, at its own backbone seed. Every run is the same treatment, so
-the set of dots is the decay arm's own spread, and its mean is the number that
-answers the card.
+WHY THIS FIGURE EXISTS. This is the card's first answer. One row is one EMA
+schedule. The filled dot is that schedule WITH the decay, which this card
+measured. The open dot is the SAME schedule with NO decay, which the EMA
+momentum sweep published at the same cell, the same 40,000-step stop and the
+same 30,000-step head. The line between them is the decay's effect on that
+schedule.
 
-THE REFERENCES. Two vertical lines carry the numbers a run is read against.
-This card measures NO control: the EMA momentum sweep already scored this same
-cell, at the same 40,000-step stop and the same 30,000-step head, at two
-backbone seeds:
+This card measures NO control, so every open dot comes from
+`reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md`. One schedule, 0.99
+fixed, has no open dot: the sweep never ran it.
 
-  1.1507   seed 20260520
-  1.1491   seed 20260524, the best score of that sweep
-
-They come from `reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md`. Their
-range, 0.0016, is the bar on the reference: a decay run inside it is not a
-rank.
+THE BAR. Arm 1 ran at three backbone seeds. Its spread is the only repeat this
+card holds, and it is what says whether a gap between two schedules is a rank
+or noise. The figure draws it as one bar.
 
 A run the AUC gate stopped has no score. The figure names it under the axis
 rather than leaving the reader to count the missing rows.
@@ -32,6 +30,7 @@ import csv
 import importlib.util
 import statistics
 import sys
+import textwrap
 from pathlib import Path
 
 import matplotlib
@@ -77,41 +76,48 @@ def main(argv=None):
     # Best first, so the reader's eye starts where the answer is.
     ranked = sorted(((r, scored[r["arm"]]) for r in arms
                      if r["arm"] in scored), key=lambda t: t[1])
-    missing = [r["seed"] for r in arms if r["arm"] not in scored]
+    missing = [S.arm_label(r) for r in arms if r["arm"] not in scored]
+    # The one repeat this card holds: arm 1 at three seeds.
+    repeats = [v for r, v in ranked if r["repeat"]]
 
-    fig, ax = plt.subplots(figsize=(8.0, 2.8 + 0.40 * (len(ranked) + 1)))
-    # The reference is a RANGE, not a point: the sweep scored this cell at two
-    # seeds. A band says so, where two lines 0.0016 apart would read as one.
-    ref_lo, ref_hi = min(S.SWEEP_SCORES.values()), max(S.SWEEP_SCORES.values())
-    ax.axvspan(ref_lo, ref_hi, color=S.REFERENCE, alpha=0.16, linewidth=0)
-    for value in (ref_lo, ref_hi):
-        ax.axvline(value, color=S.REFERENCE, linestyle="--", linewidth=1.1)
+    fig, ax = plt.subplots(figsize=(8.6, 2.8 + 0.42 * (len(ranked) + 1)))
+    # The number the card asks an arm to beat: the best the sweep measured on
+    # this cell with no decay.
+    ax.axvline(S.SWEEP_BEST, color=S.REFERENCE, linestyle="--", linewidth=1.1)
 
     ticks, labels = [], []
     for y, (row, value) in enumerate(reversed(ranked)):
         ticks.append(y)
-        labels.append(S.seed_label(row))
+        labels.append(S.arm_label(row))
+        ref = S.SWEEP_SCORES.get(S.schedule(row))
+        if ref is not None:
+            # The pair, and the move between them. A slope reads as one fact
+            # where two separate dots read as two.
+            ax.plot([ref, value], [y, y], color=S.MUTED, linewidth=1.2,
+                    alpha=0.55, solid_capstyle="round", zorder=1)
+            ax.plot([ref], [y], marker="o", markersize=7, color=S.SURFACE,
+                    markeredgecolor=S.REFERENCE, markeredgewidth=1.4,
+                    linestyle="none", zorder=2)
         ax.plot([value], [y], marker="o", markersize=8, color=S.SERIES,
                 markeredgecolor=S.SURFACE, markeredgewidth=1.4,
-                linestyle="none")
+                linestyle="none", zorder=3)
         ax.annotate(f"{value:.4f}", (value, y), xytext=(0, -14),
                     textcoords="offset points", fontsize=7,
                     color=S.INK, ha="center")
 
-    # The summary row. The card asks whether the decay beats 1.1491, and one
-    # run cannot say so: the sweep measured a seed range of 0.1432 on one arm.
-    if len(ranked) > 1:
-        values = [v for _, v in ranked]
+    # The spread row. A gap between two schedules smaller than this bar is not
+    # a rank.
+    if len(repeats) > 1:
         y = len(ranked)
         ticks.append(y)
-        labels.append(f"the decay, {len(values)} seeds")
-        ax.plot([min(values), max(values)], [y, y], color=S.SERIES,
+        labels.append(f"arm 1, {len(repeats)} seeds")
+        ax.plot([min(repeats), max(repeats)], [y, y], color=S.SERIES,
                 linewidth=2.0, alpha=0.45, solid_capstyle="round")
-        mean = statistics.fmean(values)
+        mean = statistics.fmean(repeats)
         ax.plot([mean], [y], marker="D", markersize=9, color=S.SERIES,
                 markeredgecolor=S.SURFACE, markeredgewidth=1.4,
                 linestyle="none")
-        ax.annotate(f"mean {mean:.4f}, range {max(values) - min(values):.4f}",
+        ax.annotate(f"mean {mean:.4f}, range {max(repeats) - min(repeats):.4f}",
                     (mean, y), xytext=(0, 9), textcoords="offset points",
                     fontsize=7, color=S.INK, ha="center")
 
@@ -120,30 +126,37 @@ def main(argv=None):
     ax.set_ylim(-0.6, len(ticks) - 0.4)
     ax.set_xlabel(
         "GM-Relative MASE over the 97 GIFT-Eval configs (lower is better)")
-    ax.set_title("Does the L_rep decay improve the score?",
+    ax.set_title("Does the L_rep decay improve the score, at any EMA schedule?",
                  color=S.INK, fontsize=11, loc="left")
-    # Inside the axes, at the top, on whichever side of the band has room. A
+    # Inside the axes, at the top, on whichever side of the line has room. A
     # label above the axes would sit on the title.
     x_lo, x_hi = ax.get_xlim()
-    right = (ref_hi - x_lo) / max(x_hi - x_lo, 1e-12) > 0.6
-    ax.annotate(f"the sweep on this cell, {ref_lo:.4f} to {ref_hi:.4f}",
-                (ref_lo if right else ref_hi, 0.995),
-                xycoords=("data", "axes fraction"),
+    right = (S.SWEEP_BEST - x_lo) / max(x_hi - x_lo, 1e-12) > 0.6
+    ax.annotate(f"the sweep's best on this cell, {S.SWEEP_BEST:.4f}",
+                (S.SWEEP_BEST, 0.995), xycoords=("data", "axes fraction"),
                 xytext=(-6 if right else 6, 0),
                 textcoords="offset points", fontsize=7.5, color=S.REFERENCE,
                 ha="right" if right else "left", va="top")
     S.tidy(ax)
     ax.grid(axis="y", visible=False)
-    # Two marks, two meanings. The seed is the row label.
+    # Three marks, three meanings. The schedule is the row label.
     ax.plot([], [], marker="o", linestyle="none", color=S.SERIES,
-            markersize=7, label="one run of the decay arm")
+            markersize=7, label="with the decay")
+    ax.plot([], [], marker="o", linestyle="none", color=S.SURFACE,
+            markeredgecolor=S.REFERENCE, markeredgewidth=1.4, markersize=7,
+            label="the same schedule, no decay (the sweep)")
     ax.plot([], [], color=S.REFERENCE, linestyle="--", linewidth=1.4,
-            label="the sweep's two published scores on this cell")
-    ax.legend(frameon=False, fontsize=8, labelcolor=S.INK, ncol=2,
+            label="the sweep's best on this cell")
+    ax.legend(frameon=False, fontsize=8, labelcolor=S.INK, ncol=3,
               loc="upper center", bbox_to_anchor=(0.5, -0.20))
     if missing:
-        fig.text(0.01, 0.005, "no score: " + ", ".join(missing),
-                 fontsize=7, color=S.LOST)
+        # Under the legend, in axes fractions. A figure-coordinate note lands
+        # on the x label when the panel is short, and this card can hold eight
+        # rows with no score at once.
+        ax.annotate(textwrap.fill("no score: " + ", ".join(missing), 96),
+                    (0.5, -0.30), xycoords="axes fraction", fontsize=7,
+                    color=S.LOST, ha="center", va="top",
+                    annotation_clip=False)
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(args.out, dpi=160, bbox_inches="tight", facecolor=S.SURFACE)
     print(f"{args.out}: {len(ranked)} score(s), {len(missing)} without one")

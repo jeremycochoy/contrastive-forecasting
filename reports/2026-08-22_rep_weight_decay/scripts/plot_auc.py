@@ -12,9 +12,9 @@ one step of this trainer is one batch and the raw column is noisy. The dotted
 line at 0.55 is the gate `auc_guard.sh` reads: a run whose rolling median
 falls under it, and stays under it, lost the task.
 
-Every run is the same treatment at another backbone seed, so every run takes
-one color and a run that lost the task takes the alarm color. The seed is a
-direct label at the right end of each line.
+Every run carries the same decay and differs in the EMA schedule, so every run
+takes one color and a run that lost the task takes the alarm color. The
+schedule is a direct label at the right end of each line.
 
 The grey band from step 0 to the end of the decay ramp is where the weight
 falls. A run that leaves the band with its AUC held did not lose the task to
@@ -83,7 +83,7 @@ def main(argv=None):
             lost += colour == S.LOST
             ax.plot([s for s, _ in series], [v for _, v in series],
                     color=colour, linewidth=1.6)
-            labels.append((series, S.seed_label(row), colour))
+            labels.append((series, S.arm_label(row), colour))
             drawn += 1
 
     if not drawn:

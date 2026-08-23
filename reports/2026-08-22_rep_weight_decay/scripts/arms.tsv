@@ -1,58 +1,97 @@
 # #409 — the arms of the card, one row each. Tab separated.
 #
-# Columns: arm, backbone seed. Nothing else changes between two arms.
+# Columns: arm, the EMA momentum at step 0, the momentum at the end of the
+# ramp, the ramp length, the backbone seed. A `-` in a column is a flag the arm
+# does NOT pass.
 #
-# Add a row here and nothing else changes: every script and guard reads this
-# file.
+# Add a row here and nothing else changes: every script, guard and figure reads
+# this file.
 #
 # ---- The cell ----------------------------------------------------------------
 #
-# Every arm runs the EMA momentum sweep's best arm, `r100_09` of
-# reports/2026-08-19_ema_momentum_k32/. That is #373's cell
-# `arm6_v2_combab_alignT` at k = 32 under the `mean` reduction, with
-# `--align-target teacher` and an EMA momentum of 0.9 that rises to 1.0 at step
-# 100,000. `study.sh` holds those values, and the momentum is the runner's own
-# default.
+# Every arm runs #373's cell `arm6_v2_combab_alignT` at k = 32 under the `mean`
+# reduction, with `--align-target teacher`. `study.sh` holds those values. Only
+# the three momentum columns and the seed change between two rows.
 #
-# ---- The decay ---------------------------------------------------------------
+# ---- The decay is FIXED ------------------------------------------------------
 #
 # One extra factor in front of L_rep. It starts at 1.0 and falls linearly to
-# 0.0 at step 10,000. There is no floor and no second shape, so the decay is in
-# `study.sh` and not in a column here. Every arm carries it.
+# 0.0 at step 10,000. That is the card's own shape, and no arm moves it, so the
+# decay is in `study.sh` and not in a column here.
 #
-# ---- The references already exist --------------------------------------------
+# ---- The axis is the EMA schedule --------------------------------------------
 #
-# This card runs NO control. The sweep measured this cell at two backbone
-# seeds, and reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md holds
-# both:
+# The card's "The arms" section says the sweep's table is a guide and not a
+# list, and that another schedule is allowed with a reason. So the eight
+# backbones go to EIGHT SCHEDULES, one seed each. Seed variance is secondary
+# and gets no backbone of its own.
 #
-#   seed 20260524   GM-Relative MASE 1.1491
-#   seed 20260520   GM-Relative MASE 1.1507
+# The align target is the EMA teacher. Past step 10,000 the decay has taken
+# L_rep out, so L_align is the whole main loss and the teacher is the only
+# target left. The schedule sets how fast that teacher moves. That is what
+# makes it the axis worth eight backbones.
 #
-# The seed range is 0.0016. Read those two numbers from that report. A control
-# arm here would spend a card on a number that exists.
+# The number that ranks an arm is the momentum it HOLDS at the 40,000-step
+# stop, not the momentum its command line names: `dec_m090_r60` and
+# `dec_m090_r200` both name 0.9 and hold 0.967 and 0.920. The eight arms hold
+# eight values, from 0.840 to 0.990, and no two share one.
 #
-# ---- Why six seeds -----------------------------------------------------------
+# ---- Why each row earns a backbone -------------------------------------------
 #
-# The card allows up to eight backbones and asks for repeat seeds. Every
-# backbone goes to the decay arm, so the six give the decay arm's own mean and
-# its own spread.
+# The score beside each row is the SAME schedule with NO decay, from
+# reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md. It is what the arm
+# is read against.
 #
-# Rows 1 and 2 carry the two seeds the sweep scored, so each pairs against a
-# measured number. Rows 3 and 4 carry two seeds the sweep also trained on this
-# cell, at another arm, and both held the contrastive task (AUC 0.978 and
-# 0.975). Rows 5 and 6 are new.
+#   dec_s20        0.940 at the stop. 1.1507, the best of the sweep. This is
+#                  the schedule the card started on, and it is already trained.
+#                  Rows 2 and 3 are the same schedule at two more seeds. All
+#                  three backbones are spent, so that spread costs nothing.
 #
-# Six and not eight: the reference is two seeds with a range of 0.0016, so its
-# mean is well determined, and past six the decay arm's own mean gains less
-# than one more card costs. Two backbones stay unspent.
+#   dec_m090_fix   0.900. 1.1819. The teacher never slows. It is the only arm
+#                  whose momentum is the same at step 10,000 and at the stop,
+#                  so it separates "a slow teacher" from "a teacher that slows
+#                  while the decay runs".
 #
-# `launch.sh` deals the rows round-robin over the two cards. So rows 1 and 2,
-# the two seeds with a reference, land on different cards. One lost card does
-# not take both.
+#   dec_m090_r60   0.967. 1.1873. Same start as `dec_s20`, faster ramp.
+#
+#   dec_m095_fix   0.950. 1.1907. It holds 0.950 with NO ramp, between the
+#                  0.940 and the 0.967 of the two ramp arms. So the three tell
+#                  the reached value from the shape that reaches it.
+#
+#   dec_m099_fix   0.990. The sweep never ran it, and it is the one arm past
+#                  the sweep's range. L_rep carries the negatives, and the
+#                  decay removes them at step 10,000. A slow teacher is the
+#                  standard guard against collapse when negatives are absent,
+#                  so the decay should move the best momentum UP. This arm is
+#                  where that move would show. 0.99 is also train.py's own
+#                  default momentum.
+#
+#   dec_m090_r200  0.920. 1.1784. Same start as `dec_s20`, slower ramp. With
+#                  `dec_m090_fix` and `dec_m090_r60` it gives one ordered row
+#                  at one start: 0.900, 0.920, 0.940, 0.967.
+#
+#   dec_m080_r200  0.840. 1.1782, the sweep's second best and its only good arm
+#                  away from 0.9. It is the fast-teacher end. Under the decay a
+#                  fast teacher has no repel term beside it, so this arm says
+#                  whether the fast end survives. A collapse here is a result.
+#
+#   dec_m095_r100  0.970. 1.2130. It reaches almost what `dec_m090_r60` reaches,
+#                  0.970 against 0.967, from a different start. The sweep
+#                  separated that pair by 0.0257, so the pair says whether the
+#                  start or the reached value sets the score.
 #
 # Seed 20260521 stays OUT. It lost the contrastive task once in the sweep, so a
 # collapse there could not be read as the decay's.
+#
+# ---- The order ---------------------------------------------------------------
+#
+# `launch.sh` deals the rows round-robin over the two cards, so each card holds
+# a spread of the momentum ladder and one lost card takes no whole end of it.
+# The four new arms dealt first bracket 0.940 and probe past it: 0.900, 0.967,
+# 0.950, 0.990.
+#
+# Rows 1 to 3 carry the seed in their names. They were trained before the axis
+# changed and their checkpoints are on disk under those names.
 #
 # ---- What to watch -----------------------------------------------------------
 #
@@ -61,10 +100,14 @@
 # the `auc` column of <run>_losses.csv every step, and #409 adds `rep_w`,
 # `l_rep` and `l_align` beside it. Read the AUC of every arm and name the step
 # any run leaves the 0.95 to 0.98 band the sweep's healthy arms held.
-# arm	seed
-dec_s20	20260520
-dec_s24	20260524
-dec_s22	20260522
-dec_s23	20260523
-dec_s25	20260525
-dec_s26	20260526
+# arm	tau	end	ramp	seed
+dec_s20	0.9	1.0	100000	20260520
+dec_s22	0.9	1.0	100000	20260522
+dec_s24	0.9	1.0	100000	20260524
+dec_m090_fix	0.9	-	-	20260520
+dec_m090_r60	0.9	1.0	60000	20260520
+dec_m095_fix	0.95	-	-	20260520
+dec_m099_fix	0.99	-	-	20260520
+dec_m090_r200	0.9	1.0	200000	20260520
+dec_m080_r200	0.8	1.0	200000	20260520
+dec_m095_r100	0.95	1.0	100000	20260520

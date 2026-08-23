@@ -1,5 +1,6 @@
 #!/bin/bash
-# #409 — ONE lane: the arms this card gives one card, in order.
+# #409 — ONE lane: the arms this card gives one card, in order. One arm is one
+# EMA schedule.
 #
 # One arm is one backbone to 40,000 steps, then one 30,000-step student head,
 # then that head's 97 GIFT-Eval configs. The arms are independent. No arm
@@ -33,8 +34,8 @@
 # to read. CF409_HEADS=0 trains the backbones and nothing else.
 #
 # Usage:  bash phase1.sh                          # every arm of the card
-#         ARMS="dec_s20 dec_s24" bash phase1.sh
-#         BB_GPU=1 ARMS=dec_s20 bash phase1.sh
+#         ARMS="dec_s20 dec_m090_fix" bash phase1.sh
+#         BB_GPU=1 ARMS=dec_m090_fix bash phase1.sh
 #         CF409_DRY_RUN=1 bash phase1.sh          # print the plan, run nothing
 set -uo pipefail
 
@@ -125,6 +126,7 @@ for arm in $ARMS; do
   for stop in $CF409_STOPS; do
     if [ -n "${CF409_DRY_RUN:-}" ]; then
       echo "arm $arm steps=$stop gpu=$BB_GPU tries=$CF409_LEG_TRIES" \
+           "ema='$(cf409_ema_label "$arm")'" \
            "seed=$(cf409_seed "$arm") decay=$(cf409_decay_args)"
       [ "$HEADS" = "1" ] && \
         echo "head $arm stop=$stop steps=$CF409_HEAD_STEPS enc=$CF409_ENC"

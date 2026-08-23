@@ -1,5 +1,6 @@
 #!/bin/bash
-# #409 — the entry point. One decay, several seeds, two cards, one command.
+# #409 — the entry point. One decay, eight EMA schedules, two cards, one
+# command.
 #
 # elisa holds two RTX 4090s. This deals the arms round-robin over them and
 # starts one lane on each (`phase1.sh`). Each lane trains its arms in turn:
@@ -24,7 +25,7 @@
 #   nohup setsid bash scripts/launch.sh >/dev/null 2>&1 &
 #
 #   GPUS="0" bash scripts/launch.sh          # one card
-#   ARMS="dec_s20 dec_s24" bash scripts/launch.sh
+#   ARMS="dec_m090_fix dec_m095_fix" bash scripts/launch.sh
 #   CF409_TRIAL=400 bash scripts/launch.sh   # the whole pipeline, in minutes
 #   CF409_DRY_RUN=1 bash scripts/launch.sh   # print the plan, run nothing
 set -uo pipefail
@@ -61,6 +62,8 @@ if [ -n "${CF409_DRY_RUN:-}" ]; then
   echo "  root=$CF409_ROOT results=$CF409_RESULTS gpus='$GPUS'"
   for i in "${!arm_list[@]}"; do
     echo "arm ${arm_list[$i]} gpu=${gpu_list[$(lane_of "$i")]}" \
+         "ema='$(cf409_ema_label "${arm_list[$i]}")'" \
+         "reaches=$(cf409_momentum_at "${arm_list[$i]}" "${CF409_STOPS%% *}")" \
          "seed=$(cf409_seed "${arm_list[$i]}")" \
          "rep_end=$CF409_REP_W_END ramp=$(cf409_ramp)" \
          "target=$CF409_ALIGN_TARGET"
@@ -84,14 +87,26 @@ state(){  # <note>
     echo "- cell: \`$CF409_CELL\`, k = $CF409_K, reduce \`$CF409_REDUCE\`," \
          "target \`$CF409_ALIGN_TARGET\`"
     echo "- decay: $CF409_REP_W_START to $CF409_REP_W_END at step" \
-         "$(cf409_ramp). No control arm: the references are 1.1507 (seed" \
-         "20260520) and 1.1491 (seed 20260524), from" \
+         "$(cf409_ramp). Fixed on every arm."
+    echo "- axis: the EMA schedule. No control arm: the sweep scored these" \
+         "schedules with no decay, in" \
          "\`reports/2026-08-19_ema_momentum_k32/\`."
     echo "- arms: $ARMS"
     echo "- cards: $GPUS, launcher pid $$"
     echo "- root: \`$CF409_ROOT\`"
     echo "- artefacts: elisa holds them all, and no sync loop runs." \
          "See \`notes/artefacts.md\`."
+    echo
+    echo "## The schedules"
+    echo
+    echo '```'
+    for a in $ARMS; do
+      printf '%-14s %-22s reaches %s at %s   seed %s\n' "$a" \
+        "$(cf409_ema_label "$a")" \
+        "$(cf409_momentum_at "$a" "${CF409_STOPS%% *}")" \
+        "${CF409_STOPS%% *}" "$(cf409_seed "$a")"
+    done
+    echo '```'
     echo
     echo "## Scores"
     echo

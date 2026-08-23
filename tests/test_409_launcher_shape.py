@@ -1,33 +1,35 @@
 """Tests for #409's study scaffolding: the arms, the launcher and the AUC watch.
 
-#409 runs ONE configuration at ONE decay shape, over repeat backbone seeds.
-The configuration is the EMA momentum sweep's best arm: #373's cell
+#409 holds ONE decay shape and sweeps the EMA schedule. The cell is #373's
 `arm6_v2_combab_alignT` at k = 32 under the `mean` reduction, with L_align on
-the EMA teacher and a momentum of 0.9 that rises to 1.0 at step 100,000. The
-decay is one extra factor in front of L_rep. It starts at 1.0 and falls
-linearly to 0.0 at step 10,000.
+the EMA teacher. The decay is one extra factor in front of L_rep. It starts at
+1.0 and falls linearly to 0.0 at step 10,000, and no arm moves it.
 
-The card runs NO control. The sweep already measured this cell at two seeds,
-1.1491 at seed 20260524 and 1.1507 at seed 20260520, and
-`reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md` holds both. Every
-backbone of this card goes to the decay arm, at a seed of its own.
+The card gives a budget of eight backbones. This study spends them on EIGHT
+EMA SCHEDULES, one backbone seed each. The align target is the teacher, so the
+schedule still acts after step 10,000, when L_align is the whole main loss.
+That is what makes the schedule the axis.
+
+The card runs NO control. The sweep already measured this cell with no decay,
+and `reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md` holds a score for
+seven of the eight schedules.
 
 It adds two trainer flags, `--rep-loss-weight-end` and
 `--rep-loss-weight-ramp-steps`, and no new pipeline. It reuses #373's runner
-and supplies the decay and the seed. `tests/test_409_rep_weight_decay.py` holds
-the objective itself.
+and supplies the schedule, the decay and the seed.
+`tests/test_409_rep_weight_decay.py` holds the objective itself.
 
 That is the contract these tests hold:
 
   * the study's constants are the card's: cell `arm6_v2_combab_alignT`,
     k = 32, the `mean` reduction, the teacher target, one stop at 40,000
     backbone steps, a 30,000-step head, and the student encoder.
-  * the EMA schedule is the runner's own default, so no arm moves it.
+  * the arms table holds eight distinct EMA schedules, and one seed each.
   * ONE decay shape lives in study.sh, not in the arms table, so no row can
     hold a second shape.
-  * the arms table holds one row per backbone seed, and every seed differs.
-  * every arm's decay flags follow `src.models.linear_schedule_at_step`, so
-    the shell table and the trainer agree on the weight at every step.
+  * every arm's decay flags follow `src.models.linear_schedule_at_step`, and
+    every arm's momentum follows `src.models.ema_tau_at_step`, so the shell
+    table and the trainer agree at every step.
   * no two arms share a file.
   * the runner is #373's `run_leg_k.sh` — no second trainer invocation
     exists in this study.
@@ -63,17 +65,44 @@ REDUCE = "mean"
 ALIGN_TARGET = "teacher"
 STOP = 40_000
 RAMP = 10_000
-# The EMA schedule of the sweep's best arm, which is also the runner's default.
+# The runner's own default schedule, which is the sweep's best arm. It is arm
+# 1 of this card, and every other arm replaces it.
 EMA = "--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000"
-# Every arm of the card, in the order it runs them. One row for each backbone
-# seed. `launch.sh` deals them round-robin, so the two seeds the sweep already
-# scored sit on different cards.
-ARMS = ("dec_s20", "dec_s24", "dec_s22", "dec_s23", "dec_s25", "dec_s26")
-SEEDS = ("20260520", "20260524", "20260522", "20260523", "20260525",
-         "20260526")
-# The two seeds the sweep scored on this cell. Their reference numbers are
-# read from that report, not measured again here.
-SCORED_BY_THE_SWEEP = ("20260520", "20260524")
+# Every arm of the card, in the order `launch.sh` deals them, with its EMA
+# schedule as `(tau, end, ramp)` and its backbone seed. `-` is a flag the arm
+# does NOT pass: train.py reads "no end value" as a fixed momentum.
+#
+# Rows 1 to 3 are ONE schedule at three seeds. That backbone is already spent,
+# so the spread is free. Rows 4 to 10 are the seven other schedules, at one
+# seed each. Eight schedules, eight backbones.
+ARM_ROWS = (
+    ("dec_s20",       "0.9",  "1.0", "100000", "20260520"),
+    ("dec_s22",       "0.9",  "1.0", "100000", "20260522"),
+    ("dec_s24",       "0.9",  "1.0", "100000", "20260524"),
+    ("dec_m090_fix",  "0.9",  "-",   "-",      "20260520"),
+    ("dec_m090_r60",  "0.9",  "1.0", "60000",  "20260520"),
+    ("dec_m095_fix",  "0.95", "-",   "-",      "20260520"),
+    ("dec_m099_fix",  "0.99", "-",   "-",      "20260520"),
+    ("dec_m090_r200", "0.9",  "1.0", "200000", "20260520"),
+    ("dec_m080_r200", "0.8",  "1.0", "200000", "20260520"),
+    ("dec_m095_r100", "0.95", "1.0", "100000", "20260520"),
+)
+ARMS = tuple(r[0] for r in ARM_ROWS)
+SEEDS = tuple(r[4] for r in ARM_ROWS)
+SCHEDULES = {r[0]: (r[1], r[2], r[3]) for r in ARM_ROWS}
+# The card's one seed. Seed variance is secondary, and this card spends no
+# backbone on it.
+SEED = "20260520"
+# The schedule already run, at three seeds. Those three backbones are spent.
+ARM_ONE = ("dec_s20", "dec_s22", "dec_s24")
+# The momentum each arm holds at the 40,000-step stop. That value ranks the
+# arms, and no two arms share it.
+REACHED = {
+    "dec_s20": 0.940, "dec_s22": 0.940, "dec_s24": 0.940,
+    "dec_m090_fix": 0.900, "dec_m090_r60": 0.967, "dec_m095_fix": 0.950,
+    "dec_m099_fix": 0.990, "dec_m090_r200": 0.920, "dec_m080_r200": 0.840,
+    "dec_m095_r100": 0.970,
+}
 
 
 def study_value(name: str, env=None) -> str:
@@ -139,7 +168,10 @@ class TestTheStudyIsTheCard:
         for line in ARMS_TSV.read_text().splitlines():
             if line.startswith("#") or not line.strip():
                 continue
-            assert len(line.split("\t")) == 2, line
+            assert len(line.split("\t")) == 5, line
+        # The five columns are the schedule and the seed. No column of the
+        # table names a weight, so no row can carry a second decay.
+        assert "rep-loss-weight" not in ARMS_TSV.read_text()
 
     def test_the_durable_root_is_this_study_only(self):
         root = study_value("CF409_ROOT")
@@ -149,67 +181,145 @@ class TestTheStudyIsTheCard:
         assert str(REPO_ROOT) not in root
 
 
-class TestTheEmaScheduleDoesNotMove:
-    """The card holds the EMA schedule fixed at the sweep's best arm, a
-    momentum of 0.9 that rises to 1.0 at step 100,000. That is already the
-    runner's own default, so this study passes NO momentum flag and no arm
-    can carry a different one."""
+class TestTheEmaScheduleIsTheAxis:
+    """The card's own "The arms" section makes the EMA schedule the axis. The
+    align target is the teacher, so the schedule keeps acting after step
+    10,000, when the decay has taken L_rep out and L_align is the whole main
+    loss.
 
-    def test_the_runner_default_is_the_sweep_best_schedule(self):
+    `EMA_ARGS` REPLACES the runner's three flags. It cannot append: a fixed
+    arm passes `--ema-tau` alone, and no repeated flag can remove
+    `--ema-tau-end`."""
+
+    def test_the_runner_takes_a_replacement_schedule(self):
+        assert "EMA_ARGS" in PARENT_LEG.read_text()
         assert EMA in PARENT_LEG.read_text()
 
-    def test_no_script_of_this_study_replaces_the_runner_schedule(self):
-        """`EMA_ARGS` is the one variable that replaces it. #404 swept the
-        momentum with it. This card writes it nowhere."""
-        offenders = []
-        for script in sorted(EXP.glob("scripts/*.sh")):
-            for n, line in enumerate(script.read_text().splitlines(), 1):
-                if line.lstrip().startswith("#"):
-                    continue
-                if "EMA_ARGS=" in line:
-                    offenders.append(f"{script.name}:{n}: {line.strip()}")
-        assert not offenders, offenders
+    def test_the_table_holds_eight_schedules(self):
+        got = {study_out(f'cf409_ema_sig {a}') for a in ARMS}
+        assert len(got) == 8, sorted(got)
 
-    def test_the_leg_flags_carry_no_momentum(self):
-        """GAP_ARGS is appended last, so a momentum there would override the
-        runner's own. The dry run prints the whole block."""
-        out = dry_run("dec_s20")
+    def test_a_ramp_arm_passes_all_three_flags(self):
+        assert study_out('cf409_ema_args dec_m090_r60') == (
+            "--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 60000")
+
+    def test_a_fixed_arm_passes_the_momentum_alone(self):
+        """train.py reads "no end value" as a constant momentum, and no value
+        of `--ema-tau-end` means the same."""
+        for arm in ("dec_m090_fix", "dec_m095_fix", "dec_m099_fix"):
+            args = study_out(f'cf409_ema_args {arm}')
+            assert "--ema-tau-end" not in args, arm
+            assert "--ema-tau-ramp-steps" not in args, arm
+            assert args.startswith("--ema-tau ")
+
+    def test_arm_one_is_the_schedule_already_run(self):
+        for arm in ARM_ONE:
+            assert study_out(f'cf409_ema_args {arm}') == EMA
+
+    def test_the_signature_matches_the_command_line_reader(self):
+        """The launcher compares the two. A reader that disagrees with the
+        table would stop every leg, or pass every wrong one."""
+        for arm in ARMS:
+            args = study_out(f'cf409_ema_args {arm}')
+            sig = study_out(f'cf409_ema_sig {arm}')
+            got = study_out(
+                f'printf "%s" "python train.py {args} --seed 1" '
+                f'| cf409_ema_of_cmdline')
+            assert got == sig, arm
+            assert sig == " ".join(SCHEDULES[arm]), arm
+
+    def test_the_shell_momentum_matches_the_python_schedule(self):
+        """`study.sh` repeats the ramp so a table needs no interpreter. The
+        two must not drift."""
+        sys.path.insert(0, str(REPO_ROOT))
+        from src.models import ema_tau_at_step
+        for arm, (tau, end, ramp) in SCHEDULES.items():
+            for step in (0, 1_000, 20_000, 40_000, 100_000):
+                want = ema_tau_at_step(
+                    step, STOP, float(tau),
+                    None if end == "-" else float(end),
+                    None if ramp == "-" else int(ramp))
+                got = float(study_out(f'cf409_momentum_at {arm} {step}'))
+                assert got == pytest.approx(want, abs=5e-4), (arm, step)
+
+    def test_no_two_arms_reach_the_same_momentum_at_the_stop(self):
+        """That value ranks the arms. Two arms on one value would spend two
+        backbones on one point."""
+        reached = {}
+        for arm in ARMS:
+            reached.setdefault(
+                float(study_out(f'cf409_momentum_at {arm} {STOP}')), []
+            ).append(arm)
+            assert float(study_out(f'cf409_momentum_at {arm} {STOP}')) == \
+                pytest.approx(REACHED[arm], abs=5e-4), arm
+        # The three seeds of arm 1 share one schedule, so they share one value.
+        assert len(reached) == 8, reached
+
+    def test_the_leg_flags_carry_the_arm_schedule(self):
+        """The dry run prints the whole block."""
+        out = dry_run("dec_m095_fix")
         assert out.returncode == 0, out.stderr
-        assert "--ema-tau" not in out.stdout
+        assert "ema=--ema-tau 0.95" in out.stdout
+        assert "--ema-tau-end" not in out.stdout
+
+    def test_the_schedule_never_rides_the_appended_block(self):
+        """GAP_ARGS is appended last. A momentum there would override the
+        arm's own, and could not unset a flag."""
+        out = dry_run("dec_m090_fix")
+        assert out.returncode == 0, out.stderr
+        decay = [ln for ln in out.stdout.splitlines()
+                 if ln.strip().startswith("decay=")]
+        assert decay and "--ema-tau" not in decay[0]
 
     def test_the_launcher_reads_the_momentum_back_off_the_leg_log(self):
-        """A leg trained at another momentum is not this card's arm. The
-        wrapper reads the trainer's own command line and stops it."""
-        assert study_value("CF409_EMA_SIG") == "0.9 1.0 100000"
+        """A leg trained at another momentum is not this arm. The wrapper
+        reads the trainer's own command line and stops it."""
         got = study_out(
             f'printf "%s" "python train.py {EMA} --seed 1" '
             f'| cf409_ema_of_cmdline')
         assert got == "0.9 1.0 100000"
-        assert "cf409_ema_of_cmdline" in RUN_ARM.read_text()
+        body = RUN_ARM.read_text()
+        assert "cf409_ema_of_cmdline" in body
+        assert "cf409_ema_sig" in body
+        assert "EMA_ARGS=" in body
 
 
 class TestTheArms:
 
-    def test_one_arm_for_each_backbone_seed(self):
+    def test_one_row_for_each_schedule_and_one_seed_each(self):
         assert study_value("CF409_ARMS").split() == list(ARMS)
         got = tuple(study_out(f'cf409_seed {a}') for a in ARMS)
         assert got == SEEDS
-        assert len(set(got)) == len(got), "two arms share a seed"
+
+    def test_the_budget_is_eight_backbones(self):
+        """Eight backbones, eight schedules. The three rows of arm 1 are one
+        backbone each, and that backbone is already spent."""
+        assert len(set(study_out(f'cf409_ema_sig {a}') for a in ARMS)) == 8
+        new = [a for a in ARMS if a not in ARM_ONE]
+        assert len(new) == 7
+
+    def test_every_new_arm_carries_the_card_seed(self):
+        """Seed variance is secondary. This card spends no backbone on it."""
+        for arm in ARMS:
+            if arm in ARM_ONE:
+                continue
+            assert study_out(f'cf409_seed {arm}') == SEED, arm
+
+    def test_arm_one_carries_a_free_seed_spread(self):
+        """One schedule at three seeds. Those three backbones are spent, so
+        the spread costs nothing."""
+        seeds = {study_out(f'cf409_seed {a}') for a in ARM_ONE}
+        assert seeds == {"20260520", "20260522", "20260524"}
+        sigs = {study_out(f'cf409_ema_sig {a}') for a in ARM_ONE}
+        assert len(sigs) == 1
 
     def test_every_arm_is_the_decay_arm(self):
-        """The card runs no control. An arm that held the weight would spend
-        a card on a number the sweep already published."""
+        """The decay is fixed, exactly as the card gives it. An arm that held
+        the weight would spend a backbone on a number the sweep published."""
         for arm in ARMS:
             args = study_out('cf409_decay_args')
             assert "--rep-loss-weight-end 0.0" in args, arm
             assert f"--rep-loss-weight-ramp-steps {RAMP}" in args, arm
-
-    def test_the_two_sweep_seeds_are_covered(self):
-        """Those two seeds carry the reference scores, 1.1507 and 1.1491, so
-        their decay arms pair directly against a measured number."""
-        seeds = {study_out(f'cf409_seed {a}') for a in ARMS}
-        for seed in SCORED_BY_THE_SWEEP:
-            assert seed in seeds
 
     def test_the_collapsed_seed_is_not_reused(self):
         """20260521 lost the contrastive task once in the sweep, so a
@@ -251,7 +361,7 @@ class TestTheDecayFlags:
         two must not drift."""
         sys.path.insert(0, str(REPO_ROOT))
         from src.models import linear_schedule_at_step
-        for arm in ARMS:
+        for arm in ARMS[:1]:
             for step in (0, 1, 2_500, 5_000, 9_999, 10_000, 25_000, 40_000):
                 want = linear_schedule_at_step(step, STOP, 1.0, 0.0, RAMP)
                 got = float(study_out(f'cf409_rep_w_at {step}'))
@@ -341,6 +451,13 @@ class TestTheLauncher:
         assert "--rep-loss-weight-end 0.0" in out.stdout
         assert f"--rep-loss-weight-ramp-steps {RAMP}" in out.stdout
         assert "seed=20260520" in out.stdout
+
+    def test_the_dry_run_names_the_schedule_and_what_it_reaches(self):
+        out = dry_run("dec_m090_r200")
+        assert out.returncode == 0, out.stderr
+        assert ("ema=--ema-tau 0.9 --ema-tau-end 1.0 "
+                "--ema-tau-ramp-steps 200000") in out.stdout
+        assert "0.920" in out.stdout
 
     def test_the_dry_run_names_the_cell_of_the_sweep_best_arm(self):
         out = dry_run("dec_s24")

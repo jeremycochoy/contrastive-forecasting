@@ -19,6 +19,7 @@ file holds the four things the implementation review asked for.
 
 from __future__ import annotations
 
+import csv
 import os
 import subprocess
 import sys
@@ -48,7 +49,12 @@ RUN_ARM = SCRIPTS / "run_arm.sh"
 DOC = REPO_ROOT / "docs" / "rep_loss_weight_schedule.md"
 DECOMP = EXP / "notes" / "loss_decomposition.md"
 
-ARMS = ("dec_s20", "dec_s24", "dec_s22", "dec_s23", "dec_s25", "dec_s26")
+# Eight EMA schedules, one seed each. Rows 1 to 3 are ONE schedule at three
+# seeds, and that backbone is already spent, so the spread is free.
+# `tests/test_409_launcher_shape.py` holds the table itself.
+ARMS = ("dec_s20", "dec_s22", "dec_s24", "dec_m090_fix", "dec_m090_r60",
+        "dec_m095_fix", "dec_m099_fix", "dec_m090_r200", "dec_m080_r200",
+        "dec_m095_r100")
 LANE_ARMS = len(ARMS) // 2
 STOP = 40_000
 HEAD_STEPS = 30_000
@@ -176,7 +182,7 @@ class TestCollect:
 
     def test_one_row_for_each_scored_arm(self, tmp_path):
         res = self._results(tmp_path, {"dec_s20": "1.1400\n",
-                                       "dec_s24": "2.4100\n"})
+                                       "dec_m095_fix": "2.4100\n"})
         out = self._run(res)
         assert out.returncode == 0, out.stderr
         rows = (res / "scores.csv").read_text().strip().splitlines()
@@ -184,11 +190,36 @@ class TestCollect:
         assert len(rows) == 3
         body = {r.split(",")[0]: r for r in rows[1:]}
         assert body["dec_s20"].endswith(",1.1400")
-        assert body["dec_s24"].endswith(",2.4100")
+        assert body["dec_m095_fix"].endswith(",2.4100")
+
+    def test_the_row_is_keyed_by_the_schedule(self, tmp_path):
+        """The axis is the EMA schedule, so the schedule is what identifies a
+        row. The seed rides beside it and does not key it."""
+        res = self._results(tmp_path, {"dec_m090_r60": "1.2000\n"})
+        assert self._run(res).returncode == 0
+        head, row = (res / "scores.csv").read_text().strip().splitlines()
+        cell = dict(zip(head.split(","), row.split(",")))
+        assert cell["ema_tau"] == "0.9"
+        assert cell["ema_end"] == "1.0"
+        assert cell["ema_ramp"] == "60000"
+        assert cell["ema_at_stop"] == "0.967"
+        assert cell["seed"] == "20260520"
+
+    def test_two_seeds_of_one_schedule_share_the_key(self, tmp_path):
+        """Arm 1 ran at three seeds. Those rows are one schedule's spread, so
+        they must carry one key and differ in the seed alone."""
+        res = self._results(tmp_path, {"dec_s20": "1.2670\n",
+                                       "dec_s22": "1.2593\n"})
+        assert self._run(res).returncode == 0
+        rows = list(csv.DictReader(
+            (res / "scores.csv").read_text().splitlines()))
+        keys = {(r["ema_tau"], r["ema_end"], r["ema_ramp"]) for r in rows}
+        assert keys == {("0.9", "1.0", "100000")}
+        assert {r["seed"] for r in rows} == {"20260520", "20260522"}
 
     def test_the_row_carries_the_arm_definition(self, tmp_path):
-        """Every arm shares one decay and differs in the seed. The table
-        states both, so a reader needs no second file open."""
+        """Every arm shares one decay. The table states it, so a reader needs
+        no second file open."""
         res = self._results(tmp_path, {"dec_s24": "1.2000\n"})
         assert self._run(res).returncode == 0
         head, row = (res / "scores.csv").read_text().strip().splitlines()
@@ -203,11 +234,12 @@ class TestCollect:
     def test_an_empty_score_file_is_not_a_zero(self, tmp_path):
         """An eval killed between opening and writing leaves one, and 0.0
         would be the best GM-Relative MASE the project ever recorded."""
-        res = self._results(tmp_path, {"dec_s20": "1.1400\n", "dec_s24": ""})
+        res = self._results(tmp_path, {"dec_s20": "1.1400\n",
+                                       "dec_m099_fix": ""})
         assert self._run(res).returncode == 0
         rows = (res / "scores.csv").read_text().strip().splitlines()
         assert len(rows) == 2
-        assert "dec_s24" not in (res / "scores.csv").read_text()
+        assert "dec_m099_fix" not in (res / "scores.csv").read_text()
 
     def test_a_foreign_score_file_is_not_a_row(self, tmp_path):
         res = self._results(tmp_path, {"dec_s20": "1.1400\n"})
@@ -222,7 +254,7 @@ class TestCollect:
         res = self._results(tmp_path, {"dec_s20": "1.1400\n"})
         root = tmp_path / "root"
         for arm, aucs in (("dec_s20", [0.97] * 3000),
-                          ("dec_s24", [0.97] * 1500 + [0.50] * 1500)):
+                          ("dec_m080_r200", [0.97] * 1500 + [0.50] * 1500)):
             csv_path = Path(study_out(
                 f"cf409_losses_csv {arm} {STOP}",
                 {"CF409_ROOT": str(root)}))
@@ -233,7 +265,7 @@ class TestCollect:
         table = (res / "auc_verdicts.tsv").read_text()
         assert table.splitlines()[0].startswith("run\t")
         assert "dec_s20" in table and "held" in table
-        assert "dec_s24" in table and "lost" in table
+        assert "dec_m080_r200" in table and "lost" in table
 
 
 # --- 2. the arms on the two cards ----------------------------------
@@ -285,7 +317,8 @@ class TestTheCheckoutTheStudyNeeds:
     first."""
 
     def _checkout(self, tmp_path, trainer=True, gap=True, token=True,
-                  head=True, head_results=True, head_trainer=True):
+                  head=True, head_results=True, head_trainer=True,
+                  ema=True):
         wt = tmp_path / "wt"
         train = wt / "experiments" / "2026-04-27_freq-embedding" / "scripts"
         runner = wt / "reports" / "2026-08-08_rollout_depth" / "scripts"
@@ -296,7 +329,8 @@ class TestTheCheckoutTheStudyNeeds:
         (train / "train.py").write_text(
             "--rep-loss-weight-end\n" if trainer else "# stale\n")
         (runner / "run_leg_k.sh").write_text(
-            "GAP_ARGS\n" if gap else "# stale\n")
+            ("GAP_ARGS\n" if gap else "# stale\n")
+            + ("EMA_ARGS_ARR\n" if ema else "# no schedule\n"))
         if head:
             (runner / "head_eval_bb.sh").write_text(
                 'RES="${CF_RESULTS:-x}"\nSCORE_OUT="$RES/score_${TAG}.txt"\n'
@@ -320,6 +354,14 @@ class TestTheCheckoutTheStudyNeeds:
     def test_a_runner_without_gap_args_is_refused(self, tmp_path):
         wt = self._checkout(tmp_path, gap=False)
         assert study_call(f'cf409_check_checkout "{wt}"').returncode != 0
+
+    def test_a_runner_without_ema_args_is_refused(self, tmp_path):
+        """`EMA_ARGS` is the axis. Without it every arm trains the runner's
+        own schedule, so eight arms would be arm 1 eight times."""
+        wt = self._checkout(tmp_path, ema=False)
+        out = study_call(f'cf409_check_checkout "{wt}"')
+        assert out.returncode != 0
+        assert "EMA_ARGS" in out.stderr
 
     def test_an_empty_hf_token_is_refused(self, tmp_path):
         """The anonymous rate limit idles the card at about 20 percent use."""
@@ -361,6 +403,7 @@ class TestTheCheckoutTheStudyNeeds:
                 / "scripts" / "head_eval_bb.sh").read_text()
         assert "--rep-loss-weight-end" in trainer
         assert "GAP_ARGS" in runner
+        assert "EMA_ARGS" in runner
         assert "CF_RESULTS" in head
         assert 'score_${TAG}.txt' in head
         assert (REPO_ROOT / "experiments" / "2026-04-13_gift-eval" / "scripts"

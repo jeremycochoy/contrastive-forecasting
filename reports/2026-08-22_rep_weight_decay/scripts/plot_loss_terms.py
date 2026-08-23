@@ -169,10 +169,12 @@ def main(argv=None):
                 colour = S.run_colour(path, verdicts)
                 ax.plot([s for s, _ in series], [v for _, v in series],
                         color=colour, linewidth=1.5)
-                labels.append((series, S.seed_label(row), colour))
+                labels.append((series, S.arm_label(row), colour))
                 change = slope_per_10k(series)
                 rows.append({
-                    "arm": row["arm"], "seed": row["seed"],
+                    "arm": row["arm"], "ema": S.arm_label(row),
+                    "ema_at_stop": f"{S.momentum_at(row):.3f}",
+                    "seed": row["seed"],
                     "term": column, "last_step": series[-1][0],
                     "value_at_stop": f"{series[-1][1]:.6f}",
                     "change_over_last_10k": ("" if change is None

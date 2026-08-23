@@ -5,23 +5,24 @@ WHY THIS MODULE EXISTS. Three figures draw the same runs. A color that means
 one thing in one figure and another thing in the next makes the set
 unreadable. So the mapping lives here, and every figure imports it.
 
-THE ENCODING. Every arm of this card is the SAME treatment: one decay of the
-weight on L_rep, over repeat backbone seeds. So the arms are not categories.
-They are replicates, and they take ONE series color.
+THE ENCODING. Every arm of this card carries the SAME decay and differs in the
+EMA schedule. The schedules form an ORDER, not a set of categories: each one is
+read by the momentum it holds at the stop, from 0.840 to 0.990. An order does
+not need eight hues, and eight hues would say "eight unrelated things".
 
   series color   a run that held the contrastive task
   alarm color    a run that lost it. That is a state, not a series, so it
                  takes the status palette
   muted ink      a reference the sweep already published. A reference is
                  recessive: it is not one of this card's runs
-  direct label   the backbone seed, at the right end of each curve
+  direct label   the arm's schedule, at the right end of each curve
 
 That gives two data colors. The pair passes the six checks of the data-viz
 standard on all pairs, in light mode and in dark mode: CVD delta-E 23.8,
 normal-vision delta-E 31.6, and both clear 3:1 against each surface.
 
-Identity is never color alone. Each curve carries its seed as a direct label,
-and each figure names the two colors in a legend.
+Identity is never color alone. Each curve carries its schedule as a direct
+label, and each figure names the two colors in a legend.
 """
 from __future__ import annotations
 
@@ -42,23 +43,71 @@ SURFACE = "#fcfcfb"
 # The reference lines are the sweep's published scores, so they are recessive.
 REFERENCE = MUTED
 
-# The two scores `reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md`
-# publishes for this cell, at the same 40,000-step stop and the same
-# 30,000-step head. This card measures no control, so these are what an arm is
-# read against.
-SWEEP_SCORES = {"20260524": 1.1491, "20260520": 1.1507}
+# What `reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md` published for
+# each of this card's schedules, on this same cell, at the same 40,000-step
+# stop and the same 30,000-step head, with NO decay. The key is the schedule as
+# `arms.tsv` writes it. This card measures no control, so these are what an arm
+# is read against. `0.99 fixed` is absent: the sweep never ran it.
+SWEEP_SCORES = {
+    ("0.9", "1.0", "100000"): 1.1507,
+    ("0.9", "1.0", "60000"): 1.1873,
+    ("0.9", "1.0", "200000"): 1.1784,
+    ("0.9", "-", "-"): 1.1819,
+    ("0.95", "-", "-"): 1.1907,
+    ("0.95", "1.0", "100000"): 1.2130,
+    ("0.8", "1.0", "200000"): 1.1782,
+}
+# The best of them, which is the number the card asks an arm to beat.
+SWEEP_BEST = 1.1491
+STOP = 40000
 
 
-def seed_label(row):
-    """What the reader sees beside a curve: the backbone seed."""
-    return f"seed {row['seed']}"
+def schedule(row):
+    """One arm's EMA schedule, as the key that identifies its row."""
+    return (row["tau"], row["end"], row["ramp"])
+
+
+def momentum_at(row, step=STOP):
+    """The momentum an arm HOLDS at a step, not the one its flags name.
+
+    Two arms can name 0.9 and hold 0.967 and 0.920 at 40,000 steps. The held
+    value is what ranks them. This repeats `src.models.ema_tau_at_step`, which
+    `cf409_momentum_at` in `study.sh` also repeats.
+    """
+    tau = float(row["tau"])
+    if row["end"] == "-":
+        return tau
+    end, ramp = float(row["end"]), int(row["ramp"])
+    if ramp <= 0:
+        return end
+    return tau + min(max(step / ramp, 0.0), 1.0) * (end - tau)
+
+
+def arm_label(row):
+    """What the reader sees beside a curve: the arm's EMA schedule.
+
+    The seed rides along only where a schedule has more than one, which is arm
+    1. Every other schedule carries one seed, and a seed on every label would
+    be noise.
+    """
+    if row["end"] == "-":
+        text = f"{row['tau']} fixed"
+    else:
+        text = f"{row['tau']} to {row['end']} at {int(row['ramp']) // 1000}k"
+    if row.get("repeat"):
+        text = f"{text}, seed {row['seed']}"
+    return text
 
 
 def read_arms(path):
     """The arms table, in the card's order, as a list of dicts.
 
-    Two columns: the arm and its backbone seed. The decay is the card's, not
+    Five columns: the arm, the three EMA momentum columns and the backbone
+    seed. A `-` is a flag the arm does not pass. The decay is the card's, not
     the arm's, so it is in `study.sh` and not here.
+
+    Each row also gets `repeat`, which is true when another row shares its
+    schedule. That is arm 1, which ran at three seeds.
     """
     out = []
     with open(path) as fh:
@@ -66,9 +115,13 @@ def read_arms(path):
             if line.startswith("#") or not line.strip():
                 continue
             parts = line.rstrip("\n").split("\t")
-            if len(parts) < 2 or parts[0] == "arm":
+            if len(parts) < 5 or parts[0] == "arm":
                 continue
-            out.append({"arm": parts[0], "seed": parts[1]})
+            out.append({"arm": parts[0], "tau": parts[1], "end": parts[2],
+                        "ramp": parts[3], "seed": parts[4]})
+    seen = [schedule(r) for r in out]
+    for row in out:
+        row["repeat"] = seen.count(schedule(row)) > 1
     return out
 
 

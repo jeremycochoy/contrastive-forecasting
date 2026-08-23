@@ -1,22 +1,16 @@
 #!/bin/bash
-# #409 — one configuration, one decay of the L_rep weight, several seeds.
+# #409 — one fixed decay of the L_rep weight, over eight EMA schedules.
 # Sourced, never run.
 #
-# The configuration is the EMA momentum sweep's BEST ARM, `r100_09` of
-# reports/2026-08-19_ema_momentum_k32/. That is #373's cell
-# `arm6_v2_combab_alignT` at k = 32 under the `mean` reduction:
-# `cosine_similarity_batch_rep_only`, L_align on the EMA TEACHER at weight 1.0,
-# MoCo rep keys, tau_rep = 1.0, no CPC auxiliary, SIGReg on the embedding and
-# the encoding at weight 1.0, tau = 0.10, and an EMA momentum of 0.9 that rises
-# to 1.0 at step 100,000.
+# The cell is #373's `arm6_v2_combab_alignT` at k = 32 under the `mean`
+# reduction: `cosine_similarity_batch_rep_only`, L_align on the EMA TEACHER at
+# weight 1.0, MoCo rep keys, tau_rep = 1.0, no CPC auxiliary, SIGReg on the
+# embedding and the encoding at weight 1.0, tau = 0.10.
 #
-# The momentum schedule is `run_leg_k.sh`'s own default, so this study passes
-# no momentum flag. The card holds the EMA schedule fixed, and a flag that is
-# never written can never move.
-#
-# This card changes ONE thing: an extra factor in front of L_rep. It starts at
-# 1.0 and falls linearly to 0.0 at step 10,000. There is no floor and no second
-# shape, so the decay lives here and not in the arms table.
+# The decay is FIXED, exactly as the card gives it: one extra factor in front
+# of L_rep that starts at 1.0 and falls linearly to 0.0 at step 10,000. There
+# is no floor and no second shape, so the decay lives here and not in the arms
+# table.
 #
 # ---- Why the weight ----------------------------------------------------------
 #
@@ -25,13 +19,26 @@
 # moves after step 500 is L_align. So most of the objective is a term that
 # stopped moving, and the card asks what happens when it is decayed out.
 #
+# ---- The axis is the EMA schedule --------------------------------------------
+#
+# The align target is the teacher. Past step 10,000 the decay has taken L_rep
+# out, so L_align is the whole main loss and the EMA teacher is the only target
+# left. The schedule sets how fast that teacher moves, so it keeps acting for
+# three quarters of the run.
+#
+# The card allows eight backbones. They go to EIGHT SCHEDULES, one seed each.
+# `EMA_ARGS` in #373's runner REPLACES the three momentum flags, which is what
+# a fixed arm needs: it passes `--ema-tau` alone, and no repeated flag can
+# remove `--ema-tau-end`. See scripts/arms.tsv for the eight and for why each
+# one earns a backbone.
+#
 # ---- This card runs no control -----------------------------------------------
 #
-# The sweep already scored this cell at two backbone seeds: 1.1491 at seed
-# 20260524 and 1.1507 at seed 20260520, a seed range of 0.0016. Those are the
-# references, and `reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md`
-# holds them. Every backbone of this card goes to the decay arm, at a seed of
-# its own. See scripts/arms.tsv.
+# The sweep scored seven of the eight schedules on this same cell with NO
+# decay, at the same stop and the same head, and
+# `reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md` holds them. Those
+# are the references. A control arm here would spend a backbone on a number
+# that exists.
 #
 # ---- What this study does not write ------------------------------------------
 #
@@ -152,16 +159,16 @@ fi
 
 # Every arm name, in the card's order.
 cf409_arms(){
-  awk -F'\t' '!/^#/ && NF >= 2 { print $1 }' "$CF409_ARMS_TSV"
+  awk -F'\t' '!/^#/ && NF >= 5 { print $1 }' "$CF409_ARMS_TSV"
 }
 CF409_ARMS="$(cf409_arms | tr '\n' ' ')"
 CF409_ARMS="${CF409_ARMS% }"
 
-# One arm's row, as `<arm> <seed>`. Prints nothing, and returns non-zero, for
-# an arm the table does not hold.
+# One arm's row, as `<arm> <tau> <end> <ramp> <seed>`. Prints nothing, and
+# returns non-zero, for an arm the table does not hold.
 cf409_arm_row(){  # <arm>
   awk -F'\t' -v a="${1:?arm}" \
-    '!/^#/ && $1 == a { print $1, $2; found = 1 }
+    '!/^#/ && $1 == a { print $1, $2, $3, $4, $5; found = 1 }
      END { exit !found }' "$CF409_ARMS_TSV"
 }
 
@@ -178,11 +185,69 @@ cf409_require_stop(){  # <stop steps>
   return 2
 }
 
-# The backbone seed of one arm, from column 2. The seed is the ONLY thing that
-# separates two arms of this card, so a seed that does not reach the trainer
-# gives two identical runs under two names.
+# The backbone seed of one arm, from column 5. Seven of the eight schedules
+# carry ONE seed, so a seed that does not reach the trainer moves an arm onto
+# another arm's data order.
 cf409_seed(){  # <arm>
-  cf409_arm_row "${1:?arm}" | awk '{print $2}'
+  cf409_arm_row "${1:?arm}" | awk '{print $5}'
+}
+
+# ---- The EMA schedule, which is this card's axis ------------------------------
+
+# The trainer flags of one arm's momentum, as ONE unit.
+#
+# A fixed arm passes `--ema-tau` alone. It does NOT pass `--ema-tau-end` at any
+# value: train.py reads "no end value" as a constant momentum, and no value of
+# the flag means the same. This is why these flags REPLACE the runner's
+# schedule through `EMA_ARGS` rather than ride the appended `GAP_ARGS` block —
+# a repeat can change a flag, never remove one.
+cf409_ema_args(){  # <arm>
+  local row name tau end ramp seed
+  row="$(cf409_arm_row "${1:?arm}")" || return 1
+  read -r name tau end ramp seed <<<"$row"
+  if [ "$end" = "-" ]; then
+    printf -- '--ema-tau %s\n' "$tau"
+  else
+    printf -- '--ema-tau %s --ema-tau-end %s --ema-tau-ramp-steps %s\n' \
+      "$tau" "$end" "$ramp"
+  fi
+}
+
+# The same three values, in the shape of an arms.tsv row: `<tau> <end> <ramp>`,
+# with `-` for a flag the arm does not pass. So a leg log compares against the
+# table with one string equality, not three.
+cf409_ema_sig(){  # <arm>
+  cf409_arm_row "${1:?arm}" | awk '{print $2, $3, $4}'
+}
+
+# The momentum an arm HOLDS at a given step, which is not the momentum its
+# command line names. This is the number that ranks two arms at one stop:
+# `dec_m090_r60` and `dec_m090_r200` both name 0.9 and hold 0.967 and 0.920 at
+# 40,000 steps.
+#
+# The formula is `src.models.ema_tau_at_step`, which is linear and clamps the
+# step into the ramp. It is repeated here, and not imported, because the shell
+# readers of this study must not need a Python interpreter to print a table.
+# `tests/test_409_launcher_shape.py` holds the two against each other.
+cf409_momentum_at(){  # <arm> <step>
+  local row name tau end ramp seed
+  row="$(cf409_arm_row "${1:?arm}")" || return 1
+  read -r name tau end ramp seed <<<"$row"
+  if [ "$end" = "-" ]; then printf '%.3f\n' "$tau"; return 0; fi
+  awk -v t="$tau" -v e="$end" -v r="$ramp" -v s="${2:?step}" 'BEGIN{
+    if (r + 0 <= 0) { printf "%.3f\n", e; exit }
+    f = s / r; if (f > 1) f = 1; if (f < 0) f = 0;
+    printf "%.3f\n", t + f * (e - t) }'
+}
+
+# One arm's schedule, as a reader sees it. `0.9 fixed` or `0.9 to 1.0 at 100k`.
+cf409_ema_label(){  # <arm>
+  local row name tau end ramp seed
+  row="$(cf409_arm_row "${1:?arm}")" || return 1
+  read -r name tau end ramp seed <<<"$row"
+  if [ "$end" = "-" ]; then printf '%s fixed\n' "$tau"
+  else printf '%s to %s at %s\n' "$tau" "$end" "$(cf409_steps_label "$ramp")"
+  fi
 }
 
 # How long the decay is, in steps. Every arm shares it, so this takes no arm.
@@ -236,9 +301,9 @@ cf409_reduce_of_cmdline(){
     print r }'
 }
 
-# The momentum a trainer command line carries, as `<tau> <end> <ramp>`. The
-# card holds the EMA schedule FIXED at the runner's default, so this reads a
-# leg log back against that default.
+# The momentum a trainer command line carries, as `<tau> <end> <ramp>`, with
+# `-` for a flag the line does not hold. `cf409_ema_sig` gives the same shape
+# out of the arms table, so `run_arm.sh` compares the two.
 cf409_ema_of_cmdline(){
   awk '{ t = "-"; e = "-"; r = "-"
     for (i = 1; i <= NF; i++) {
@@ -248,7 +313,6 @@ cf409_ema_of_cmdline(){
     }
     print t, e, r }'
 }
-CF409_EMA_SIG="0.9 1.0 100000"
 
 # The weight the arms HOLD at a given step, which is not the weight the command
 # line names. This is the number that reads one point of training.
@@ -554,6 +618,10 @@ cf409_require_gpus(){  # <space separated indices>
 #   the trainer. `run_arm.sh` also catches this at run time, off the trainer's
 #   own command line. This check is the cheap one, before the first leg.
 #
+#   EMA_ARGS in #373's runner (#404). The schedule is this card's AXIS. Without
+#   it every arm trains the runner's own schedule, so the eight arms would be
+#   arm 1 eight times under eight names.
+#
 #   The head path: #373's `head_eval_bb.sh`, which must read CF_RESULTS, and
 #   the GIFT-Eval head trainer it runs. Both refuse on their own, but only
 #   AFTER the backbone — so a missing one costs the arm's hours and gives no
@@ -579,6 +647,12 @@ cf409_check_checkout(){  # [checkout]
   if ! grep -q 'GAP_ARGS' "$runner" 2>/dev/null; then
     echo "ABORT: $runner takes no GAP_ARGS." >&2
     echo "  The decay and the seed would not reach the trainer." >&2
+    missing=1
+  fi
+  if ! grep -q 'EMA_ARGS' "$runner" 2>/dev/null; then
+    echo "ABORT: $runner takes no EMA_ARGS." >&2
+    echo "  Every arm would train the runner's own schedule, so the eight" >&2
+    echo "  arms would be arm 1 eight times under eight names." >&2
     missing=1
   fi
   if [ ! -f "$head" ]; then

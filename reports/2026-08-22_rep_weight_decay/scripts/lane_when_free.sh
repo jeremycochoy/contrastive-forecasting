@@ -19,7 +19,7 @@
 # and the operator moves those arms to the other card.
 #
 # Usage:
-#   ARMS="dec_s24 dec_s23" GPU=0 nohup setsid bash scripts/lane_when_free.sh &
+#   ARMS="dec_m090_fix dec_m095_fix" GPU=0 nohup setsid bash scripts/lane_when_free.sh &
 #
 #   GPU         the card index. Default 0.
 #   NEED_MIB    free VRAM this lane needs. Default 6500.
