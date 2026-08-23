@@ -16,9 +16,10 @@ THE READING. One step is noisy, so the verdict reads a rolling MEDIAN over
 falls under `--threshold` and never comes back above it. A dip that recovers
 is not a loss, and the script reports the deepest one instead.
 
-The k = 16 / 8 / 32 study measured three summed arms of this same cell that
-lost the task, at steps 4,404, 347 and 1,343 (`results/diag/`). Their AUC fell
-under 0.55, so 0.55 is the default threshold.
+The EMA momentum sweep, `reports/2026-08-19_ema_momentum_k32/`, holds one
+backbone of this cell that lost the task. It read 0.5745 at the 40,000-step
+stop against 0.93 to 0.98 for every other arm, and it scored 1.5459 against
+1.1782 for the same arm at another seed. So 0.55 is the default threshold.
 
 THE WARMUP. The AUC of a fresh run starts near 0.5 and climbs, so the first
 steps of every healthy run read as a loss. `--warmup N` drops every row at
@@ -52,8 +53,8 @@ import statistics
 import sys
 from pathlib import Path
 
-# The three arms of the k = 16 / 8 / 32 study that lost the task all fell
-# under this value and stayed there.
+# The one backbone of this cell that lost the task fell under this value and
+# stayed there. See the docstring.
 DEFAULT_THRESHOLD = 0.55
 # Wide enough that one bad batch cannot fire the verdict, short enough that a
 # 10,000-step ramp holds twenty windows.

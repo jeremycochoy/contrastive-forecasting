@@ -12,26 +12,27 @@ study and for the agent that writes the report.
 
 ## The decision
 
-**No ninth backbone. Every arm stops at 40,000 steps. The report answers the
+**No extra backbone. Every arm stops at 40,000 steps. The report answers the
 second question from four named measurements, and states in one sentence that
 the evidence is indirect.**
 
-Two reasons. First, the direct answer costs a card of its own. This card's
-backbone budget is 8 x 40,000 steps. One arm to 200,000 steps adds 160,000
-steps on top, which is half of that budget again. Second, the arm to extend
-is not known until the first answer arrives, at the end of this card. So the
-direct measurement belongs to the card after this one.
+Two reasons. First, the direct answer costs a card of its own. One arm to
+200,000 steps adds 160,000 steps, which is more than half of this card's whole
+backbone budget. Second, the arm to extend is not known until the first answer
+arrives, at the end of this card. So the direct measurement belongs to the card
+after this one.
 
 ## The four measurements
 
 The report gives all four. Each one is a fact this card measures.
 
-**1. The loss by term at the stop, and its slope.** Read `l_rep`, `l_align`
-and `cos_err_d0` to `cos_err_d3` from each `<run>_losses.csv`. Give the value
-at step 40,000 and the slope over steps 30,000 to 40,000. A term that still
-falls at the stop is headroom. A flat term is not. Read the forecast error
-from the `cos_err_d*` columns, not from `l_align` alone: `l_align` is the
-depth-0 copy, and this card runs k = 3.
+**1. The loss by term at the stop, and its slope.** Read `l_rep`, the reduced
+align term and `cos_err_d0` to `cos_err_d32` from each `<run>_losses.csv`. Give
+the value at step 40,000 and the change over steps 30,000 to 40,000. A term
+that still falls at the stop is headroom. A flat term is not. Read the align
+term as the residual `loss - rep_w * l_rep - sigreg_e - sigreg_h`, not from
+`l_align` alone: `l_align` is the depth-0 copy and this cell aligns on the
+teacher. `notes/loss_decomposition.md` gives the formula.
 
 **2. The contrastive AUC of every run.** Read `results/auc_verdicts.tsv`, which
 `collect.sh` writes from `auc_watch.py`. An arm that lost the contrastive task
@@ -39,24 +40,15 @@ has nothing left to learn from more steps, whatever its loss does. The AUC gate
 stops such an arm, so a stopped arm has a verdict, a step, and no score. The
 report gives its AUC and its loss to the step it reached.
 
-**3. The measured trajectory of the control cell.** #373 ran this same cell at
-k = 3 to three stops:
+**3. The measured trajectory of this cell.** The EMA momentum sweep ran the
+best arm of this cell to 40,000 steps only, so no longer stop exists for it.
+The nearest measured curve is #373's k = 3 cell, which is another cell. Say so.
+The report must not borrow it as this cell's own trajectory.
 
-| backbone steps | GM-Relative MASE |
-|---|---|
-| 40,000 | 1.0862 |
-| 100,000 | 1.0801 |
-| 200,000 | 1.0660 |
-
-Source: `reports/2026-08-08_rollout_depth/rollout_depth.md`, row A4, student
-encoder. This is the only measured value of "more training" for this
-configuration, and it belongs to the control. A treated arm that beats the
-control at 40,000 steps has no such curve of its own.
-
-**4. The seed spread of this card.** Three arms are a repeat at a second seed:
-`ctrl_s24`, `dec0_s24` and `flr05_s24`. Their ranges against `ctrl_s20`,
-`dec0_s20` and `flr05_s20` measure this cell's run-to-run spread. A score
-difference under the largest of those three ranges is not a rank.
+**4. The seed spread of this card.** Six arms are the same decay at six
+backbone seeds, so their range IS this treatment's run-to-run spread, measured
+and not borrowed. The reference has its own range, 0.0016 over two seeds. A
+score difference under the larger of the two is not a rank.
 
 ## What the report must not say
 
@@ -66,7 +58,7 @@ as indirect, and stop there.
 
 ## The follow-up
 
-One arm can beat `ctrl_s20` and `ctrl_s24` by more than the largest seed range
-of measurement 4. The next card then trains that arm to 200,000 steps, and
-compares it against 1.0660. That is the direct answer. Do not run it inside
-this card.
+The decay's mean over six seeds can beat 1.1491 by more than the two spreads of
+measurement 4. The next card then trains the decay to 200,000 steps and
+compares it against a reference at the same stop. That is the direct answer. Do
+not run it inside this card.

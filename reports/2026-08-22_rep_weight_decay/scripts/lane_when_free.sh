@@ -2,11 +2,15 @@
 # #409 — start one lane when the card has enough free VRAM.
 #
 # WHY THIS SCRIPT EXISTS. elisa's two cards already carry other agents' runs.
-# This card must share them and must not stop another run. One leg of this
-# cell holds about 5.4 GB: the latent-drift probe draws a 4.32 GB block at
-# steps 0, 20,000 and 40,000, and the allocator keeps it. A lane that starts
-# on a card with less free memory dies inside the probe in its first seconds,
-# and `phase1.sh` then re-fires it twice more against the same wall.
+# This card must share them and must not stop another run. A lane that starts
+# on a card with too little free memory dies in its first seconds, and
+# `phase1.sh` then re-fires it twice more against the same wall.
+#
+# What one leg of THIS cell holds is not measured yet. k = 32 keeps 33 rollout
+# latents, and the latent-drift probe draws one block at every save step, which
+# this card holds to batch 16 (`CF409_PROBE_BS`). So `NEED_MIB` below is a
+# ceiling, not a measurement. Read `nvidia-smi` after the first leg reaches
+# step 100 and write the number into `notes/execution_log.md`.
 #
 # So this waits, reads the card, and starts the lane when the card can hold
 # it. It never touches another process.
@@ -15,7 +19,7 @@
 # and the operator moves those arms to the other card.
 #
 # Usage:
-#   ARMS="ctrl_s24 dec0_s24" GPU=0 nohup setsid bash scripts/lane_when_free.sh &
+#   ARMS="dec_s24 dec_s23" GPU=0 nohup setsid bash scripts/lane_when_free.sh &
 #
 #   GPU         the card index. Default 0.
 #   NEED_MIB    free VRAM this lane needs. Default 6500.

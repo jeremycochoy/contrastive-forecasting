@@ -109,8 +109,8 @@ python scripts/recover.py --device cuda --model-path model.pth --epochs 20000
   `--train-rollout-depth K`, which trains the forecaster composed with itself
   `K` more times instead of one step only.
 - [`docs/rep_loss_weight_schedule.md`](docs/rep_loss_weight_schedule.md) —
-  `--rep-loss-weight-end`, which decays the weight on `L_rep` to a floor, and
-  the four per-term columns of `<run>_losses.csv`.
+  `--rep-loss-weight-end`, which decays the weight on `L_rep` over a ramp,
+  and the four per-term columns of `<run>_losses.csv`.
 
 ## License
 

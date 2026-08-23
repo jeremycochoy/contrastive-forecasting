@@ -2,9 +2,9 @@
 # #409 — ONE lane: the arms this card gives one card, in order.
 #
 # One arm is one backbone to 40,000 steps, then one 30,000-step student head,
-# then that head's 97 GIFT-Eval configs. The arms are independent — no arm
-# resumes another — so a lane can take any subset. `launch.sh` deals the eight
-# arms over elisa's two cards and starts one lane on each.
+# then that head's 97 GIFT-Eval configs. The arms are independent. No arm
+# resumes another, so a lane can take any subset. `launch.sh` deals the arms
+# over elisa's two cards and starts one lane on each.
 #
 # ---- A crash is re-fired, a refusal is not -----------------------------------
 #
@@ -24,8 +24,8 @@
 # `head_eval_bb.sh` waits for free VRAM and the GIFT-Eval that follows runs on
 # the CPU.
 #
-# A lane holds four arms, so four heads would pile onto one card. This lane
-# holds ONE: it queues each head and a single worker runs them in turn. The
+# A lane holds several arms, so several heads would pile onto one card. This
+# lane holds ONE: it queues each head and a single worker runs them in turn. The
 # queue does not hold the card idle — the next backbone starts the moment the
 # one before it ends, whatever the worker is doing.
 #
@@ -33,8 +33,8 @@
 # to read. CF409_HEADS=0 trains the backbones and nothing else.
 #
 # Usage:  bash phase1.sh                          # every arm of the card
-#         ARMS="dec0_s20 flr05_s20" bash phase1.sh
-#         BB_GPU=1 ARMS=dec0_s20 bash phase1.sh
+#         ARMS="dec_s20 dec_s24" bash phase1.sh
+#         BB_GPU=1 ARMS=dec_s20 bash phase1.sh
 #         CF409_DRY_RUN=1 bash phase1.sh          # print the plan, run nothing
 set -uo pipefail
 
@@ -121,7 +121,7 @@ for arm in $ARMS; do
   for stop in $CF409_STOPS; do
     if [ -n "${CF409_DRY_RUN:-}" ]; then
       echo "arm $arm steps=$stop gpu=$BB_GPU tries=$CF409_LEG_TRIES" \
-           "decay=$(cf409_decay_args "$arm")"
+           "seed=$(cf409_seed "$arm") decay=$(cf409_decay_args)"
       [ "$HEADS" = "1" ] && \
         echo "head $arm stop=$stop steps=$CF409_HEAD_STEPS enc=$CF409_ENC"
       continue
@@ -132,8 +132,8 @@ for arm in $ARMS; do
     rc=$?
     if [ $rc -ne 0 ]; then
       # The count reaches the exit status. A lane that reported success here
-      # would leave a dead arm to surface hours later, as a table with seven
-      # rows and no reason for the eighth.
+      # would leave a dead arm to surface hours later, as a table with one row
+      # missing and no reason for it.
       legs_failed=$(( legs_failed + 1 ))
       if [ "$rc" -eq "$CF409_RC_COLLAPSED" ]; then
         log "arm $arm STOPPED by the AUC gate — no head, no score." \

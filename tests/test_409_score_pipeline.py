@@ -7,13 +7,14 @@ file holds the four things the implementation review asked for.
 1. A path from a backbone to a score. `head_eval.sh` trains this card's
    30,000-step student head on one arm's backbone and runs that head's 97
    GIFT-Eval configs. `collect.sh` writes one score for each arm.
-2. An entry point for the eight arms. `launch.sh` deals them over elisa's two
+2. An entry point for the arms. `launch.sh` deals them over elisa's two
    cards, and `phase1.sh` re-fires a leg that crashed.
 3. The AUC watch, wired. `auc_guard.sh` reads the losses CSV of a running leg
    and stops the leg that lost the contrastive task.
-4. The loss-by-term formula of `docs/rep_loss_weight_schedule.md`, which must
-   close for a `--train-rollout-depth` run under the `sum` reduction. This
-   card's own arms are such runs.
+4. The loss-by-term formula of `docs/rep_loss_weight_schedule.md`. This card
+   runs k = 32 under the `mean` reduction against the EMA teacher, so the
+   `l_align` column carries the depth-0 copy alone and the loss closes over a
+   residual. `notes/loss_decomposition.md` states that formula.
 """
 
 from __future__ import annotations
@@ -45,9 +46,10 @@ AUC_GUARD = SCRIPTS / "auc_guard.sh"
 AUC_WATCH = SCRIPTS / "auc_watch.py"
 RUN_ARM = SCRIPTS / "run_arm.sh"
 DOC = REPO_ROOT / "docs" / "rep_loss_weight_schedule.md"
+DECOMP = EXP / "notes" / "loss_decomposition.md"
 
-ARMS = ("ctrl_s20", "ctrl_s24", "dec0_s20", "dec0_s24",
-        "flr05_s20", "flr05_s24", "flr02_s20", "dec0T_s20")
+ARMS = ("dec_s20", "dec_s24", "dec_s22", "dec_s23", "dec_s25", "dec_s26")
+LANE_ARMS = len(ARMS) // 2
 STOP = 40_000
 HEAD_STEPS = 30_000
 
@@ -109,28 +111,28 @@ class TestTheHeadAndEvalLeg:
 
     def test_the_card_head_budget_and_seed_reach_the_head(self):
         """Both sat in study.sh and no script read them."""
-        out = script_dry_run(HEAD_EVAL, "dec0_s20", STOP)
+        out = script_dry_run(HEAD_EVAL, "dec_s20", STOP)
         assert out.returncode == 0, out.stderr
         assert f"steps={HEAD_STEPS}" in out.stdout
         assert "seed=20260722" in out.stdout
         assert "enc=student" in out.stdout
 
     def test_the_dry_run_names_the_tag_the_eval_and_the_score(self):
-        out = script_dry_run(HEAD_EVAL, "dec0_s20", STOP)
+        out = script_dry_run(HEAD_EVAL, "dec_s20", STOP)
         assert out.returncode == 0, out.stderr
-        tag = study_out(f"cf409_tag dec0_s20 {STOP} {HEAD_STEPS}")
+        tag = study_out(f"cf409_tag dec_s20 {STOP} {HEAD_STEPS}")
         assert tag in out.stdout
-        assert study_out("cf409_eval_dir dec0_s20 " + tag) in out.stdout
-        assert study_out(f"cf409_score_file dec0_s20 {STOP}") in out.stdout
+        assert study_out("cf409_eval_dir dec_s20 " + tag) in out.stdout
+        assert study_out(f"cf409_score_file dec_s20 {STOP}") in out.stdout
 
     def test_another_head_budget_is_refused(self):
         """One budget, or two tags of this study name two protocols."""
-        assert script_dry_run(HEAD_EVAL, "dec0_s20", STOP, 15000).returncode != 0
+        assert script_dry_run(HEAD_EVAL, "dec_s20", STOP, 15000).returncode != 0
         assert script_dry_run(HEAD_EVAL, "nosucharm", STOP).returncode != 0
 
     def test_the_tag_carries_the_arm_the_stop_and_the_budget(self):
-        tag = study_out(f"cf409_tag dec0_s20 {STOP} {HEAD_STEPS}")
-        assert tag == "dec0_s20_bb40k_h30k_student"
+        tag = study_out(f"cf409_tag dec_s20 {STOP} {HEAD_STEPS}")
+        assert tag == "dec_s20_bb40k_h30k_student"
         assert study_out("cf409_steps_of 40k") == str(STOP)
         assert study_out("cf409_steps_of 400") == "400"
         assert study_out("cf409_steps_label 40000") == "40k"
@@ -148,7 +150,7 @@ class TestTheHeadAndEvalLeg:
     def test_a_trial_head_scales_with_the_trial_budget(self):
         trial = {"CF409_TRIAL": "400"}
         assert study_out("printf %s \"$CF409_HEAD_STEPS\"", trial) == "200"
-        out = script_dry_run(HEAD_EVAL, "dec0_s20", 400, env=trial)
+        out = script_dry_run(HEAD_EVAL, "dec_s20", 400, env=trial)
         assert out.returncode == 0, out.stderr
         assert "_bb400_h200_student" in out.stdout
 
@@ -173,42 +175,42 @@ class TestCollect:
                               timeout=180)
 
     def test_one_row_for_each_scored_arm(self, tmp_path):
-        res = self._results(tmp_path, {"ctrl_s20": "1.0862\n",
-                                       "dec0_s20": "2.4100\n"})
+        res = self._results(tmp_path, {"dec_s20": "1.1400\n",
+                                       "dec_s24": "2.4100\n"})
         out = self._run(res)
         assert out.returncode == 0, out.stderr
         rows = (res / "scores.csv").read_text().strip().splitlines()
         assert rows[0].startswith("arm,")
         assert len(rows) == 3
         body = {r.split(",")[0]: r for r in rows[1:]}
-        assert body["ctrl_s20"].endswith(",1.0862")
-        assert body["dec0_s20"].endswith(",2.4100")
+        assert body["dec_s20"].endswith(",1.1400")
+        assert body["dec_s24"].endswith(",2.4100")
 
     def test_the_row_carries_the_arm_definition(self, tmp_path):
-        """A reader compares two arms by their floor, ramp, seed and target,
-        so the table must not need the arms file beside it."""
-        res = self._results(tmp_path, {"dec0T_s20": "1.2000\n"})
+        """Every arm shares one decay and differs in the seed. The table
+        states both, so a reader needs no second file open."""
+        res = self._results(tmp_path, {"dec_s24": "1.2000\n"})
         assert self._run(res).returncode == 0
         head, row = (res / "scores.csv").read_text().strip().splitlines()
         cell = dict(zip(head.split(","), row.split(",")))
         assert cell["rep_end"] == "0.0"
         assert cell["ramp"] == "10000"
-        assert cell["seed"] == "20260520"
-        assert cell["align_target"] == "teacher"
+        assert cell["seed"] == "20260524"
+        assert cell["rep_w_at_stop"] == "0.000"
         assert cell["stop"] == str(STOP)
         assert cell["head_steps"] == str(HEAD_STEPS)
 
     def test_an_empty_score_file_is_not_a_zero(self, tmp_path):
         """An eval killed between opening and writing leaves one, and 0.0
         would be the best GM-Relative MASE the project ever recorded."""
-        res = self._results(tmp_path, {"ctrl_s20": "1.0862\n", "dec0_s20": ""})
+        res = self._results(tmp_path, {"dec_s20": "1.1400\n", "dec_s24": ""})
         assert self._run(res).returncode == 0
         rows = (res / "scores.csv").read_text().strip().splitlines()
         assert len(rows) == 2
-        assert "dec0_s20" not in (res / "scores.csv").read_text()
+        assert "dec_s24" not in (res / "scores.csv").read_text()
 
     def test_a_foreign_score_file_is_not_a_row(self, tmp_path):
-        res = self._results(tmp_path, {"ctrl_s20": "1.0862\n"})
+        res = self._results(tmp_path, {"dec_s20": "1.1400\n"})
         (res / "score_a08_bb40k_h30k_student.txt").write_text("1.1782\n")
         out = self._run(res)
         assert out.returncode == 0
@@ -217,10 +219,10 @@ class TestCollect:
     def test_it_writes_the_auc_verdict_of_every_run(self, tmp_path):
         """The card asks for the contrastive AUC of every run, and the step
         of any loss."""
-        res = self._results(tmp_path, {"ctrl_s20": "1.0862\n"})
+        res = self._results(tmp_path, {"dec_s20": "1.1400\n"})
         root = tmp_path / "root"
-        for arm, aucs in (("ctrl_s20", [0.97] * 3000),
-                          ("dec0_s20", [0.97] * 1500 + [0.50] * 1500)):
+        for arm, aucs in (("dec_s20", [0.97] * 3000),
+                          ("dec_s24", [0.97] * 1500 + [0.50] * 1500)):
             csv_path = Path(study_out(
                 f"cf409_losses_csv {arm} {STOP}",
                 {"CF409_ROOT": str(root)}))
@@ -230,11 +232,11 @@ class TestCollect:
         assert out.returncode == 0, out.stderr
         table = (res / "auc_verdicts.tsv").read_text()
         assert table.splitlines()[0].startswith("run\t")
-        assert "ctrl_s20" in table and "held" in table
-        assert "dec0_s20" in table and "lost" in table
+        assert "dec_s20" in table and "held" in table
+        assert "dec_s24" in table and "lost" in table
 
 
-# --- 2. the eight arms on the two cards ----------------------------------
+# --- 2. the arms on the two cards ----------------------------------
 
 
 class TestTheLauncher:
@@ -247,7 +249,7 @@ class TestTheLauncher:
                  if line.startswith("arm ")]
         assert sorted(dealt) == sorted(ARMS)
 
-    def test_the_two_cards_take_four_arms_each(self):
+    def test_the_two_cards_take_an_equal_share(self):
         out = script_dry_run(LAUNCH, env={"CF409_GPU_COUNT": "2",
                                           "GPUS": "0 1"})
         lanes = {}
@@ -256,7 +258,7 @@ class TestTheLauncher:
                 gpu = line.split("gpu=")[1].split()[0]
                 lanes.setdefault(gpu, []).append(line.split()[1])
         assert sorted(lanes) == ["0", "1"]
-        assert [len(v) for v in lanes.values()] == [4, 4]
+        assert [len(v) for v in lanes.values()] == [LANE_ARMS, LANE_ARMS]
 
     def test_a_card_this_machine_does_not_carry_is_refused(self):
         """A lane on a card that is not there dies inside .to(device), hours
@@ -271,15 +273,16 @@ class TestTheLauncher:
         assert out.returncode != 0
 
     def test_the_lane_runs_the_backbone_then_the_head(self):
-        out = script_dry_run(PHASE1, env={"ARMS": "dec0_s20"})
+        out = script_dry_run(PHASE1, env={"ARMS": "dec_s20"})
         assert out.returncode == 0, out.stderr
-        assert "arm dec0_s20" in out.stdout
-        assert "head dec0_s20" in out.stdout
+        assert "arm dec_s20" in out.stdout
+        assert "head dec_s20" in out.stdout
 
 
 class TestTheCheckoutTheStudyNeeds:
-    """A machine bootstrapped from a stale branch trains eight copies of the
-    control and logs nothing unusual. The launcher asks first."""
+    """A machine bootstrapped from a stale branch trains one copy of the
+    published cell for each arm and logs nothing unusual. The launcher asks
+    first."""
 
     def _checkout(self, tmp_path, trainer=True, gap=True, token=True,
                   head=True, head_results=True, head_trainer=True):
@@ -390,7 +393,7 @@ class TestALaneRefiresACrashedLeg:
         head.write_text("#!/bin/bash\nexit 0\n")
         head.chmod(0o755)
         full = dict(os.environ)
-        full.update({"ARMS": "dec0_s20",
+        full.update({"ARMS": "dec_s20",
                      "CF409_RUN_ARM": str(run_arm),
                      "CF409_HEAD_EVAL": str(head),
                      "CF409_RESULTS": str(tmp_path / "results"),
@@ -428,7 +431,7 @@ class TestALaneRefiresACrashedLeg:
 
     def test_a_lane_that_lost_its_leg_runs_no_head(self, tmp_path):
         out, _ = self._lane(tmp_path, [4])
-        assert "head dec0_s20" not in out.stdout
+        assert "head dec_s20" not in out.stdout
         assert out.returncode != 0
 
 
@@ -512,7 +515,7 @@ class TestTheAucGuard:
         return full
 
     def _csv_path(self, base, name=None):
-        path = Path(study_out(f"cf409_losses_csv dec0_s20 {STOP}",
+        path = Path(study_out(f"cf409_losses_csv dec_s20 {STOP}",
                               {"CF409_ROOT": str(base / "root")}))
         if name:
             path = path.parent / name
@@ -525,7 +528,7 @@ class TestTheAucGuard:
         losses_csv(self._csv_path(base), aucs)
         full = self._env(base, env)
         out = subprocess.run(
-            ["bash", str(AUC_GUARD), "dec0_s20", str(STOP), str(pid)],
+            ["bash", str(AUC_GUARD), "dec_s20", str(STOP), str(pid)],
             capture_output=True, text=True, env=full, cwd=str(REPO_ROOT),
             timeout=120)
         return out, base / "results"
@@ -537,7 +540,7 @@ class TestTheAucGuard:
         losses_csv(self._csv_path(base), before)
         full = self._env(base, env)
         proc = subprocess.Popen(
-            ["bash", str(AUC_GUARD), "dec0_s20", str(STOP), str(pid)],
+            ["bash", str(AUC_GUARD), "dec_s20", str(STOP), str(pid)],
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
             env=full, cwd=str(REPO_ROOT))
         log = base / "results" / "auc_guard.log"
@@ -574,8 +577,8 @@ class TestTheAucGuard:
             rc, out = self._drain(proc)
             assert rc == 1, out
             assert not self._alive(pid)
-            note = (res / "collapsed_dec0_s20.txt").read_text()
-            assert "dec0_s20" in note
+            note = (res / "collapsed_dec_s20.txt").read_text()
+            assert "dec_s20" in note
             assert "lost" in note
         finally:
             self._reap(pid)
@@ -587,7 +590,7 @@ class TestTheAucGuard:
             self._append(tmp_path, [0.97] * 100)
             rc, out = self._drain(proc)
             assert rc == 0, out
-            assert not (res / "collapsed_dec0_s20.txt").exists()
+            assert not (res / "collapsed_dec_s20.txt").exists()
         finally:
             self._reap(pid)
 
@@ -596,7 +599,7 @@ class TestTheAucGuard:
         self._reap(pid)
         out, res = self._guard(tmp_path, [0.97] * 120, pid)
         assert out.returncode == 0
-        assert not (res / "collapsed_dec0_s20.txt").exists()
+        assert not (res / "collapsed_dec_s20.txt").exists()
 
     def test_a_collapse_before_this_leg_does_not_stop_it(self, tmp_path):
         """A re-fired leg writes no CSV row for its first 100 steps. The
@@ -606,7 +609,7 @@ class TestTheAucGuard:
         try:
             out, res = self._guard(tmp_path, [0.97] * 30 + [0.40] * 60, pid)
             assert out.returncode == 0, out.stdout + out.stderr
-            assert not (res / "collapsed_dec0_s20.txt").exists()
+            assert not (res / "collapsed_dec_s20.txt").exists()
         finally:
             self._reap(pid)
 
@@ -614,13 +617,13 @@ class TestTheAucGuard:
         """train.py branches a re-fired leg's run name to `<name>_r2`, so the
         dead leg's collapsed CSV stays on disk beside the new one."""
         pid = self._victim(8)
-        name = study_out("cf409_run_name dec0_s20")
+        name = study_out("cf409_run_name dec_s20")
         try:
             proc, res = self._start(tmp_path, [0.97] * 20 + [0.40] * 60, pid)
             self._append(tmp_path, [0.97] * 100, f"{name}_r2_losses.csv")
             rc, out = self._drain(proc)
             assert rc == 0, out
-            assert not (res / "collapsed_dec0_s20.txt").exists()
+            assert not (res / "collapsed_dec_s20.txt").exists()
         finally:
             self._reap(pid)
 
@@ -657,7 +660,7 @@ class TestTheAucGuard:
             self._append(tmp_path / "warm", climb)
             rc, out = self._drain(proc)
             assert rc == 0, out
-            assert not (res / "collapsed_dec0_s20.txt").exists()
+            assert not (res / "collapsed_dec_s20.txt").exists()
         finally:
             self._reap(warm)
 
@@ -666,7 +669,7 @@ class TestTheAucGuard:
         can collapse from the decay before the gate turns on."""
         warmup = int(study_out('printf %s "$CF409_AUC_WARMUP"'))
         assert 0 < warmup <= 2000
-        assert float(study_out(f"cf409_rep_w_at dec0_s20 {warmup}")) >= 0.9
+        assert float(study_out(f"cf409_rep_w_at {warmup}")) >= 0.9
 
 
 class TestTheLaneHoldsOneHead:
@@ -756,46 +759,107 @@ def _rollout_latents(k, B=3, T=8, C=2, H=8, seed=0):
 
 
 class TestTheLossByTermFormula:
-    """The report rebuilds the loss by term from the CSV columns. This
-    card's arms run k = 3 under `sum`, so the total holds FOUR copies of
-    L_align and the `l_align` column holds the depth-0 copy alone."""
+    """The report rebuilds the loss by term from the CSV columns.
 
-    K = 3
+    This card runs k = 32 under the `mean` reduction, against the EMA
+    TEACHER. Two things follow, and `notes/loss_decomposition.md` states
+    both:
+
+      * the `l_align` column is the depth-0 copy alone, and the loss holds
+        the MEAN of k + 1 copies.
+      * `l_align` is NOT `2 * cos_err_d0` here. `cos_err_dj` reads the
+        student's next latent and the teacher target reads the teacher's,
+        so the `cos_err_d*` columns cannot rebuild the align part.
+
+    So the align part of the total is read as a residual. That residual is
+    exact on this cell, whose CPC weight is 0.0.
+    """
+
+    K = 32
     ALIGN_W = 1.0
     REP_W = 0.7
 
-    def _loss(self, reduce="sum"):
-        f, o, rollouts = _rollout_latents(self.K, seed=5)
+    # k = 32 needs k + 2 time steps to keep one anchor, so T is 36 here.
+    T = 36
+
+    def _loss(self, reduce="mean", align_target="teacher"):
+        f, o, rollouts = _rollout_latents(self.K, T=self.T, seed=5)
+        g = torch.Generator().manual_seed(11)
+        teacher_o = torch.randn(*o.shape, generator=g, dtype=torch.float64)
         terms = {}
         loss = contrastive_latent_loss(
             (f, o), False, _spec(train_rollout_depth=self.K,
                                  train_rollout_reduce=reduce),
-            align_loss_weight=self.ALIGN_W, align_target="student",
+            align_loss_weight=self.ALIGN_W, align_target=align_target,
+            teacher_original_latent=teacher_o,
             rollout_latents=rollouts, train_rollout_depth=self.K,
             train_rollout_reduce=reduce,
             rep_loss_weight=self.REP_W, term_out=terms)
         return float(loss), terms, rollout_cos_error(f, o, rollouts)
 
-    def test_the_depth_zero_formula_does_not_close_at_k_three(self):
+    def test_the_depth_zero_formula_does_not_close_at_k_thirty_two(self):
         loss, terms, _ = self._loss()
         naive = self.REP_W * terms["l_rep"] + self.ALIGN_W * terms["l_align"]
         assert loss != pytest.approx(naive, rel=1e-3)
 
-    def test_the_column_is_the_depth_zero_copy(self):
+    def test_the_cos_err_columns_cannot_rebuild_a_teacher_align(self):
+        """The identity `l_align = 2 * cos_err_d0` holds on the student
+        target only. #404's own plot script used it on a teacher run."""
         _, terms, errors = self._loss()
-        assert terms["l_align"] == pytest.approx(2.0 * errors[0])
+        assert terms["l_align"] != pytest.approx(2.0 * errors[0], rel=1e-3)
 
-    def test_the_summed_total_closes_over_the_cos_err_columns(self):
-        """`l_align = 2 * cos_err_d0` under the student target, so the k + 1
-        copies read off the `cos_err_d*` columns."""
-        loss, terms, errors = self._loss()
+    def test_the_align_part_is_the_residual_of_the_total(self):
+        """This is the formula the report uses. On this cell the CPC weight
+        is 0.0 and SIGReg is added outside this call, so the residual is the
+        align part alone.
+
+        Tripling `align_w` must triple the residual and move nothing else. A
+        residual that held another term would not scale."""
+        loss, terms, _ = self._loss()
+        residual = loss - self.REP_W * terms["l_rep"]
+        assert residual > 0.0
+
+        f, o, rollouts = _rollout_latents(self.K, T=self.T, seed=5)
+        g = torch.Generator().manual_seed(11)
+        teacher_o = torch.randn(*o.shape, generator=g, dtype=torch.float64)
+        terms3 = {}
+        loss3 = float(contrastive_latent_loss(
+            (f, o), False, _spec(train_rollout_depth=self.K,
+                                 train_rollout_reduce="mean"),
+            align_loss_weight=3.0 * self.ALIGN_W, align_target="teacher",
+            teacher_original_latent=teacher_o,
+            rollout_latents=rollouts, train_rollout_depth=self.K,
+            train_rollout_reduce="mean",
+            rep_loss_weight=self.REP_W, term_out=terms3))
+        residual3 = loss3 - self.REP_W * terms3["l_rep"]
+        assert terms3["l_rep"] == pytest.approx(terms["l_rep"])
+        assert residual3 == pytest.approx(3.0 * residual, rel=1e-9)
+
+    def test_the_residual_reads_the_mean_of_every_depth(self):
+        """Perturbing a copy the depth-0 column never sees must move the
+        residual. Otherwise the report would read one depth as all 33."""
+        loss_a, terms_a, _ = self._loss()
+        f, o, rollouts = _rollout_latents(self.K, T=self.T, seed=5)
+        rollouts[7] = rollouts[7] + 0.5
+        g = torch.Generator().manual_seed(11)
+        teacher_o = torch.randn(*o.shape, generator=g, dtype=torch.float64)
+        terms_b = {}
+        loss_b = float(contrastive_latent_loss(
+            (f, o), False, _spec(train_rollout_depth=self.K,
+                                 train_rollout_reduce="mean"),
+            align_loss_weight=self.ALIGN_W, align_target="teacher",
+            teacher_original_latent=teacher_o,
+            rollout_latents=rollouts, train_rollout_depth=self.K,
+            train_rollout_reduce="mean",
+            rep_loss_weight=self.REP_W, term_out=terms_b))
+        assert terms_a["l_align"] == pytest.approx(terms_b["l_align"])
+        assert loss_a != pytest.approx(loss_b, rel=1e-6)
+
+    def test_the_student_target_still_closes_over_the_cos_err_columns(self):
+        """The identity the doc states for `--align-target student`. Other
+        studies read it, so #409 must not break it."""
+        loss, terms, errors = self._loss("mean", "student")
         assert len(errors) == self.K + 1
-        closed = (self.REP_W * terms["l_rep"]
-                  + self.ALIGN_W * 2.0 * sum(errors))
-        assert loss == pytest.approx(closed, rel=1e-6)
-
-    def test_the_mean_total_divides_by_k_plus_one(self):
-        loss, terms, errors = self._loss("mean")
         closed = (self.REP_W * terms["l_rep"]
                   + self.ALIGN_W * 2.0 * sum(errors) / (self.K + 1))
         assert loss == pytest.approx(closed, rel=1e-6)
@@ -806,3 +870,12 @@ class TestTheLossByTermFormula:
         assert "--train-rollout-depth" in formula
         assert "cos_err_d" in formula
         assert "k + 1" in formula
+
+    def test_the_note_states_this_cards_own_cell(self):
+        """`notes/loss_decomposition.md` must describe the cell this card
+        runs, not the one the first attempt ran."""
+        body = DECOMP.read_text()
+        assert "k = 32" in body
+        assert "mean" in body
+        assert "teacher" in body
+        assert "residual" in body

@@ -6,7 +6,7 @@ part of it.
 | artefact | path on elisa |
 |---|---|
 | backbones, optimizers, heads, GIFT-Eval output | `/home/jupyter/checkpoints_backup/cf-409/<arm>/` |
-| losses CSVs | `<arm root>/arm6_v2_combab_alignS/leg_40k/` |
+| losses CSVs | `<arm root>/arm6_v2_combab_alignT/leg_40k/` |
 | logs, scores, AUC verdicts, `RUN_STATE.md` | `reports/2026-08-22_rep_weight_decay/results/` |
 
 ## No sync loop
@@ -31,3 +31,10 @@ The `results/` tree does not: it sits in the checkout that runs the card.
 
 `cf409_check_checkout` refuses a checkout that is too old for this card. It
 reads the trainer flag, `GAP_ARGS`, #373's head script and the HF token.
+
+## The reference scores are not artefacts of this card
+
+This card runs no control. Its two references, 1.1507 at seed 20260520 and
+1.1491 at seed 20260524, come from
+`reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md`. Read them there. No
+file under `cf-409/` holds them.

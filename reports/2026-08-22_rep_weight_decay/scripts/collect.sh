@@ -2,10 +2,10 @@
 # #409 — every number the card asks for, in two tables.
 #
 #   results/scores.csv         one 97-config GM-Relative MASE per arm, with
-#                              that arm's floor, ramp, seed and L_align target
-#                              beside it. Three arms are a REPEAT of another at
-#                              a second seed, so a reader must see which pair
-#                              is which without the arms file open.
+#                              that arm's seed and the card's decay beside it.
+#                              Every arm is the same decay at another seed, so
+#                              a reader must see the seed without the arms file
+#                              open.
 #   results/auc_verdicts.tsv   whether each run held the contrastive task, and
 #                              at which step it lost it. The card asks for the
 #                              AUC of every run, and a run stopped by the AUC
@@ -38,9 +38,10 @@ mkdir -p "$CF409_RESULTS"
 # ---- The scores --------------------------------------------------------------
 #
 # `rep_w_at_stop` is the weight the arm HOLDS at the stop, which is not the
-# weight its command line names: every arm names 1.0 at step 0.
+# weight its command line names: every arm names 1.0 at step 0. The card's
+# decay reaches 0.0 at step 10,000, so every arm holds 0.0 at the stop.
 {
-  echo "arm,rep_end,ramp,seed,align_target,rep_w_at_stop,stop,head_steps,encoder,score"
+  echo "arm,seed,rep_end,ramp,rep_w_at_stop,align_target,stop,head_steps,encoder,score"
   for f in "$CF409_RESULTS"/score_*.txt; do
     [ -e "$f" ] || continue
     [ -s "$f" ] || continue
@@ -61,7 +62,7 @@ mkdir -p "$CF409_RESULTS"
       continue; }
     stop="$(cf409_steps_of "$stop_l")"
     head="$(cf409_steps_of "$head_l")"
-    echo "$arm,$(cf409_rep_end "$arm"),$(cf409_ramp "$arm"),$(cf409_seed "$arm"),$(cf409_align_target "$arm"),$(cf409_rep_w_at "$arm" "$stop"),$stop,$head,$enc,$score"
+    echo "$arm,$(cf409_seed "$arm"),$CF409_REP_W_END,$(cf409_ramp),$(cf409_rep_w_at "$stop"),$CF409_ALIGN_TARGET,$stop,$head,$enc,$score"
   done
 } >"$OUT.$TMP"
 mv -f "$OUT.$TMP" "$OUT"

@@ -1,30 +1,43 @@
 #!/bin/bash
-# #409 — one configuration, four L_rep weight floors. Sourced, never run.
+# #409 — one configuration, one decay of the L_rep weight, several seeds.
+# Sourced, never run.
 #
-# The configuration is #373's cell `arm6_v2_combab_alignS` at k = 3 under the
-# default `sum` reduction: `cosine_similarity_batch_rep_only`, L_align on the
-# student latent at weight 1.0, MoCo rep keys, tau_rep = 1.0, no CPC
-# auxiliary, SIGReg on the embedding and the encoding at weight 1.0,
-# tau = 0.10, EMA momentum 0.9 rising to 1.0 at step 100,000. That cell holds
-# the project's best GM-Relative MASE, 1.0660 at 200,000 steps and 1.0862 at
-# the 40,000-step stop this card measures.
+# The configuration is the EMA momentum sweep's BEST ARM, `r100_09` of
+# reports/2026-08-19_ema_momentum_k32/. That is #373's cell
+# `arm6_v2_combab_alignT` at k = 32 under the `mean` reduction:
+# `cosine_similarity_batch_rep_only`, L_align on the EMA TEACHER at weight 1.0,
+# MoCo rep keys, tau_rep = 1.0, no CPC auxiliary, SIGReg on the embedding and
+# the encoding at weight 1.0, tau = 0.10, and an EMA momentum of 0.9 that rises
+# to 1.0 at step 100,000.
 #
-# This card changes ONE hyperparameter: the weight on L_rep, which for this
-# loss shape is the weight on the whole main loss. Eight arms, in
-# scripts/arms.tsv. Everything else is fixed.
+# The momentum schedule is `run_leg_k.sh`'s own default, so this study passes
+# no momentum flag. The card holds the EMA schedule fixed, and a flag that is
+# never written can never move.
+#
+# This card changes ONE thing: an extra factor in front of L_rep. It starts at
+# 1.0 and falls linearly to 0.0 at step 10,000. There is no floor and no second
+# shape, so the decay lives here and not in the arms table.
 #
 # ---- Why the weight ----------------------------------------------------------
 #
-# L_rep holds 92 to 93 percent of the total loss at step 40,000 and reaches its
-# level near step 100. The term that moves after step 500 is L_align. So most
-# of the objective is a term that stopped moving, and the card asks what
-# happens when it is decayed out.
+# For this loss shape L_rep IS the whole main loss. It holds 92 to 93 percent of
+# the total at step 40,000 and reaches its level near step 100. The term that
+# moves after step 500 is L_align. So most of the objective is a term that
+# stopped moving, and the card asks what happens when it is decayed out.
+#
+# ---- This card runs no control -----------------------------------------------
+#
+# The sweep already scored this cell at two backbone seeds: 1.1491 at seed
+# 20260524 and 1.1507 at seed 20260520, a seed range of 0.0016. Those are the
+# references, and `reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md`
+# holds them. Every backbone of this card goes to the decay arm, at a seed of
+# its own. See scripts/arms.tsv.
 #
 # ---- What this study does not write ------------------------------------------
 #
-# The card compares its arms to published #373 numbers. A path shared with
-# #373 or #404 overwrites one of them, so four names carry the arm: the
-# checkpoint root, the run name, the tag and the score file.
+# The card compares its arms to published #404 numbers on this same cell. A
+# path shared with #373 or #404 overwrites one of them, so four names carry the
+# arm: the checkpoint root, the run name, the tag and the score file.
 
 CF409_SCRIPTS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CF409_STUDY="$(dirname "$CF409_SCRIPTS")"
@@ -38,33 +51,40 @@ CF409_PARENT="$(cd "$CF409_STUDY/../2026-08-08_rollout_depth" && pwd)"
 CF409_WT="${WT:-$CF409_REPO}"
 
 # ---- The configuration, which every arm shares -------------------------------
-CF409_CELL="arm6_v2_combab_alignS"
-CF409_K=3
-CF409_REDUCE="sum"
+CF409_CELL="arm6_v2_combab_alignT"
+CF409_K=32
+CF409_REDUCE="mean"
+# The cell's own L_align target. It is stated on every leg, so a leg log names
+# the objective it trained instead of leaving a reader to infer the cell's
+# default.
+CF409_ALIGN_TARGET="teacher"
 # One stop. The card trains each arm to 40,000 backbone steps, because that is
-# where the published k = 3 number sits.
+# where the sweep measured this cell.
 CF409_STOPS="40000"
 CF409_HEAD_STEPS=30000
 CF409_HEAD_SEED=20260722
 CF409_ENC="student"
-CF409_SEED_DEFAULT="${CF409_SEED_DEFAULT:-20260520}"
-CF409_ALIGN_TARGET_DEFAULT="${CF409_ALIGN_TARGET_DEFAULT:-student}"
-# The weight on L_rep at step 0. Every arm starts here, and the arms table
-# says where each one ends.
+
+# ---- The decay, which is the card's whole change -----------------------------
+#
+# One shape: the weight starts at 1.0 and falls linearly to 0.0 at step 10,000,
+# then holds. The card states it, so it lives here. An arms table that carried
+# it per row could hold a second shape, and the card allows none.
 CF409_REP_W_START="${CF409_REP_W_START:-1.0}"
+CF409_REP_W_END="${CF409_REP_W_END:-0.0}"
+CF409_REP_W_RAMP="${CF409_REP_W_RAMP:-10000}"
 
 # ---- The latent-drift probe --------------------------------------------------
 #
 # The probe is a DIAGNOSTIC. It draws a fixed ARMA batch once, then does one
 # no-grad forward of it at every save step and writes the drift of h_t to
 # `<run>_latent_drift.csv`. At the trainer's own batch of 64 that forward
-# allocates a 4.32 GB block, and the allocator keeps it. So the probe, not the
-# training, sets what one leg of this cell holds: 5.4 GB, of which about 1 GB
-# is the training itself.
+# allocates a block of several GB, and the allocator keeps it for the run. On
+# the k = 3 cell that block, not the training, set what one leg held.
 #
 # elisa's two cards already carry other agents' runs, and this card must share
-# them. At 16 the block is about 1.1 GB, one leg holds about 2.2 GB, and both
-# lanes of this card fit beside the work that is already there.
+# them. At 16 the block is about a quarter of that, which leaves the training
+# itself as the larger half.
 #
 # The probe cannot move the training. `generate_arma_batch` draws its batch
 # from `np.random.default_rng(seed)`, which is a LOCAL generator, and `probe()`
@@ -82,13 +102,13 @@ CF409_ARMS_TSV="${CF409_ARMS_TSV:-$CF409_SCRIPTS/arms.tsv}"
 # script and the same guards. One arm to 40,000 steps takes hours, so a trial
 # puts the first wiring defect minutes from the start.
 #
-#   CF409_TRIAL=400 bash scripts/run_arm.sh dec0_s20 400
+#   CF409_TRIAL=400 bash scripts/run_arm.sh dec_s20 400
 #
 # The ramp scales with the budget, so a trial still crosses its whole decay.
 if [ -n "${CF409_TRIAL:-}" ]; then
   CF409_STOPS="$CF409_TRIAL"
   CF409_HEAD_STEPS=$(( CF409_TRIAL / 2 ))
-  CF409_RAMP_SCALE="${CF409_RAMP_SCALE:-$(( CF409_TRIAL * 10000 / 40000 ))}"
+  CF409_RAMP_SCALE="${CF409_RAMP_SCALE:-$(( CF409_TRIAL * CF409_REP_W_RAMP / 40000 ))}"
   # The AUC gate scales too, or a 400-step trial would end inside its own
   # warmup and the gate would never fire.
   CF409_AUC_WARMUP="${CF409_AUC_WARMUP:-$(( CF409_TRIAL / 40 ))}"
@@ -132,16 +152,16 @@ fi
 
 # Every arm name, in the card's order.
 cf409_arms(){
-  awk -F'\t' '!/^#/ && NF >= 4 { print $1 }' "$CF409_ARMS_TSV"
+  awk -F'\t' '!/^#/ && NF >= 2 { print $1 }' "$CF409_ARMS_TSV"
 }
 CF409_ARMS="$(cf409_arms | tr '\n' ' ')"
 CF409_ARMS="${CF409_ARMS% }"
 
-# One arm's row, as `<arm> <end> <ramp> <seed> <align_target>`. Prints
-# nothing, and returns non-zero, for an arm the table does not hold.
+# One arm's row, as `<arm> <seed>`. Prints nothing, and returns non-zero, for
+# an arm the table does not hold.
 cf409_arm_row(){  # <arm>
   awk -F'\t' -v a="${1:?arm}" \
-    '!/^#/ && $1 == a { print $1, $2, $3, $4, $5; found = 1 }
+    '!/^#/ && $1 == a { print $1, $2; found = 1 }
      END { exit !found }' "$CF409_ARMS_TSV"
 }
 
@@ -158,71 +178,34 @@ cf409_require_stop(){  # <stop steps>
   return 2
 }
 
-# The weight this arm's L_rep ends at, or `-` for an arm that holds it.
-cf409_rep_end(){  # <arm>
+# The backbone seed of one arm, from column 2. The seed is the ONLY thing that
+# separates two arms of this card, so a seed that does not reach the trainer
+# gives two identical runs under two names.
+cf409_seed(){  # <arm>
   cf409_arm_row "${1:?arm}" | awk '{print $2}'
 }
 
-# How long the decay is, in steps. `0` for an arm that holds the weight.
+# How long the decay is, in steps. Every arm shares it, so this takes no arm.
 #
 # A trial scales the ramp with the budget through CF409_RAMP_SCALE, so a
 # 400-step trial still crosses its whole decay and its `rep_w` column still
-# reaches the floor.
-cf409_ramp(){  # <arm>
-  local v
-  v="$(cf409_arm_row "${1:?arm}" | awk '{print $3}')" || return 1
-  case "$v" in ''|-) printf '0\n'; return 0 ;; esac
+# reaches 0.0.
+cf409_ramp(){
   if [ -n "${CF409_RAMP_SCALE:-}" ]; then printf '%s\n' "$CF409_RAMP_SCALE"
-  else printf '%s\n' "$v"; fi
+  else printf '%s\n' "$CF409_REP_W_RAMP"; fi
 }
 
-# The backbone seed of one arm, from column 4. Three arms of this card are a
-# REPEAT of another at a second seed, and those pairs are the only thing that
-# measures this cell's own run-to-run spread.
-cf409_seed(){  # <arm>
-  local v
-  v="$(cf409_arm_row "${1:?arm}" | awk '{print $4}')" || return 1
-  case "$v" in ''|-) printf '%s\n' "$CF409_SEED_DEFAULT" ;;
-               *) printf '%s\n' "$v" ;; esac
-}
-
-# Whose h_{t+1} L_align pulls toward, from column 5.
-#
-# Seven arms take the cell's own `student`. `dec0T_s20` takes `teacher`: past
-# its ramp that arm holds no L_rep, so L_align against a detached EMA target
-# is exactly BYOL. It is the arm most likely to hold the contrastive AUC at
-# weight 0.0.
-cf409_align_target(){  # <arm>
-  local v
-  v="$(cf409_arm_row "${1:?arm}" | awk '{print $5}')" || return 1
-  case "$v" in ''|-) printf '%s\n' "$CF409_ALIGN_TARGET_DEFAULT" ;;
-               *) printf '%s\n' "$v" ;; esac
-}
-
-# The trainer flags of one arm's decay, as ONE unit.
-#
-# An arm that holds the weight names the start weight and NO end value:
-# train.py reads "no end value" as "the weight is constant", and there is no
-# value of the flag that means the same. So the control arms carry the cell's
-# command line unchanged, which is what makes them a control.
-cf409_decay_args(){  # <arm>
-  local end ramp
-  end="$(cf409_rep_end "${1:?arm}")" || return 1
-  case "$end" in ''|-) printf -- '--rep-loss-weight %s\n' "$CF409_REP_W_START"
-                      return 0 ;; esac
-  ramp="$(cf409_ramp "$1")"
+# The trainer flags of the decay, as ONE unit. Every arm carries them.
+cf409_decay_args(){
   printf -- '--rep-loss-weight %s --rep-loss-weight-end %s --rep-loss-weight-ramp-steps %s\n' \
-    "$CF409_REP_W_START" "$end" "$ramp"
+    "$CF409_REP_W_START" "$CF409_REP_W_END" "$(cf409_ramp)"
 }
 
 # The same three values as the trainer's own command line reports them, so a
-# leg's log can be read against the arms table. `-` for a flag the command
-# line does not carry.
-cf409_decay_sig(){  # <arm>
-  local end
-  end="$(cf409_rep_end "${1:?arm}")" || return 1
-  case "$end" in ''|-) printf '%s - -\n' "$CF409_REP_W_START"; return 0 ;; esac
-  printf '%s %s %s\n' "$CF409_REP_W_START" "$end" "$(cf409_ramp "$1")"
+# leg's log can be read against the card. `-` for a flag the command line does
+# not carry.
+cf409_decay_sig(){
+  printf '%s %s %s\n' "$CF409_REP_W_START" "$CF409_REP_W_END" "$(cf409_ramp)"
 }
 
 # The same three values, read off a trainer command line on stdin.
@@ -247,21 +230,37 @@ cf409_align_target_of_cmdline(){
     print t }'
 }
 
-# The weight an arm HOLDS at a given step, which is not the weight its command
-# line names. This is the number that compares two arms at one point of
-# training.
+cf409_reduce_of_cmdline(){
+  awk '{ r = "-"
+    for (i = 1; i <= NF; i++) if ($i == "--train-rollout-reduce") r = $(i + 1)
+    print r }'
+}
+
+# The momentum a trainer command line carries, as `<tau> <end> <ramp>`. The
+# card holds the EMA schedule FIXED at the runner's default, so this reads a
+# leg log back against that default.
+cf409_ema_of_cmdline(){
+  awk '{ t = "-"; e = "-"; r = "-"
+    for (i = 1; i <= NF; i++) {
+      if ($i == "--ema-tau") t = $(i + 1)
+      if ($i == "--ema-tau-end") e = $(i + 1)
+      if ($i == "--ema-tau-ramp-steps") r = $(i + 1)
+    }
+    print t, e, r }'
+}
+CF409_EMA_SIG="0.9 1.0 100000"
+
+# The weight the arms HOLD at a given step, which is not the weight the command
+# line names. This is the number that reads one point of training.
 #
 # The formula is `src.models.linear_schedule_at_step`, which is linear and
 # clamps the step into the ramp. It is repeated here, and not imported,
 # because the shell readers of this study must not need a Python interpreter
 # to print a table. `tests/test_409_launcher_shape.py` holds the two against
 # each other.
-cf409_rep_w_at(){  # <arm> <step>
-  local end ramp
-  end="$(cf409_rep_end "${1:?arm}")" || return 1
-  case "$end" in ''|-) printf '%.3f\n' "$CF409_REP_W_START"; return 0 ;; esac
-  ramp="$(cf409_ramp "$1")"
-  awk -v w="$CF409_REP_W_START" -v e="$end" -v r="$ramp" -v s="${2:?step}" 'BEGIN{
+cf409_rep_w_at(){  # <step>
+  awk -v w="$CF409_REP_W_START" -v e="$CF409_REP_W_END" \
+      -v r="$(cf409_ramp)" -v s="${1:?step}" 'BEGIN{
     if (r + 0 <= 0) { printf "%.3f\n", e; exit }
     f = s / r; if (f > 1) f = 1; if (f < 0) f = 0;
     printf "%.3f\n", w + f * (e - w) }'
@@ -282,8 +281,8 @@ cf409_run_name(){  # <arm>
 }
 
 # The root ONE arm saves under. The arms are one cell, so `run_leg_k.sh` would
-# lay all eight into one <root>/<cell>/leg_40k/. The run names differ, but a
-# save dir shared by eight runs is CLAUDE.md checkpoint safety rule 3.
+# lay every one of them into one <root>/<cell>/leg_40k/. The run names differ,
+# but a save dir shared by several runs is CLAUDE.md checkpoint safety rule 3.
 cf409_arm_root(){  # <arm>
   printf '%s/%s\n' "$CF409_ROOT" "${1:?arm}"
 }
@@ -361,15 +360,18 @@ cf409_csv_rows(){  # <csv>
 
 # ---- The AUC gate ------------------------------------------------------------
 #
-# L_rep carries the negatives. Four arms decay it to 0.0 and cross the
-# known-dead 1:9 repel-to-pull ratio near step 5,600, and a collapsed arm then
-# climbs about 30,000 dead steps to the stop. `auc_guard.sh` reads the `auc`
-# column of the live CSV while the leg trains and stops the leg that lost the
-# contrastive task.
+# L_rep carries the negatives of this objective. Every arm decays it to 0.0 by
+# step 10,000, and past that step nothing pushes the representations apart. An
+# arm that lost the contrastive task then climbs about 30,000 dead steps to a
+# stop whose score is already known to be bad.
 #
-# The window and the threshold are `auc_watch.py`'s own: a 500-step rolling
-# median, under 0.55. The three arms of the k = 16 / 8 / 32 study that lost the
-# task all fell under that value and stayed there.
+# `auc_guard.sh` reads the `auc` column of the live CSV while the leg trains and
+# stops the leg that lost the task. The window and the threshold are
+# `auc_watch.py`'s own: a 500-step rolling median, under 0.55. The sweep's one
+# collapsed backbone sat at 0.5745 at the stop.
+#
+# A stopped arm is a RESULT, not a failure. The card asks whether any run loses
+# the contrastive task, and at which step.
 CF409_AUC_WINDOW="${CF409_AUC_WINDOW:-500}"
 CF409_AUC_THRESHOLD="${CF409_AUC_THRESHOLD:-0.55}"
 # Steps the verdict does not read. The AUC of a fresh run starts near 0.5 and
@@ -413,7 +415,8 @@ CF409_HEAD_TRIES="${CF409_HEAD_TRIES:-3}"
 #
 # One 30,000-step student head on each arm's 40,000-step backbone, then that
 # head's 97 GIFT-Eval configs. `head_eval.sh` runs the pair on #373's protocol,
-# and the names below are what the pair writes under.
+# which is also the sweep's, so the reference scores compare. The names below
+# are what the pair writes under.
 
 cf409_is_in(){  # <value> <space separated list>
   case " ${2:-} " in *" ${1:-} "*) return 0 ;; *) return 1 ;; esac
@@ -496,7 +499,7 @@ cf409_scored(){  # <arm> <stop steps>
 
 # ---- The cards this machine carries ------------------------------------------
 #
-# elisa holds two RTX 4090s and the study puts four arms on each. A lane on a
+# elisa holds two RTX 4090s and the study deals its arms over them. A lane on a
 # card that is not there dies inside `.to(device)`, hours after the operator
 # has left, so the launcher asks the driver first.
 #
@@ -541,16 +544,15 @@ cf409_require_gpus(){  # <space separated indices>
 #
 # Four things this card depends on are NOT in every checkout of this
 # repository. A machine bootstrapped from a stale branch would train, log
-# nothing unusual, and hand back eight copies of the control — or eight
-# backbones and an empty scores.csv.
+# nothing unusual, and hand back one copy of the published cell for each arm —
+# or a set of backbones and an empty scores.csv.
 #
 #   --rep-loss-weight-end in the trainer (#409). Without it every arm holds the
-#   weight at 1.0, so the eight arms are the control, eight times.
+#   weight at 1.0, so every arm repeats a number the sweep already published.
 #
-#   GAP_ARGS in #373's runner. Without it the decay, the seed and the L_align
-#   target never reach the trainer. `run_arm.sh` also catches this at run time,
-#   off the trainer's own command line. This check is the cheap one, before the
-#   first leg.
+#   GAP_ARGS in #373's runner. Without it the decay and the seed never reach
+#   the trainer. `run_arm.sh` also catches this at run time, off the trainer's
+#   own command line. This check is the cheap one, before the first leg.
 #
 #   The head path: #373's `head_eval_bb.sh`, which must read CF_RESULTS, and
 #   the GIFT-Eval head trainer it runs. Both refuse on their own, but only
@@ -570,14 +572,13 @@ cf409_check_checkout(){  # [checkout]
   token="$wt/experiments/hf_token.txt"
   if ! grep -q -- '--rep-loss-weight-end' "$trainer" 2>/dev/null; then
     echo "ABORT: $trainer has no --rep-loss-weight-end." >&2
-    echo "  Every arm would hold the weight at 1.0, so the eight arms" >&2
-    echo "  would be the control, eight times." >&2
+    echo "  Every arm would hold the weight at 1.0, so every arm would" >&2
+    echo "  repeat a number the sweep already published." >&2
     missing=1
   fi
   if ! grep -q 'GAP_ARGS' "$runner" 2>/dev/null; then
     echo "ABORT: $runner takes no GAP_ARGS." >&2
-    echo "  The decay, the seed and the align target would not reach the" >&2
-    echo "  trainer." >&2
+    echo "  The decay and the seed would not reach the trainer." >&2
     missing=1
   fi
   if [ ! -f "$head" ]; then

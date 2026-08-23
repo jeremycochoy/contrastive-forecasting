@@ -1,23 +1,33 @@
 """Tests for #409's study scaffolding: the arms, the launcher and the AUC watch.
 
-#409 runs ONE configuration — #373's cell A4, `arm6_v2_combab_alignS` at
-k = 3 under the default `sum` reduction — at four L_rep weight floors. It adds
-two trainer flags, `--rep-loss-weight-end` and `--rep-loss-weight-ramp-steps`,
-and no new pipeline. It reuses #373's runner and supplies the decay, the seed
-and the L_align target. `tests/test_409_rep_weight_decay.py` holds the
-objective itself.
+#409 runs ONE configuration at ONE decay shape, over repeat backbone seeds.
+The configuration is the EMA momentum sweep's best arm: #373's cell
+`arm6_v2_combab_alignT` at k = 32 under the `mean` reduction, with L_align on
+the EMA teacher and a momentum of 0.9 that rises to 1.0 at step 100,000. The
+decay is one extra factor in front of L_rep. It starts at 1.0 and falls
+linearly to 0.0 at step 10,000.
+
+The card runs NO control. The sweep already measured this cell at two seeds,
+1.1491 at seed 20260524 and 1.1507 at seed 20260520, and
+`reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md` holds both. Every
+backbone of this card goes to the decay arm, at a seed of its own.
+
+It adds two trainer flags, `--rep-loss-weight-end` and
+`--rep-loss-weight-ramp-steps`, and no new pipeline. It reuses #373's runner
+and supplies the decay and the seed. `tests/test_409_rep_weight_decay.py` holds
+the objective itself.
 
 That is the contract these tests hold:
 
-  * the study's constants are the card's: cell A4, k = 3, the `sum`
-    reduction, one stop at 40,000 backbone steps, a 30,000-step head, and
-    the student encoder.
-  * the arms table holds eight arms, the floors 1.0 / 0.5 / 0.2 / 0.0, and a
-    repeat seed on three of them.
+  * the study's constants are the card's: cell `arm6_v2_combab_alignT`,
+    k = 32, the `mean` reduction, the teacher target, one stop at 40,000
+    backbone steps, a 30,000-step head, and the student encoder.
+  * the EMA schedule is the runner's own default, so no arm moves it.
+  * ONE decay shape lives in study.sh, not in the arms table, so no row can
+    hold a second shape.
+  * the arms table holds one row per backbone seed, and every seed differs.
   * every arm's decay flags follow `src.models.linear_schedule_at_step`, so
     the shell table and the trainer agree on the weight at every step.
-  * the two control arms name the start weight and no end value, because
-    the trainer reads "no end value" as "the weight is constant".
   * no two arms share a file.
   * the runner is #373's `run_leg_k.sh` — no second trainer invocation
     exists in this study.
@@ -39,6 +49,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EXP = REPO_ROOT / "reports" / "2026-08-22_rep_weight_decay"
 PARENT = REPO_ROOT / "reports" / "2026-08-08_rollout_depth"
+SWEEP = REPO_ROOT / "reports" / "2026-08-19_ema_momentum_k32"
 
 STUDY_SH = EXP / "scripts" / "study.sh"
 RUN_ARM = EXP / "scripts" / "run_arm.sh"
@@ -46,16 +57,23 @@ ARMS_TSV = EXP / "scripts" / "arms.tsv"
 AUC_WATCH = EXP / "scripts" / "auc_watch.py"
 PARENT_LEG = PARENT / "scripts" / "run_leg_k.sh"
 
-CELL = "arm6_v2_combab_alignS"
-K = 3
-REDUCE = "sum"
+CELL = "arm6_v2_combab_alignT"
+K = 32
+REDUCE = "mean"
+ALIGN_TARGET = "teacher"
 STOP = 40_000
 RAMP = 10_000
-# Every arm of the card, in the order it runs them.
-ARMS = ("ctrl_s20", "ctrl_s24", "dec0_s20", "dec0_s24",
-        "flr05_s20", "flr05_s24", "flr02_s20", "dec0T_s20")
-# The floors the card walks. `-` is the control, which names no end value.
-FLOORS = ("-", "-", "0.0", "0.0", "0.5", "0.5", "0.2", "0.0")
+# The EMA schedule of the sweep's best arm, which is also the runner's default.
+EMA = "--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000"
+# Every arm of the card, in the order it runs them. One row for each backbone
+# seed. `launch.sh` deals them round-robin, so the two seeds the sweep already
+# scored sit on different cards.
+ARMS = ("dec_s20", "dec_s24", "dec_s22", "dec_s23", "dec_s25", "dec_s26")
+SEEDS = ("20260520", "20260524", "20260522", "20260523", "20260525",
+         "20260526")
+# The two seeds the sweep scored on this cell. Their reference numbers are
+# read from that report, not measured again here.
+SCORED_BY_THE_SWEEP = ("20260520", "20260524")
 
 
 def study_value(name: str, env=None) -> str:
@@ -99,10 +117,11 @@ class TestTheStudyIsTheCard:
         for path in (STUDY_SH, RUN_ARM, ARMS_TSV, AUC_WATCH):
             assert path.is_file(), f"missing {path}"
 
-    def test_the_cell_is_the_project_best(self):
+    def test_the_cell_is_the_sweep_best_arm(self):
         assert study_value("CF409_CELL") == CELL
         assert study_value("CF409_K") == str(K)
         assert study_value("CF409_REDUCE") == REDUCE
+        assert study_value("CF409_ALIGN_TARGET") == ALIGN_TARGET
 
     def test_one_stop_and_one_head_budget(self):
         assert study_value("CF409_STOPS") == str(STOP)
@@ -110,9 +129,17 @@ class TestTheStudyIsTheCard:
         assert study_value("CF409_HEAD_SEED") == "20260722"
         assert study_value("CF409_ENC") == "student"
 
-    def test_the_weight_starts_at_one(self):
-        """Every arm starts on the published objective and walks down."""
+    def test_the_decay_is_one_shape_and_the_table_cannot_hold_a_second(self):
+        """The card gives ONE decay: 1.0 falling linearly to 0.0 at step
+        10,000. It lives in study.sh, so no row of the arms table can hold a
+        floor or a second ramp."""
         assert study_value("CF409_REP_W_START") == "1.0"
+        assert study_value("CF409_REP_W_END") == "0.0"
+        assert study_value("CF409_REP_W_RAMP") == str(RAMP)
+        for line in ARMS_TSV.read_text().splitlines():
+            if line.startswith("#") or not line.strip():
+                continue
+            assert len(line.split("\t")) == 2, line
 
     def test_the_durable_root_is_this_study_only(self):
         root = study_value("CF409_ROOT")
@@ -122,41 +149,73 @@ class TestTheStudyIsTheCard:
         assert str(REPO_ROOT) not in root
 
 
+class TestTheEmaScheduleDoesNotMove:
+    """The card holds the EMA schedule fixed at the sweep's best arm, a
+    momentum of 0.9 that rises to 1.0 at step 100,000. That is already the
+    runner's own default, so this study passes NO momentum flag and no arm
+    can carry a different one."""
+
+    def test_the_runner_default_is_the_sweep_best_schedule(self):
+        assert EMA in PARENT_LEG.read_text()
+
+    def test_no_script_of_this_study_replaces_the_runner_schedule(self):
+        """`EMA_ARGS` is the one variable that replaces it. #404 swept the
+        momentum with it. This card writes it nowhere."""
+        offenders = []
+        for script in sorted(EXP.glob("scripts/*.sh")):
+            for n, line in enumerate(script.read_text().splitlines(), 1):
+                if line.lstrip().startswith("#"):
+                    continue
+                if "EMA_ARGS=" in line:
+                    offenders.append(f"{script.name}:{n}: {line.strip()}")
+        assert not offenders, offenders
+
+    def test_the_leg_flags_carry_no_momentum(self):
+        """GAP_ARGS is appended last, so a momentum there would override the
+        runner's own. The dry run prints the whole block."""
+        out = dry_run("dec_s20")
+        assert out.returncode == 0, out.stderr
+        assert "--ema-tau" not in out.stdout
+
+    def test_the_launcher_reads_the_momentum_back_off_the_leg_log(self):
+        """A leg trained at another momentum is not this card's arm. The
+        wrapper reads the trainer's own command line and stops it."""
+        assert study_value("CF409_EMA_SIG") == "0.9 1.0 100000"
+        got = study_out(
+            f'printf "%s" "python train.py {EMA} --seed 1" '
+            f'| cf409_ema_of_cmdline')
+        assert got == "0.9 1.0 100000"
+        assert "cf409_ema_of_cmdline" in RUN_ARM.read_text()
+
+
 class TestTheArms:
 
-    def test_eight_arms_in_the_card_order(self):
+    def test_one_arm_for_each_backbone_seed(self):
         assert study_value("CF409_ARMS").split() == list(ARMS)
+        got = tuple(study_out(f'cf409_seed {a}') for a in ARMS)
+        assert got == SEEDS
+        assert len(set(got)) == len(got), "two arms share a seed"
 
-    def test_the_floors_walk_one_to_zero(self):
-        got = tuple(study_out(f'cf409_rep_end {a}') for a in ARMS)
-        assert got == FLOORS
+    def test_every_arm_is_the_decay_arm(self):
+        """The card runs no control. An arm that held the weight would spend
+        a card on a number the sweep already published."""
+        for arm in ARMS:
+            args = study_out('cf409_decay_args')
+            assert "--rep-loss-weight-end 0.0" in args, arm
+            assert f"--rep-loss-weight-ramp-steps {RAMP}" in args, arm
 
-    def test_every_decaying_arm_shares_the_ramp(self):
-        for arm, floor in zip(ARMS, FLOORS):
-            want = "0" if floor == "-" else str(RAMP)
-            assert study_out(f'cf409_ramp {arm}') == want
-
-    def test_three_arms_repeat_at_a_second_seed(self):
-        seeds = {a: study_out(f'cf409_seed {a}') for a in ARMS}
-        assert sorted(set(seeds.values())) == ["20260520", "20260524"]
-        assert sum(1 for s in seeds.values() if s == "20260524") == 3
-        # A repeat differs from its partner in the seed alone.
-        for a, b in (("ctrl_s20", "ctrl_s24"), ("dec0_s20", "dec0_s24"),
-                     ("flr05_s20", "flr05_s24")):
-            assert study_out(f'cf409_rep_end {a}') == study_out(f'cf409_rep_end {b}')
-            assert seeds[a] != seeds[b]
+    def test_the_two_sweep_seeds_are_covered(self):
+        """Those two seeds carry the reference scores, 1.1507 and 1.1491, so
+        their decay arms pair directly against a measured number."""
+        seeds = {study_out(f'cf409_seed {a}') for a in ARMS}
+        for seed in SCORED_BY_THE_SWEEP:
+            assert seed in seeds
 
     def test_the_collapsed_seed_is_not_reused(self):
-        """20260521 lost the contrastive task once at full weight, so a
+        """20260521 lost the contrastive task once in the sweep, so a
         collapse there could not be read as this card's."""
         seeds = {study_out(f'cf409_seed {a}') for a in ARMS}
         assert "20260521" not in seeds
-
-    def test_one_arm_aligns_on_the_teacher(self):
-        targets = {a: study_out(f'cf409_align_target {a}') for a in ARMS}
-        assert targets["dec0T_s20"] == "teacher"
-        assert [a for a, t in targets.items() if t == "teacher"] == ["dec0T_s20"]
-        assert targets["dec0_s20"] == "student"
 
     def test_an_unknown_arm_is_refused(self):
         out = study_call('cf409_require_arm nosucharm')
@@ -171,17 +230,8 @@ class TestTheArms:
 
 class TestTheDecayFlags:
 
-    def test_a_control_passes_no_end_value(self):
-        """train.py reads "no end value" as "the weight is constant", and no
-        value of the flag means the same. A control that passed one would be
-        a treated arm."""
-        for arm in ("ctrl_s20", "ctrl_s24"):
-            args = study_out(f'cf409_decay_args {arm}')
-            assert args == "--rep-loss-weight 1.0"
-            assert "--rep-loss-weight-end" not in args
-
-    def test_a_treated_arm_passes_all_three(self):
-        args = study_out('cf409_decay_args dec0_s20')
+    def test_an_arm_passes_all_three(self):
+        args = study_out('cf409_decay_args')
         assert args == ("--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 "
                         f"--rep-loss-weight-ramp-steps {RAMP}")
 
@@ -189,8 +239,8 @@ class TestTheDecayFlags:
         """The launcher compares the two. A reader that disagrees with the
         table would stop every leg, or pass every wrong one."""
         for arm in ARMS:
-            args = study_out(f'cf409_decay_args {arm}')
-            sig = study_out(f'cf409_decay_sig {arm}')
+            args = study_out('cf409_decay_args')
+            sig = study_out('cf409_decay_sig')
             got = study_out(
                 f'printf "%s" "python train.py {args} --seed 1" '
                 f'| cf409_decay_of_cmdline')
@@ -201,18 +251,16 @@ class TestTheDecayFlags:
         two must not drift."""
         sys.path.insert(0, str(REPO_ROOT))
         from src.models import linear_schedule_at_step
-        for arm, floor in zip(ARMS, FLOORS):
-            end = None if floor == "-" else float(floor)
-            ramp = None if floor == "-" else RAMP
+        for arm in ARMS:
             for step in (0, 1, 2_500, 5_000, 9_999, 10_000, 25_000, 40_000):
-                want = linear_schedule_at_step(step, STOP, 1.0, end, ramp)
-                got = float(study_out(f'cf409_rep_w_at {arm} {step}'))
+                want = linear_schedule_at_step(step, STOP, 1.0, 0.0, RAMP)
+                got = float(study_out(f'cf409_rep_w_at {step}'))
                 assert got == pytest.approx(want, abs=5e-4), (arm, step)
 
-    def test_the_weight_reaches_the_floor_at_the_ramp(self):
-        assert float(study_out(f'cf409_rep_w_at dec0_s20 {RAMP}')) == 0.0
-        assert float(study_out(f'cf409_rep_w_at flr05_s20 {RAMP}')) == 0.5
-        assert float(study_out(f'cf409_rep_w_at ctrl_s20 {RAMP}')) == 1.0
+    def test_the_weight_reaches_zero_at_the_ramp_and_holds(self):
+        assert float(study_out(f'cf409_rep_w_at {RAMP}')) == 0.0
+        assert float(study_out(f'cf409_rep_w_at {STOP}')) == 0.0
+        assert float(study_out('cf409_rep_w_at 0')) == 1.0
 
 
 class TestTheCommentsNameFilesThatExist:
@@ -259,7 +307,7 @@ class TestNoTwoArmsShareAFile:
 
     def test_no_name_can_be_read_as_a_published_one(self):
         """#373 and #404 publish numbers on this cell. A shared path would
-        overwrite one of them."""
+        overwrite one of them. #404's own suffix is `_mean_<arm>`."""
         for arm in ARMS:
             name = study_out(f'cf409_run_name {arm}')
             assert "cf409" in name
@@ -273,9 +321,9 @@ class TestNoTwoArmsShareAFile:
 
     def test_a_trial_still_crosses_its_whole_decay(self):
         """A 400-step trial on a 10,000-step ramp would hold the weight at
-        0.975 and never reach the floor, so the trial would check nothing."""
+        0.975 and never reach zero, so the trial would check nothing."""
         trial = {"CF409_TRIAL": "400"}
-        assert float(study_out('cf409_rep_w_at dec0_s20 400', trial)) == 0.0
+        assert float(study_out('cf409_rep_w_at 400', trial)) == 0.0
 
 
 class TestTheLauncher:
@@ -288,30 +336,26 @@ class TestTheLauncher:
         assert "train.py" not in body
 
     def test_the_dry_run_names_the_decay_and_the_seed(self):
-        out = dry_run("dec0_s20")
+        out = dry_run("dec_s20")
         assert out.returncode == 0, out.stderr
         assert "--rep-loss-weight-end 0.0" in out.stdout
         assert f"--rep-loss-weight-ramp-steps {RAMP}" in out.stdout
         assert "seed=20260520" in out.stdout
-        assert "align_target=student" in out.stdout
 
-    def test_the_dry_run_of_a_control_names_no_end_value(self):
-        out = dry_run("ctrl_s20")
+    def test_the_dry_run_names_the_cell_of_the_sweep_best_arm(self):
+        out = dry_run("dec_s24")
         assert out.returncode == 0, out.stderr
-        assert "--rep-loss-weight-end" not in out.stdout
-
-    def test_the_teacher_arm_overrides_the_cell_target(self):
-        """The cell states `--align-target student`. GAP_ARGS is appended
-        last, and argparse keeps the last value."""
-        out = dry_run("dec0T_s20")
-        assert out.returncode == 0, out.stderr
-        assert "align_target=teacher" in out.stdout
+        assert f"cell={CELL}" in out.stdout
+        assert f"k={K}" in out.stdout
+        assert f"reduce={REDUCE}" in out.stdout
+        assert f"align_target={ALIGN_TARGET}" in out.stdout
+        assert "seed=20260524" in out.stdout
 
     def test_an_unknown_arm_is_refused(self):
         assert dry_run("nosucharm").returncode != 0
 
     def test_an_unknown_stop_is_refused(self):
-        assert dry_run("dec0_s20", stop=12345).returncode != 0
+        assert dry_run("dec_s20", stop=12345).returncode != 0
 
 
 class TestAucWatch:

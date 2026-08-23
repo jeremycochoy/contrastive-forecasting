@@ -90,13 +90,21 @@ the total is:
 --train-rollout-reduce mean   the same, divided by k + 1
 ```
 
-At k = 3 with `sum` the align part sums four copies, not one. #409's own arms
-are such runs, so a report that rebuilds their loss by term must read the
-`cos_err_d*` columns and not `l_align` alone.
+At k = 3 with `sum` the align part sums four copies, not one.
 
-Under `--align-target teacher` the term reads the teacher's next latent and
-`cos_err_dj` reads the student's, so the two are different numbers and the
-identity above does not hold. `l_align` still gives the depth-0 copy.
+**Under `--align-target teacher` the `cos_err_d*` columns cannot rebuild the
+term at all.** The align term reads the teacher's next latent and `cos_err_dj`
+reads the student's, so the two are different numbers and the identity above
+does not hold. `l_align` still gives the depth-0 copy. Read the align part as
+the residual of the total instead:
+
+```
+align_w * mean(L_align_d0 .. L_align_dk)
+    = loss - rep_w * l_rep - w_e * sigreg_e - w_h * sigreg_h - cpc_w * cpc_aux
+```
+
+#409's own arms are such runs, at k = 32 under `mean` against the teacher. See
+`reports/2026-08-22_rep_weight_decay/notes/loss_decomposition.md`.
 
 The column is blank under `--no-main-contrastive-loss`, where the training
 script adds `L_align` outside the main loss.

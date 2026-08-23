@@ -1,8 +1,8 @@
 #!/bin/bash
-# #409 — the entry point. Eight arms, two cards, one command.
+# #409 — the entry point. One decay, several seeds, two cards, one command.
 #
-# elisa holds two RTX 4090s. This deals the eight arms round-robin over them
-# and starts one lane on each (`phase1.sh`). Each lane trains its arms in turn:
+# elisa holds two RTX 4090s. This deals the arms round-robin over them and
+# starts one lane on each (`phase1.sh`). Each lane trains its arms in turn:
 # backbone to 40,000 steps, then a 30,000-step student head, then that head's
 # 97 GIFT-Eval configs. Every arm is independent, so the deal is free.
 #
@@ -24,7 +24,7 @@
 #   nohup setsid bash scripts/launch.sh >/dev/null 2>&1 &
 #
 #   GPUS="0" bash scripts/launch.sh          # one card
-#   ARMS="dec0_s20 ctrl_s20" bash scripts/launch.sh
+#   ARMS="dec_s20 dec_s24" bash scripts/launch.sh
 #   CF409_TRIAL=400 bash scripts/launch.sh   # the whole pipeline, in minutes
 #   CF409_DRY_RUN=1 bash scripts/launch.sh   # print the plan, run nothing
 set -uo pipefail
@@ -56,31 +56,37 @@ lane_of(){  # <arm index>
 
 if [ -n "${CF409_DRY_RUN:-}" ]; then
   echo "study cell=$CF409_CELL k=$CF409_K reduce=$CF409_REDUCE" \
-       "stops='$CF409_STOPS' head=$CF409_HEAD_STEPS"
+       "target=$CF409_ALIGN_TARGET stops='$CF409_STOPS'" \
+       "head=$CF409_HEAD_STEPS"
   echo "  root=$CF409_ROOT results=$CF409_RESULTS gpus='$GPUS'"
   for i in "${!arm_list[@]}"; do
     echo "arm ${arm_list[$i]} gpu=${gpu_list[$(lane_of "$i")]}" \
-         "rep_end=$(cf409_rep_end "${arm_list[$i]}")" \
          "seed=$(cf409_seed "${arm_list[$i]}")" \
-         "target=$(cf409_align_target "${arm_list[$i]}")"
+         "rep_end=$CF409_REP_W_END ramp=$(cf409_ramp)" \
+         "target=$CF409_ALIGN_TARGET"
   done
   exit 0
 fi
 
-# The checkout is checked before the first leg, not after eight of them. A
-# stale one trains eight copies of the control and says nothing unusual. It
-# runs after the plan print, so a dry run works from any checkout — a worktree
-# carries no HF token, and the token is one of the three things checked.
+# The checkout is checked before the first leg, not after all of them. A stale
+# one trains one copy of the published cell for each arm and says nothing
+# unusual. It runs after the plan print, so a dry run works from any checkout.
+# A worktree carries no HF token, and the token is one of the things checked.
 cf409_check_checkout || exit 6
 
 # What a re-dispatched session reads first. One file, overwritten, so it is
 # never a log to scroll.
 state(){  # <note>
-  { echo "# #409 run state — the L_rep weight decay at k = 3"
+  { echo "# #409 run state — the L_rep weight decay at k = 32"
     echo
     echo "- updated: $(date '+%Y-%m-%d %H:%M:%S')"
     echo "- note: $1"
-    echo "- cell: \`$CF409_CELL\`, k = $CF409_K, reduce \`$CF409_REDUCE\`"
+    echo "- cell: \`$CF409_CELL\`, k = $CF409_K, reduce \`$CF409_REDUCE\`," \
+         "target \`$CF409_ALIGN_TARGET\`"
+    echo "- decay: $CF409_REP_W_START to $CF409_REP_W_END at step" \
+         "$(cf409_ramp). No control arm: the references are 1.1507 (seed" \
+         "20260520) and 1.1491 (seed 20260524), from" \
+         "\`reports/2026-08-19_ema_momentum_k32/\`."
     echo "- arms: $ARMS"
     echo "- cards: $GPUS, launcher pid $$"
     echo "- root: \`$CF409_ROOT\`"

@@ -1,97 +1,70 @@
 # #409 — the arms of the card, one row each. Tab separated.
 #
-# Columns: arm, the L_rep weight at the end of the ramp, the ramp length in
-# steps, the backbone seed, the L_align target. A `-` in a column is a flag
-# the arm does NOT pass.
-#
-# Only the decay, the seed and the align target change. Every other flag comes
-# from #373's cell `arm6_v2_combab_alignS` at k = 3 under the default `sum`
-# reduction: `--loss-shape cosine_similarity_batch_rep_only`,
-# `--align-loss-weight 1.0`, `--moco-rep-keys`, `--tau-rep 1.0`, no CPC
-# auxiliary, SIGReg on the embedding and the encoding at weight 1.0,
-# `--tau 0.10`, and the EMA momentum 0.9 rising to 1.0 at step 100,000.
+# Columns: arm, backbone seed. Nothing else changes between two arms.
 #
 # Add a row here and nothing else changes: every script and guard reads this
 # file.
 #
-# ---- Why this cell -----------------------------------------------------------
+# ---- The cell ----------------------------------------------------------------
 #
-# The card says to take the EMA momentum sweep's table as a guide, not as a
-# list, and to ask a Fable agent before the choice. That opinion is in
-# scripts/fable_opinion.md, and this table follows it.
+# Every arm runs the EMA momentum sweep's best arm, `r100_09` of
+# reports/2026-08-19_ema_momentum_k32/. That is #373's cell
+# `arm6_v2_combab_alignT` at k = 32 under the `mean` reduction, with
+# `--align-target teacher` and an EMA momentum of 0.9 that rises to 1.0 at step
+# 100,000. `study.sh` holds those values, and the momentum is the runner's own
+# default.
 #
-# The sweep ran at k = 32 under the mean reduction. Its best arm scores 1.1491
-# at the 40,000-step stop. The k = 3 cell scores 1.0862 at that same stop and
-# 1.0660 at 200,000 steps, which is the project's best. So this card starts
-# from the k = 3 cell: a decay gain on the k = 32 cell would have to close
-# 0.063 before it reaches the frontier.
+# ---- The decay ---------------------------------------------------------------
 #
-# The premise of the card holds on both cells. They share the loss shape
-# `cosine_similarity_batch_rep_only`, whose whole main loss IS L_rep. On the
-# sweep's own CSVs L_rep holds 92 to 93 percent of the total and moves from
-# 11.54 to 11.63 over 40,000 steps, while L_align moves.
+# One extra factor in front of L_rep. It starts at 1.0 and falls linearly to
+# 0.0 at step 10,000. There is no floor and no second shape, so the decay is in
+# `study.sh` and not in a column here. Every arm carries it.
 #
-# The card's stated best, 1.1491, is the best of the SWEEP, not of the project.
+# ---- The references already exist --------------------------------------------
 #
-# ---- Why the EMA schedule does not move --------------------------------------
+# This card runs NO control. The sweep measured this cell at two backbone
+# seeds, and reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md holds
+# both:
 #
-# It stays at 0.9 rising to 1.0 over 100,000 steps. Three reasons:
+#   seed 20260524   GM-Relative MASE 1.1491
+#   seed 20260520   GM-Relative MASE 1.1507
 #
-#   - It is already this cell's schedule, so the decay is the only flag that
-#     moves against the control.
-#   - It is the sweep's own best arm.
-#   - On the align-student arms the teacher enters the loss through the MoCo
-#     keys inside L_rep and nowhere else. At weight 0.0 the teacher leaves the
-#     objective, so no schedule can act after step 10,000 in seven of the eight
-#     arms.
+# The seed range is 0.0016. Read those two numbers from that report. A control
+# arm here would spend a card on a number that exists.
 #
-# ---- Why these floors --------------------------------------------------------
+# ---- Why six seeds -----------------------------------------------------------
 #
-# k = 3 under the `sum` reduction sums 4 copies of L_align against ONE copy of
-# the h-anchored L_rep. So the baseline holds a repel-to-pull ratio of 1:4, and
-# the decay walks that ratio up as the weight falls.
+# The card allows up to eight backbones and asks for repeat seeds. Every
+# backbone goes to the decay arm, so the six give the decay arm's own mean and
+# its own spread.
 #
-# The k = 16 / 8 / 32 study measured the far end of that walk. Its summed arms
-# ran 1:9, 1:17 and 1:33 from step 0. All three lost the contrastive task: AUC
-# fell below 0.55 at steps 4,404, 347 and 1,343, the latent rank fell to about
-# 1.0, and the scores ran 1.8 to 12.5. Both SIGReg terms were on at weight 1.0
-# and did not hold them.
+# Rows 1 and 2 carry the two seeds the sweep scored, so each pairs against a
+# measured number. Rows 3 and 4 carry two seeds the sweep also trained on this
+# cell, at another arm, and both held the contrastive task (AUC 0.978 and
+# 0.975). Rows 5 and 6 are new.
 #
-# A decay from 1.0 to 0.0 over 10,000 steps crosses the known-dead 1:9 near
-# step 5,600. So the card measures the WALK and not one point of it:
+# Six and not eight: the reference is two seeds with a range of 0.0016, so its
+# mean is well determined, and past six the decay arm's own mean gains less
+# than one more card costs. Two backbones stay unspent.
 #
-#   1.0 (control) -> 0.5 -> 0.2 -> 0.0
+# `launch.sh` deals the rows round-robin over the two cards. So rows 1 and 2,
+# the two seeds with a reference, land on different cards. One lost card does
+# not take both.
 #
-# A floor of 0.5 holds 1:8, the last ratio the collapsed set does not cover.
-# A floor of 0.1 would hold 1:40, past every dead ratio, so it is not run.
-#
-# ---- Why two seeds -----------------------------------------------------------
-#
-# The sweep measured a seed range of 0.1432 on one arm and 0.0016 on another,
-# so one seed cannot separate a small gain. This cell's own backbone-seed
-# spread is unmeasured. Three arms carry a repeat at seed 20260524: the
-# control, the full decay and the 0.5 floor.
-#
-# Seed 20260521 stays out. It lost the contrastive task once at full weight, so
-# a collapse there could not be read as the decay's.
+# Seed 20260521 stays OUT. It lost the contrastive task once in the sweep, so a
+# collapse there could not be read as the decay's.
 #
 # ---- What to watch -----------------------------------------------------------
 #
-# L_rep carries the negatives of this objective. At weight 0.0 nothing pushes
-# the representations apart. The trainer writes the contrastive AUC to the
-# `auc` column of <run>_losses.csv every step, and #409 adds `rep_w`, `l_rep`
-# and `l_align` beside it. Read the AUC of every arm and name the step any run
-# leaves the 0.95 to 0.97 band.
-#
-# `dec0T_s20` is the one arm whose L_align pulls toward the EMA TEACHER. Past
-# the ramp that arm is exactly BYOL: a forecaster trained against a detached,
-# slow target. It is the arm most likely to hold the AUC at weight 0.0.
-# arm	end	ramp	seed	align_target
-ctrl_s20	-	-	20260520	student
-ctrl_s24	-	-	20260524	student
-dec0_s20	0.0	10000	20260520	student
-dec0_s24	0.0	10000	20260524	student
-flr05_s20	0.5	10000	20260520	student
-flr05_s24	0.5	10000	20260524	student
-flr02_s20	0.2	10000	20260520	student
-dec0T_s20	0.0	10000	20260520	teacher
+# L_rep carries the negatives of this objective. Past step 10,000 nothing
+# pushes the representations apart. The trainer writes the contrastive AUC to
+# the `auc` column of <run>_losses.csv every step, and #409 adds `rep_w`,
+# `l_rep` and `l_align` beside it. Read the AUC of every arm and name the step
+# any run leaves the 0.95 to 0.98 band the sweep's healthy arms held.
+# arm	seed
+dec_s20	20260520
+dec_s24	20260524
+dec_s22	20260522
+dec_s23	20260523
+dec_s25	20260525
+dec_s26	20260526

@@ -1,33 +1,46 @@
-# How to rebuild the loss from the CSV columns
+# How to rebuild the loss by term from the CSV columns
 
-The trainer's total loss closes with three terms:
+This card runs k = 32 under the `mean` reduction, against the EMA **teacher**.
+The formula below holds on that cell. It does not hold on a `sum` cell or on a
+student-target cell.
+
+## The formula
 
 ```
 loss = rep_w * l_rep
-     + 2 * (cos_err_d0 + cos_err_d1 + cos_err_d2 + cos_err_d3)
+     + align_w * mean(L_align_d0 .. L_align_d32)
      + sigreg_e + sigreg_h
 ```
 
-Checked on `ctrl_s20` at step 8,500: 11.656 + 3.323 + 0.004 = 14.983, and the
-`loss` column gives 14.983.
+The cell's `align_w` is 1.0, its CPC weight is 0.0, and both SIGReg weights are
+1.0. So the align part is a residual of columns the CSV holds:
 
-## The trap
+```
+L_align, reduced = loss - rep_w * l_rep - sigreg_e - sigreg_h
+```
 
-The `l_align` column is the depth-0 copy alone, and it equals `2 * cos_err_d0`.
-This card runs k = 3 under the `sum` reduction, so the loss holds four align
-copies. A share computed from `l_align` gives 93 percent for `L_rep`. The true
-share is 77 percent.
+`scripts/plot_loss_terms.py` draws that residual, and
+`tests/test_409_score_pipeline.py::TestTheLossByTermFormula` pins it.
 
-The 93 to 7 split that the issue card states comes from the k = 32 sweep under
-the `mean` reduction. It does not hold on this cell. Do not carry that number
-into the report.
+## Two traps
 
-## What the control arms show to step 8,500
+**The `l_align` column is the depth-0 copy alone.** The loss holds the MEAN of
+33 copies, one for each rollout depth. A share computed from `l_align` reads
+one copy as all 33.
 
-| term | share of the loss | moves after step 500 |
-|---|---|---|
-| L_rep | 77 percent | no, flat at 11.66 |
-| L_align, four copies | 23 percent | yes, 5.2 down to 3.3 |
-| SIGReg | 0.03 percent | no, below 0.01 after step 2,000 |
+**`l_align` is not `2 * cos_err_d0` here.** That identity holds under
+`--align-target student`. This cell aligns on the teacher, so the align term
+reads the teacher's next latent and `cos_err_dj` reads the student's. The
+`cos_err_d*` columns therefore cannot rebuild the align part. #404's own
+`plot_loss_terms.py` used the identity on a teacher run.
 
-The total loss falls from 17.0 to 15.2. L_align carries all of that fall.
+`l_rep` goes blank at weight 0.0, where the trainer computes no L_rep. The
+residual closes there with `rep_w * l_rep = 0`.
+
+## The share the card states
+
+The issue card states that L_rep holds 93 percent of the total at step 40,000
+and that L_align holds the other 7. Both numbers come from this cell, measured
+on the sweep's own losses CSVs. Read them again from this card's arms before
+you quote them: the sweep measured them at weight 1.0, and every arm here
+decays the weight to 0.0.

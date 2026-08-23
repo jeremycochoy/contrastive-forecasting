@@ -1,47 +1,51 @@
 #!/bin/bash
-# #409 — one arm's backbone: train the cell to <stop> steps at this arm's
-# L_rep weight schedule.
+# #409 — one arm's backbone: train the cell to <stop> steps, with the decay,
+# at this arm's backbone seed.
 #
 # This is a wrapper, on purpose. The trainer command line for this
 # configuration lives in ONE place, #373's `run_leg_k.sh`, and a copy of it
 # here would be a second protocol that drifts. The wrapper supplies seven
 # things that runner takes from the environment:
 #
-#   K              the rollout depth, 3
-#   GAP_ARGS       the reduction, this arm's L_align target and this arm's
-#                  decay flags, appended LAST to the trainer command line.
-#                  The cell states `--align-target` earlier, so a repeat here
-#                  is what moves it: argparse keeps the last value.
-#   SEED           this arm's backbone seed. Five arms take the card's own
-#                  20260520 and three are REPEATS at 20260524, which is what
-#                  measures this cell's run-to-run spread.
+#   K              the rollout depth, 32
+#   GAP_ARGS       the reduction, the L_align target and the decay flags,
+#                  appended LAST to the trainer command line. The cell states
+#                  `--align-target` earlier, so a repeat here is what keeps it:
+#                  argparse keeps the last value.
+#   SEED           this arm's backbone seed, which is the only thing that
+#                  separates two arms of this card
 #   RUN_SUFFIX     the study and the arm, in the run name, so no arm's
 #                  checkpoints and losses CSV can be read as another's
 #   RUNS           this arm's durable root
 #   CF_STUDY_DIR   this study's directory, so the leg's log lands here
 #   CF_RESULTS     this study's results/
 #
+# The EMA momentum is NOT supplied. The card holds it at 0.9 rising to 1.0 at
+# step 100,000, which is `run_leg_k.sh`'s own default, so this wrapper writes
+# no momentum flag and no arm can move it.
+#
 # The runner is idempotent: a stop whose checkpoint is on disk is a no-op, and
 # a leg resumes the cell's furthest checkpoint with its optimizer state. So a
 # re-fired leg after a crash costs nothing.
 #
-# ---- The decay has to reach the trainer --------------------------------------
+# ---- The decay and the seed have to reach the trainer ------------------------
 #
-# The arms share a configuration and differ in the decay, in the seed and in
-# the L_align target. So an arm whose decay did not arrive is a DUPLICATE of a
-# control arm, under a name that says otherwise: same file names, same CSV
-# columns, same log lines. The card's result is one number per arm, and two of
-# them would be one number twice.
+# Every arm shares one configuration and one decay, and differs in the seed
+# alone. So an arm whose seed did not arrive is a DUPLICATE of another arm,
+# under a name that says otherwise: same file names, same CSV columns, same log
+# lines. The card's result is one number per arm, and two of them would be one
+# number twice. An arm whose decay did not arrive repeats a number the sweep
+# already published.
 #
-# The `rep_w` column of the losses CSV would show it, but only after the run.
-# The trainer's own command line names all three values in its first log line.
-# So this script starts the leg, waits for that line, and reads the decay, the
-# seed and the align target off it. A leg with the wrong objective stops in its
-# first minute instead of at hour five.
+# The `rep_w` column of the losses CSV would show the decay, but only after the
+# run. The trainer's own command line names all five values in its first log
+# line. So this script starts the leg, waits for that line, and reads the
+# decay, the seed, the target, the reduction and the momentum off it. A leg
+# with the wrong objective stops in its first minute, not at hour five.
 #
 # Usage:  run_arm.sh <arm> <stop steps>
-#         BB_GPU=0 bash run_arm.sh dec0_s20 40000
-#         CF409_DRY_RUN=1 bash run_arm.sh dec0_s20 40000   # print, do not run
+#         BB_GPU=0 bash run_arm.sh dec_s20 40000
+#         CF409_DRY_RUN=1 bash run_arm.sh dec_s20 40000   # print, do not run
 set -uo pipefail
 
 ARM="${1:?usage: run_arm.sh <arm> <stop steps>}"
@@ -59,28 +63,26 @@ mkdir -p "$CF409_RESULTS"
 
 ARM_ROOT="$(cf409_arm_root "$ARM")"
 ARM_SEED="$(cf409_seed "$ARM")"
-ARM_TARGET="$(cf409_align_target "$ARM")"
-DECAY_ARGS="$(cf409_decay_args "$ARM")"
-# The reduction is stated on every leg, so the log names the objective it
-# trained rather than leaving the reader to infer the trainer's default. The
-# align target and the decay ride the same block, which is the LAST thing on
+DECAY_ARGS="$(cf409_decay_args)"
+# The reduction and the L_align target are stated on every leg, so the log
+# names the objective it trained rather than leaving the reader to infer the
+# cell's own values. The decay rides the same block, which is the LAST thing on
 # the trainer command line.
 PROBE_ARGS="--latent-drift-probe-batch-size $CF409_PROBE_BS"
-GAP="--train-rollout-reduce $CF409_REDUCE --align-target $ARM_TARGET $DECAY_ARGS $PROBE_ARGS"
+GAP="--train-rollout-reduce $CF409_REDUCE --align-target $CF409_ALIGN_TARGET $DECAY_ARGS $PROBE_ARGS"
 
 # Fault injection, for the test that proves the check below fires. It hands
-# the trainer a decay this arm does not carry, which is what a wiring defect
+# the trainer a decay this card does not carry, which is what a wiring defect
 # does. Nothing in the study sets it.
 [ -n "${CF409_FORCE_DECAY:-}" ] && \
-  GAP="--train-rollout-reduce $CF409_REDUCE --align-target $ARM_TARGET $CF409_FORCE_DECAY $PROBE_ARGS"
+  GAP="--train-rollout-reduce $CF409_REDUCE --align-target $CF409_ALIGN_TARGET $CF409_FORCE_DECAY $PROBE_ARGS"
 
 if [ -n "${CF409_DRY_RUN:-}" ]; then
   echo "arm $ARM cell=$CF409_CELL k=$CF409_K steps=$STOP gpu=$BB_GPU"
   echo "  decay=$DECAY_ARGS"
-  echo "  rep_w at 0 / ramp / stop = $(cf409_rep_w_at "$ARM" 0)" \
-       "$(cf409_rep_w_at "$ARM" "$(cf409_ramp "$ARM")")" \
-       "$(cf409_rep_w_at "$ARM" "$STOP")"
-  echo "  seed=$ARM_SEED align_target=$ARM_TARGET"
+  echo "  rep_w at 0 / ramp / stop = $(cf409_rep_w_at 0)" \
+       "$(cf409_rep_w_at "$(cf409_ramp)")" "$(cf409_rep_w_at "$STOP")"
+  echo "  seed=$ARM_SEED align_target=$CF409_ALIGN_TARGET"
   echo "  auc gate=${CF409_AUC_WATCH:-1} window=$CF409_AUC_WINDOW" \
        "threshold=$CF409_AUC_THRESHOLD warmup=$CF409_AUC_WARMUP"
   echo "  reduce=$CF409_REDUCE runner=$RUNNER"
@@ -97,8 +99,8 @@ TLOG="$(cf409_leg_log "$ARM")"
 CHECK_TIMEOUT="${CF409_CHECK_TIMEOUT:-1800}"
 cmdlines_before="$(cf409_cmdlines "$TLOG")"
 
-log "arm $ARM decay='$DECAY_ARGS' seed=$ARM_SEED target=$ARM_TARGET" \
-    "-> ${STOP} steps on gpu $BB_GPU"
+log "arm $ARM decay='$DECAY_ARGS' seed=$ARM_SEED reduce=$CF409_REDUCE" \
+    "target=$CF409_ALIGN_TARGET -> ${STOP} steps on gpu $BB_GPU"
 # A collapse note of an EARLIER leg of this arm would make this leg read as
 # stopped the moment it finishes. Delete it: this leg writes its own.
 rm -f "$(cf409_collapse_file "$ARM")"
@@ -130,26 +132,34 @@ if [ -n "$line" ]; then
   got_decay="$(printf '%s' "$line" | cf409_decay_of_cmdline)"
   got_seed="$(printf '%s' "$line" | cf409_seed_of_cmdline)"
   got_target="$(printf '%s' "$line" | cf409_align_target_of_cmdline)"
-  want_decay="$(cf409_decay_sig "$ARM")"
+  got_red="$(printf '%s' "$line" | cf409_reduce_of_cmdline)"
+  got_ema="$(printf '%s' "$line" | cf409_ema_of_cmdline)"
+  want_decay="$(cf409_decay_sig)"
   if [ "$got_decay" != "$want_decay" ] || [ "$got_seed" != "$ARM_SEED" ] \
-     || [ "$got_target" != "$ARM_TARGET" ]; then
+     || [ "$got_target" != "$CF409_ALIGN_TARGET" ] \
+     || [ "$got_red" != "$CF409_REDUCE" ] \
+     || [ "$got_ema" != "$CF409_EMA_SIG" ]; then
     cf409_kill_tree "$runner"
     wait "$runner" 2>/dev/null
-    log "arm $ARM STOPPED — trained '$got_decay' / seed $got_seed /" \
-        "target $got_target, not '$want_decay' / seed $ARM_SEED /" \
-        "target $ARM_TARGET"
+    log "arm $ARM STOPPED — trained decay '$got_decay' / seed $got_seed /" \
+        "target $got_target / reduce $got_red / ema '$got_ema', not" \
+        "'$want_decay' / seed $ARM_SEED / target $CF409_ALIGN_TARGET /" \
+        "reduce $CF409_REDUCE / ema '$CF409_EMA_SIG'"
     echo "ABORT: this leg's trainer runs the decay '$got_decay' at seed" >&2
-    echo "  '$got_seed' against the '$got_target' target, and arm '$ARM' is" >&2
-    echo "  '$want_decay' at seed '$ARM_SEED' against '$ARM_TARGET'. The" >&2
-    echo "  decay reads <start> <end> <ramp>, with '-' for a flag the" >&2
+    echo "  '$got_seed', against the '$got_target' target, under the" >&2
+    echo "  reduction '$got_red', at the momentum '$got_ema'. This card is" >&2
+    echo "  '$want_decay' at seed '$ARM_SEED' against" >&2
+    echo "  '$CF409_ALIGN_TARGET' under '$CF409_REDUCE' at" >&2
+    echo "  '$CF409_EMA_SIG'. The decay reads <start> <end> <ramp> and the" >&2
+    echo "  momentum reads <tau> <end> <ramp>, with '-' for a flag the" >&2
     echo "  command line does not carry. Every arm of this card writes the" >&2
     echo "  same file names, so the leg is stopped rather than left to" >&2
     echo "  climb. Its command line is the last 'Command line:' in" >&2
     echo "  $TLOG" >&2
     exit 3
   fi
-  log "arm $ARM decay='$got_decay' seed=$got_seed target=$got_target OK —" \
-      "all three reached the trainer"
+  log "arm $ARM decay='$got_decay' seed=$got_seed target=$got_target" \
+      "reduce=$got_red ema='$got_ema' OK — all five reached the trainer"
 fi
 
 # ---- The AUC gate ------------------------------------------------------------
@@ -157,6 +167,7 @@ fi
 # The decay ends at step 10,000 and the leg trains to 40,000. An arm that lost
 # the contrastive task has nothing left to train, so it would climb about
 # 30,000 dead steps to a checkpoint whose score is already known to be bad.
+# Past the ramp nothing pushes the representations apart.
 # `auc_guard.sh` reads the trainer's own `auc` column while the leg runs and
 # stops the leg on a `lost` verdict. See its header for the reading and the
 # warmup.

@@ -12,10 +12,15 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 mkdir -p "$CF409_PLOTS"
 
 bash "$HERE/collect.sh"
+# The verdict table says which run lost the contrastive task, and the two
+# curve figures paint that run in the alarm colour. `collect.sh` above wrote it.
+VERDICTS="$CF409_RESULTS/auc_verdicts.tsv"
 python3 "$HERE/plot_auc.py" --root "$CF409_ROOT" --arms "$CF409_ARMS_TSV" \
-  --out "$CF409_PLOTS/auc.png"
+  --verdicts "$VERDICTS" --out "$CF409_PLOTS/auc.png" \
+  --ramp "$(cf409_ramp)"
 python3 "$HERE/plot_loss_terms.py" --root "$CF409_ROOT" \
-  --arms "$CF409_ARMS_TSV" --out "$CF409_PLOTS/loss_terms.png" \
+  --arms "$CF409_ARMS_TSV" --verdicts "$VERDICTS" \
+  --out "$CF409_PLOTS/loss_terms.png" \
   --table "$CF409_RESULTS/loss_terms_at_stop.csv"
 python3 "$HERE/plot_scores.py" --scores "$CF409_RESULTS/scores.csv" \
   --arms "$CF409_ARMS_TSV" --out "$CF409_PLOTS/scores.png"

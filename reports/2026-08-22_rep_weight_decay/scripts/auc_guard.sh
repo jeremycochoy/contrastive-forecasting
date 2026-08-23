@@ -2,11 +2,11 @@
 # #409 — stop the leg that lost the contrastive task.
 #
 # WHY THIS SCRIPT EXISTS. The decay ends at step 10,000 and every arm trains to
-# 40,000. Four arms fall to weight 0.0 and cross the known-dead 1:9
-# repel-to-pull ratio near step 5,600, so a collapsed arm climbs about 30,000
-# dead steps to a checkpoint whose score is already known to be bad. The Fable
-# opinion (scripts/fable_opinion.md, section 5) asks for a gate on the
-# trainer's own AUC column. This is that gate.
+# 40,000. Past the ramp the weight is 0.0, so nothing pushes the
+# representations apart. A collapsed arm then climbs about 30,000 dead steps to
+# a checkpoint whose score is already known to be bad. The Fable opinion
+# (scripts/fable_opinion.md, section 5) asks for a gate on the trainer's own
+# AUC column. This is that gate.
 #
 # HOW IT READS. `auc_watch.py` gives the verdict: the rolling median of the
 # `auc` column over CF409_AUC_WINDOW steps, against CF409_AUC_THRESHOLD. Rows

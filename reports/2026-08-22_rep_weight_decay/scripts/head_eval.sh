@@ -11,16 +11,16 @@
 # transformer, forecast-len 16, batch 256, lr 1e-3, head seed 20260722, then
 # the 97 GIFT-Eval configs under strategy B4 on the CPU.
 #
-# The budget is 30,000 head steps, which is what #401 and #404 ran on a bb40k
-# backbone. The card's published reference, 1.0862, came from a 15,000-step
-# head, so the two control arms are what this card compares its treated arms
-# against. #401 measured that a longer head moves the score.
+# The budget is 30,000 head steps, which is what #404 ran on a bb40k backbone.
+# This card's references, 1.1507 and 1.1491, come from that same 30,000-step
+# head on this same cell, so the arms and the references sit on one protocol.
+# #401 measured that a longer head moves the score, so the budget must match.
 #
 # Idempotent. A scored tag is a no-op, and a trained head skips to its eval.
 #
 # Usage:  head_eval.sh <arm> <stop steps> [head steps]
-#         BB_GPU=0 bash head_eval.sh dec0_s20 40000
-#         CF409_DRY_RUN=1 bash head_eval.sh dec0_s20 40000   # print, run nothing
+#         BB_GPU=0 bash head_eval.sh dec_s20 40000
+#         CF409_DRY_RUN=1 bash head_eval.sh dec_s20 40000   # print, run nothing
 set -uo pipefail
 
 ARM="${1:?usage: head_eval.sh <arm> <stop steps> [head steps]}"
