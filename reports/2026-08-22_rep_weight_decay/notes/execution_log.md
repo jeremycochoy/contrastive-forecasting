@@ -143,3 +143,20 @@ get the 7.1 GB back.
 
 The three arms that refuse start again after that, at a lane count this run
 takes from the head's own measured footprint.
+
+## What one head holds, measured
+
+The first head of this card, at 09:48 on card 1:
+
+| process | card 1 |
+|---|---|
+| head trainer, 30,000 steps, batch 256 | 5464 MiB |
+| one backbone leg | 2628 MiB |
+| `rnd-472`, another agent | 11504 MiB |
+
+Card 1 holds 24564 MiB. So while a head runs, this card takes TWO backbone
+lanes and not three: three lanes leave 5176 MiB, and the next head's gate asks
+for 7000. Two lanes leave 7804 MiB, which passes.
+
+The three held arms therefore start again as two lanes. The third starts when
+the heads of the first three arms are done.
