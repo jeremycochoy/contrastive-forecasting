@@ -237,3 +237,11 @@ and was full again at 03:10.
 `WT=/home/jupyter/cf409_frozen` on every lane. The trainer, #373's runner, the
 head scripts and `src/` of that archive are identical to the worktree, so all
 ten arms train one code state even if an Implementer edits the worktree again.
+
+### The legs now save every 5000 steps
+
+`SAVE_EVERY` defaults to 20,000 in #373's runner, and nothing set it. Two
+outside kills already cost this card 2,800 and 2,600 steps at that cadence. One
+checkpoint pair is 11 MB, so eight pairs an arm cost 88 MB and buy back up to
+15,000 steps of a 7.4-hour leg. Both lanes restarted at 15:04 with
+`SAVE_EVERY=5000`, five minutes into the first leg.

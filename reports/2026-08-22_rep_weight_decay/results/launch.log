@@ -217,3 +217,9 @@ WARN: the AUC pass exited rc=2 — see /tmp/contrastive-forecasting-409/reports/
   gpu 0, NVIDIA GeForce RTX 4090, 24564 MiB
   gpu 1, NVIDIA GeForce RTX 4090, 24564 MiB
 [08-23 15:01:04] [#409] gpu 1 takes dec_m099_fix dec_m095_fix dec_m080_r200
+[08-23 15:04:04] [#409] gpu 1 takes dec_m090_r60 dec_m090_fix
+[08-23 15:04:37] [#409] START arms='dec_m099_fix dec_m090_r60 dec_m095_fix dec_m090_fix dec_m080_r200' gpus='1 1' root=/home/jupyter/checkpoints_backup/cf-409
+[08-23 15:04:37] [#409] artefacts stay on elisa — no sync loop. See notes/artefacts.md
+  gpu 0, NVIDIA GeForce RTX 4090, 24564 MiB
+  gpu 1, NVIDIA GeForce RTX 4090, 24564 MiB
+[08-23 15:04:37] [#409] gpu 1 takes dec_m099_fix dec_m095_fix dec_m080_r200

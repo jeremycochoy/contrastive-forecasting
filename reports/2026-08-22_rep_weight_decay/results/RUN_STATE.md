@@ -1,12 +1,12 @@
 # #409 run state — the L_rep weight decay at k = 32
 
-- updated: 2026-08-23 15:01:04
+- updated: 2026-08-23 15:04:37
 - note: starting
 - cell: `arm6_v2_combab_alignT`, k = 32, reduce `mean`, target `teacher`
 - decay: 1.0 to 0.0 at step 10000. Fixed on every arm.
 - axis: the EMA schedule. No control arm: the sweep scored these schedules with no decay, in `reports/2026-08-19_ema_momentum_k32/`.
 - arms: dec_m099_fix dec_m090_r60 dec_m095_fix dec_m090_fix dec_m080_r200
-- cards: 1 1, launcher pid 1014858
+- cards: 1 1, launcher pid 1019407
 - root: `/home/jupyter/checkpoints_backup/cf-409`
 - artefacts: elisa holds them all, and no sync loop runs. See `notes/artefacts.md`.
 
