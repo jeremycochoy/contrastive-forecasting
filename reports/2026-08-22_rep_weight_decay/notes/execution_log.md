@@ -78,7 +78,12 @@ name carried the card index alone. The name now carries the lane's PID.
 | the five flags | decay `1.0 0.0 100`, seed 20260520, teacher, mean, ema `0.9 1.0 100000` |
 | `rep_w` at step 200 | 0.0, and `l_rep` blank, which is the decay |
 | head, 200 steps | rc=0, 31 seconds |
-| GIFT-Eval, 97 configs | start 02:27, 4 shards on the CPU |
+| GIFT-Eval, 97 configs | rc=0, 72 minutes, 4 shards on the CPU |
+| `results/trial/scores.csv` | one row, `rep_w_at_stop` 0.000, score 1.5216 |
+| `results/trial/auc_verdicts.tsv` | one row, verdict `held` |
+
+The trial score is a wiring check at 400 backbone steps, not a measurement.
+`results/trial/` holds it, apart from the study's own results.
 
 ## How many lanes card 1 holds
 
