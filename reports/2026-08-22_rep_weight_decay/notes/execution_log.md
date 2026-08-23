@@ -173,3 +173,38 @@ the heads of the first three arms are done.
 | 09:52 | dec_s23 and dec_s25 start as two lanes |
 
 dec_s26 starts when the three heads release the card.
+
+## 14:18 — the two running arms were killed from outside
+
+`dec_s23` and `dec_s25` both exited rc=137 (SIGKILL) in the same second, at
+steps 22,800 and 22,600. Their lane managers went with them. No trace in any
+log of this card, no host OOM, and the head that was training on card 1
+survived.
+
+At 14:19 the pipeline orchestrator started a new Implementer stage for #409 in
+THIS worktree, `/tmp/contrastive-forecasting-409`. It had already changed
+`tests/test_409_launcher_shape.py`.
+
+Two things follow, and this run did both.
+
+**The code is frozen.** An Implementer edits `src/loss.py` and the trainer,
+which is what the arms train. Arms four to six would then train other code than
+arms one to three. `git archive HEAD` at `614788a5` gives
+`/home/jupyter/cf409_frozen`, and the three arms restart from there through
+`WT`. The trainer files were identical to the worktree at that moment, and no
+commit had touched `src/`, `experiments/` or #373's runner since 02:00. So all
+six arms train one code state.
+
+`CF409_RESULTS` and `CF409_PLOTS` still point at the worktree, so every
+artefact of this card stays in one place.
+
+**The legs save every 5000 steps.** `SAVE_EVERY` was 20,000, so this kill cost
+2,800 and 2,600 steps. The three restarted legs resume from their 20,000-step
+checkpoints with their optimizer state. A save cadence does not touch the
+weights a step produces.
+
+## 14:26 — card 0 came free, and this time it held
+
+`rnd-434` ended and left 21 GB. The three restarted arms run there. That takes
+this card off the contended card 1, which `rnd-472` shares, and gives the heads
+of those arms the 7000 MiB their gate asks for.
