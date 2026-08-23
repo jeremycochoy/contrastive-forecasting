@@ -17,3 +17,16 @@
 [08-23 09:52:05] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_s23/arm6_v2_combab_alignT/leg_40k
 [08-23 09:52:30] [arm6_v2_combab_alignT] FRESH start at step 0
 [08-23 09:52:30] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_s25/arm6_v2_combab_alignT/leg_40k
+[08-23 14:18:40] [arm6_v2_combab_alignT] train exited rc=137 — tail: [  22800] loss=0.7683  ema_loss=0.7515  gap=-0.2024  ema_gap=-0.2003  mixup=64/200  1.4 sps  ETA 3.3h               R²_rand=0.6040  R²_naive=0.2294  U_t=0.0990  U_b=0.2093  AUC=0.9540  Top1=0.2334   timing: data=6.7ms  fwd=264.7ms  bwd=279.3ms  total=551.5ms 
+[08-23 14:18:40] [arm6_v2_combab_alignT] train exited rc=137 — tail: [  22600] loss=1.5541  ema_loss=1.4370  gap=-0.0560  ema_gap=-0.0372  mixup=65/200  1.4 sps  ETA 3.4h               R²_rand=0.3448  R²_naive=0.1329  U_t=0.0750  U_b=0.0740  AUC=0.7780  Top1=0.0684   timing: data=57.7ms  fwd=263.4ms  bwd=282.6ms  total=604.6ms 
+[08-23 14:26:39] [arm6_v2_combab_alignT] RESUME from cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s23_20k.pth (step 20k)
+[08-23 14:26:39] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_s23/arm6_v2_combab_alignT/leg_40k
+[08-23 14:28:09] [arm6_v2_combab_alignT] RESUME from cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s25_20k.pth (step 20k)
+[08-23 14:28:09] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_s25/arm6_v2_combab_alignT/leg_40k
+[08-23 14:29:39] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 14:29:39] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_s26/arm6_v2_combab_alignT/leg_40k
+[08-23 14:30:17] [arm6_v2_combab_alignT] train exited rc=137 — tail: Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, hf_bs=64, synth_bs=0, cross_bs=0, total_bs=67   [dataloader] 4274 shards, 42740000 total rows, target skip 1280000   [dataloader] Fast-skip: starting at shard 128/4274, then skipping 0 rows within it 
+[08-23 14:30:17] [arm6_v2_combab_alignT] train exited rc=137 — tail: [  20200] loss=0.8429  ema_loss=0.8837  gap=-0.2024  ema_gap=-0.1934  mixup=72/200  1.8 sps  ETA 3.0h               R²_rand=0.5505  R²_naive=0.2417  U_t=0.0986  U_b=0.1920  AUC=0.9401  Top1=0.2469   timing: data=61.4ms  fwd=219.9ms  bwd=253.9ms  total=535.9ms 
+[08-23 14:30:17] [arm6_v2_combab_alignT] train exited rc=137 — tail: Latent-drift CSV: /home/jupyter/checkpoints_backup/cf-409/dec_s26/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s26_latent_drift.csv (every 5000 steps, probe_bs=16, probe_seed=20260722) Attn-amplitude CSV: /home/jupyter/checkpoints_backup/cf-409/dec_s26/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s26_attn_amplitude.csv (every 200 steps) Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, hf_bs=64, synth_bs=0, cross_bs=0, total_bs=67 
+[08-23 15:01:04] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 15:01:04] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m099_fix/arm6_v2_combab_alignT/leg_40k

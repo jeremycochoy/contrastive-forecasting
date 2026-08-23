@@ -208,3 +208,32 @@ weights a step produces.
 `rnd-434` ended and left 21 GB. The three restarted arms run there. That takes
 this card off the contended card 1, which `rnd-472` shares, and gives the heads
 of those arms the 7000 MiB their gate asks for.
+
+## 15:01 — the seven new schedules start, and the three seed arms stop
+
+A new session picked the study up. `dec_s23`, `dec_s25` and `dec_s26` are seed
+repeats of the schedule `0.9 to 1.0 at 100k`. That schedule is measured twice
+already, at 1.2670 (`dec_s20`) and 1.2593 (`dec_s22`), so a third and fourth
+seed of it buys no answer this card asks for. They do not start again. Their
+20,000-step checkpoints stay on disk.
+
+The card carries SEVEN schedules that no run of #409 has trained.
+
+| lane | card | arms |
+|---|---|---|
+| A | 1 | dec_m099_fix, dec_m095_fix, dec_m080_r200 |
+| B | 1 | dec_m090_r60, dec_m090_fix |
+| C | 0, when it frees | dec_m095_r100, dec_m090_r200 |
+
+Card 1 holds `rnd-472` at 11.5 GB, so it has 13.0 GB free. Two legs (2×2628)
+and one head (5464) take 10.7 GB of that. Three legs would leave 5.2 GB and the
+head gate asks for 7.0, so card 1 takes TWO lanes.
+
+Card 0 holds 22.4 GB of two other agents' runs. Lane C waits on
+`lane_when_free.sh`, which now asks for 9000 MiB over FOUR readings, 20 minutes
+apart in total. One reading is not enough: card 0 showed 21 GB free at 03:06
+and was full again at 03:10.
+
+`WT=/home/jupyter/cf409_frozen` on every lane. The trainer, #373's runner, the
+head scripts and `src/` of that archive are identical to the worktree, so all
+ten arms train one code state even if an Implementer edits the worktree again.

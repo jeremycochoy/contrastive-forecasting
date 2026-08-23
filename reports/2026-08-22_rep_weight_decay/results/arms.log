@@ -25,3 +25,17 @@
 [08-23 09:52:30] [#409] arm dec_s25 decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000' seed=20260525 reduce=mean target=teacher -> 40000 steps on gpu 1
 [08-23 09:52:35] [#409] arm dec_s25 decay='1.0 0.0 10000' seed=20260525 target=teacher reduce=mean ema='0.9 1.0 100000' OK — all five reached the trainer
 [08-23 09:52:35] [#409] arm dec_s25 AUC gate pid 689680 — window 500, threshold 0.55, warmup 1000
+[08-23 14:18:42] [#409] arm dec_s23 stop=40000 rc=1
+[08-23 14:18:42] [#409] arm dec_s25 stop=40000 rc=1
+[08-23 14:26:39] [#409] arm dec_s23 decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000' seed=20260523 reduce=mean target=teacher -> 40000 steps on gpu 0
+[08-23 14:26:44] [#409] arm dec_s23 decay='1.0 0.0 10000' seed=20260523 target=teacher reduce=mean ema='0.9 1.0 100000' OK — all five reached the trainer
+[08-23 14:26:44] [#409] arm dec_s23 AUC gate pid 944732 — window 500, threshold 0.55, warmup 1000
+[08-23 14:28:09] [#409] arm dec_s25 decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000' seed=20260525 reduce=mean target=teacher -> 40000 steps on gpu 0
+[08-23 14:28:14] [#409] arm dec_s25 decay='1.0 0.0 10000' seed=20260525 target=teacher reduce=mean ema='0.9 1.0 100000' OK — all five reached the trainer
+[08-23 14:28:14] [#409] arm dec_s25 AUC gate pid 947245 — window 500, threshold 0.55, warmup 1000
+[08-23 14:29:39] [#409] arm dec_s26 decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000' seed=20260526 reduce=mean target=teacher -> 40000 steps on gpu 0
+[08-23 14:29:44] [#409] arm dec_s26 decay='1.0 0.0 10000' seed=20260526 target=teacher reduce=mean ema='0.9 1.0 100000' OK — all five reached the trainer
+[08-23 14:29:44] [#409] arm dec_s26 AUC gate pid 948636 — window 500, threshold 0.55, warmup 1000
+[08-23 15:01:04] [#409] arm dec_m099_fix ema='--ema-tau 0.99' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000' seed=20260520 reduce=mean target=teacher -> 40000 steps on gpu 1
+[08-23 15:01:09] [#409] arm dec_m099_fix decay='1.0 0.0 10000' seed=20260520 target=teacher reduce=mean ema='0.99 - -' OK — all five reached the trainer
+[08-23 15:01:09] [#409] arm dec_m099_fix AUC gate pid 1015207 — window 500, threshold 0.55, warmup 1000

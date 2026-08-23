@@ -25,6 +25,10 @@
 #   NEED_MIB    free VRAM this lane needs. Default 6500.
 #   POLL        seconds between reads. Default 300.
 #   MAX_WAIT    seconds before this gives up. Default 86400 (one day).
+#   HOLD_READS  consecutive readings the card must hold. Default 4, so at the
+#               default POLL the card must stay free for 20 minutes. On
+#               08-23 card 0 showed 21 GB free at 03:06 and was full again at
+#               03:10, and a lane started on that one reading dies.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -34,6 +38,7 @@ GPU="${GPU:-0}"
 NEED_MIB="${NEED_MIB:-6500}"
 POLL="${POLL:-300}"
 MAX_WAIT="${MAX_WAIT:-86400}"
+HOLD_READS="${HOLD_READS:-4}"
 ARMS="${ARMS:?usage: ARMS=\"<arm> ...\" GPU=0 bash lane_when_free.sh}"
 mkdir -p "$CF409_RESULTS"
 
@@ -43,15 +48,24 @@ log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#409 wait gpu $GPU] $*" | tee -a "$LOG
 for arm in $ARMS; do cf409_require_arm "$arm" || exit $?; done
 cf409_require_gpus "$GPU" || exit 2
 
-log "arms='$ARMS' need=${NEED_MIB} MiB poll=${POLL}s max_wait=${MAX_WAIT}s"
-waited=0
+log "arms='$ARMS' need=${NEED_MIB} MiB poll=${POLL}s max_wait=${MAX_WAIT}s" \
+    "hold=${HOLD_READS} reading(s)"
+waited=0; held=0
 while :; do
   free="$(nvidia-smi --id="$GPU" --query-gpu=memory.free \
             --format=csv,noheader,nounits 2>/dev/null | tr -d ' ')"
   case "$free" in ''|*[!0-9]*) log "no reading from the driver — retrying"; free=0 ;; esac
   if [ "$free" -ge "$NEED_MIB" ]; then
-    log "card has ${free} MiB free after ${waited}s — starting the lane"
-    break
+    held=$(( held + 1 ))
+    if [ "$held" -ge "$HOLD_READS" ]; then
+      log "card held ${free} MiB free over ${held} reading(s) after ${waited}s" \
+          "— starting the lane"
+      break
+    fi
+    log "card has ${free} MiB free, reading ${held} of ${HOLD_READS}"
+  else
+    [ "$held" -gt 0 ] && log "card fell back to ${free} MiB free — count reset"
+    held=0
   fi
   if [ "$waited" -ge "$MAX_WAIT" ]; then
     log "GIVING UP after ${waited}s — the card holds ${free} MiB free," \
@@ -63,4 +77,11 @@ while :; do
   sleep "$POLL"; waited=$(( waited + POLL ))
 done
 
+# LANE_VIA=phase1 starts ONE lane and no reporting half. Use it when another
+# launcher already owns results/RUN_STATE.md and collect.sh: two launchers
+# overwrite each other's table and race on scores.csv.
+if [ "${LANE_VIA:-launch}" = "phase1" ]; then
+  ARMS="$ARMS" BB_GPU="$GPU" \
+    exec bash "$HERE/phase1.sh" >>"$CF409_RESULTS/phase1_gpu${GPU}.out" 2>&1
+fi
 ARMS="$ARMS" GPUS="$GPU" exec bash "$HERE/launch.sh"
