@@ -6,3 +6,38 @@ Loss CSV: /home/jupyter/checkpoints_backup/cf-409/dec_s24/arm6_v2_combab_alignT/
 Latent-drift CSV: /home/jupyter/checkpoints_backup/cf-409/dec_s24/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s24_latent_drift.csv (every 20000 steps, probe_bs=16, probe_seed=20260722)
 Attn-amplitude CSV: /home/jupyter/checkpoints_backup/cf-409/dec_s24/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s24_attn_amplitude.csv (every 200 steps)
 Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, hf_bs=64, synth_bs=0, cross_bs=0, total_bs=67
+[    200] loss=12.4858  ema_loss=12.8293  gap=-0.1016  ema_gap=-0.1768  mixup=56/200  1.6 sps  ETA 7.0h
+              R²_rand=0.5293  R²_naive=0.2517  U_t=0.0954  U_b=0.1576  AUC=0.9470  Top1=0.1872
+  timing: data=38.8ms  fwd=273.3ms  bwd=301.0ms  total=613.8ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_s24/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s24_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_s24/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s24_best_loss.pth
+[    400] loss=12.3038  ema_loss=12.4319  gap=0.0385  ema_gap=-0.0255  mixup=68/200  1.6 sps  ETA 7.0h
+              R²_rand=0.5757  R²_naive=0.3858  U_t=0.1013  U_b=0.1336  AUC=0.9382  Top1=0.1294
+  timing: data=4.7ms  fwd=288.9ms  bwd=311.9ms  total=606.4ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_s24/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s24_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_s24/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s24_best_loss.pth
+[    600] loss=12.0482  ema_loss=12.1731  gap=0.1161  ema_gap=0.0623  mixup=71/200  1.6 sps  ETA 7.0h
+              R²_rand=0.6133  R²_naive=0.4357  U_t=0.1074  U_b=0.1310  AUC=0.9423  Top1=0.1303
+  timing: data=4.5ms  fwd=285.9ms  bwd=307.9ms  total=599.2ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_s24/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s24_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_s24/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s24_best_loss.pth
+[    800] loss=11.6656  ema_loss=11.8681  gap=0.0878  ema_gap=0.0946  mixup=60/200  1.5 sps  ETA 7.0h
+              R²_rand=0.6378  R²_naive=0.4290  U_t=0.0953  U_b=0.1588  AUC=0.9523  Top1=0.1544
+  timing: data=41.5ms  fwd=287.0ms  bwd=309.3ms  total=638.7ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_s24/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s24_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_s24/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s24_best_loss.pth
+[   1000] loss=11.3509  ema_loss=11.5754  gap=0.1032  ema_gap=0.0982  mixup=51/200  1.6 sps  ETA 7.0h
+              R²_rand=0.6710  R²_naive=0.4383  U_t=0.0931  U_b=0.1521  AUC=0.9592  Top1=0.1650
+  timing: data=4.2ms  fwd=284.5ms  bwd=306.0ms  total=595.6ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_s24/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s24_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_s24/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s24_best_loss.pth
+[   1200] loss=11.2454  ema_loss=11.3117  gap=0.1221  ema_gap=0.1015  mixup=64/200  1.6 sps  ETA 6.9h
+              R²_rand=0.6180  R²_naive=0.4516  U_t=0.1126  U_b=0.1605  AUC=0.9526  Top1=0.1585
+  timing: data=4.2ms  fwd=287.2ms  bwd=306.1ms  total=598.4ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_s24/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s24_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_s24/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s24_best_loss.pth
+[   1400] loss=10.9215  ema_loss=11.0812  gap=0.0888  ema_gap=0.1047  mixup=66/200  1.6 sps  ETA 6.9h
+              R²_rand=0.6453  R²_naive=0.4338  U_t=0.0982  U_b=0.1624  AUC=0.9481  Top1=0.1715
+  timing: data=13.7ms  fwd=282.8ms  bwd=305.2ms  total=602.5ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_s24/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s24_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_s24/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s24_best_loss.pth

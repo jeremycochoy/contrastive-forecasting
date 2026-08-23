@@ -12,3 +12,10 @@
 [08-23 02:30:44] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_s24/arm6_v2_combab_alignT/leg_40k
 [08-23 02:30:48] [#409] arm dec_s24 decay='1.0 0.0 10000' seed=20260524 target=teacher reduce=mean ema='0.9 1.0 100000' OK — all five reached the trainer
 [08-23 02:30:48] [#409] arm dec_s24 AUC gate pid 268333 — window 500, threshold 0.55, warmup 1000
+[08-23 02:32:43] [#409 lane 1] head queue on — one head at a time, worker pid 270663
+[08-23 02:32:43] [#409 lane 1] arm dec_s22 -> 40000
+[08-23 02:32:43] [#409] arm dec_s22 decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000' seed=20260522 reduce=mean target=teacher -> 40000 steps on gpu 1
+[08-23 02:32:43] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 02:32:44] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_s22/arm6_v2_combab_alignT/leg_40k
+[08-23 02:32:48] [#409] arm dec_s22 decay='1.0 0.0 10000' seed=20260522 target=teacher reduce=mean ema='0.9 1.0 100000' OK — all five reached the trainer
+[08-23 02:32:48] [#409] arm dec_s22 AUC gate pid 271319 — window 500, threshold 0.55, warmup 1000

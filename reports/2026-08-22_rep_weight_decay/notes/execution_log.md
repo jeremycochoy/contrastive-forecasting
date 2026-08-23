@@ -80,3 +80,15 @@ name carried the card index alone. The name now carries the lane's PID.
 | head, 200 steps | rc=0, 31 seconds |
 | GIFT-Eval, 97 configs | start 02:27, 4 shards on the CPU |
 
+## How many lanes card 1 holds
+
+Measured over 900 s, with the trial's GIFT-Eval on the CPU beside them:
+
+| lanes on card 1 | steps/s per lane | steps/s total | card |
+|---|---|---|---|
+| 1 | 1.96 | 1.96 | 26 % |
+| 3 | 1.33 to 1.67 | 4.56 | 98 % |
+
+Three lanes take 2.3 times the work of one. The card is full at three, so this
+run adds no fourth lane. Six arms at 40,000 steps is 240,000 steps, which is
+about 14.6 hours of backbone.

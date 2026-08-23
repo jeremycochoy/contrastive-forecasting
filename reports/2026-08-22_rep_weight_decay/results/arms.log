@@ -4,3 +4,6 @@
 [08-23 02:30:43] [#409] arm dec_s24 decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000' seed=20260524 reduce=mean target=teacher -> 40000 steps on gpu 1
 [08-23 02:30:48] [#409] arm dec_s24 decay='1.0 0.0 10000' seed=20260524 target=teacher reduce=mean ema='0.9 1.0 100000' OK — all five reached the trainer
 [08-23 02:30:48] [#409] arm dec_s24 AUC gate pid 268333 — window 500, threshold 0.55, warmup 1000
+[08-23 02:32:43] [#409] arm dec_s22 decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000' seed=20260522 reduce=mean target=teacher -> 40000 steps on gpu 1
+[08-23 02:32:48] [#409] arm dec_s22 decay='1.0 0.0 10000' seed=20260522 target=teacher reduce=mean ema='0.9 1.0 100000' OK — all five reached the trainer
+[08-23 02:32:48] [#409] arm dec_s22 AUC gate pid 271319 — window 500, threshold 0.55, warmup 1000

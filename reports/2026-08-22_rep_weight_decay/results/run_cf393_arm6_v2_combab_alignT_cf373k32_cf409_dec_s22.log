@@ -1,0 +1,38 @@
+Command line: /tmp/contrastive-forecasting-409/experiments/2026-04-27_freq-embedding/scripts/train.py --qk-norm --attn-out-norm --batch-size 64 --device cuda --total-steps 40000 --lr 1e-3 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 --seed 20260522 --save-every 20000 --extra-save-steps 40000 --save-dir /home/jupyter/checkpoints_backup/cf-409/dec_s22/arm6_v2_combab_alignT/leg_40k --run-name cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s22 --log-every 200 --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1 --t-raw 4096 --n-channels 1 --d-model 64 --n-heads 8 --num-encoder-layers 3 --num-layers 3 --encoder-dropkey 0.70 --encoder-dropkey-share-heads --encoder-dropkey-share-layers --depthwise-conv 3 --deprecated-depthwise-conv 0 --loss-shape cosine_similarity_batch_rep_only --align-loss-weight 1.0 --moco-rep-keys --tau-rep 1.0 --align-target teacher --ema-embedding --ema-encoder --ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000 --cpc-infonce-weight 1.0 --sigreg-embedding --sigreg-encoding --sigreg-n-chunk 2048 --sigreg-embedding-weight 1.0 --sigreg-encoding-weight 1.0 --tau 0.10 --rev-norm-kind ewma --rev-norm-span 128 --encoder-type gru --synth-kind forked-arma --mix-ratio 0.0078125 --crossfade-triplets 1 --mixup-p 0.3 --freq-emb-dim 3 --seasonality-emb-dim 3 --log-attn-amplitude --log-attn-amplitude-every 200 --residual-dtype fp32 --attn-dtype fp16 --ffn-dtype fp16 --conv-dtype fp16 --patch-emb-dtype fp32 --train-rollout-depth 32 --cpc-infonce-weight 0.0 --train-rollout-reduce mean --align-target teacher --rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000 --latent-drift-probe-batch-size 16
+Device: cuda | Params: 720,668
+Training for 40000 steps, bs=64, lr=0.001, T=4096, C=1, mix_ratio=0.0078125, freq_emb_dim=3, seasonality_emb_dim=3, mixup_p=0.3, rev_norm_kind=ewma(span=128), patch_stats=none, encoder_type=gru
+Checkpoints: /home/jupyter/checkpoints_backup/cf-409/dec_s22/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s22_*.pth
+Loss CSV: /home/jupyter/checkpoints_backup/cf-409/dec_s22/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s22_losses.csv
+Latent-drift CSV: /home/jupyter/checkpoints_backup/cf-409/dec_s22/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s22_latent_drift.csv (every 20000 steps, probe_bs=16, probe_seed=20260722)
+Attn-amplitude CSV: /home/jupyter/checkpoints_backup/cf-409/dec_s22/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s22_attn_amplitude.csv (every 200 steps)
+Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, hf_bs=64, synth_bs=0, cross_bs=0, total_bs=67
+[    200] loss=12.1988  ema_loss=12.7034  gap=-0.1010  ema_gap=-0.1713  mixup=63/200  1.5 sps  ETA 7.3h
+              R²_rand=0.6378  R²_naive=0.2628  U_t=0.0738  U_b=0.1570  AUC=0.9614  Top1=0.2486
+  timing: data=39.8ms  fwd=282.9ms  bwd=306.7ms  total=630.2ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_s22/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s22_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_s22/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s22_best_loss.pth
+[    400] loss=11.7398  ema_loss=11.9979  gap=-0.0362  ema_gap=-0.0677  mixup=49/200  1.6 sps  ETA 7.1h
+              R²_rand=0.7309  R²_naive=0.3503  U_t=0.0565  U_b=0.1310  AUC=0.9771  Top1=0.3178
+  timing: data=4.3ms  fwd=280.7ms  bwd=302.5ms  total=588.4ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_s22/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s22_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_s22/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s22_best_loss.pth
+[    600] loss=11.4239  ema_loss=11.6017  gap=-0.0032  ema_gap=-0.0279  mixup=66/200  1.6 sps  ETA 7.0h
+              R²_rand=0.7794  R²_naive=0.3383  U_t=0.0501  U_b=0.1088  AUC=0.9830  Top1=0.3943
+  timing: data=4.4ms  fwd=283.6ms  bwd=304.7ms  total=593.6ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_s22/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s22_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_s22/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s22_best_loss.pth
+[    800] loss=11.2542  ema_loss=11.3544  gap=-0.0005  ema_gap=-0.0113  mixup=67/200  1.6 sps  ETA 7.0h
+              R²_rand=0.7638  R²_naive=0.3711  U_t=0.0574  U_b=0.1220  AUC=0.9808  Top1=0.3913
+  timing: data=12.2ms  fwd=286.6ms  bwd=306.7ms  total=606.3ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_s22/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s22_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_s22/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s22_best_loss.pth
+[   1000] loss=11.0692  ema_loss=11.1559  gap=0.0208  ema_gap=0.0052  mixup=58/200  1.6 sps  ETA 6.9h
+              R²_rand=0.7528  R²_naive=0.3934  U_t=0.0597  U_b=0.1211  AUC=0.9747  Top1=0.3924
+  timing: data=4.3ms  fwd=284.1ms  bwd=304.7ms  total=594.0ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_s22/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s22_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_s22/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s22_best_loss.pth
+[   1200] loss=10.8966  ema_loss=10.9577  gap=0.0361  ema_gap=0.0231  mixup=58/200  1.6 sps  ETA 6.8h
+              R²_rand=0.7218  R²_naive=0.4271  U_t=0.0659  U_b=0.1381  AUC=0.9712  Top1=0.3465
+  timing: data=4.3ms  fwd=284.8ms  bwd=306.8ms  total=596.7ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_s22/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s22_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_s22/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s22_best_loss.pth
