@@ -948,3 +948,23 @@ student head and moves 0.0089 on the teacher head, against a spread of
 
 The report must not read a GM-MAPE_SN or a GM-CRPS_SN improvement out of
 this table.
+
+## 2026-08-23 — files this directory no longer carries
+
+A later commit removed 30 files from this directory. The text above still
+names some of them, because it records what the run wrote at the time.
+
+- `throughput.txt` and `schedule.txt`: predicted times. The measured times
+  replaced them. This log holds the throughput.
+- `run_pass.out`, `replicate_*.out`, `band_queue.out`, `watchdog.out`: stdout
+  twins of the `.log` file beside them.
+- `read_back.log`, `collect.log`, `watchdog.log`, `band_queue.log`,
+  `await_*.log`: logs of the harness that drove the run.
+- `figure_caption.txt`, `metrics_table.md`, `metrics_table_means.md`: renders
+  of the report caption and of the CSV files that stay.
+- `run_cf393_arm6_v2_combab_alignS_cf373k3.log`: the same file lives at
+  `reports/2026-08-08_rollout_depth/results/`, which owns the launcher that
+  writes it.
+- The 9 `pr_comment_*.md` files: copies of comments on the pull request.
+
+Every measurement stays. The scripts write each removed file again on a rerun.
