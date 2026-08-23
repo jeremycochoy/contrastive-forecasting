@@ -106,3 +106,16 @@ At 03:10, before any process was touched, the same agent's run was back on card
 0 with 17.3 GB. The move was dropped and no process of this run was stopped.
 
 The card-0 watch now asks for 20 minutes free, not one reading.
+
+## A third agent took 11.5 GB of card 1 at 04:10
+
+`rnd-472` started a run on card 1. This card shares it and stops nothing.
+
+The risk it makes is the HEAD, not the backbone. `head_eval_bb.sh` asks for
+7000 MiB free before it trains a head, and card 1 then held 5573 MiB free. A
+lane frees only its own 2.4 GB when a backbone ends, and it starts the next
+backbone at once, so a head could wait out its four-hour ceiling and abort with
+no score.
+
+`head_eval.sh` is idempotent, so a head that aborts is re-run. The watch reads
+`results/stops.log` for `waiting for VRAM`, `TIMEOUT` and `ABORT`.
