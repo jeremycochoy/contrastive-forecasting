@@ -69,6 +69,11 @@ CF409_ALIGN_TARGET="teacher"
 # where the sweep measured this cell.
 CF409_STOPS="40000"
 CF409_HEAD_STEPS=30000
+# How often a leg writes a step checkpoint. #373's runner defaults to 20,000,
+# which is half of this card's whole stop: on 08-23 `dec_m080_r200` reached
+# 19,900 steps, saved nothing and lost all of it to a DNS outage. At 5,000 an
+# outage costs at most 5,000 steps, and eight checkpoint pairs cost 88 MB.
+CF409_SAVE_EVERY="${CF409_SAVE_EVERY:-5000}"
 CF409_HEAD_SEED=20260722
 CF409_ENC="student"
 
@@ -464,6 +469,21 @@ cf409_collapse_file(){  # <arm>
 #   10  another machine claims this cell (`run_leg_k.sh`)
 CF409_RC_COLLAPSED=4
 CF409_NO_RETRY="2 3 4 9 10"
+
+# ---- The Hub outage of 2026-08-23 --------------------------------------------
+#
+# The data streams from the Hub, so a box that loses DNS kills every leg in
+# about 3 seconds. That day the lane read three of those as failed arms, spent
+# each arm's ladder in two minutes and left the card idle for 27 hours.
+#
+# `scripts/hub_gate.sh` holds the reading of a dead leg's tail and the wait.
+# Code 20 is what a leg gives when the HUB failed. It is NOT in
+# `CF409_NO_RETRY`, and `phase1.sh` does not count it against the ladder
+# either: the arm is fine, so the try was not the arm's.
+. "$CF409_REPO/scripts/hub_gate.sh"
+CF409_RC_NETWORK="$HUB_GATE_RC"
+# How long a lane waits for the Hub, in total. Hours, not minutes.
+CF409_NET_DEADLINE="${CF409_NET_DEADLINE:-$HUB_GATE_DEADLINE}"
 
 cf409_retryable(){  # <exit code>
   [ "${1:?rc}" -eq 0 ] && return 1

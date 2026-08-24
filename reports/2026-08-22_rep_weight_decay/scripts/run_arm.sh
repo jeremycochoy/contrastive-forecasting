@@ -4,10 +4,12 @@
 #
 # This is a wrapper, on purpose. The trainer command line for this
 # configuration lives in ONE place, #373's `run_leg_k.sh`, and a copy of it
-# here would be a second protocol that drifts. The wrapper supplies eight
+# here would be a second protocol that drifts. The wrapper supplies nine
 # things that runner takes from the environment:
 #
 #   K              the rollout depth, 32
+#   SAVE_EVERY     5000. The runner's own 20,000 is half of this card's stop,
+#                  and a leg that dies at 19,900 steps then saves nothing.
 #   EMA_ARGS       this arm's EMA schedule, which REPLACES the runner's own
 #                  three momentum flags. It replaces and does not append: a
 #                  fixed arm passes `--ema-tau` alone, and no repeated flag can
@@ -81,7 +83,8 @@ GAP="--train-rollout-reduce $CF409_REDUCE --align-target $CF409_ALIGN_TARGET $DE
 [ -n "${CF409_FORCE_EMA:-}" ] && ARM_EMA="$CF409_FORCE_EMA"
 
 if [ -n "${CF409_DRY_RUN:-}" ]; then
-  echo "arm $ARM cell=$CF409_CELL k=$CF409_K steps=$STOP gpu=$BB_GPU"
+  echo "arm $ARM cell=$CF409_CELL k=$CF409_K steps=$STOP gpu=$BB_GPU" \
+       "save_every=$CF409_SAVE_EVERY"
   echo "  decay=$DECAY_ARGS"
   echo "  rep_w at 0 / ramp / stop = $(cf409_rep_w_at 0)" \
        "$(cf409_rep_w_at "$(cf409_ramp)")" "$(cf409_rep_w_at "$STOP")"
@@ -107,12 +110,13 @@ cmdlines_before="$(cf409_cmdlines "$TLOG")"
 
 log "arm $ARM ema='$ARM_EMA' decay='$DECAY_ARGS' seed=$ARM_SEED" \
     "reduce=$CF409_REDUCE target=$CF409_ALIGN_TARGET -> ${STOP} steps" \
-    "on gpu $BB_GPU"
+    "on gpu $BB_GPU, save every $CF409_SAVE_EVERY"
 # A collapse note of an EARLIER leg of this arm would make this leg read as
 # stopped the moment it finishes. Delete it: this leg writes its own.
 rm -f "$(cf409_collapse_file "$ARM")"
 K="$CF409_K" RUNS="$ARM_ROOT" CF_STUDY_DIR="$CF409_STUDY" \
   CF_RESULTS="$CF409_RESULTS" WT="$CF409_WT" \
+  SAVE_EVERY="$CF409_SAVE_EVERY" \
   EMA_ARGS="$ARM_EMA" GAP_ARGS="$GAP" SEED="$ARM_SEED" \
   RUN_SUFFIX="$(cf409_run_suffix "$ARM")" \
   BB_GPU="$BB_GPU" \

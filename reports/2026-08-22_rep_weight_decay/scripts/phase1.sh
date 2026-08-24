@@ -18,6 +18,18 @@
 # AUC gate stopped (4), a session hold (9) and a cell another machine claims
 # (10). Each of those repeats, and each re-fire costs a card.
 #
+# ---- A Hub outage costs no try -----------------------------------------------
+#
+# The data streams from the Hub. On 08-23 at 18:48 elisa lost DNS, every leg
+# died in about 3 seconds, and this lane spent an arm's whole ladder in two
+# minutes. It then declared a FRESH start, moved to the next arm and did the
+# same. Three arms went in seven minutes, and the card sat idle for 27 hours.
+#
+# So the Hub is not the arm. A leg that exits `CF409_RC_NETWORK` is re-fired
+# after a growing wait, and the try is NOT counted. The lane also reads the
+# Hub before it starts any arm, so it never advances into a dead network. It
+# gives up only at `CF409_NET_DEADLINE`, which is hours.
+#
 # ---- Where the head runs -----------------------------------------------------
 #
 # Each arm's head starts as soon as its checkpoint lands, while the next arm
@@ -63,7 +75,7 @@ for arm in $ARMS; do cf409_require_arm "$arm" || exit $?; done
 # One arm's backbone, re-fired while the exit code says "crash". Prints the
 # final code.
 run_leg(){  # <arm> <stop steps>
-  local arm="$1" stop="$2" try=1 rc
+  local arm="$1" stop="$2" try=1 rc net_try=0 net_spent=0 delay
   while :; do
     # `8>&-` closes the write end of the head queue for this child. A child
     # that held it open would keep the worker waiting for a line that never
@@ -71,6 +83,30 @@ run_leg(){  # <arm> <stop steps>
     BB_GPU="$BB_GPU" bash "$RUN_ARM" "$arm" "$stop" 8>&-
     rc=$?
     [ "$rc" -eq 0 ] && return 0
+    if [ "$rc" -eq "$CF409_RC_NETWORK" ]; then
+      # The arm is fine, so this costs no try: a 3-second death to a dead
+      # network must never spend a try that a real crash needs.
+      #
+      # It does cost TIME, and the two are not the same. A Hub that answers
+      # the probe while every leg still dies on a shard would re-fire for
+      # ever and hold the card at zero steps. So one leg gets at most
+      # CF409_NET_DEADLINE seconds of outage, over a growing delay.
+      net_try=$(( net_try + 1 ))
+      delay="$(hub_backoff_delay "$net_try")"
+      net_spent=$(( net_spent + delay ))
+      if [ "$net_spent" -gt "$CF409_NET_DEADLINE" ]; then
+        log "arm $arm — the Hub has killed this leg for ${net_spent}s, past" \
+            "the ${CF409_NET_DEADLINE}s deadline. The arm keeps its" \
+            "checkpoints, so a later lane resumes it."
+        return "$rc"
+      fi
+      log "arm $arm — the Hub was unreachable. This costs no try" \
+          "(still try $try of $CF409_LEG_TRIES). Waiting ${delay}s."
+      sleep "$delay"
+      hub_wait_up "$(( CF409_NET_DEADLINE - net_spent ))" \
+        | tee -a "$CF409_RESULTS/phase1.log" || return "$rc"
+      continue
+    fi
     cf409_retryable "$rc" || return "$rc"
     [ "$try" -ge "$CF409_LEG_TRIES" ] && return "$rc"
     try=$(( try + 1 ))
@@ -131,6 +167,16 @@ for arm in $ARMS; do
       [ "$HEADS" = "1" ] && \
         echo "head $arm stop=$stop steps=$CF409_HEAD_STEPS enc=$CF409_ENC"
       continue
+    fi
+
+    # A lane that starts an arm into a dead network burns that arm's ladder
+    # in two minutes and moves on. Read the Hub first.
+    if ! hub_wait_up "$CF409_NET_DEADLINE" \
+         | tee -a "$CF409_RESULTS/phase1.log"; then
+      log "the Hub is still down — starting no arm. $arm and the arms after" \
+          "it keep their checkpoints, so a later lane resumes them."
+      legs_failed=$(( legs_failed + 1 ))
+      break 2
     fi
 
     log "arm $arm -> $stop"

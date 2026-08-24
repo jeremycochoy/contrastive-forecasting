@@ -245,3 +245,32 @@ outside kills already cost this card 2,800 and 2,600 steps at that cadence. One
 checkpoint pair is 11 MB, so eight pairs an arm cost 88 MB and buy back up to
 15,000 steps of a 7.4-hour leg. Both lanes restarted at 15:04 with
 `SAVE_EVERY=5000`, five minutes into the first leg.
+
+## 08-23 18:48 — the box lost DNS, and the lane read it as three dead arms
+
+`Failed to resolve 'huggingface.co'`. The data streams from the Hub, so both
+live legs died with rc=1 in about 3 seconds.
+
+`phase1.sh` then spent an arm's whole retry ladder in two minutes, because each
+re-fire hit the same dead network and died in 3 seconds. It declared the arm
+dead, moved to the next one and did the same. Three arms went in seven minutes.
+Nothing ran for the next 27 hours.
+
+`dec_m080_r200` was at 19,900 steps at `SAVE_EVERY=20000`, so it had saved no
+step checkpoint and lost all of it.
+
+### The fix
+
+`scripts/hub_gate.sh` is new and shared. It reads a dead leg's tail, probes the
+Hub and holds the growing wait.
+
+| Change | Where |
+|---|---|
+| A Hub failure exits 20, not 1 | `run_leg_k.sh` |
+| Code 20 costs no try, and waits over hours | `phase1.sh` |
+| A lane probes the Hub before any arm | `phase1.sh` |
+| A fresh start needs a cell with no step checkpoint | `run_leg_k.sh` |
+| `SAVE_EVERY` defaults to 5000 | `study.sh` |
+
+One leg gets at most `CF409_NET_DEADLINE` (6 hours) of outage. Past that the
+lane stops, and every arm keeps its checkpoints for a later lane.
