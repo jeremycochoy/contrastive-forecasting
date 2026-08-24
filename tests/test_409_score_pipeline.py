@@ -440,6 +440,9 @@ class TestALaneRefiresACrashedLeg:
                      "CF409_RUN_ARM": str(run_arm),
                      "CF409_HEAD_EVAL": str(head),
                      "CF409_RESULTS": str(tmp_path / "results"),
+                     # The lane probes the Hub before every arm. `true` is a
+                     # Hub that always answers, so no test needs a network.
+                     "HUB_GATE_PROBE": "true",
                      "HEAD_BG": "0"})
         full.update(env or {})
         out = subprocess.run(["bash", str(PHASE1)], capture_output=True,
@@ -736,6 +739,7 @@ class TestTheLaneHoldsOneHead:
                      "CF409_RUN_ARM": str(run_arm),
                      "CF409_HEAD_EVAL": str(head),
                      "CF409_RESULTS": str(tmp_path / "results"),
+                     "HUB_GATE_PROBE": "true",
                      "HEAD_BG": "1"})
         full.update(env or {})
         out = subprocess.run(["bash", str(PHASE1)], capture_output=True,
@@ -922,3 +926,139 @@ class TestTheLossByTermFormula:
         assert "mean" in body
         assert "teacher" in body
         assert "residual" in body
+
+
+# --- 5. the Hub outage of 2026-08-23 -------------------------------------
+
+
+class TestALaneRidesOutAHubOutage:
+    """On 08-23 at 18:48 elisa lost DNS. Every leg died in 3 seconds, the
+    lane spent its whole ladder in two minutes, declared the arm dead and
+    moved to the next one. Three arms went that way in seven minutes and the
+    card sat idle for 27 hours.
+
+    A network failure is not a failed arm. `scripts/hub_gate.sh` holds the
+    reading and the wait, and this lane holds the policy.
+    """
+
+    def _fake(self, tmp_path, exits):
+        counter = tmp_path / "calls"
+        script = tmp_path / "fake_run_arm.sh"
+        script.write_text(
+            "#!/bin/bash\n"
+            f'n=$(cat "{counter}" 2>/dev/null || echo 0)\n'
+            "n=$(( n + 1 ))\n"
+            f'printf "%s" "$n" >"{counter}"\n'
+            f'codes=({" ".join(str(e) for e in exits)})\n'
+            "idx=$(( n - 1 ))\n"
+            '[ "$idx" -ge "${#codes[@]}" ] && idx=$(( ${#codes[@]} - 1 ))\n'
+            'exit "${codes[$idx]}"\n')
+        script.chmod(0o755)
+        return script, counter
+
+    def _lane(self, tmp_path, exits, arms="dec_s20", probe="true", env=None):
+        run_arm, counter = self._fake(tmp_path, exits)
+        head = tmp_path / "fake_head.sh"
+        head.write_text("#!/bin/bash\nexit 0\n")
+        head.chmod(0o755)
+        full = dict(os.environ)
+        full.update({"ARMS": arms,
+                     "CF409_RUN_ARM": str(run_arm),
+                     "CF409_HEAD_EVAL": str(head),
+                     "CF409_RESULTS": str(tmp_path / "results"),
+                     "HEAD_BG": "0",
+                     "HUB_GATE_PROBE": probe,
+                     "HUB_GATE_BASE_WAIT": "1",
+                     "HUB_GATE_MAX_WAIT": "1",
+                     # The wait after a CRASH is not what these tests read.
+                     "CF409_LEG_RETRY_WAIT": "0",
+                     "CF409_LEG_TRIES": "3"})
+        full.update(env or {})
+        out = subprocess.run(["bash", str(PHASE1)], capture_output=True,
+                             text=True, env=full, cwd=str(REPO_ROOT),
+                             timeout=300)
+        calls = int(counter.read_text()) if counter.exists() else 0
+        return out, calls
+
+    def test_the_network_code_is_the_shared_one(self):
+        shared = subprocess.run(
+            ["bash", "-c",
+             f'. "{REPO_ROOT}/scripts/hub_gate.sh" && printf %s "$HUB_GATE_RC"'],
+            capture_output=True, text=True, timeout=60).stdout
+        assert study_out('printf %s "$CF409_RC_NETWORK"') == shared
+
+    def test_a_network_failure_never_counts_against_the_ladder(self, tmp_path):
+        """Four outage deaths and then a clean leg. At three tries the old
+        lane declared the arm dead on the third."""
+        rc = int(study_out('printf %s "$CF409_RC_NETWORK"'))
+        out, calls = self._lane(tmp_path, [rc, rc, rc, rc, 0])
+        assert calls == 5, out.stdout + out.stderr
+        assert out.returncode == 0, out.stdout + out.stderr
+
+    def test_a_crash_after_an_outage_still_counts(self, tmp_path):
+        rc = int(study_out('printf %s "$CF409_RC_NETWORK"'))
+        out, calls = self._lane(tmp_path, [rc, 1, 1, 1])
+        assert calls == 4, out.stdout + out.stderr
+        assert out.returncode != 0
+
+    def test_the_lane_reads_the_hub_before_it_starts_an_arm(self, tmp_path):
+        """Card rule 4: do not advance to the next arm while the network is
+        down."""
+        probes = tmp_path / "probes"
+        probe = tmp_path / "probe.sh"
+        probe.write_text("#!/bin/bash\n"
+                         f'printf "x" >>"{probes}"\n'
+                         "exit 0\n")
+        probe.chmod(0o755)
+        out, calls = self._lane(tmp_path, [0], arms="dec_s20 dec_s22",
+                                probe=f"bash {probe}")
+        assert out.returncode == 0, out.stdout + out.stderr
+        assert calls == 2
+        assert len(probes.read_text()) >= 2
+
+    def test_a_lane_starts_no_arm_while_the_hub_is_down(self, tmp_path):
+        out, calls = self._lane(tmp_path, [0], arms="dec_s20 dec_s22",
+                                probe="false",
+                                env={"CF409_NET_DEADLINE": "2"})
+        assert calls == 0, out.stdout + out.stderr
+        assert out.returncode != 0
+        assert "huggingface.co" in out.stdout
+
+    def test_an_outage_that_never_ends_stops_the_lane(self, tmp_path):
+        """A Hub that answers the probe while every leg still dies would
+        re-fire for ever and hold the card at zero steps. One leg gets the
+        deadline, and no more. Its checkpoints stay, so a later lane
+        resumes."""
+        rc = int(study_out('printf %s "$CF409_RC_NETWORK"'))
+        out, calls = self._lane(tmp_path, [rc], arms="dec_s20 dec_s22",
+                                env={"CF409_NET_DEADLINE": "2"})
+        assert out.returncode != 0
+        assert calls < 20, out.stdout
+        assert "deadline" in out.stdout
+
+    def test_the_deadline_is_hours_not_minutes(self):
+        """Card rule 2: a DNS outage of 30 minutes must not end a study."""
+        assert int(study_out('printf %s "$CF409_NET_DEADLINE"')) >= 3 * 3600
+
+
+class TestTheLegsSaveEvery5000:
+    """Card rule 5. `dec_m080_r200` reached 19,900 steps at the runner's own
+    20,000 cadence and saved no step checkpoint, so the outage cost all of
+    it. At 5,000 an outage costs at most 5,000 steps."""
+
+    def test_the_study_default_is_5000(self):
+        assert study_out('printf %s "$CF409_SAVE_EVERY"') == "5000"
+
+    def test_the_launcher_hands_it_to_the_runner(self):
+        out = script_dry_run(RUN_ARM, "dec_s20", STOP)
+        assert "save_every=5000" in out.stdout, out.stdout
+
+    def test_the_cadence_divides_the_stop(self):
+        every = int(study_out('printf %s "$CF409_SAVE_EVERY"'))
+        assert STOP % every == 0
+
+    def test_the_shared_runner_keeps_its_own_default(self):
+        """#401 and #404 read the same runner. This card changes its own
+        cadence, not theirs."""
+        body = (PARENT / "scripts" / "run_leg_k.sh").read_text()
+        assert 'SAVE_EVERY="${SAVE_EVERY:-20000}"' in body

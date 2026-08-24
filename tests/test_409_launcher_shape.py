@@ -379,9 +379,11 @@ class TestTheCommentsNameFilesThatExist:
 
     PATH = re.compile(
         r"(?:scripts|notes|tests|docs)/[A-Za-z0-9_.-]+\.(?:sh|py|tsv|md)")
-    # A `scripts/` or `notes/` path is this study's. A `tests/` or `docs/` path
-    # is the repository's.
+    # A `notes/` path is this study's. A `tests/` or `docs/` path is the
+    # repository's. A `scripts/` path is EITHER: the study holds one, and so
+    # does the repository — `scripts/hub_gate.sh` is shared by every study.
     AT_REPO_ROOT = ("tests/", "docs/")
+    AT_EITHER_ROOT = ("scripts/",)
 
     def test_every_path_a_comment_names_is_on_the_branch(self):
         missing = []
@@ -391,9 +393,13 @@ class TestTheCommentsNameFilesThatExist:
                 if not line.lstrip().startswith("#"):
                     continue
                 for path in self.PATH.findall(line):
-                    root = (REPO_ROOT if path.startswith(self.AT_REPO_ROOT)
-                            else EXP)
-                    if not (root / path).exists():
+                    if path.startswith(self.AT_EITHER_ROOT):
+                        roots = (EXP, REPO_ROOT)
+                    elif path.startswith(self.AT_REPO_ROOT):
+                        roots = (REPO_ROOT,)
+                    else:
+                        roots = (EXP,)
+                    if not any((root / path).exists() for root in roots):
                         missing.append(f"{script.name}:{n}: {path}")
         assert not missing, missing
 
