@@ -55,6 +55,8 @@ def main(argv=None):
     p.add_argument("--smooth", type=int, default=200)
     p.add_argument("--every", type=int, default=10,
                    help="read one row in N. A 40,000-row CSV needs no more")
+    p.add_argument("--min-steps", type=int, default=1000,
+                   help="a run that reached fewer steps is named, not drawn")
     args = p.parse_args(argv)
 
     arms = S.read_arms(args.arms)
@@ -71,20 +73,34 @@ def main(argv=None):
                 xytext=(4, -11), textcoords="offset points",
                 fontsize=8, color=S.LOST)
 
+    # ONE LINE PER ARM, NOT PER FILE. A leg re-fired after a crash resumes
+    # under a `_rN` name and opens a second CSV. Two lines for one arm read as
+    # two arms, and both carry the same label. `read_run` stitches them: it
+    # keys every row by its step and lets the last row of that step win.
+    # `results/auc_verdicts.tsv` stays per FILE, because the gate reads a file.
     drawn = lost = 0
-    labels = []
+    labels, skipped = [], []
     for row in arms:
-        for path in paths.get(row["arm"], []):
-            series = S.smooth(S.read_csv_column(path, "auc", args.every),
-                              max(1, args.smooth // args.every))
-            if not series:
-                continue
-            colour = S.run_colour(path, verdicts)
-            lost += colour == S.LOST
-            ax.plot([s for s, _ in series], [v for _, v in series],
-                    color=colour, linewidth=1.6)
-            labels.append((series, S.arm_label(row), colour))
-            drawn += 1
+        files = paths.get(row["arm"], [])
+        if not files:
+            continue
+        raw = S.read_run(files, ["auc"], args.every)["auc"]
+        reached = raw[-1][0] if raw else 0
+        if reached < args.min_steps:
+            skipped.append((row["arm"], reached))
+            continue
+        series = S.smooth(raw, max(1, args.smooth // args.every))
+        colour = S.run_colour(files, verdicts)
+        lost += colour == S.LOST
+        ax.plot([s for s, _ in series], [v for _, v in series],
+                color=colour, linewidth=1.6)
+        labels.append((series, S.curve_label(row), colour))
+        drawn += 1
+    # No silent cap. A run this figure leaves out is named on stdout, and
+    # `results/auc_verdicts.tsv` carries the same runs.
+    for arm, reached in skipped:
+        print(f"skipped {arm}: reached step {reached}, under --min-steps "
+              f"{args.min_steps}")
 
     if not drawn:
         print("no readable `auc` column", file=sys.stderr)
