@@ -1,0 +1,12 @@
+item	this_card	the_sweep	verdict	evidence	where
+cell	arm6_v2_combab_alignT	arm6_v2_combab_alignT	match	script	study.sh of each
+rollout depth k	32	32	match	script	study.sh of each
+depth reduction	mean	mean	match	script	study.sh of each
+backbone stop	40000	40000	match	script	study.sh of each
+head steps	30000	30000	match	script	study.sh of each
+head encoder	student	student	match	script	study.sh of each
+head runner	2026-08-08_rollout_depth/scripts/head_eval_bb.sh	2026-08-08_rollout_depth/scripts/head_eval_bb.sh	match	script	head_eval.sh of each names it
+align target	teacher	teacher	match	script	run_leg_k.sh, the cell both studies name
+head seed	20260722	20260722	match	script	the sweep's checkpoints are deleted
+eval	eval start (97 configs, B4, forecast-len 16, elisa CPUs)	eval start (97 configs, B4, forecast-len 16, elisa CPUs)	match	artefact	the eval log of each
+score tag	_bb40k_h30k_student	_bb40k_h30k_student	match	artefact	the eval log of each

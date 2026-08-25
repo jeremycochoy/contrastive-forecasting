@@ -1,0 +1,31 @@
+# the gate: 0.0219, the range of 3 seeds of one schedule, 0.9 1.0 100000
+# those arms: dec_s20, dec_s22, dec_s24
+# a gap under the gate is not a rank. This card measured no other spread.
+block	left	right	left_score	right_score	gap	verdict
+vs no-decay	dec_m080_r200	the same schedule, no decay	1.2352	1.1782	+0.0570	rank
+vs target	dec_m080_r200	the card's target	1.2352	1.1491	+0.0861	rank
+vs no-decay	dec_s22	the same schedule, no decay	1.2593	1.1507	+0.1086	rank
+vs target	dec_s22	the card's target	1.2593	1.1491	+0.1102	rank
+vs no-decay	dec_s20	the same schedule, no decay	1.2670	1.1507	+0.1163	rank
+vs target	dec_s20	the card's target	1.2670	1.1491	+0.1179	rank
+vs no-decay	dec_s24	the same schedule, no decay	1.2812	1.1507	+0.1305	rank
+vs target	dec_s24	the card's target	1.2812	1.1491	+0.1321	rank
+vs no-decay	dec_m099_fix	the sweep never ran this schedule	1.2849	-	-	-
+vs target	dec_m099_fix	the card's target	1.2849	1.1491	+0.1358	rank
+vs no-decay	dec_m070_fix	the sweep never ran this schedule	1.3534	-	-	-
+vs target	dec_m070_fix	the card's target	1.3534	1.1491	+0.2043	rank
+arm vs arm	dec_m080_r200	dec_s22	1.2352	1.2593	+0.0241	rank
+arm vs arm	dec_m080_r200	dec_s20	1.2352	1.2670	+0.0318	rank
+arm vs arm	dec_m080_r200	dec_s24	1.2352	1.2812	+0.0460	rank
+arm vs arm	dec_m080_r200	dec_m099_fix	1.2352	1.2849	+0.0497	rank
+arm vs arm	dec_m080_r200	dec_m070_fix	1.2352	1.3534	+0.1182	rank
+arm vs arm	dec_s22	dec_s20	1.2593	1.2670	+0.0077	noise
+arm vs arm	dec_s22	dec_s24	1.2593	1.2812	+0.0219	noise
+arm vs arm	dec_s22	dec_m099_fix	1.2593	1.2849	+0.0256	rank
+arm vs arm	dec_s22	dec_m070_fix	1.2593	1.3534	+0.0941	rank
+arm vs arm	dec_s20	dec_s24	1.2670	1.2812	+0.0142	noise
+arm vs arm	dec_s20	dec_m099_fix	1.2670	1.2849	+0.0179	noise
+arm vs arm	dec_s20	dec_m070_fix	1.2670	1.3534	+0.0864	rank
+arm vs arm	dec_s24	dec_m099_fix	1.2812	1.2849	+0.0037	noise
+arm vs arm	dec_s24	dec_m070_fix	1.2812	1.3534	+0.0722	rank
+arm vs arm	dec_m099_fix	dec_m070_fix	1.2849	1.3534	+0.0685	rank

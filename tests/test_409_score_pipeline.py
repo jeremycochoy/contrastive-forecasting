@@ -1225,10 +1225,19 @@ class TestTheLossByTermTableReachesTheStop:
 
     def test_l_rep_ends_where_the_decay_ends(self):
         """The trainer computes no L_rep at weight 0.0, so the column goes
-        blank at step 10,000 for every arm. That is the treatment working."""
-        rows = self._rows(self.TABLE)
-        ends = {int(r["last_step"]) for r in rows if r["term"] == "l_rep"}
-        assert ends == {9999}, ends
+        blank one step before the ramp ends. That is the treatment working.
+
+        Every SCORED arm carries the card's own ramp, 10,000 steps, so its
+        `l_rep` ends at 9,999. `dec_ramp30k_m080` carries a 30,000-step ramp,
+        and an arm still inside its ramp has not gone blank at all — its
+        `l_rep` runs to the last step it reached. So the rule that holds on
+        every row is the weaker one: `l_rep` never outlives the run."""
+        rows = [r for r in self._rows(self.TABLE) if r["term"] == "l_rep"]
+        assert rows
+        scored = {int(r["last_step"]) for r in rows if r["arm"] in self.AT_STOP}
+        assert scored == {9999}, scored
+        for r in rows:
+            assert int(r["last_step"]) <= int(r["reached"]), r
 
     def test_the_trajectory_reads_the_whole_run(self):
         rows = self._rows(self.TRACK)
@@ -1238,3 +1247,115 @@ class TestTheLossByTermTableReachesTheStop:
             got = {int(r["step"]) for r in rows
                    if r["arm"] == arm and r["term"] == "loss"}
             assert got == set(range(5000, STOP + 1, 5000)), arm
+
+
+# --- 8. what the card can rank, and against what ------------------------
+
+
+class TestTheRankGate:
+    """This card scored six arms and repeated ONE schedule. That schedule's
+    range is the whole run-to-run spread the card measured, so a gap under it
+    is not a rank."""
+
+    GATE = EXP / "results" / "rank_gate.tsv"
+    SCRIPT = EXP / "scripts" / "rank_gate.py"
+
+    def _rows(self):
+        with open(self.GATE, newline="") as fh:
+            body = [ln for ln in fh if not ln.startswith("#")]
+        return list(csv.DictReader(body, delimiter="\t"))
+
+    def test_the_table_and_the_script_exist(self):
+        assert self.SCRIPT.is_file()
+        assert self.GATE.is_file()
+
+    def test_the_gate_is_measured_by_this_card(self):
+        """Not borrowed. The header names the arms it came from, and every one
+        of them is an arm of this card with a score."""
+        head = self.GATE.read_text().splitlines()[:3]
+        assert head[0].startswith("# the gate:")
+        named = head[1].split(":")[1].replace(",", " ").split()
+        assert len(named) >= 2
+        for arm in named:
+            assert arm in ARMS, arm
+
+    def test_every_arm_loses_to_the_no_decay_reference_by_more_than_the_gate(self):
+        """The card's first question. This is the one comparison the card CAN
+        make, and it clears the gate on every arm that has a reference."""
+        rows = [r for r in self._rows() if r["block"] == "vs no-decay"
+                and r["gap"] != "-"]
+        assert rows
+        for r in rows:
+            assert float(r["gap"]) > 0, r      # the decay costs the score
+            assert r["verdict"] == "rank", r
+
+    def test_the_decay_schedules_do_not_all_separate_from_each_other(self):
+        """The review's point 5. Some arm-to-arm gaps are under the gate, so
+        the report must not order the schedules."""
+        rows = [r for r in self._rows() if r["block"] == "arm vs arm"]
+        assert rows
+        assert any(r["verdict"] == "noise" for r in rows)
+
+    def test_the_gate_refuses_to_run_without_a_replicate(self, tmp_path):
+        """A gate taken from a study with no repeated seed would not be this
+        treatment's spread. The script exits rather than invent one."""
+        arms = tmp_path / "arms.tsv"
+        arms.write_text("# arm\ttau\tend\tramp\tseed\n"
+                        "a\t0.9\t1.0\t100000\t1\n"
+                        "b\t0.8\t1.0\t200000\t1\n")
+        scores = tmp_path / "scores.csv"
+        scores.write_text("arm,score\na,1.10\nb,1.30\n")
+        out = subprocess.run(
+            [sys.executable, str(self.SCRIPT), "--scores", str(scores),
+             "--arms", str(arms), "--out", str(tmp_path / "gate.tsv")],
+            capture_output=True, text=True, timeout=120)
+        assert out.returncode != 0
+        assert "two seeds" in out.stderr
+
+
+class TestTheReferenceIsComparable:
+    """This card runs NO control. Its headline is a gap against 1.1491, which
+    `reports/2026-08-19_ema_momentum_k32/` measured. A gap between two studies
+    is a result only when the two measure the same thing."""
+
+    TABLE = EXP / "results" / "reference_match.tsv"
+    SCRIPT = EXP / "scripts" / "reference_match.sh"
+    # Every item the review asks the report to state, plus the ones that carry
+    # them: the cell, the runner and the depth settings.
+    WANT = {"cell", "head steps", "head seed", "head encoder", "eval",
+            "align target", "backbone stop", "head runner"}
+
+    def _rows(self):
+        with open(self.TABLE, newline="") as fh:
+            return list(csv.DictReader(fh, delimiter="\t"))
+
+    def test_the_table_and_the_script_exist(self):
+        assert self.SCRIPT.is_file()
+        assert self.TABLE.is_file()
+
+    def test_it_covers_every_item_the_headline_rests_on(self):
+        got = {r["item"] for r in self._rows()}
+        assert self.WANT <= got, sorted(self.WANT - got)
+
+    def test_every_item_matches(self):
+        for r in self._rows():
+            assert r["verdict"] == "match", r
+
+    def test_both_studies_call_one_head_runner(self):
+        """Not two settings that agree. One file."""
+        row = [r for r in self._rows() if r["item"] == "head runner"]
+        assert row and row[0]["this_card"] == row[0]["the_sweep"]
+        assert "head_eval_bb.sh" in row[0]["this_card"]
+
+    def test_a_row_says_whether_an_artefact_or_a_script_backs_it(self):
+        """The sweep's checkpoint root is deleted, so two rows rest on its
+        scripts. A reader must be able to see which."""
+        rows = self._rows()
+        assert {r["evidence"] for r in rows} <= {"script", "artefact"}
+        assert any(r["evidence"] == "artefact" for r in rows)
+
+    def test_the_script_fails_loudly_on_a_mismatch(self):
+        """A silent pass would let a protocol drift carry the headline."""
+        body = self.SCRIPT.read_text()
+        assert "DIFFERS" in body
+        assert "exit 1" in body
