@@ -1396,3 +1396,36 @@ class TestTheStudyKeepsOneReport:
                 .read_text().splitlines() if ln.startswith("#")]
         assert any("narrowest pair" in ln for ln in head), head
         assert any("threshold, not a rank" in ln for ln in head), head
+
+
+class TestTheRefreshWatchStartsNothing:
+    """`scripts/refresh_when_done.sh` waits for the arms in flight and then
+    rebuilds the figures and the tables. It must never train, never kill and
+    never commit: it runs unattended, beside other sessions, on a shared
+    checkpoint root and a shared results directory."""
+
+    SCRIPT = EXP / "scripts" / "refresh_when_done.sh"
+
+    def test_it_exists_and_is_bounded(self):
+        body = self.SCRIPT.read_text()
+        assert self.SCRIPT.is_file()
+        assert "DEADLINE_H" in body, "an unattended wait needs a deadline"
+
+    def test_it_starts_no_backbone(self):
+        body = self.SCRIPT.read_text()
+        for forbidden in ("launch.sh", "phase1.sh", "run_arm.sh",
+                          "train.py --", "lane_when_free"):
+            assert forbidden not in body, forbidden
+
+    def test_it_kills_nothing_and_commits_nothing(self):
+        """Vast.ai and elisa are shared. A background `git` beside a live
+        session is how two sessions lose each other's work."""
+        body = self.SCRIPT.read_text()
+        for forbidden in ("kill ", "pkill", "git commit", "git add",
+                          "git push", "rm -rf"):
+            assert forbidden not in body, forbidden
+
+    def test_it_only_rebuilds_artefacts(self):
+        body = self.SCRIPT.read_text()
+        assert "make_plots.sh" in body
+        assert "run_state.sh" in body

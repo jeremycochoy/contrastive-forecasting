@@ -343,3 +343,18 @@ times the measured seed spread of 0.0219. A sixth schedule cannot close that.
 
 The figures and the tables skip the arm until it passes 1,000 steps, and each
 one names it on stdout. Re-run `bash scripts/make_plots.sh` when it stops.
+
+## 08-25 17:15 — a watch that rebuilds the artefacts when the last leg stops
+
+`scripts/refresh_when_done.sh` runs detached. It polls every 10 minutes for a
+leg of this study under `$CF409_ROOT`, and when none is left it runs
+`make_plots.sh` and `run_state.sh`. It gives up after 14 hours and rebuilds
+anyway. `results/refresh_when_done.log` holds its ticks.
+
+Why: gap 4 of the run review was stale artefacts, and the cause was a launcher
+that died and stopped refreshing them. `dec_ramp30k_m080` lands in about seven
+hours plus a head and an eval, so the same staleness would return.
+
+It starts no leg, kills nothing and commits nothing. Four tests pin that. A
+session must commit the refreshed artefacts: a background `git` beside a live
+session is how two sessions lose each other's work.
