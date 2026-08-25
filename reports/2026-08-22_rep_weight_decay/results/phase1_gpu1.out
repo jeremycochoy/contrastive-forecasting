@@ -100,3 +100,81 @@
 [08-23 15:04:37] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m099_fix/arm6_v2_combab_alignT/leg_40k
 [08-23 15:04:42] [#409] arm dec_m099_fix decay='1.0 0.0 10000' seed=20260520 target=teacher reduce=mean ema='0.99 - -' OK — all five reached the trainer
 [08-23 15:04:42] [#409] arm dec_m099_fix AUC gate pid 1019737 — window 500, threshold 0.55, warmup 1000
+[08-23 15:07:37] [#409 lane 1] head queue on — one head at a time, worker pid 1022715
+[08-23 15:07:37] [#409 lane 1] arm dec_m090_r60 -> 40000
+[08-23 15:07:37] [#409] arm dec_m090_r60 ema='--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 60000' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000' seed=20260520 reduce=mean target=teacher -> 40000 steps on gpu 1
+[08-23 15:07:37] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 15:07:37] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m090_r60/arm6_v2_combab_alignT/leg_40k
+[08-23 15:07:42] [#409] arm dec_m090_r60 decay='1.0 0.0 10000' seed=20260520 target=teacher reduce=mean ema='0.9 1.0 60000' OK — all five reached the trainer
+[08-23 15:07:42] [#409] arm dec_m090_r60 AUC gate pid 1022907 — window 500, threshold 0.55, warmup 1000
+[08-23 18:48:56] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/requests/adapters.py", line 677, in send     raise ConnectionError(e, request=request) requests.exceptions.ConnectionError: (MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00032.parquet (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x7a7b7ea720e0>: Failed to resolve \'huggingface.co\' ([Errno -3] Temporary failure in name resolution)"))'), '(Request ID: aee64d99-5feb-456d-86dc-88005333b7a3)') 
+[08-23 18:48:58] [#409] arm dec_m099_fix stop=40000 rc=1
+[08-23 18:48:58] [#409 lane 1] arm dec_m099_fix rc=1 — re-firing (try 2 of 3). The leg resumes the cell's furthest checkpoint.
+[08-23 18:49:58] [#409] arm dec_m099_fix ema='--ema-tau 0.99' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000' seed=20260520 reduce=mean target=teacher -> 40000 steps on gpu 1
+[08-23 18:49:58] [arm6_v2_combab_alignT] RESUME from cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m099_fix_15k.pth (step 15k)
+[08-23 18:49:58] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m099_fix/arm6_v2_combab_alignT/leg_40k
+[08-23 18:50:02] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-23 18:50:03] [#409] arm dec_m099_fix decay='1.0 0.0 10000' seed=20260520 target=teacher reduce=mean ema='0.99 - -' OK — all five reached the trainer
+[08-23 18:50:03] [#409] arm dec_m099_fix AUC gate pid 1212810 — window 500, threshold 0.55, warmup 1000
+[08-23 18:50:05] [#409] arm dec_m099_fix stop=40000 rc=1
+[08-23 18:50:05] [#409 lane 1] arm dec_m099_fix rc=1 — re-firing (try 3 of 3). The leg resumes the cell's furthest checkpoint.
+[08-23 18:51:05] [#409] arm dec_m099_fix ema='--ema-tau 0.99' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000' seed=20260520 reduce=mean target=teacher -> 40000 steps on gpu 1
+[08-23 18:51:05] [arm6_v2_combab_alignT] RESUME from cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m099_fix_15k.pth (step 15k)
+[08-23 18:51:05] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m099_fix/arm6_v2_combab_alignT/leg_40k
+[08-23 18:51:09] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-23 18:51:10] [#409] arm dec_m099_fix decay='1.0 0.0 10000' seed=20260520 target=teacher reduce=mean ema='0.99 - -' OK — all five reached the trainer
+[08-23 18:51:10] [#409] arm dec_m099_fix AUC gate pid 1213491 — window 500, threshold 0.55, warmup 1000
+[08-23 18:51:12] [#409] arm dec_m099_fix stop=40000 rc=1
+[08-23 18:51:12] [#409 lane 1] arm dec_m099_fix stop=40000 rc=1 — no head for this arm
+[08-23 18:51:12] [#409 lane 1] arm dec_m095_fix -> 40000
+[08-23 18:51:12] [#409] arm dec_m095_fix ema='--ema-tau 0.95' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000' seed=20260520 reduce=mean target=teacher -> 40000 steps on gpu 1
+[08-23 18:51:12] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 18:51:12] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m095_fix/arm6_v2_combab_alignT/leg_40k
+[08-23 18:51:16] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-23 18:51:17] [#409] arm dec_m095_fix decay='1.0 0.0 10000' seed=20260520 target=teacher reduce=mean ema='0.95 - -' OK — all five reached the trainer
+[08-23 18:51:17] [#409] arm dec_m095_fix AUC gate pid 1213707 — window 500, threshold 0.55, warmup 1000
+[08-23 18:51:19] [#409] arm dec_m095_fix stop=40000 rc=1
+[08-23 18:51:19] [#409 lane 1] arm dec_m095_fix rc=1 — re-firing (try 2 of 3). The leg resumes the cell's furthest checkpoint.
+[08-23 18:52:19] [#409] arm dec_m095_fix ema='--ema-tau 0.95' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000' seed=20260520 reduce=mean target=teacher -> 40000 steps on gpu 1
+[08-23 18:52:19] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 18:52:19] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m095_fix/arm6_v2_combab_alignT/leg_40k
+[08-23 18:52:23] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-23 18:52:24] [#409] arm dec_m095_fix decay='1.0 0.0 10000' seed=20260520 target=teacher reduce=mean ema='0.95 - -' OK — all five reached the trainer
+[08-23 18:52:24] [#409] arm dec_m095_fix AUC gate pid 1214484 — window 500, threshold 0.55, warmup 1000
+[08-23 18:52:27] [#409] arm dec_m095_fix stop=40000 rc=1
+[08-23 18:52:27] [#409 lane 1] arm dec_m095_fix rc=1 — re-firing (try 3 of 3). The leg resumes the cell's furthest checkpoint.
+[08-23 18:53:27] [#409] arm dec_m095_fix ema='--ema-tau 0.95' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000' seed=20260520 reduce=mean target=teacher -> 40000 steps on gpu 1
+[08-23 18:53:27] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 18:53:27] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m095_fix/arm6_v2_combab_alignT/leg_40k
+[08-23 18:53:30] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-23 18:53:32] [#409] arm dec_m095_fix decay='1.0 0.0 10000' seed=20260520 target=teacher reduce=mean ema='0.95 - -' OK — all five reached the trainer
+[08-23 18:53:32] [#409] arm dec_m095_fix AUC gate pid 1215181 — window 500, threshold 0.55, warmup 1000
+[08-23 18:53:34] [#409] arm dec_m095_fix stop=40000 rc=1
+[08-23 18:53:34] [#409 lane 1] arm dec_m095_fix stop=40000 rc=1 — no head for this arm
+[08-23 18:53:34] [#409 lane 1] arm dec_m080_r200 -> 40000
+[08-23 18:53:34] [#409] arm dec_m080_r200 ema='--ema-tau 0.8 --ema-tau-end 1.0 --ema-tau-ramp-steps 200000' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000' seed=20260520 reduce=mean target=teacher -> 40000 steps on gpu 1
+[08-23 18:53:34] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 18:53:34] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m080_r200/arm6_v2_combab_alignT/leg_40k
+[08-23 18:53:37] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-23 18:53:39] [#409] arm dec_m080_r200 decay='1.0 0.0 10000' seed=20260520 target=teacher reduce=mean ema='0.8 1.0 200000' OK — all five reached the trainer
+[08-23 18:53:39] [#409] arm dec_m080_r200 AUC gate pid 1215396 — window 500, threshold 0.55, warmup 1000
+[08-23 18:53:41] [#409] arm dec_m080_r200 stop=40000 rc=1
+[08-23 18:53:41] [#409 lane 1] arm dec_m080_r200 rc=1 — re-firing (try 2 of 3). The leg resumes the cell's furthest checkpoint.
+[08-23 18:54:41] [#409] arm dec_m080_r200 ema='--ema-tau 0.8 --ema-tau-end 1.0 --ema-tau-ramp-steps 200000' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000' seed=20260520 reduce=mean target=teacher -> 40000 steps on gpu 1
+[08-23 18:54:41] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 18:54:41] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m080_r200/arm6_v2_combab_alignT/leg_40k
+[08-23 18:54:44] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-23 18:54:46] [#409] arm dec_m080_r200 decay='1.0 0.0 10000' seed=20260520 target=teacher reduce=mean ema='0.8 1.0 200000' OK — all five reached the trainer
+[08-23 18:54:46] [#409] arm dec_m080_r200 AUC gate pid 1216091 — window 500, threshold 0.55, warmup 1000
+[08-23 18:54:48] [#409] arm dec_m080_r200 stop=40000 rc=1
+[08-23 18:54:48] [#409 lane 1] arm dec_m080_r200 rc=1 — re-firing (try 3 of 3). The leg resumes the cell's furthest checkpoint.
+[08-23 18:55:48] [#409] arm dec_m080_r200 ema='--ema-tau 0.8 --ema-tau-end 1.0 --ema-tau-ramp-steps 200000' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000' seed=20260520 reduce=mean target=teacher -> 40000 steps on gpu 1
+[08-23 18:55:48] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 18:55:48] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m080_r200/arm6_v2_combab_alignT/leg_40k
+[08-23 18:55:51] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-23 18:55:53] [#409] arm dec_m080_r200 decay='1.0 0.0 10000' seed=20260520 target=teacher reduce=mean ema='0.8 1.0 200000' OK — all five reached the trainer
+[08-23 18:55:53] [#409] arm dec_m080_r200 AUC gate pid 1217556 — window 500, threshold 0.55, warmup 1000
+[08-23 18:55:55] [#409] arm dec_m080_r200 stop=40000 rc=1
+[08-23 18:55:55] [#409 lane 1] arm dec_m080_r200 stop=40000 rc=1 — no head for this arm
+[08-23 18:55:55] [#409 lane 1] waiting for the head queue to drain
+[08-23 18:56:00] [#409 lane 1] lane drained — 3 leg(s) and 0 head(s) failed

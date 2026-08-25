@@ -1,0 +1,28 @@
+[08-23 15:10:49] [#409 lane 1] head queue on — one head at a time, worker pid 1026947
+[08-23 15:10:49] [#409 lane 1] arm dec_m080_r200 -> 40000
+[08-23 15:10:49] [#409] arm dec_m080_r200 ema='--ema-tau 0.8 --ema-tau-end 1.0 --ema-tau-ramp-steps 200000' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000' seed=20260520 reduce=mean target=teacher -> 40000 steps on gpu 1
+[08-23 15:10:49] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 15:10:49] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m080_r200/arm6_v2_combab_alignT/leg_40k
+[08-23 15:10:54] [#409] arm dec_m080_r200 decay='1.0 0.0 10000' seed=20260520 target=teacher reduce=mean ema='0.8 1.0 200000' OK — all five reached the trainer
+[08-23 15:10:54] [#409] arm dec_m080_r200 AUC gate pid 1027149 — window 500, threshold 0.55, warmup 1000
+[08-23 18:46:14] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/requests/adapters.py", line 677, in send     raise ConnectionError(e, request=request) requests.exceptions.ConnectionError: (MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00032.parquet (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x731095336020>: Failed to resolve \'huggingface.co\' ([Errno -3] Temporary failure in name resolution)"))'), '(Request ID: cf96dc4d-0d2a-4add-a598-264f61249f92)') 
+[08-23 18:46:16] [#409] arm dec_m080_r200 stop=40000 rc=1
+[08-23 18:46:16] [#409 lane 1] arm dec_m080_r200 rc=1 — re-firing (try 2 of 3). The leg resumes the cell's furthest checkpoint.
+[08-23 18:47:16] [#409] arm dec_m080_r200 ema='--ema-tau 0.8 --ema-tau-end 1.0 --ema-tau-ramp-steps 200000' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000' seed=20260520 reduce=mean target=teacher -> 40000 steps on gpu 1
+[08-23 18:47:16] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 18:47:16] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m080_r200/arm6_v2_combab_alignT/leg_40k
+[08-23 18:47:20] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-23 18:47:21] [#409] arm dec_m080_r200 decay='1.0 0.0 10000' seed=20260520 target=teacher reduce=mean ema='0.8 1.0 200000' OK — all five reached the trainer
+[08-23 18:47:21] [#409] arm dec_m080_r200 AUC gate pid 1210948 — window 500, threshold 0.55, warmup 1000
+[08-23 18:47:23] [#409] arm dec_m080_r200 stop=40000 rc=1
+[08-23 18:47:23] [#409 lane 1] arm dec_m080_r200 rc=1 — re-firing (try 3 of 3). The leg resumes the cell's furthest checkpoint.
+[08-23 18:48:23] [#409] arm dec_m080_r200 ema='--ema-tau 0.8 --ema-tau-end 1.0 --ema-tau-ramp-steps 200000' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000' seed=20260520 reduce=mean target=teacher -> 40000 steps on gpu 1
+[08-23 18:48:23] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 18:48:23] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m080_r200/arm6_v2_combab_alignT/leg_40k
+[08-23 18:48:27] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-23 18:48:28] [#409] arm dec_m080_r200 decay='1.0 0.0 10000' seed=20260520 target=teacher reduce=mean ema='0.8 1.0 200000' OK — all five reached the trainer
+[08-23 18:48:28] [#409] arm dec_m080_r200 AUC gate pid 1211712 — window 500, threshold 0.55, warmup 1000
+[08-23 18:48:30] [#409] arm dec_m080_r200 stop=40000 rc=1
+[08-23 18:48:30] [#409 lane 1] arm dec_m080_r200 stop=40000 rc=1 — no head for this arm
+[08-23 18:48:30] [#409 lane 1] waiting for the head queue to drain
+[08-23 18:48:35] [#409 lane 1] lane drained — 1 leg(s) and 0 head(s) failed

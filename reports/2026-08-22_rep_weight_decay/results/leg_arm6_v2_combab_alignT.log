@@ -34,3 +34,68 @@
 [08-23 15:04:04] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m090_r60/arm6_v2_combab_alignT/leg_40k
 [08-23 15:04:37] [arm6_v2_combab_alignT] FRESH start at step 0
 [08-23 15:04:37] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m099_fix/arm6_v2_combab_alignT/leg_40k
+[08-23 15:07:37] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 15:07:37] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m090_r60/arm6_v2_combab_alignT/leg_40k
+[08-23 15:10:49] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 15:10:49] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m080_r200/arm6_v2_combab_alignT/leg_40k
+[08-23 18:46:14] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/requests/adapters.py", line 677, in send     raise ConnectionError(e, request=request) requests.exceptions.ConnectionError: (MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00032.parquet (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x731095336020>: Failed to resolve \'huggingface.co\' ([Errno -3] Temporary failure in name resolution)"))'), '(Request ID: cf96dc4d-0d2a-4add-a598-264f61249f92)') 
+[08-23 18:47:16] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 18:47:16] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m080_r200/arm6_v2_combab_alignT/leg_40k
+[08-23 18:47:20] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-23 18:48:23] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 18:48:23] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m080_r200/arm6_v2_combab_alignT/leg_40k
+[08-23 18:48:27] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-23 18:48:56] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/requests/adapters.py", line 677, in send     raise ConnectionError(e, request=request) requests.exceptions.ConnectionError: (MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00032.parquet (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x7a7b7ea720e0>: Failed to resolve \'huggingface.co\' ([Errno -3] Temporary failure in name resolution)"))'), '(Request ID: aee64d99-5feb-456d-86dc-88005333b7a3)') 
+[08-23 18:49:58] [arm6_v2_combab_alignT] RESUME from cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m099_fix_15k.pth (step 15k)
+[08-23 18:49:58] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m099_fix/arm6_v2_combab_alignT/leg_40k
+[08-23 18:50:02] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-23 18:51:05] [arm6_v2_combab_alignT] RESUME from cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m099_fix_15k.pth (step 15k)
+[08-23 18:51:05] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m099_fix/arm6_v2_combab_alignT/leg_40k
+[08-23 18:51:09] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-23 18:51:12] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 18:51:12] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m095_fix/arm6_v2_combab_alignT/leg_40k
+[08-23 18:51:16] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-23 18:52:19] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 18:52:19] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m095_fix/arm6_v2_combab_alignT/leg_40k
+[08-23 18:52:23] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-23 18:53:27] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 18:53:27] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m095_fix/arm6_v2_combab_alignT/leg_40k
+[08-23 18:53:30] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-23 18:53:34] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 18:53:34] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m080_r200/arm6_v2_combab_alignT/leg_40k
+[08-23 18:53:37] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-23 18:54:41] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 18:54:41] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m080_r200/arm6_v2_combab_alignT/leg_40k
+[08-23 18:54:44] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-23 18:55:48] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 18:55:48] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m080_r200/arm6_v2_combab_alignT/leg_40k
+[08-23 18:55:51] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-24 21:27:57] [arm6_v2_combab_alignT] RESUME from cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m099_fix_15k.pth (step 15k)
+[08-24 21:27:57] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m099_fix/arm6_v2_combab_alignT/leg_40k
+[08-24 21:28:05] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-24 21:28:05] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m080_r200/arm6_v2_combab_alignT/leg_40k
+[08-25 01:36:23] [arm6_v2_combab_alignT] DONE target=40000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-409/dec_m099_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m099_fix_r2_40k.pth
+[08-25 04:12:07] [arm6_v2_combab_alignT] DONE target=40000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-409/dec_m080_r200/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m080_r200_40k.pth
+[08-25 06:28:21] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-25 06:28:21] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m070_fix/arm6_v2_combab_alignT/leg_40k
+[08-25 06:28:23] [arm6_v2_combab_alignT] train exited rc=1 — tail: For debugging consider passing CUDA_LAUNCH_BLOCKING=1 Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.  
+[08-25 06:28:31] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-25 06:28:31] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k
+[08-25 06:28:33] [arm6_v2_combab_alignT] train exited rc=1 — tail: For debugging consider passing CUDA_LAUNCH_BLOCKING=1 Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.  
+[08-25 06:29:28] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-25 06:29:28] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m070_fix/arm6_v2_combab_alignT/leg_40k
+[08-25 06:29:30] [arm6_v2_combab_alignT] train exited rc=1 — tail: For debugging consider passing CUDA_LAUNCH_BLOCKING=1 Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.  
+[08-25 06:29:38] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-25 06:29:38] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m070_fix/arm6_v2_combab_alignT/leg_40k
+[08-25 06:29:38] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-25 06:29:38] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k
+[08-25 06:29:40] [arm6_v2_combab_alignT] train exited rc=1 — tail: For debugging consider passing CUDA_LAUNCH_BLOCKING=1 Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.  
+[08-25 06:30:03] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-25 06:30:03] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k
+[08-25 06:30:35] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-25 06:30:35] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m070_fix/arm6_v2_combab_alignT/leg_40k
+[08-25 06:30:37] [arm6_v2_combab_alignT] train exited rc=1 — tail: For debugging consider passing CUDA_LAUNCH_BLOCKING=1 Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.  
+[08-25 06:30:45] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-25 06:30:45] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k
+[08-25 06:30:47] [arm6_v2_combab_alignT] train exited rc=1 — tail: For debugging consider passing CUDA_LAUNCH_BLOCKING=1 Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.  
+[08-25 13:08:18] [arm6_v2_combab_alignT] DONE target=40000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-409/dec_m070_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m070_fix_40k.pth
