@@ -94,9 +94,36 @@ def arm_label(row):
         text = f"{row['tau']} fixed"
     else:
         text = f"{row['tau']} to {row['end']} at {int(row['ramp']) // 1000}k"
+    if row.get("ambiguous"):
+        # Two rows on one schedule AND one seed. The schedule names neither.
+        return f"{text}, {row['arm']}"
     if row.get("repeat"):
         text = f"{text}, seed {row['seed']}"
     return text
+
+
+def schedule_label(row):
+    """One arm's EMA schedule, for a CSV cell. No seed and no comma.
+
+    `arm_label` puts the seed after a comma, which reads well beside a curve
+    and badly inside a comma-separated field. Every table that carries this
+    also carries a `seed` column of its own.
+    """
+    if row["end"] == "-":
+        return f"{row['tau']} fixed"
+    return f"{row['tau']} to {row['end']} at {int(row['ramp']) // 1000}k"
+
+
+def curve_label(row):
+    """What the reader sees beside a CURVE: the momentum, then the arm.
+
+    A curve figure holds nine of these at the right margin, and
+    "0.9 to 1.0 at 100k, seed 20260524" is 34 characters of it. The momentum
+    the arm HOLDS at the stop is what orders the arms, and the arm name is the
+    key every table of this study joins on. `arm_label` keeps the long form
+    for the score figure, whose labels sit on a y axis with room.
+    """
+    return f"{momentum_at(row):.3f}  {row['arm']}"
 
 
 def read_arms(path):
@@ -106,8 +133,15 @@ def read_arms(path):
     seed. A `-` is a flag the arm does not pass. The decay is the card's, not
     the arm's, so it is in `study.sh` and not here.
 
-    Each row also gets `repeat`, which is true when another row shares its
-    schedule. That is arm 1, which ran at three seeds.
+    Each row also gets two flags:
+
+      repeat     another row shares its schedule at a DIFFERENT seed. Those
+                 rows are a seed spread, and `plot_scores.py` draws their
+                 range as the bar that says whether a gap is a rank.
+      ambiguous  another row shares its schedule AND its seed. Those rows are
+                 NOT a seed spread: `dec_m080_r200` and `dec_ramp30k_m080`
+                 differ in the DECAY ramp, which is not a column here. The
+                 schedule cannot name such a curve, so only the arm can.
     """
     out = []
     with open(path) as fh:
@@ -119,35 +153,103 @@ def read_arms(path):
                 continue
             out.append({"arm": parts[0], "tau": parts[1], "end": parts[2],
                         "ramp": parts[3], "seed": parts[4]})
-    seen = [schedule(r) for r in out]
+    pairs = [(schedule(r), r["seed"]) for r in out]
     for row in out:
-        row["repeat"] = seen.count(schedule(row)) > 1
+        key = schedule(row)
+        row["repeat"] = any(s == key and seed != row["seed"]
+                            for s, seed in pairs)
+        row["ambiguous"] = pairs.count((key, row["seed"])) > 1
     return out
+
+
+def read_run(paths, columns, every=1):
+    """One RUN's whole trajectory, over every losses CSV that run wrote.
+
+    A run of this card can write its steps more than once. A leg re-fired
+    after a crash resumes under a `_rN` name and opens a SECOND CSV, and a leg
+    that starts again from step 0 APPENDS to the first one. `dec_m080_r200`
+    holds 59,900 rows over 40,000 steps for that reason, and `dec_m099_fix`
+    holds two files that overlap from step 15,001 to 19,900.
+
+    TWO RULES SETTLE AN OVERLAP.
+
+    Inside ONE file, the LAST row of a step wins. A later row of a file is a
+    later attempt at that step.
+
+    Between two FILES, the file that reached the FURTHEST step wins. That is
+    the attempt the report reads to the stop, and it is not always the last
+    name: `dec_m099_fix` ran on in `_r2` to 40,000, so `_r2` wins, while
+    `dec_s23` ran on in its BASE file to 22,900 and its `_r2` gave up at
+    20,300, so the base wins. Taking the `_rN` file every time would splice
+    100 steps of a dead attempt into the middle of a live one.
+
+    A reader that took one ROW in `every` before it looked at the step column
+    would interleave two attempts and give a curve that walks backwards, and
+    its last row would be the last row of the file rather than the last step
+    of the run.
+
+    Returns `{column: [(step, value), ...]}`, each list sorted by step. A
+    blank cell is a term the loss skipped that step and a non-finite value is
+    a diagnostic that did not compute. Both are dropped, so a caller never
+    reads a gap as a zero.
+    """
+    columns = list(columns)
+    per_file = []
+    for path in paths:
+        rows = {}
+        with open(path, newline="") as fh:
+            reader = csv.reader(fh)
+            try:
+                header = next(reader)
+            except StopIteration:
+                continue
+            index = {name: n for n, name in enumerate(header)}
+            if "step" not in index:
+                continue
+            want = [(c, index[c]) for c in columns if c in index]
+            step_at = index["step"]
+            for row in reader:
+                try:
+                    step = int(row[step_at])
+                except (IndexError, ValueError):
+                    continue
+                cell = rows.setdefault(step, {})
+                for column, n in want:
+                    try:
+                        value = float(row[n])
+                    except (IndexError, ValueError):
+                        cell.pop(column, None)
+                        continue
+                    if math.isfinite(value):
+                        cell[column] = value
+                    else:
+                        cell.pop(column, None)
+        if rows:
+            per_file.append((max(rows), rows))
+
+    data = {}
+    for _, rows in sorted(per_file, key=lambda t: t[0]):
+        for step, cell in rows.items():
+            data.setdefault(step, {}).update(cell)
+    steps = sorted(data)[::max(1, int(every))]
+    return {c: [(s, data[s][c]) for s in steps if c in data[s]]
+            for c in columns}
 
 
 def read_csv_column(path, column, every=1):
-    """`[(step, value), ...]` for one column of one losses CSV.
+    """`[(step, value), ...]` for one column of one losses CSV."""
+    return read_run([path], [column], every)[column]
 
-    A blank cell is a term the loss skipped that step, and a non-finite value
-    is a diagnostic that did not compute. Both are dropped, so a caller never
-    plots a gap as a zero.
+
+def window_mean(series, hi, span=1000):
+    """The mean of one term over the `span` steps that end at `hi`.
+
+    One step of this trainer is one batch, so a term read at a single step is
+    noise. A window states which steps it covers, which a trailing mean over a
+    subsampled curve does not.
     """
-    out = []
-    with open(path, newline="") as fh:
-        reader = csv.DictReader(fh)
-        if not reader.fieldnames or column not in reader.fieldnames:
-            return out
-        for n, row in enumerate(reader):
-            if n % every:
-                continue
-            try:
-                step = int(row["step"])
-                value = float(row[column])
-            except (KeyError, TypeError, ValueError):
-                continue
-            if math.isfinite(value):
-                out.append((step, value))
-    return out
+    values = [v for s, v in series if hi - span < s <= hi]
+    return sum(values) / len(values) if values else None
 
 
 def smooth(series, window):
@@ -246,12 +348,19 @@ def read_verdicts(path):
     return out
 
 
-def run_colour(path, verdicts):
-    """The color of one losses CSV: alarm if that run lost the contrastive
-    task, the series color otherwise."""
-    name = Path(path).name
+def run_colour(paths, verdicts):
+    """The color of one run: alarm if it lost the contrastive task, the series
+    color otherwise.
+
+    Takes one path or the whole list of CSVs one arm wrote. An arm that lost
+    the task in ANY of its legs is a lost arm, whichever leg holds the last
+    step.
+    """
+    if isinstance(paths, (str, Path)):
+        paths = [paths]
+    names = {Path(p).name for p in paths}
     for run, verdict in verdicts.items():
-        if verdict == "lost" and (run == name or Path(run).name == name):
+        if verdict == "lost" and (run in names or Path(run).name in names):
             return LOST
     return SERIES
 

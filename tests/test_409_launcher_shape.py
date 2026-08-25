@@ -68,17 +68,25 @@ RAMP = 10_000
 # The runner's own default schedule, which is the sweep's best arm. It is arm
 # 1 of this card, and every other arm replaces it.
 EMA = "--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000"
-# Every arm of the card, in the order `launch.sh` deals them, with its EMA
+# Every RUN of the card, in the order `launch.sh` deals them, with its EMA
 # schedule as `(tau, end, ramp)` and its backbone seed. `-` is a flag the arm
 # does NOT pass: train.py reads "no end value" as a fixed momentum.
 #
-# Rows 1 to 3 are ONE schedule at three seeds. That backbone is already spent,
-# so the spread is free. Rows 4 to 10 are the seven other schedules, at one
-# seed each. Eight schedules, eight backbones.
+# `arms.tsv` IS THE RUN, NOT THE PLAN. The card allowed eight backbones and
+# the run spent seven. Rows 1 to 5 are ONE schedule at five seeds: three
+# reached 40,000 steps and two an outside SIGKILL stopped near 22,800. Rows 6
+# to 12 are the seven schedules the plan added. Rows 13 and 14, at 0.7 and
+# 0.5 fixed, the run added when 0.840 scored the best of the decay arms and
+# the ladder needed a fast end. Row 15 is the eighth backbone: it repeats the
+# schedule and the seed of `dec_m080_r200` and moves the DECAY ramp to 30,000
+# steps, which is not a column here. The arms table header states which row
+# reached which step.
 ARM_ROWS = (
     ("dec_s20",       "0.9",  "1.0", "100000", "20260520"),
     ("dec_s22",       "0.9",  "1.0", "100000", "20260522"),
+    ("dec_s23",       "0.9",  "1.0", "100000", "20260523"),
     ("dec_s24",       "0.9",  "1.0", "100000", "20260524"),
+    ("dec_s25",       "0.9",  "1.0", "100000", "20260525"),
     ("dec_m090_fix",  "0.9",  "-",   "-",      "20260520"),
     ("dec_m090_r60",  "0.9",  "1.0", "60000",  "20260520"),
     ("dec_m095_fix",  "0.95", "-",   "-",      "20260520"),
@@ -86,23 +94,30 @@ ARM_ROWS = (
     ("dec_m090_r200", "0.9",  "1.0", "200000", "20260520"),
     ("dec_m080_r200", "0.8",  "1.0", "200000", "20260520"),
     ("dec_m095_r100", "0.95", "1.0", "100000", "20260520"),
+    ("dec_m070_fix",  "0.7",  "-",   "-",      "20260520"),
+    ("dec_m050_fix",  "0.5",  "-",   "-",      "20260520"),
+    ("dec_ramp30k_m080", "0.8", "1.0", "200000", "20260520"),
 )
 ARMS = tuple(r[0] for r in ARM_ROWS)
 SEEDS = tuple(r[4] for r in ARM_ROWS)
 SCHEDULES = {r[0]: (r[1], r[2], r[3]) for r in ARM_ROWS}
-# The card's one seed. Seed variance is secondary, and this card spends no
-# backbone on it.
+# The card's one seed. Every schedule row carries it, and only the seed rows
+# of the repeated schedule carry another.
 SEED = "20260520"
-# The schedule already run, at three seeds. Those three backbones are spent.
-ARM_ONE = ("dec_s20", "dec_s22", "dec_s24")
+# The one schedule this card repeated, at five seeds.
+ARM_ONE = ("dec_s20", "dec_s22", "dec_s23", "dec_s24", "dec_s25")
 # The momentum each arm holds at the 40,000-step stop. That value ranks the
-# arms, and no two arms share it.
+# arms, and no two SCHEDULES share it.
 REACHED = {
-    "dec_s20": 0.940, "dec_s22": 0.940, "dec_s24": 0.940,
+    "dec_s20": 0.940, "dec_s22": 0.940, "dec_s23": 0.940,
+    "dec_s24": 0.940, "dec_s25": 0.940,
     "dec_m090_fix": 0.900, "dec_m090_r60": 0.967, "dec_m095_fix": 0.950,
     "dec_m099_fix": 0.990, "dec_m090_r200": 0.920, "dec_m080_r200": 0.840,
-    "dec_m095_r100": 0.970,
+    "dec_m095_r100": 0.970, "dec_m070_fix": 0.700, "dec_m050_fix": 0.500,
+    "dec_ramp30k_m080": 0.840,
 }
+# One schedule per distinct `(tau, end, ramp)`. Ten of them over fourteen rows.
+SCHEDULE_COUNT = 10
 
 
 def study_value(name: str, env=None) -> str:
@@ -195,9 +210,9 @@ class TestTheEmaScheduleIsTheAxis:
         assert "EMA_ARGS" in PARENT_LEG.read_text()
         assert EMA in PARENT_LEG.read_text()
 
-    def test_the_table_holds_eight_schedules(self):
+    def test_the_table_holds_ten_schedules(self):
         got = {study_out(f'cf409_ema_sig {a}') for a in ARMS}
-        assert len(got) == 8, sorted(got)
+        assert len(got) == SCHEDULE_COUNT, sorted(got)
 
     def test_a_ramp_arm_passes_all_three_flags(self):
         assert study_out('cf409_ema_args dec_m090_r60') == (
@@ -252,8 +267,8 @@ class TestTheEmaScheduleIsTheAxis:
             ).append(arm)
             assert float(study_out(f'cf409_momentum_at {arm} {STOP}')) == \
                 pytest.approx(REACHED[arm], abs=5e-4), arm
-        # The three seeds of arm 1 share one schedule, so they share one value.
-        assert len(reached) == 8, reached
+        # The five seeds of arm 1 share one schedule, so they share one value.
+        assert len(reached) == SCHEDULE_COUNT, reached
 
     def test_the_leg_flags_carry_the_arm_schedule(self):
         """The dry run prints the whole block."""
@@ -292,24 +307,41 @@ class TestTheArms:
         assert got == SEEDS
 
     def test_the_budget_is_eight_backbones(self):
-        """Eight backbones, eight schedules. The three rows of arm 1 are one
-        backbone each, and that backbone is already spent."""
-        assert len(set(study_out(f'cf409_ema_sig {a}') for a in ARMS)) == 8
-        new = [a for a in ARMS if a not in ARM_ONE]
-        assert len(new) == 7
+        """The card allowed eight backbones. Six reached a score, a seventh
+        lost the contrastive task at step 10,162, and the eighth left the EMA
+        axis: every schedule with a result loses to the card's target by
+        0.0861 or more, so `dec_ramp30k_m080` moves the DECAY ramp instead."""
+        spent = ("dec_s20", "dec_s22", "dec_s24", "dec_m099_fix",
+                 "dec_m080_r200", "dec_m070_fix", "dec_m050_fix",
+                 "dec_ramp30k_m080")
+        assert len(spent) == 8
+        for arm in spent:
+            assert arm in ARMS, arm
 
-    def test_every_new_arm_carries_the_card_seed(self):
-        """Seed variance is secondary. This card spends no backbone on it."""
+    def test_the_eighth_backbone_moves_the_decay_and_not_the_schedule(self):
+        """It repeats `dec_m080_r200` exactly, on both the schedule and the
+        seed. Only its decay ramp differs, and the ramp is not a column of
+        the arms table, so the arms table alone cannot tell the two apart."""
+        pair = ("dec_m080_r200", "dec_ramp30k_m080")
+        sigs = {study_out(f'cf409_ema_sig {a}') for a in pair}
+        seeds = {study_out(f'cf409_seed {a}') for a in pair}
+        assert len(sigs) == 1 and len(seeds) == 1
+        assert len({study_out(f'cf409_run_name {a}') for a in pair}) == 2
+
+    def test_every_schedule_arm_carries_the_card_seed(self):
+        """The axis is the schedule, so a schedule row never moves the seed.
+        Only the rows of the ONE repeated schedule carry another."""
         for arm in ARMS:
             if arm in ARM_ONE:
                 continue
             assert study_out(f'cf409_seed {arm}') == SEED, arm
 
-    def test_arm_one_carries_a_free_seed_spread(self):
-        """One schedule at three seeds. Those three backbones are spent, so
-        the spread costs nothing."""
+    def test_arm_one_carries_the_seed_spread(self):
+        """One schedule at five seeds. Three of them reached 40,000 steps and
+        hold the only run-to-run spread this card measured."""
         seeds = {study_out(f'cf409_seed {a}') for a in ARM_ONE}
-        assert seeds == {"20260520", "20260522", "20260524"}
+        assert seeds == {"20260520", "20260522", "20260523",
+                         "20260524", "20260525"}
         sigs = {study_out(f'cf409_ema_sig {a}') for a in ARM_ONE}
         assert len(sigs) == 1
 

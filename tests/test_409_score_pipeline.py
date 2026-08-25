@@ -20,6 +20,7 @@ file holds the four things the implementation review asked for.
 from __future__ import annotations
 
 import csv
+import importlib.util
 import os
 import subprocess
 import sys
@@ -49,13 +50,11 @@ RUN_ARM = SCRIPTS / "run_arm.sh"
 DOC = REPO_ROOT / "docs" / "rep_loss_weight_schedule.md"
 DECOMP = EXP / "notes" / "loss_decomposition.md"
 
-# Eight EMA schedules, one seed each. Rows 1 to 3 are ONE schedule at three
-# seeds, and that backbone is already spent, so the spread is free.
-# `tests/test_409_launcher_shape.py` holds the table itself.
-ARMS = ("dec_s20", "dec_s22", "dec_s24", "dec_m090_fix", "dec_m090_r60",
-        "dec_m095_fix", "dec_m099_fix", "dec_m090_r200", "dec_m080_r200",
-        "dec_m095_r100")
-LANE_ARMS = len(ARMS) // 2
+# One list of arms, in ONE place. Two copies drifted apart once already: the
+# run added `dec_m070_fix` and `dec_m050_fix` to `arms.tsv` mid-run, and this
+# file still named ten arms.
+from tests.test_409_launcher_shape import ARMS  # noqa: E402
+
 STOP = 40_000
 HEAD_STEPS = 30_000
 
@@ -282,6 +281,8 @@ class TestTheLauncher:
         assert sorted(dealt) == sorted(ARMS)
 
     def test_the_two_cards_take_an_equal_share(self):
+        """Round-robin, so an odd number of arms leaves one card with one
+        more. One card must never take a whole end of the momentum ladder."""
         out = script_dry_run(LAUNCH, env={"CF409_GPU_COUNT": "2",
                                           "GPUS": "0 1"})
         lanes = {}
@@ -290,7 +291,9 @@ class TestTheLauncher:
                 gpu = line.split("gpu=")[1].split()[0]
                 lanes.setdefault(gpu, []).append(line.split()[1])
         assert sorted(lanes) == ["0", "1"]
-        assert [len(v) for v in lanes.values()] == [LANE_ARMS, LANE_ARMS]
+        counts = sorted(len(v) for v in lanes.values())
+        assert sum(counts) == len(ARMS)
+        assert counts[1] - counts[0] <= 1, counts
 
     def test_a_card_this_machine_does_not_carry_is_refused(self):
         """A lane on a card that is not there dies inside .to(device), hours
@@ -1062,3 +1065,176 @@ class TestTheLegsSaveEvery5000:
         cadence, not theirs."""
         body = (PARENT / "scripts" / "run_leg_k.sh").read_text()
         assert 'SAVE_EVERY="${SAVE_EVERY:-20000}"' in body
+
+
+# --- 7. the losses CSV a re-fired leg wrote ------------------------------
+
+
+class TestTheReaderStitchesARefiredLeg:
+    """A run of this card can write one step more than once.
+
+    A leg that starts again from step 0 APPENDS to the CSV it already opened:
+    `dec_m080_r200` holds 59,900 rows over 40,000 steps. A leg re-fired after
+    a crash resumes under a `_rN` name and opens a SECOND file:
+    `dec_m099_fix` holds two that overlap from step 15,001 to 19,900.
+
+    The first reader took one ROW in ten before it looked at the step column.
+    On those two arms it interleaved two attempts, and it read the last ROW of
+    the file as the last STEP of the run. `results/loss_terms_at_stop.csv`
+    then stopped at step 2,591 with three arms in it, where the card asks for
+    every arm to 40,000 steps.
+    """
+
+    STYLE = EXP / "scripts" / "arm_style.py"
+
+    @staticmethod
+    def _csv(path, rows, columns=("loss", "auc")):
+        head = ",".join(("step",) + tuple(columns))
+        body = "\n".join(",".join(str(c) for c in row) for row in rows)
+        path.write_text(f"{head}\n{body}\n")
+        return str(path)
+
+    @property
+    def style(self):
+        spec = importlib.util.spec_from_file_location(
+            "arm_style_under_test", self.STYLE)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_a_leg_that_started_again_wins_over_the_first_attempt(self, tmp_path):
+        S = self.style
+        path = self._csv(tmp_path / "a.csv",
+                         [(1, 9.0, 0.9), (2, 9.0, 0.9), (3, 9.0, 0.9),
+                          (1, 1.0, 0.5), (2, 2.0, 0.5), (3, 3.0, 0.5),
+                          (4, 4.0, 0.5)])
+        got = S.read_run([path], ["loss"])["loss"]
+        assert got == [(1, 1.0), (2, 2.0), (3, 3.0), (4, 4.0)]
+
+    def test_the_last_step_is_the_last_step_and_not_the_last_row(self, tmp_path):
+        S = self.style
+        path = self._csv(tmp_path / "a.csv",
+                         [(1, 9.0, 0.9), (2, 9.0, 0.9), (3, 9.0, 0.9),
+                          (1, 1.0, 0.5), (2, 2.0, 0.5)])
+        assert S.read_run([path], ["loss"])["loss"][-1][0] == 3
+
+    def test_a_resumed_leg_carries_the_run_past_its_first_file(self, tmp_path):
+        """`dec_m099_fix` in the small: a base file to 19,900 and an `_r2`
+        that resumes at 15,001 and reaches the stop."""
+        S = self.style
+        base = self._csv(tmp_path / "base.csv",
+                         [(s, 9.0, 0.9) for s in range(1, 6)])
+        r2 = self._csv(tmp_path / "r2.csv",
+                       [(s, 1.0, 0.5) for s in range(4, 9)])
+        got = dict(S.read_run([base, r2], ["loss"])["loss"])
+        assert max(got) == 8
+        assert got[3] == 9.0      # only the base reached it
+        assert got[4] == 1.0      # both did, and the resume wrote it last
+
+    def test_the_file_that_reached_furthest_wins_the_overlap(self, tmp_path):
+        """`dec_s23` ran on in its BASE file to 22,900, and its `_r2` gave up
+        at 20,300. Taking the `_rN` file every time would splice 100 steps of
+        a dead attempt into the middle of a live one."""
+        S = self.style
+        base = self._csv(tmp_path / "base.csv",
+                         [(s, 9.0, 0.9) for s in range(1, 11)])
+        r2 = self._csv(tmp_path / "r2.csv",
+                       [(s, 1.0, 0.5) for s in range(5, 8)])
+        got = dict(S.read_run([base, r2], ["loss"])["loss"])
+        assert max(got) == 10
+        assert got[6] == 9.0      # the base ran further, so the base wins
+
+    def test_one_row_in_every_n_is_taken_after_the_sort(self, tmp_path):
+        S = self.style
+        path = self._csv(tmp_path / "a.csv",
+                         [(s, float(s), 0.9) for s in (5, 4, 3, 2, 1)])
+        got = S.read_run([path], ["loss"], 2)["loss"]
+        assert [s for s, _ in got] == [1, 3, 5]
+
+    def test_a_blank_cell_is_a_gap_and_never_a_zero(self, tmp_path):
+        """`l_rep` goes blank at step 10,000, where the weight reaches 0.0 and
+        the trainer computes no L_rep. A zero there would read as a term that
+        collapsed."""
+        S = self.style
+        path = self._csv(tmp_path / "a.csv",
+                         [(1, 11.0, 0.9), (2, "", 0.9), (3, 12.0, 0.9)],
+                         columns=("l_rep", "auc"))
+        got = S.read_run([path], ["l_rep"])["l_rep"]
+        assert got == [(1, 11.0), (3, 12.0)]
+
+    def test_a_later_blank_clears_an_earlier_value(self, tmp_path):
+        S = self.style
+        path = self._csv(tmp_path / "a.csv",
+                         [(1, 11.0, 0.9), (1, "", 0.9)],
+                         columns=("l_rep", "auc"))
+        assert S.read_run([path], ["l_rep"])["l_rep"] == []
+
+    def test_the_window_mean_names_the_steps_it_covers(self, tmp_path):
+        S = self.style
+        series = [(s, float(s)) for s in range(1, 101)]
+        assert S.window_mean(series, 100, 10) == pytest.approx(95.5)
+        assert S.window_mean(series, 50, 10) == pytest.approx(45.5)
+        assert S.window_mean(series, 500, 10) is None
+
+
+class TestTheLossByTermTableReachesTheStop:
+    """The card asks for the training loss to 40,000 steps, by term."""
+
+    TABLE = EXP / "results" / "loss_terms_at_stop.csv"
+    TRACK = EXP / "results" / "loss_terms_trajectory.csv"
+    TERMS = {"loss", "rep_w", "l_rep", "align_reduced", "cos_err"}
+    # Every arm that reached the stop. `results/scores.csv` scores all six.
+    AT_STOP = ("dec_s20", "dec_s22", "dec_s24", "dec_m099_fix",
+               "dec_m080_r200", "dec_m070_fix")
+
+    def _rows(self, path):
+        with open(path, newline="") as fh:
+            return list(csv.DictReader(fh))
+
+    def test_every_scored_arm_reaches_the_stop(self):
+        rows = self._rows(self.TABLE)
+        reached = {r["arm"]: int(r["reached"]) for r in rows}
+        for arm in self.AT_STOP:
+            assert reached.get(arm) == STOP, arm
+
+    def test_every_term_is_there_for_every_arm(self):
+        rows = self._rows(self.TABLE)
+        by_arm = {}
+        for r in rows:
+            by_arm.setdefault(r["arm"], set()).add(r["term"])
+        for arm in self.AT_STOP:
+            assert by_arm.get(arm) == self.TERMS, arm
+
+    def test_the_slope_window_is_thirty_to_forty_thousand(self):
+        """`notes/SECOND_ANSWER.md` measures headroom over that window."""
+        rows = self._rows(self.TABLE)
+        for r in rows:
+            if r["arm"] in self.AT_STOP and r["term"] == "loss":
+                assert r["value_at_30k"], r
+                assert r["change_30k_to_40k"], r
+
+    def test_a_run_that_stopped_early_gets_no_slope(self):
+        """`dec_m050_fix` lost the contrastive task at step 10,162. A change
+        over 30,000 to 40,000 steps it never ran would be a made-up number."""
+        rows = self._rows(self.TABLE)
+        early = [r for r in rows if r["arm"] == "dec_m050_fix"]
+        assert early
+        for r in early:
+            assert r["change_30k_to_40k"] == ""
+            assert int(r["reached"]) < STOP
+
+    def test_l_rep_ends_where_the_decay_ends(self):
+        """The trainer computes no L_rep at weight 0.0, so the column goes
+        blank at step 10,000 for every arm. That is the treatment working."""
+        rows = self._rows(self.TABLE)
+        ends = {int(r["last_step"]) for r in rows if r["term"] == "l_rep"}
+        assert ends == {9999}, ends
+
+    def test_the_trajectory_reads_the_whole_run(self):
+        rows = self._rows(self.TRACK)
+        steps = {int(r["step"]) for r in rows}
+        assert steps == set(range(5000, STOP + 1, 5000))
+        for arm in self.AT_STOP:
+            got = {int(r["step"]) for r in rows
+                   if r["arm"] == arm and r["term"] == "loss"}
+            assert got == set(range(5000, STOP + 1, 5000)), arm
