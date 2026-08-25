@@ -1359,3 +1359,40 @@ class TestTheReferenceIsComparable:
         body = self.SCRIPT.read_text()
         assert "DIFFERS" in body
         assert "exit 1" in body
+
+
+class TestTheStudyKeepsOneReport:
+    """`reports/REPORT_STANDARD.md`, first item: ONE canonical Markdown report
+    per experiment. Supporting information lives in scripts, docstrings and
+    execution logs, never in additional report files.
+
+    The run phase writes no report. It must also not grow a second one under
+    `notes/`, which is what a findings note becomes when it carries a table of
+    results and a conclusion.
+    """
+
+    NOTES = EXP / "notes"
+    # The notes this study carries, each one a decision or an operational
+    # record and not a findings summary.
+    ALLOWED = {"artefacts.md", "execution_log.md", "loss_decomposition.md",
+               "search_protocol.md", "SECOND_ANSWER.md"}
+
+    def test_no_new_report_file_grew_under_notes(self):
+        got = {p.name for p in self.NOTES.glob("*.md")}
+        assert got == self.ALLOWED, sorted(got ^ self.ALLOWED)
+
+    def test_the_findings_live_in_the_script_and_the_table(self):
+        """The rank gate and the reference match state their result in the
+        docstring that produces it and in the table itself."""
+        gate = (EXP / "scripts" / "rank_gate.py").read_text()
+        assert "WHAT THE TABLE SAID" in gate
+        match = (EXP / "scripts" / "reference_match.sh").read_text()
+        assert "WHAT THE TABLE SAID" in match
+
+    def test_the_gate_table_names_its_narrowest_pass(self):
+        """A threshold test says `rank` one part in a thousand over the line.
+        A reader of the verdict column alone would report that as a result."""
+        head = [ln for ln in (EXP / "results" / "rank_gate.tsv")
+                .read_text().splitlines() if ln.startswith("#")]
+        assert any("narrowest pair" in ln for ln in head), head
+        assert any("threshold, not a rank" in ln for ln in head), head

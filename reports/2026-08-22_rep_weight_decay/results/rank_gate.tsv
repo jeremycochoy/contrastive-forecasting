@@ -1,6 +1,7 @@
 # the gate: 0.0219, the range of 3 seeds of one schedule, 0.9 1.0 100000
 # those arms: dec_s20, dec_s22, dec_s24
 # a gap under the gate is not a rank. This card measured no other spread.
+# the narrowest pair the gate passes: dec_m080_r200 vs dec_s22, gap +0.0241, over the gate by 0.0022. A margin this thin is a threshold, not a rank.
 block	left	right	left_score	right_score	gap	verdict
 vs no-decay	dec_m080_r200	the same schedule, no decay	1.2352	1.1782	+0.0570	rank
 vs target	dec_m080_r200	the card's target	1.2352	1.1491	+0.0861	rank

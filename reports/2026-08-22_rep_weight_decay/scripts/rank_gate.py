@@ -19,6 +19,23 @@ share a schedule and differ in seed. `scores.csv` names them. If no schedule
 here has two seeds, the script says so and refuses to gate: a spread taken
 from another study would not be this treatment's.
 
+WHAT THE TABLE SAID ON 2026-08-25. The gate is 0.0219, from three seeds of the
+schedule 0.9 to 1.0 at 100k: 1.2670, 1.2593 and 1.2812.
+
+Against the no-decay reference, every arm clears the gate, by +0.0570 to
++0.1305. The smallest of those is 2.6 times the gate. So this card CAN state
+that the decay costs the score at every momentum it ran.
+
+Against each other, 5 of the 15 arm pairs fall UNDER the gate. So this card
+CANNOT order the decay schedules.
+
+READ THE ONE MARGINAL PAIR WITH CARE. `dec_m080_r200` leads `dec_s22` by
+0.0241 against a gate of 0.0219, so the table marks it `rank`. Do not report
+it as one. A range over three seeds is a crude estimator and it runs low at
+small n, and a lead that clears the gate by a tenth of itself is not a
+separation. The `rank` verdict is a threshold test, not a confidence
+statement.
+
 Usage:
   rank_gate.py --scores results/scores.csv --arms scripts/arms.tsv \
       --out results/rank_gate.tsv
@@ -116,6 +133,21 @@ def main(argv=None):
         gap = vb - va
         lines.append(f"arm vs arm\t{a}\t{b}\t{va:.4f}\t{vb:.4f}\t{gap:+.4f}\t"
                      f"{'rank' if abs(gap) > spread else 'noise'}")
+
+    # The narrowest pair the gate lets through, named in the header. A
+    # threshold test says `rank` at one part in a thousand over the line, and a
+    # reader who sees only the verdict column would report that as a result.
+    margins = []
+    for line in lines:
+        parts = line.split("\t")
+        if len(parts) == 7 and parts[6] == "rank" and parts[0] == "arm vs arm":
+            margins.append((abs(float(parts[5])) - spread, parts[1], parts[2],
+                            float(parts[5])))
+    if margins:
+        over, left, right, gap = min(margins)
+        lines.insert(3, f"# the narrowest pair the gate passes: {left} vs "
+                        f"{right}, gap {gap:+.4f}, over the gate by {over:.4f}."
+                        f" A margin this thin is a threshold, not a rank.")
 
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text("\n".join(lines) + "\n")

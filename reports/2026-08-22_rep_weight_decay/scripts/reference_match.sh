@@ -17,6 +17,15 @@
 # column. This card's own side of both rows IS an artefact: its qhead files
 # carry `_s20260722` in their names.
 #
+# WHAT THE TABLE SAID ON 2026-08-25. Eleven items of eleven match: the cell,
+# the rollout depth, the depth reduction, the align target, the backbone stop,
+# the head steps, the head seed, the head encoder, the head runner, the
+# 97-config eval and the score tag.
+#
+# The head runner row is the strongest. It is not two settings that agree, it
+# is ONE file that both studies call. The align target has the same shape: it
+# rides the cell in `run_leg_k.sh`, and both studies name that cell.
+#
 # Usage:  bash scripts/reference_match.sh
 set -uo pipefail
 
