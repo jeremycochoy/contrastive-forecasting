@@ -274,3 +274,72 @@ Hub and holds the growing wait.
 
 One leg gets at most `CF409_NET_DEADLINE` (6 hours) of outage. Past that the
 lane stops, and every arm keeps its checkpoints for a later lane.
+
+## 08-25 16:07 — a rebuild ran `launch.sh` for real, and it started `dec_s23`
+
+The rebuild of the loss-by-term artefacts moved the `RUN_STATE.md` writer out
+of `launch.sh` into `scripts/run_state.sh`. The check of that edit ran
+`bash scripts/launch.sh` with no `CF409_DRY_RUN=1`, so the launcher started.
+
+It ran for two minutes and was killed by process group at 16:09.
+
+What it did:
+
+| what | outcome |
+|---|---|
+| resumed `dec_s23` from its 20,000-step checkpoint | ~100 steps, killed |
+| appended 100 rows to `dec_s23_r2_losses.csv` | steps 20,001 to 20,100 |
+| started the head of `dec_s20` | `SKIP — already scored 1.2670` |
+| appended to `arms.log`, `phase1.log`, `stops.log`, `heads.log` | |
+
+What it did NOT do. No `.pth` moved: the save cadence is 5,000 steps and the
+leg ran 100. No score file, no `scores.csv` row and no qhead checkpoint
+changed. `dec_s23` still reaches 22,900 steps, from its base CSV.
+
+### It exposed a real bug in the reader
+
+`dec_s23` writes TWO CSVs: a base that reached 22,900 steps, and an `_r2` that
+gave up at 20,300. `arm_style.read_run` took the files in name order, so the
+short `_r2` overwrote 300 steps in the middle of the long base run.
+
+`read_run` now orders the files by the step each one REACHES and lets the
+furthest win. That is right on both shapes: `dec_m099_fix` ran on in `_r2` to
+40,000, so `_r2` wins, and `dec_s23` ran on in its base file, so the base wins.
+`tests/test_409_score_pipeline.py::TestTheReaderStitchesARefiredLeg` pins it.
+
+### The rule
+
+`launch.sh` starts backbones. Use `bash scripts/run_state.sh "<note>"` to
+refresh the state file, and `CF409_DRY_RUN=1` to check the launcher's plan.
+
+## 08-25 16:14 — the eighth backbone started, and it left the EMA axis
+
+`dec_ramp30k_m080` started on card 0. A second session started it, detached,
+while this session rebuilt the loss-by-term artefacts.
+
+It is `dec_m080_r200` again — the same cell, the same schedule 0.8 to 1.0 at
+200k, the same seed 20260520 — with ONE change: the decay ramp runs to 30,000
+steps, not 10,000. `CF409_REP_W_RAMP=30000` on its lane sets it, so the arms
+table cannot tell the pair apart and neither can any figure keyed on the
+schedule.
+
+Two files carry that:
+
+- `scripts/arms.tsv` names the arm and its ramp in the "Why each row earns a
+  backbone" section, and states that the ramp is not a column.
+- `arm_style.read_arms` now marks such a row `ambiguous`, so `arm_label`
+  falls back to the arm name. Without it, `plots/scores.png` would draw two
+  rows called "0.8 to 1.0 at 200k, seed 20260520".
+
+It also fixed a second thing. `plot_scores.py` reads `repeat` to draw the seed
+spread bar, and `repeat` used to mean "another row shares this schedule". The
+new arm shares one and it is NOT a seed repeat, so the bar read 4 seeds and a
+range of 0.0460 where the truth is 3 seeds and 0.0219. `repeat` now means
+"another row shares this schedule at a DIFFERENT seed".
+
+Why the eighth arm left the EMA axis: five schedules from 0.500 to 0.990 all
+lose to the card's target of 1.1491 by 0.0861 or more, which is nearly four
+times the measured seed spread of 0.0219. A sixth schedule cannot close that.
+
+The figures and the tables skip the arm until it passes 1,000 steps, and each
+one names it on stdout. Re-run `bash scripts/make_plots.sh` when it stops.

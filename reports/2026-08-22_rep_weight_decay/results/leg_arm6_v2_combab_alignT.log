@@ -99,3 +99,8 @@
 [08-25 06:30:45] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k
 [08-25 06:30:47] [arm6_v2_combab_alignT] train exited rc=1 — tail: For debugging consider passing CUDA_LAUNCH_BLOCKING=1 Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.  
 [08-25 13:08:18] [arm6_v2_combab_alignT] DONE target=40000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-409/dec_m070_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m070_fix_40k.pth
+[08-25 16:07:55] [arm6_v2_combab_alignT] SKIP: cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s20_40k.pth already on disk
+[08-25 16:08:02] [arm6_v2_combab_alignT] RESUME from cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s23_20k.pth (step 20k)
+[08-25 16:08:02] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_s23/arm6_v2_combab_alignT/leg_40k
+[08-25 16:14:34] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-25 16:14:34] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_ramp30k_m080/arm6_v2_combab_alignT/leg_40k

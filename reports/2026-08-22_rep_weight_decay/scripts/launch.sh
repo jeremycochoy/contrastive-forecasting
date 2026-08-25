@@ -78,56 +78,12 @@ fi
 cf409_check_checkout || exit 6
 
 # What a re-dispatched session reads first. One file, overwritten, so it is
-# never a log to scroll.
-state(){  # <note>
-  { echo "# #409 run state — the L_rep weight decay at k = 32"
-    echo
-    echo "- updated: $(date '+%Y-%m-%d %H:%M:%S')"
-    echo "- note: $1"
-    echo "- cell: \`$CF409_CELL\`, k = $CF409_K, reduce \`$CF409_REDUCE\`," \
-         "target \`$CF409_ALIGN_TARGET\`"
-    echo "- decay: $CF409_REP_W_START to $CF409_REP_W_END at step" \
-         "$(cf409_ramp). Fixed on every arm."
-    echo "- axis: the EMA schedule. No control arm: the sweep scored these" \
-         "schedules with no decay, in" \
-         "\`reports/2026-08-19_ema_momentum_k32/\`."
-    echo "- arms: $ARMS"
-    echo "- cards: $GPUS, launcher pid $$"
-    echo "- root: \`$CF409_ROOT\`"
-    echo "- artefacts: elisa holds them all, and no sync loop runs." \
-         "See \`notes/artefacts.md\`."
-    echo
-    echo "## The schedules"
-    echo
-    echo '```'
-    for a in $ARMS; do
-      printf '%-14s %-22s reaches %s at %s   seed %s\n' "$a" \
-        "$(cf409_ema_label "$a")" \
-        "$(cf409_momentum_at "$a" "${CF409_STOPS%% *}")" \
-        "${CF409_STOPS%% *}" "$(cf409_seed "$a")"
-    done
-    echo '```'
-    echo
-    echo "## Scores"
-    echo
-    echo '```'
-    cat "$CF409_RESULTS/scores.csv" 2>/dev/null || echo "(none yet)"
-    echo '```'
-    echo
-    echo "## Contrastive AUC"
-    echo
-    echo '```'
-    cat "$CF409_RESULTS/auc_verdicts.tsv" 2>/dev/null || echo "(none yet)"
-    echo '```'
-    echo
-    echo "## Backbones on disk"
-    echo
-    echo '```'
-    ls -1 "$CF409_ROOT"/*/*/leg_*k/*k.pth 2>/dev/null \
-      | grep -v optimizer | sed "s#$CF409_ROOT/##" || echo "(none yet)"
-    echo '```'
-  } >"$STATE.tmp" && mv -f "$STATE.tmp" "$STATE"
-}
+# never a log to scroll. `scripts/run_state.sh` holds the writer: this loop
+# stops when the launcher does, and a frozen state file beside a finished run
+# gives a stale answer in a shared results directory.
+CF409_LAUNCHER_PID=$$
+. "$HERE/run_state.sh"
+state(){ cf409_run_state "$STATE" "$1"; }
 
 log "START arms='$ARMS' gpus='$GPUS' root=$CF409_ROOT"
 # The remote-launch checklist asks for a sync loop. This card trains on elisa

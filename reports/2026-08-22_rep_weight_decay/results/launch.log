@@ -254,3 +254,8 @@ WARN: the AUC pass exited rc=2 — see /tmp/contrastive-forecasting-409/reports/
 WARN: the AUC pass exited rc=2 — see /tmp/contrastive-forecasting-409/reports/2026-08-22_rep_weight_decay/results/auc_verdicts.tsv
 /tmp/contrastive-forecasting-409/reports/2026-08-22_rep_weight_decay/results/auc_verdicts.tsv: 8 run(s)
 [08-23 19:11:18] [#409] DONE — 2 lane(s) failed
+[08-25 16:07:54] [#409] START arms='dec_s20 dec_s22 dec_s23 dec_s24 dec_s25 dec_m090_fix dec_m090_r60 dec_m095_fix dec_m099_fix dec_m090_r200 dec_m080_r200 dec_m095_r100 dec_m070_fix dec_m050_fix' gpus='0 1' root=/home/jupyter/checkpoints_backup/cf-409
+[08-25 16:07:54] [#409] artefacts stay on elisa — no sync loop. See notes/artefacts.md
+  gpu 0, NVIDIA GeForce RTX 4090, 24564 MiB
+  gpu 1, NVIDIA GeForce RTX 4090, 24564 MiB
+[08-25 16:07:55] [#409] gpu 0 takes dec_s20 dec_s23 dec_s25 dec_m090_r60 dec_m099_fix dec_m080_r200 dec_m070_fix

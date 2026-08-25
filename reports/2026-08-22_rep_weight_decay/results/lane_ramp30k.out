@@ -1,0 +1,7 @@
+[08-25 16:14:34] [#409 lane 0] head queue on — one head at a time, worker pid 84874
+[08-25 16:14:34] [#409 lane 0] arm dec_ramp30k_m080 -> 40000
+[08-25 16:14:34] [#409] arm dec_ramp30k_m080 ema='--ema-tau 0.8 --ema-tau-end 1.0 --ema-tau-ramp-steps 200000' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 30000' seed=20260520 reduce=mean target=teacher -> 40000 steps on gpu 0, save every 5000
+[08-25 16:14:34] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-25 16:14:34] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_ramp30k_m080/arm6_v2_combab_alignT/leg_40k
+[08-25 16:14:39] [#409] arm dec_ramp30k_m080 decay='1.0 0.0 30000' seed=20260520 target=teacher reduce=mean ema='0.8 1.0 200000' OK — all five reached the trainer
+[08-25 16:14:39] [#409] arm dec_ramp30k_m080 AUC gate pid 85068 — window 500, threshold 0.55, warmup 1000

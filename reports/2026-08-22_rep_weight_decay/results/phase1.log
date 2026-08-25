@@ -129,3 +129,11 @@ WARN: the AUC pass exited rc=2 — see /tmp/contrastive-forecasting-409/reports/
 WARN: the AUC pass exited rc=2 — see /tmp/contrastive-forecasting-409/reports/2026-08-22_rep_weight_decay/results/auc_verdicts.tsv
 /tmp/contrastive-forecasting-409/reports/2026-08-22_rep_weight_decay/results/auc_verdicts.tsv: 10 run(s)
 [08-25 15:37:34] [#409 lane 0] lane drained — 0 leg(s) and 0 head(s) failed
+[08-25 16:07:55] [#409 lane 0] head queue on — one head at a time, worker pid 75657
+[08-25 16:07:55] [#409 lane 0] arm dec_s20 -> 40000
+[08-25 16:08:02] [#409 lane 0] head dec_s20 stop=40000 (queued)
+[08-25 16:08:02] [#409 lane 0] head dec_s20 stop=40000 start
+[08-25 16:08:02] [#409 lane 0] head dec_s20 stop=40000 rc=0
+[08-25 16:08:02] [#409 lane 0] arm dec_s23 -> 40000
+[08-25 16:14:34] [#409 lane 0] head queue on — one head at a time, worker pid 84874
+[08-25 16:14:34] [#409 lane 0] arm dec_ramp30k_m080 -> 40000
