@@ -137,3 +137,34 @@ WARN: the AUC pass exited rc=2 — see /tmp/contrastive-forecasting-409/reports/
 [08-25 16:08:02] [#409 lane 0] arm dec_s23 -> 40000
 [08-25 16:14:34] [#409 lane 0] head queue on — one head at a time, worker pid 84874
 [08-25 16:14:34] [#409 lane 0] arm dec_ramp30k_m080 -> 40000
+[08-25 22:09:30] [#409 lane 0] arm dec_ramp30k_m080 — the Hub was unreachable. This costs no try (still try 1 of 3). Waiting 60s.
+[08-25 23:42:28] [#409 lane 0] head dec_ramp30k_m080 stop=40000 (queued)
+[08-25 23:42:28] [#409 lane 0] head dec_ramp30k_m080 stop=40000 start
+[08-25 23:42:28] [#409 lane 0] waiting for the head queue to drain
+[08-26 02:07:29] [#409 lane 0] head dec_ramp30k_m080 stop=40000 rc=0
+/tmp/contrastive-forecasting-409/reports/2026-08-22_rep_weight_decay/results/scores.csv: 7 score(s)
+WARN: the AUC pass exited rc=2 — see /tmp/contrastive-forecasting-409/reports/2026-08-22_rep_weight_decay/results/auc_verdicts.tsv
+/tmp/contrastive-forecasting-409/reports/2026-08-22_rep_weight_decay/results/auc_verdicts.tsv: 16 run(s)
+[08-26 02:07:41] [#409 lane 0] lane drained — 0 leg(s) and 0 head(s) failed
+[08-26 02:10:46] [#409 lane 0] head queue on — one head at a time, worker pid 683428
+[08-26 02:10:46] [#409 lane 0] arm dec_ramp20k_m080 -> 40000
+[08-26 08:40:42] [#409 lane 0] head dec_ramp20k_m080 stop=40000 (queued)
+[08-26 08:40:42] [#409 lane 0] head dec_ramp20k_m080 stop=40000 start
+[08-26 08:40:42] [#409 lane 0] waiting for the head queue to drain
+[08-26 11:03:08] [#409 lane 0] head dec_ramp20k_m080 stop=40000 rc=0
+/tmp/contrastive-forecasting-409/reports/2026-08-22_rep_weight_decay/results/scores.csv: 8 score(s)
+WARN: the AUC pass exited rc=2 — see /tmp/contrastive-forecasting-409/reports/2026-08-22_rep_weight_decay/results/auc_verdicts.tsv
+/tmp/contrastive-forecasting-409/reports/2026-08-22_rep_weight_decay/results/auc_verdicts.tsv: 17 run(s)
+[08-26 11:03:20] [#409 lane 0] lane drained — 0 leg(s) and 0 head(s) failed
+[08-26 11:04:16] [#409 lane 0] head queue on — one head at a time, worker pid 1141181
+[08-26 11:04:16] [#409 lane 0] arm dec_ramp5k_m080 -> 40000
+[08-26 21:02:55] [#409 lane 0] head dec_ramp5k_m080 stop=40000 (queued)
+[08-26 21:02:55] [#409 lane 0] waiting for the head queue to drain
+[08-26 21:02:55] [#409 lane 0] head dec_ramp5k_m080 stop=40000 start
+[08-26 23:53:58] [#409 lane 0] head dec_ramp5k_m080 stop=40000 rc=0
+/tmp/contrastive-forecasting-409/reports/2026-08-22_rep_weight_decay/results/scores.csv: 9 score(s)
+WARN: the AUC pass exited rc=2 — see /tmp/contrastive-forecasting-409/reports/2026-08-22_rep_weight_decay/results/auc_verdicts.tsv
+/tmp/contrastive-forecasting-409/reports/2026-08-22_rep_weight_decay/results/auc_verdicts.tsv: 18 run(s)
+[08-26 23:54:11] [#409 lane 0] lane drained — 0 leg(s) and 0 head(s) failed
+[08-26 23:57:45] [#409 lane 0] head queue on — one head at a time, worker pid 1806255
+[08-26 23:57:45] [#409 lane 0] arm dec_m080_r200_s24 -> 40000

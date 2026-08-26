@@ -1,7 +1,7 @@
 # #409 run state — the L_rep weight decay at k = 32
 
-- updated: 2026-08-25 16:51:20
-- note: 7 backbones scored or stopped; the 8th, dec_ramp30k_m080, runs on gpu 0 since 08-25 16:14
+- updated: 2026-08-25 23:46:02
+- note: every leg stopped; 6 arm(s) unscored
 - cell: `arm6_v2_combab_alignT`, k = 32, reduce `mean`, target `teacher`
 - decay: 1.0 to 0.0 at step 10000. Fixed on every arm.
 - axis: the EMA schedule. No control arm: the sweep scored these schedules with no decay, in `reports/2026-08-19_ema_momentum_k32/`.
@@ -28,7 +28,7 @@ dec_m080_r200  0.8 to 1.0 at 200k     0.840    20260520  40000    1.2352
 dec_m095_r100  0.95 to 1.0 at 100k    0.970    20260520  0        
 dec_m070_fix   0.7 fixed              0.700    20260520  40000    1.3534
 dec_m050_fix   0.5 fixed              0.500    20260520  10600    
-dec_ramp30k_m080 0.8 to 1.0 at 200k     0.840    20260520  3200     
+dec_ramp30k_m080 0.8 to 1.0 at 200k     0.840    20260520  40000    
 ```
 
 `reached` is the last step that arm's losses CSVs hold. 0 means the arm never wrote a step.
@@ -63,7 +63,8 @@ cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m099_fix_r2_losses.csv	held	-	0.9
 cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m080_r200_losses.csv	held	-	0.7685	11213	0.9924	40000	held
 cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m070_fix_losses.csv	held	-	0.5732	11452	0.9166	40000	held
 cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_losses.csv	lost	10162	0.5221	10348	0.5233	10600	at step 10162
-cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_ramp30k_m080_losses.csv	held	-	0.9214	2242	0.9258	3100	held
+cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_ramp30k_m080_losses.csv	held	-	0.8522	30725	0.8921	32400	held
+cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_ramp30k_m080_r2_losses.csv	held	-	0.5428	34826	0.9310	40000	held
 ```
 
 One row per losses CSV, not per arm. A leg re-fired after a crash resumes under a `_rN` name and writes a second file, and the AUC gate reads a file.
@@ -97,6 +98,14 @@ dec_m099_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_
 dec_m099_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m099_fix_r2_30k.pth
 dec_m099_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m099_fix_r2_35k.pth
 dec_m099_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m099_fix_r2_40k.pth
+dec_ramp30k_m080/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_ramp30k_m080_10k.pth
+dec_ramp30k_m080/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_ramp30k_m080_15k.pth
+dec_ramp30k_m080/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_ramp30k_m080_20k.pth
+dec_ramp30k_m080/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_ramp30k_m080_25k.pth
+dec_ramp30k_m080/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_ramp30k_m080_30k.pth
+dec_ramp30k_m080/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_ramp30k_m080_5k.pth
+dec_ramp30k_m080/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_ramp30k_m080_r2_35k.pth
+dec_ramp30k_m080/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_ramp30k_m080_r2_40k.pth
 dec_s20/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s20_20k.pth
 dec_s20/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s20_40k.pth
 dec_s22/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s22_20k.pth

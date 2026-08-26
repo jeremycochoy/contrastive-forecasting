@@ -5,3 +5,19 @@
 [08-25 16:14:34] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_ramp30k_m080/arm6_v2_combab_alignT/leg_40k
 [08-25 16:14:39] [#409] arm dec_ramp30k_m080 decay='1.0 0.0 30000' seed=20260520 target=teacher reduce=mean ema='0.8 1.0 200000' OK — all five reached the trainer
 [08-25 16:14:39] [#409] arm dec_ramp30k_m080 AUC gate pid 85068 — window 500, threshold 0.55, warmup 1000
+[08-25 22:09:28] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/requests/adapters.py", line 677, in send     raise ConnectionError(e, request=request) requests.exceptions.ConnectionError: (MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00052.parquet (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x7ac7b8a5cc40>: Failed to resolve \'huggingface.co\' ([Errno -3] Temporary failure in name resolution)"))'), '(Request ID: 627ca691-6bb2-424e-b9d5-1f521050e668)') 
+[08-25 22:09:28] [arm6_v2_combab_alignT] the Hub was unreachable — this is a network failure, not a bad arm
+[08-25 22:09:30] [#409] arm dec_ramp30k_m080 stop=40000 rc=20
+[08-25 22:09:30] [#409 lane 0] arm dec_ramp30k_m080 — the Hub was unreachable. This costs no try (still try 1 of 3). Waiting 60s.
+[08-25 22:10:30] [#409] arm dec_ramp30k_m080 ema='--ema-tau 0.8 --ema-tau-end 1.0 --ema-tau-ramp-steps 200000' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 30000' seed=20260520 reduce=mean target=teacher -> 40000 steps on gpu 0, save every 5000
+[08-25 22:10:30] [arm6_v2_combab_alignT] RESUME from cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_ramp30k_m080_30k.pth (step 30k)
+[08-25 22:10:30] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_ramp30k_m080/arm6_v2_combab_alignT/leg_40k
+[08-25 22:10:35] [#409] arm dec_ramp30k_m080 decay='1.0 0.0 30000' seed=20260520 target=teacher reduce=mean ema='0.8 1.0 200000' OK — all five reached the trainer
+[08-25 22:10:35] [#409] arm dec_ramp30k_m080 AUC gate pid 472930 — window 500, threshold 0.55, warmup 1000
+[08-25 23:42:26] [arm6_v2_combab_alignT] DONE target=40000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-409/dec_ramp30k_m080/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_ramp30k_m080_r2_40k.pth
+[08-25 23:42:28] [#409] arm dec_ramp30k_m080 stop=40000 rc=0
+[08-25 23:42:28] [#409 lane 0] head dec_ramp30k_m080 stop=40000 (queued)
+[08-25 23:42:28] [#409 lane 0] head dec_ramp30k_m080 stop=40000 start
+[08-25 23:42:28] [#409 lane 0] waiting for the head queue to drain
+[08-26 02:07:29] [#409 lane 0] head dec_ramp30k_m080 stop=40000 rc=0
+[08-26 02:07:41] [#409 lane 0] lane drained — 0 leg(s) and 0 head(s) failed
