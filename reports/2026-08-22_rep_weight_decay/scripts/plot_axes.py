@@ -13,8 +13,9 @@ as a small dot and their mean as the large one. Right: x is the decay ramp,
 at the one schedule the card varied it on.
 
 Both panels carry the reference (the best schedule with no decay) as a dashed
-line, and a band of the seed range above it: a point inside the band is
-within the scatter of one treatment, not a rank.
+line, and a band of the rank gate above it. The gate is the seed range of
+the one treatment with three seeds, 0.0219; the reference's own range is
+0.0016. A point inside the band is within that gate, not a rank.
 
 Usage:
   plot_axes.py --scores results/scores.csv --arms scripts/arms.tsv \
@@ -134,7 +135,7 @@ def main(argv=None):
     right.plot([], [], color=S.REFERENCE, linestyle="--", linewidth=1.4,
                label=f"reference, no decay, {S.SWEEP_BEST:.4f}")
     right.fill_between([], [], [], color=S.SERIES, alpha=0.10,
-                       label=f"seed range, {band:.4f}")
+                       label=f"the rank gate, {band:.4f}")
     right.plot([], [], marker="o", linestyle="none", color=S.SERIES,
                markersize=7, label="with the decay")
     fig.legend(frameon=False, fontsize=8, labelcolor=S.INK, ncol=3,

@@ -110,7 +110,10 @@ def main(argv=None):
             ax.plot([ref], [y], marker="o", markersize=7, color=S.SURFACE,
                     markeredgecolor=S.REFERENCE, markeredgewidth=1.4,
                     linestyle="none", zorder=2)
-        ax.plot([value], [y], marker="o", markersize=8, color=S.SERIES,
+        # The arm the headline names keeps the series colour, as in every
+        # curve figure. Every other decayed arm steps back to grey.
+        fill = S.SERIES if row["arm"] == S.HIGHLIGHT_ARM else S.HELD
+        ax.plot([value], [y], marker="o", markersize=8, color=fill,
                 markeredgecolor=S.SURFACE, markeredgewidth=1.4,
                 linestyle="none", zorder=3)
         ax.annotate(f"{value:.4f}", (value, y), xytext=(0, -14),
@@ -123,10 +126,10 @@ def main(argv=None):
         y = len(ranked)
         ticks.append(y)
         labels.append(f"{S.schedule_label(spread_row)}, {len(repeats)} seeds")
-        ax.plot([min(repeats), max(repeats)], [y, y], color=S.SERIES,
+        ax.plot([min(repeats), max(repeats)], [y, y], color=S.HELD,
                 linewidth=2.0, alpha=0.45, solid_capstyle="round")
         mean = statistics.fmean(repeats)
-        ax.plot([mean], [y], marker="D", markersize=9, color=S.SERIES,
+        ax.plot([mean], [y], marker="D", markersize=9, color=S.HELD,
                 markeredgecolor=S.SURFACE, markeredgewidth=1.4,
                 linestyle="none")
         ax.annotate(f"mean {mean:.4f}, range {max(repeats) - min(repeats):.4f}",
@@ -153,13 +156,15 @@ def main(argv=None):
     ax.grid(axis="y", visible=False)
     # Three marks, three meanings. The schedule is the row label.
     ax.plot([], [], marker="o", linestyle="none", color=S.SERIES,
+            markersize=7, label=f"best arm, {S.HIGHLIGHT_ARM}")
+    ax.plot([], [], marker="o", linestyle="none", color=S.HELD,
             markersize=7, label="with the decay")
     ax.plot([], [], marker="o", linestyle="none", color=S.SURFACE,
             markeredgecolor=S.REFERENCE, markeredgewidth=1.4, markersize=7,
             label="the same schedule, no decay")
     ax.plot([], [], color=S.REFERENCE, linestyle="--", linewidth=1.4,
             label="reference: the best schedule, no decay")
-    ax.legend(frameon=False, fontsize=8, labelcolor=S.INK, ncol=3,
+    ax.legend(frameon=False, fontsize=8, labelcolor=S.INK, ncol=4,
               loc="upper center", bbox_to_anchor=(0.5, -0.20))
     # The arms without a score are in the report annex, not in the figure.
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)

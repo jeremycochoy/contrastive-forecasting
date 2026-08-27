@@ -1,34 +1,34 @@
 # A decay of the L_rep weight to zero never beats the no-decay reference at k = 32
 
-The linear decay of the L_rep weight from 1.0 to 0.0 does not improve the GM-Relative MASE of the k = 32 cell, which is the configuration `arm6_v2_combab_alignT` at rollout depth 32. Its best setting loses to the no-decay reference by 3.9 times the seed range.
+A linear decay of the L_rep weight, the contrastive representation term of the training loss, does not improve the GM-Relative MASE of the k = 32 cell. Its best setting loses to the no-decay reference by 3.9 times the seed range, the spread of three seeds of one schedule, 0.0219.
 
 ![scores](plots/scores.png)
 
-GM-Relative MASE of every scored arm, with the decay (filled) and the same EMA schedule without it (open).
+filled = an arm (one backbone run) with the decay, open = the same EMA schedule without it
 
-Both axes have their best value inside the tested range, and the 10,000-step ramp is the best of the four ramps.
+Both axes have their best value inside the tested range.
 
 ![axes](plots/axes.png)
 
-Score against the EMA momentum at the stop (left) and against the decay ramp (right), with the reference and the seed range.
+left: EMA momentum at the stop. Right: decay ramp
 
-One run lost the contrastive task, momentum 0.500 at step 10,162.
+One run lost the contrastive task, momentum 0.500. The contrastive AUC is the area under the ROC curve of the contrastive task on the training stream, 1.0 the ceiling and 0.5 chance.
 
 ![auc](plots/auc.png)
 
-Contrastive AUC per run to the 40,000-step stop, trailing mean, against the 0.55 gate.
-
-Every scored arm still reduces its total loss over steps 20,000 to 40,000, and the slope over the last 10,000 steps ranks no arm.
+Every scored arm still reduces its total loss over steps 20,000 to 40,000. Over the last 10,000 steps, three arms have a positive slope and six a negative one (`results/loss_slope.csv`).
 
 ![loss terms](plots/loss_terms.png)
 
-Loss by term to the 40,000-step stop: total, weight on L_rep, L_rep, L_align reduced, mean cos_err.
-
-`L_align, reduced` is the residual `(loss - rep_w * l_rep - sigreg_e - sigreg_h) / align_w`, `cos_err` is the mean of the forecast cosine error over the 33 rollout depths d0 to d32, and the trainer computes no L_rep past the ramp, so the `l_rep` lines end there.
+| term in the figure | definition |
+|---|---|
+| `L_align, reduced` | the residual `(loss - rep_w * l_rep - sigreg_e - sigreg_h) / align_w` |
+| `cos_err` | the mean forecast cosine error over the 33 rollout depths d0 to d32 |
+| `l_rep` | not computed past the ramp, so its lines end there |
 
 ## Tables
 
-Score of each arm at the 40,000-step stop. An arm is one backbone run, named by its EMA schedule, decay ramp and seed (`scripts/arms.tsv`). The last column is the same EMA schedule with no decay, from the reference study.
+Score of each arm at the 40,000-step stop, named by its EMA schedule, decay ramp and seed (`scripts/arms.tsv`). The last column is the same EMA schedule with no decay, from the reference study.
 
 | arm | EMA schedule | momentum at the stop | decay ramp, steps | seed | score | same schedule, no decay |
 |---|---|---|---|---|---|---|
@@ -45,13 +45,13 @@ Score of each arm at the 40,000-step stop. An arm is one backbone run, named by 
 | dec_m099_fix | 0.99 fixed | 0.990 | 10,000 | 20260520 | 1.2849 | not run |
 | reference | 0.9 to 1.0 at 100k | 0.940 | no decay | 20260520, 20260522 | | 1.1491, 1.1507 |
 
-Gaps against the seed range of 0.0219, the range of `dec_s20`, `dec_s22`, `dec_s24` (`results/rank_gate.tsv`). A gap over the seed range is a rank. A gap under it is not.
+Gaps against the seed range of 0.0219, the range of `dec_s20`, `dec_s22`, `dec_s24` (`results/rank_gate.tsv`). Rank rule: a gap under the seed range is not a rank, and a gap that clears it by less than the range is a threshold, not a rank.
 
 | comparison | gap | gap over seed range | verdict |
 |---|---|---|---|
 | each scored arm against the reference 1.1491 | +0.0861 to +0.2132 | 3.9 to 9.7 | rank |
-| each scored arm against the same schedule with no decay | +0.0570 to +0.1841 | 2.6 to 8.4 | rank |
-| best arm 1.2352 against the second 1.2593 | +0.0241 | 1.1 | not a rank |
+| each scored arm whose EMA schedule the reference study also ran, against that schedule with no decay | +0.0570 to +0.1841 | 2.6 to 8.4 | rank |
+| best arm 1.2352 against the second 1.2593 | +0.0241 | 1.1 | threshold |
 
 Contrastive AUC per arm (`results/auc_verdicts.tsv`). The floor is the lowest trailing mean over every leg of the arm.
 
@@ -84,7 +84,7 @@ Total loss and its slope per 10,000 steps, fitted on 1,000-step blocks (`results
 
 ## Protocol
 
-- Cell: `arm6_v2_combab_alignT`, rollout depth k = 32, reduction `mean`, align target the EMA teacher. `scripts/study.sh` holds every value.
+- Cell: the k = 32 cell is the configuration `arm6_v2_combab_alignT` at rollout depth k = 32, reduction `mean`, align target the EMA teacher. `scripts/study.sh` holds every value.
 - Decay: `--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps <ramp>`, linear. The ramp of each arm is column 5 of `scripts/arms.tsv`.
 - EMA: `--ema-tau <tau>`, with `--ema-tau-end 1.0 --ema-tau-ramp-steps <ramp>` on the ramped schedules. The momentum at the stop is the value the schedule holds at step 40,000.
 - Backbone: 40,000 steps, seed 20260520 unless the arm name carries `s22`, `s24`. Checkpoints every 5,000 steps.
@@ -93,7 +93,7 @@ Total loss and its slope per 10,000 steps, fitted on 1,000-step blocks (`results
 - Eval: GIFT-Eval, 97 configs, batch 4, forecast length 16. Score: GM-Relative MASE, lower is better.
 - Reference: the EMA momentum study at `reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md`, the same cell with no decay. Its cell, stop, head, head seed, encoder and eval match this study on 11 of 11 items (`results/reference_match.tsv`). Its best score is 1.1491, and its own range is 0.0016 over two seeds.
 - Seed range: the three seeds of `0.9 to 1.0 at 100k` under the decay, `results/rank_gate.tsv`.
-- Pending: `dec_m080_r200_s24`, the repeat seed of the best arm, which gives its error bar. `scripts/make_plots.sh` rebuilds every figure and table from it.
+- Pending: `dec_m080_r200_s24`, the repeat seed of the best arm, which gives its error bar.
 
 ## Annex
 
@@ -102,6 +102,6 @@ Runs without a score and why (`results/RUN_STATE.md`, `notes/execution_log.md`):
 | arm | reached | why no score |
 |---|---|---|
 | dec_m050_fix | 10,600 | the AUC gate stopped it |
-| dec_s23, dec_s25 | 22,900, 22,700 | not restarted, the schedule already had three seeds |
-| dec_m090_r60, dec_m095_fix | 100, 0 | not restarted |
+| dec_s23, dec_s25 | 22,900, 22,700 | the schedule already had three seeds |
+| dec_m090_r60, dec_m095_fix | 100, 0 | |
 | dec_m090_fix, dec_m090_r200, dec_m095_r100 | never started | every tested momentum lost to the reference by 3.9 times the seed range or more, so no further momentum ran |
