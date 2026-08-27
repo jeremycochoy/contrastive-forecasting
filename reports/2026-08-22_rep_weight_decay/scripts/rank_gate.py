@@ -82,14 +82,12 @@ def main(argv=None):
         return 2
 
     # The spread, from the schedules of THIS card that ran at two or more
-    # seeds. `repeat` means another row shares the schedule at another seed.
-    groups = {}
-    for arm, value in scores.items():
-        row = arms.get(arm)
-        if row and row.get("repeat"):
-            groups.setdefault(S.schedule(row), []).append((arm, value))
+    # seeds. `repeat` means another row shares the TREATMENT, the EMA schedule
+    # and the decay ramp, at another seed. Three arms move the decay ramp on
+    # one schedule, and they are three treatments, not three seeds.
+    groups = S.repeat_groups(arms.values(), scores)
     spreads = {k: max(v for _, v in g) - min(v for _, v in g)
-               for k, g in groups.items() if len(g) > 1}
+               for k, g in groups.items()}
     if not spreads:
         print("no schedule of this card scored two seeds — no gate",
               file=sys.stderr)
@@ -100,7 +98,7 @@ def main(argv=None):
 
     lines = [
         f"# the gate: {spread:.4f}, the range of {len(seeds)} seeds of one "
-        f"schedule, {' '.join(key)}",
+        f"schedule, {' '.join(str(k) for k in key[:3])}, decay ramp {key[3]}",
         f"# those arms: {', '.join(seeds)}",
         "# a gap under the gate is not a rank. This card measured no other "
         "spread.",

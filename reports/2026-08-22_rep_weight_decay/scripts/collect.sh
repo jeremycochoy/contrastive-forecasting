@@ -69,7 +69,7 @@ mkdir -p "$CF409_RESULTS"
     stop="$(cf409_steps_of "$stop_l")"
     head="$(cf409_steps_of "$head_l")"
     read -r ema_tau ema_end ema_ramp <<<"$(cf409_ema_sig "$arm")"
-    echo "$arm,$ema_tau,$ema_end,$ema_ramp,$(cf409_momentum_at "$arm" "$stop"),$(cf409_seed "$arm"),$CF409_REP_W_END,$(cf409_ramp),$(cf409_rep_w_at "$stop"),$CF409_ALIGN_TARGET,$stop,$head,$enc,$score"
+    echo "$arm,$ema_tau,$ema_end,$ema_ramp,$(cf409_momentum_at "$arm" "$stop"),$(cf409_seed "$arm"),$CF409_REP_W_END,$(cf409_decay_ramp_of "$arm"),$(cf409_rep_w_at "$stop"),$CF409_ALIGN_TARGET,$stop,$head,$enc,$score"
   done
 } >"$OUT.$TMP"
 mv -f "$OUT.$TMP" "$OUT"

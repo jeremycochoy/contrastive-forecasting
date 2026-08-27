@@ -12,9 +12,11 @@ This card measures NO control, so every open dot comes from
 `reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md`. One schedule, 0.99
 fixed, has no open dot: the sweep never ran it.
 
-THE BAR. Arm 1 ran at three backbone seeds. Its spread is the only repeat this
-card holds, and it is what says whether a gap between two schedules is a rank
-or noise. The figure draws it as one bar.
+THE BAR. One treatment (an EMA schedule at one decay ramp) ran at three
+backbone seeds. Its spread is the only repeat this card holds, and it is what
+says whether a gap between two schedules is a rank or noise. The figure draws
+it as one bar. `arm_style.repeat_groups` picks that treatment, and
+`rank_gate.py` reads the same one.
 
 A run the AUC gate stopped has no score. The figure names it under the axis
 rather than leaving the reader to count the missing rows.
@@ -78,7 +80,14 @@ def main(argv=None):
                      if r["arm"] in scored), key=lambda t: t[1])
     missing = [S.arm_label(r) for r in arms if r["arm"] not in scored]
     # The one repeat this card holds: arm 1 at three seeds.
-    repeats = [v for r, v in ranked if r["repeat"]]
+    # The seed spread: the treatment with the widest range over its scored
+    # seeds. Only one treatment of this card scored more than one seed.
+    groups = S.repeat_groups(arms, scored)
+    spread_key = max(groups, key=lambda k: max(v for _, v in groups[k])
+                     - min(v for _, v in groups[k])) if groups else None
+    repeats = [v for _, v in groups[spread_key]] if spread_key else []
+    spread_row = next(r for r in arms if r["arm"] == groups[spread_key][0][0]) \
+        if spread_key else None
 
     fig, ax = plt.subplots(figsize=(8.6, 2.8 + 0.42 * (len(ranked) + 1)))
     # The number the card asks an arm to beat: the best the sweep measured on
@@ -110,7 +119,7 @@ def main(argv=None):
     if len(repeats) > 1:
         y = len(ranked)
         ticks.append(y)
-        labels.append(f"arm 1, {len(repeats)} seeds")
+        labels.append(f"{S.schedule_label(spread_row)}, {len(repeats)} seeds")
         ax.plot([min(repeats), max(repeats)], [y, y], color=S.SERIES,
                 linewidth=2.0, alpha=0.45, solid_capstyle="round")
         mean = statistics.fmean(repeats)

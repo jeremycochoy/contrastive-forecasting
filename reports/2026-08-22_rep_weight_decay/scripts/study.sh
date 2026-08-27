@@ -265,6 +265,18 @@ cf409_ramp(){
   else printf '%s\n' "$CF409_REP_W_RAMP"; fi
 }
 
+# The decay ramp one arm GOT, for the tables. Three arms moved the ramp from
+# their lane's CF409_REP_W_RAMP, and each leg log records the flag. This
+# repeats DECAY_RAMP in `arm_style.py`. `cf409_ramp` stays the launch value.
+cf409_decay_ramp_of(){  # <arm>
+  case "${1:?arm}" in
+    dec_ramp5k_m080) echo 5000 ;;
+    dec_ramp20k_m080) echo 20000 ;;
+    dec_ramp30k_m080) echo 30000 ;;
+    *) cf409_ramp ;;
+  esac
+}
+
 # The trainer flags of the decay, as ONE unit. Every arm carries them.
 cf409_decay_args(){
   printf -- '--rep-loss-weight %s --rep-loss-weight-end %s --rep-loss-weight-ramp-steps %s\n' \

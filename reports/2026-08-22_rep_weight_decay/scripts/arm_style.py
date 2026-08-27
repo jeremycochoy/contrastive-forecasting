@@ -59,12 +59,51 @@ SWEEP_SCORES = {
 }
 # The best of them, which is the number the card asks an arm to beat.
 SWEEP_BEST = 1.1491
+# The decay ramp, in steps, of the arms that do NOT take the card's 10,000.
+# The ramp is not a column of `arms.tsv`: it is `CF409_REP_W_RAMP` on the lane
+# that ran the arm, and each arm's leg log records the flag it got. This
+# repeats `cf409_decay_ramp_of` in `study.sh`.
+DECAY_RAMP_DEFAULT = 10000
+DECAY_RAMP = {
+    "dec_ramp5k_m080": 5000,
+    "dec_ramp20k_m080": 20000,
+    "dec_ramp30k_m080": 30000,
+}
 STOP = 40000
 
 
 def schedule(row):
     """One arm's EMA schedule, as the key that identifies its row."""
     return (row["tau"], row["end"], row["ramp"])
+
+
+def decay_ramp(row):
+    """The decay ramp of one arm, in steps."""
+    return DECAY_RAMP.get(row["arm"], DECAY_RAMP_DEFAULT)
+
+
+def treatment(row):
+    """The EMA schedule AND the decay ramp: what two seeds of one arm share.
+
+    Two rows on one schedule with different decay ramps are two treatments,
+    not a seed spread. `dec_m080_r200` and `dec_ramp5k_m080` share a schedule
+    and differ in the ramp. `dec_m080_r200` and `dec_m080_r200_s24` share
+    both, and differ in the seed only.
+    """
+    return schedule(row) + (decay_ramp(row),)
+
+
+def repeat_groups(arms, scored):
+    """`{treatment: [(arm, score), ...]}` over the SCORED rows of each
+    treatment that has two or more scored seeds. This is the seed spread
+    the card measured, and both `plot_scores.py` and `rank_gate.py` read it.
+    """
+    groups = {}
+    for row in arms:
+        if row["arm"] in scored and row.get("repeat"):
+            groups.setdefault(treatment(row), []).append(
+                (row["arm"], scored[row["arm"]]))
+    return {k: g for k, g in groups.items() if len(g) > 1}
 
 
 def momentum_at(row, step=STOP):
@@ -94,8 +133,10 @@ def arm_label(row):
         text = f"{row['tau']} fixed"
     else:
         text = f"{row['tau']} to {row['end']} at {int(row['ramp']) // 1000}k"
+    if decay_ramp(row) != DECAY_RAMP_DEFAULT:
+        text = f"{text}, decay ramp {decay_ramp(row) // 1000}k"
     if row.get("ambiguous"):
-        # Two rows on one schedule AND one seed. The schedule names neither.
+        # Two rows on one treatment AND one seed. The name is all that is left.
         return f"{text}, {row['arm']}"
     if row.get("repeat"):
         text = f"{text}, seed {row['seed']}"
@@ -135,13 +176,12 @@ def read_arms(path):
 
     Each row also gets two flags:
 
-      repeat     another row shares its schedule at a DIFFERENT seed. Those
-                 rows are a seed spread, and `plot_scores.py` draws their
-                 range as the bar that says whether a gap is a rank.
-      ambiguous  another row shares its schedule AND its seed. Those rows are
-                 NOT a seed spread: `dec_m080_r200` and `dec_ramp30k_m080`
-                 differ in the DECAY ramp, which is not a column here. The
-                 schedule cannot name such a curve, so only the arm can.
+      repeat     another row shares its treatment (EMA schedule AND decay
+                 ramp, see `treatment`) at a DIFFERENT seed. Those rows are a
+                 seed spread, and `plot_scores.py` draws their range as the
+                 bar that says whether a gap is a rank.
+      ambiguous  another row shares its treatment AND its seed. Only the arm
+                 name can tell such rows apart.
     """
     out = []
     with open(path) as fh:
@@ -153,9 +193,9 @@ def read_arms(path):
                 continue
             out.append({"arm": parts[0], "tau": parts[1], "end": parts[2],
                         "ramp": parts[3], "seed": parts[4]})
-    pairs = [(schedule(r), r["seed"]) for r in out]
+    pairs = [(treatment(r), r["seed"]) for r in out]
     for row in out:
-        key = schedule(row)
+        key = treatment(row)
         row["repeat"] = any(s == key and seed != row["seed"]
                             for s, seed in pairs)
         row["ambiguous"] = pairs.count((key, row["seed"])) > 1
