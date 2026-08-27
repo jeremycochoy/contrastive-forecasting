@@ -52,7 +52,7 @@ Gaps against the seed range of 0.0219, the range of `dec_s20`, `dec_s22`, `dec_s
 | the four `0.8 to 1.0 at 200k` arms against that schedule with no decay | +0.0570 to +0.1841 | 2.6 to 8.4 | 0.1432 | inside the comparator range, except `dec_ramp30k_m080` |
 | best arm 1.2352 against the second 1.2593 | +0.0241 | 1.1 | | threshold |
 
-Contrastive AUC per arm that passed the warm-up (`results/auc_verdicts.tsv`), with the floor the lowest trailing mean over every leg of the arm; the figure also draws the three unscored runs `dec_s23`, `dec_s25` and `dec_m080_r200_s24`.
+Contrastive AUC per arm that passed the warm-up (`results/auc_verdicts.tsv`), with the floor the lowest rolling median over every leg of the arm; the figure also draws the three unscored runs `dec_s23`, `dec_s25` and `dec_m080_r200_s24`.
 
 | arm | momentum at the stop | AUC floor | floor step | last AUC | last step | verdict |
 |---|---|---|---|---|---|---|
@@ -87,7 +87,7 @@ Total loss and its slope per 10,000 steps, fitted on 1,000-step blocks (`results
 - Decay: `--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps <ramp>`, linear. The ramp of each arm is column 5 of `scripts/arms.tsv`.
 - EMA: `--ema-tau <tau>`, with `--ema-tau-end 1.0 --ema-tau-ramp-steps <ramp>` on the ramped schedules. The momentum at the stop is the value the schedule holds at step 40,000.
 - Backbone: 40,000 steps, seed 20260520 unless the arm name carries `s22`, `s23`, `s24`, `s25`. Checkpoints every 5,000 steps.
-- AUC gate: `scripts/auc_guard.sh`, trailing window 500 steps, threshold 0.55, warm-up 1,000 steps. A run under the gate stops and gets no head.
+- AUC gate: `scripts/auc_guard.sh`, rolling median over 500 rows, threshold 0.55, warm-up 1,000 steps. A run whose rolling median ends under the threshold and does not come back stops and gets no head. A dip that recovers is not a loss.
 - Head: 30,000 steps on the student encoder, head seed 20260722, runner `reports/2026-08-08_rollout_depth/scripts/head_eval_bb.sh`.
 - Eval: GIFT-Eval, 97 configs, batch 4, forecast length 16. Score: GM-Relative MASE, lower is better.
 - Reference: the EMA momentum study at `reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md`, the same cell with no decay. Its cell, stop, head, head seed, encoder and eval match this study on 11 of 11 items (`results/reference_match.tsv`). Its best score is 1.1491, and its own range is 0.0016 over two seeds.
