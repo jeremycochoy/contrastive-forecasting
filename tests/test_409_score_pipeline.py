@@ -53,7 +53,12 @@ DECOMP = EXP / "notes" / "loss_decomposition.md"
 # One list of arms, in ONE place. Two copies drifted apart once already: the
 # run added `dec_m070_fix` and `dec_m050_fix` to `arms.tsv` mid-run, and this
 # file still named ten arms.
-from tests.test_409_launcher_shape import ARMS  # noqa: E402
+from tests.test_409_launcher_shape import ARMS, RAMPS  # noqa: E402
+
+# One round of the search, as it names its arms to the launcher. An odd count,
+# so the two lanes cannot take an equal share.
+ROUND = ("dec_s20", "dec_m080_r200", "dec_ramp5k_m080", "dec_m070_fix",
+         "dec_m099_fix")
 
 STOP = 40_000
 HEAD_STEPS = 30_000
@@ -272,28 +277,51 @@ class TestCollect:
 
 class TestTheLauncher:
 
-    def test_every_arm_is_dealt_exactly_once(self):
-        out = script_dry_run(LAUNCH, env={"CF409_GPU_COUNT": "2",
-                                          "GPUS": "0 1"})
+    def _dealt(self, arms=None):
+        """`{card: [arm, ...]}` from one dry run of the launcher."""
+        env = {"CF409_GPU_COUNT": "2", "GPUS": "0 1"}
+        if arms is not None:
+            env["ARMS"] = " ".join(arms)
+        out = script_dry_run(LAUNCH, env=env)
         assert out.returncode == 0, out.stderr
-        dealt = [line.split()[1] for line in out.stdout.splitlines()
-                 if line.startswith("arm ")]
-        assert sorted(dealt) == sorted(ARMS)
-
-    def test_the_two_cards_take_an_equal_share(self):
-        """Round-robin, so an odd number of arms leaves one card with one
-        more. One card must never take a whole end of the momentum ladder."""
-        out = script_dry_run(LAUNCH, env={"CF409_GPU_COUNT": "2",
-                                          "GPUS": "0 1"})
         lanes = {}
         for line in out.stdout.splitlines():
             if line.startswith("arm "):
                 gpu = line.split("gpu=")[1].split()[0]
                 lanes.setdefault(gpu, []).append(line.split()[1])
-        assert sorted(lanes) == ["0", "1"]
-        counts = sorted(len(v) for v in lanes.values())
-        assert sum(counts) == len(ARMS)
-        assert counts[1] - counts[0] <= 1, counts
+        return lanes
+
+    def test_every_named_arm_is_dealt_exactly_once(self):
+        """A round of the search NAMES its arms, and the whole catalogue is
+        the default. The launcher deals what it is given, once each: a dealt
+        arm twice is two lanes on one set of file names."""
+        for arms in (None, ROUND):
+            want = list(ARMS) if arms is None else list(arms)
+            dealt = [a for lane in self._dealt(arms).values() for a in lane]
+            assert sorted(dealt) == sorted(want), arms
+            assert len(dealt) == len(set(dealt)), arms
+
+    def test_the_lanes_share_the_arms_they_are_given(self):
+        """Round-robin over the cards, so an odd count leaves one card with
+        one more. One card must never take a whole end of the ladder."""
+        for arms in (None, ROUND):
+            want = ARMS if arms is None else arms
+            lanes = self._dealt(arms)
+            assert sorted(lanes) == ["0", "1"], arms
+            counts = sorted(len(v) for v in lanes.values())
+            assert sum(counts) == len(want), arms
+            assert counts[1] - counts[0] <= 1, (arms, counts)
+
+    def test_the_plan_names_the_ramp_of_each_arm(self):
+        """The dealt line is what an operator reads before a round starts.
+        One ramp for every arm would hide the ramp axis."""
+        env = {"CF409_GPU_COUNT": "2", "GPUS": "0 1",
+               "ARMS": "dec_m080_r200 dec_ramp5k_m080 dec_ramp30k_m080"}
+        out = script_dry_run(LAUNCH, env=env)
+        assert out.returncode == 0, out.stderr
+        got = {line.split()[1]: line.split("ramp=")[1].split()[0]
+               for line in out.stdout.splitlines() if line.startswith("arm ")}
+        assert got == {a: RAMPS[a] for a in env["ARMS"].split()}
 
     def test_a_card_this_machine_does_not_carry_is_refused(self):
         """A lane on a card that is not there dies inside .to(device), hours
@@ -713,12 +741,16 @@ class TestTheAucGuard:
         finally:
             self._reap(warm)
 
-    def test_the_card_warmup_is_inside_the_ramp(self, tmp_path):
-        """Every arm holds a weight above 0.9 through the warmup, so no arm
-        can collapse from the decay before the gate turns on."""
+    def test_the_card_warmup_is_inside_every_arm_ramp(self, tmp_path):
+        """The gate turns on while the repel term still carries most of its
+        weight, so no arm can collapse from the decay before it. The shortest
+        ramp is 5,000 steps, which sets the floor."""
         warmup = int(study_out('printf %s "$CF409_AUC_WARMUP"'))
         assert 0 < warmup <= 2000
-        assert float(study_out(f"cf409_rep_w_at {warmup}")) >= 0.9
+        for arm in ARMS:
+            assert warmup < int(RAMPS[arm]), arm
+            got = float(study_out(f"cf409_rep_w_at {arm} {warmup}"))
+            assert got >= 0.8, (arm, got)
 
 
 class TestTheLaneHoldsOneHead:
@@ -1300,9 +1332,9 @@ class TestTheRankGate:
         """A gate taken from a study with no repeated seed would not be this
         treatment's spread. The script exits rather than invent one."""
         arms = tmp_path / "arms.tsv"
-        arms.write_text("# arm\ttau\tend\tramp\tseed\n"
-                        "a\t0.9\t1.0\t100000\t1\n"
-                        "b\t0.8\t1.0\t200000\t1\n")
+        arms.write_text("# arm\ttau\tend\tema_ramp\trep_ramp\tseed\n"
+                        "a\t0.9\t1.0\t100000\t10000\t1\n"
+                        "b\t0.8\t1.0\t200000\t10000\t1\n")
         scores = tmp_path / "scores.csv"
         scores.write_text("arm,score\na,1.10\nb,1.30\n")
         out = subprocess.run(

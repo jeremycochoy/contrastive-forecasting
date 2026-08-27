@@ -5,10 +5,11 @@ WHY THIS MODULE EXISTS. Three figures draw the same runs. A color that means
 one thing in one figure and another thing in the next makes the set
 unreadable. So the mapping lives here, and every figure imports it.
 
-THE ENCODING. Every arm of this card carries the SAME decay and differs in the
-EMA schedule. The schedules form an ORDER, not a set of categories: each one is
-read by the momentum it holds at the stop, from 0.840 to 0.990. An order does
-not need eight hues, and eight hues would say "eight unrelated things".
+THE ENCODING. Every arm of this card runs the same cell and differs in the EMA
+schedule, the decay ramp or the seed. Both axes form an ORDER, not a set of
+categories: a schedule is read by the momentum it holds at the stop, from 0.500
+to 0.990, and a ramp by its length. An order does not need one hue for each
+arm, and one hue for each arm would say "many unrelated things".
 
   series color   a run that held the contrastive task
   alarm color    a run that lost it. That is a state, not a series, so it
@@ -59,16 +60,9 @@ SWEEP_SCORES = {
 }
 # The best of them, which is the number the card asks an arm to beat.
 SWEEP_BEST = 1.1491
-# The decay ramp, in steps, of the arms that do NOT take the card's 10,000.
-# The ramp is not a column of `arms.tsv`: it is `CF409_REP_W_RAMP` on the lane
-# that ran the arm, and each arm's leg log records the flag it got. This
-# repeats `cf409_decay_ramp_of` in `study.sh`.
+# The card's own decay ramp, in steps. Every row of `arms.tsv` takes it unless
+# its `rep_ramp` column says otherwise.
 DECAY_RAMP_DEFAULT = 10000
-DECAY_RAMP = {
-    "dec_ramp5k_m080": 5000,
-    "dec_ramp20k_m080": 20000,
-    "dec_ramp30k_m080": 30000,
-}
 STOP = 40000
 
 
@@ -78,8 +72,8 @@ def schedule(row):
 
 
 def decay_ramp(row):
-    """The decay ramp of one arm, in steps."""
-    return DECAY_RAMP.get(row["arm"], DECAY_RAMP_DEFAULT)
+    """The decay ramp of one arm, in steps, from column 5 of its row."""
+    return int(row["rep_ramp"])
 
 
 def treatment(row):
@@ -170,9 +164,9 @@ def curve_label(row):
 def read_arms(path):
     """The arms table, in the card's order, as a list of dicts.
 
-    Five columns: the arm, the three EMA momentum columns and the backbone
-    seed. A `-` is a flag the arm does not pass. The decay is the card's, not
-    the arm's, so it is in `study.sh` and not here.
+    Six columns: the arm, the three EMA momentum columns, the decay ramp and
+    the backbone seed. A `-` is a flag the arm does not pass. The two ends of
+    the decay are the card's, so they are in `study.sh` and not here.
 
     Each row also gets two flags:
 
@@ -189,10 +183,11 @@ def read_arms(path):
             if line.startswith("#") or not line.strip():
                 continue
             parts = line.rstrip("\n").split("\t")
-            if len(parts) < 5 or parts[0] == "arm":
+            if len(parts) < 6 or parts[0] == "arm":
                 continue
             out.append({"arm": parts[0], "tau": parts[1], "end": parts[2],
-                        "ramp": parts[3], "seed": parts[4]})
+                        "ramp": parts[3], "rep_ramp": parts[4],
+                        "seed": parts[5]})
     pairs = [(treatment(r), r["seed"]) for r in out]
     for row in out:
         key = treatment(row)

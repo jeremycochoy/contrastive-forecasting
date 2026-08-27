@@ -1,6 +1,5 @@
 #!/bin/bash
-# #409 — the entry point. One decay, eight EMA schedules, two cards, one
-# command.
+# #409 — the entry point. The arms of one round, two cards, one command.
 #
 # elisa holds two RTX 4090s. This deals the arms round-robin over them and
 # starts one lane on each (`phase1.sh`). Each lane trains its arms in turn:
@@ -25,7 +24,7 @@
 #   nohup setsid bash scripts/launch.sh >/dev/null 2>&1 &
 #
 #   GPUS="0" bash scripts/launch.sh          # one card
-#   ARMS="dec_m090_fix dec_m095_fix" bash scripts/launch.sh
+#   ARMS="dec_m090_fix dec_m095_fix" bash scripts/launch.sh   # one round
 #   CF409_TRIAL=400 bash scripts/launch.sh   # the whole pipeline, in minutes
 #   CF409_DRY_RUN=1 bash scripts/launch.sh   # print the plan, run nothing
 set -uo pipefail
@@ -65,7 +64,8 @@ if [ -n "${CF409_DRY_RUN:-}" ]; then
          "ema='$(cf409_ema_label "${arm_list[$i]}")'" \
          "reaches=$(cf409_momentum_at "${arm_list[$i]}" "${CF409_STOPS%% *}")" \
          "seed=$(cf409_seed "${arm_list[$i]}")" \
-         "rep_end=$CF409_REP_W_END ramp=$(cf409_ramp)" \
+         "rep_end=$CF409_REP_W_END" \
+         "ramp=$(cf409_decay_ramp_of "${arm_list[$i]}")" \
          "target=$CF409_ALIGN_TARGET"
   done
   exit 0

@@ -15,9 +15,10 @@ bash "$HERE/collect.sh"
 # The verdict table says which run lost the contrastive task, and the two
 # curve figures paint that run in the alarm colour. `collect.sh` above wrote it.
 VERDICTS="$CF409_RESULTS/auc_verdicts.tsv"
+# `plot_auc.py` shades the decay ramp. It reads the ramp of each arm from the
+# arms table, so it takes no ramp here.
 python3 "$HERE/plot_auc.py" --root "$CF409_ROOT" --arms "$CF409_ARMS_TSV" \
-  --verdicts "$VERDICTS" --out "$CF409_PLOTS/auc.png" \
-  --ramp "$(cf409_ramp)"
+  --verdicts "$VERDICTS" --out "$CF409_PLOTS/auc.png"
 python3 "$HERE/plot_loss_terms.py" --root "$CF409_ROOT" \
   --arms "$CF409_ARMS_TSV" --verdicts "$VERDICTS" \
   --out "$CF409_PLOTS/loss_terms.png" \

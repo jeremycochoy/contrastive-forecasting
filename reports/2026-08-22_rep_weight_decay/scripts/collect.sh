@@ -2,12 +2,12 @@
 # #409 — every number the card asks for, in two tables.
 #
 #   results/scores.csv         one 97-config GM-Relative MASE per arm, KEYED BY
-#                              THE EMA SCHEDULE. The schedule is this card's
-#                              axis, so `ema_tau`, `ema_end`, `ema_ramp` and
-#                              `ema_at_stop` come first and the seed rides
-#                              beside them. Arm 1 ran at three seeds, and those
-#                              three rows carry one key: they are that
-#                              schedule's spread, not three schedules.
+#                              THE EMA SCHEDULE, THE DECAY RAMP AND THE SEED.
+#                              Those three values are the arm, so `ema_tau`,
+#                              `ema_end`, `ema_ramp`, `ema_at_stop`, `ramp` and
+#                              `seed` all ride beside the score. Rows that share
+#                              a schedule and a ramp and differ in the seed are
+#                              that treatment's spread, not two treatments.
 #   results/auc_verdicts.tsv   whether each run held the contrastive task, and
 #                              at which step it lost it. The card asks for the
 #                              AUC of every run, and a run stopped by the AUC
@@ -43,9 +43,9 @@ mkdir -p "$CF409_RESULTS"
 # momentum its command line names: `dec_m090_r60` and `dec_m090_r200` both name
 # 0.9 and hold 0.967 and 0.920. That held value is what ranks two arms.
 #
-# `rep_w_at_stop` is the same idea for the decay. Every arm names 1.0 at step 0,
-# and the card's decay reaches 0.0 at step 10,000, so every arm holds 0.0 at the
-# stop. It is in the table so a reader sees that no arm moved the decay.
+# `ramp` is the decay ramp of the arm, from column 5 of its row.
+# `rep_w_at_stop` is the weight the arm HOLDS at the stop. Every arm names 1.0
+# at step 0 and every ramp ends well before the stop, so every arm holds 0.0.
 {
   echo "arm,ema_tau,ema_end,ema_ramp,ema_at_stop,seed,rep_end,ramp,rep_w_at_stop,align_target,stop,head_steps,encoder,score"
   for f in "$CF409_RESULTS"/score_*.txt; do
@@ -69,7 +69,7 @@ mkdir -p "$CF409_RESULTS"
     stop="$(cf409_steps_of "$stop_l")"
     head="$(cf409_steps_of "$head_l")"
     read -r ema_tau ema_end ema_ramp <<<"$(cf409_ema_sig "$arm")"
-    echo "$arm,$ema_tau,$ema_end,$ema_ramp,$(cf409_momentum_at "$arm" "$stop"),$(cf409_seed "$arm"),$CF409_REP_W_END,$(cf409_decay_ramp_of "$arm"),$(cf409_rep_w_at "$stop"),$CF409_ALIGN_TARGET,$stop,$head,$enc,$score"
+    echo "$arm,$ema_tau,$ema_end,$ema_ramp,$(cf409_momentum_at "$arm" "$stop"),$(cf409_seed "$arm"),$CF409_REP_W_END,$(cf409_decay_ramp_of "$arm"),$(cf409_rep_w_at "$arm" "$stop"),$CF409_ALIGN_TARGET,$stop,$head,$enc,$score"
   done
 } >"$OUT.$TMP"
 mv -f "$OUT.$TMP" "$OUT"

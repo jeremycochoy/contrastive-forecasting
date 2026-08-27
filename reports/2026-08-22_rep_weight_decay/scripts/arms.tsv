@@ -1,44 +1,49 @@
-# #409 — every run of the card, one row each. Tab separated.
+# #409 — the catalogue of candidate arms, one row each. Tab separated.
 #
-# Columns: arm, the EMA momentum at step 0, the momentum at the end of the
-# ramp, the ramp length, the backbone seed. A `-` in a column is a flag the arm
-# does NOT pass.
+# Columns: arm, the EMA momentum at step 0, the momentum at the end of the EMA
+# ramp, the EMA ramp length, the DECAY ramp length, the backbone seed. A `-` in
+# a column is a flag the arm does NOT pass.
 #
 # Add a row here and nothing else changes: every script, guard and figure reads
 # this file.
 #
-# THIS FILE IS THE RUN, NOT THE PLAN. The card allowed eight backbones. Seven
-# are spent and the eighth started on 2026-08-25 at 16:14. The plan is in the
-# sections below, and the section "What the run actually spent" gives what each
-# row reached. Read that section before you quote a row.
+# THIS FILE IS A CATALOGUE, NOT A QUEUE. The search picks its arms one round at
+# a time, and each round reads the scores of the round before it. So some rows
+# never ran. `notes/search_protocol.md` holds the rule. The section "What the
+# run actually spent" gives what each row reached. Read that section before you
+# quote a row.
 #
 # ---- The cell ----------------------------------------------------------------
 #
 # Every arm runs #373's cell `arm6_v2_combab_alignT` at k = 32 under the `mean`
 # reduction, with `--align-target teacher`. `study.sh` holds those values. Only
-# the three momentum columns and the seed change between two rows.
+# the three momentum columns, the decay ramp and the seed change between two
+# rows.
 #
 # ---- The decay ---------------------------------------------------------------
 #
 # One extra factor in front of L_rep. It starts at 1.0 and falls linearly to
-# 0.0 at step 10,000. That is the card's own shape, and it is in `study.sh` and
-# not in a column here.
+# 0.0 at the RAMP. The two ends are the card's, and they are in `study.sh`.
 #
-# Fourteen of the fifteen rows take it as it stands. `dec_ramp30k_m080` is the
-# one that does not: it carries the same shape over 30,000 steps, from
-# `CF409_REP_W_RAMP=30000` on its lane. The ramp is not a column of this table,
-# so read that arm's own leg log for it, not this file.
+# THE RAMP IS COLUMN 5 HERE. Four rows hold one schedule and one seed and
+# differ in the ramp alone, so a table without that column cannot tell them
+# apart. Fifteen rows take the card's own 10,000 steps. `dec_ramp5k_m080`,
+# `dec_ramp20k_m080` and `dec_ramp30k_m080` carry 5,000, 20,000 and 30,000.
+# `results/scores.csv` records the ramp of every scored arm.
 #
-# ---- The axis is the EMA schedule --------------------------------------------
+# ---- The two axes ------------------------------------------------------------
 #
 # The card's "The arms" section says the sweep's table is a guide and not a
-# list, and that another schedule is allowed with a reason. So the backbones go
-# to SCHEDULES.
+# list, and that another schedule is allowed with a reason. So the first
+# backbones go to SCHEDULES.
 #
-# The align target is the EMA teacher. Past step 10,000 the decay has taken
-# L_rep out, so L_align is the whole main loss and the teacher is the only
-# target left. The schedule sets how fast that teacher moves. That is what
-# makes it the axis worth the backbones.
+# The align target is the EMA teacher. Past the ramp the decay has taken L_rep
+# out, so L_align is the whole main loss and the teacher is the only target
+# left. The schedule sets how fast that teacher moves. That is what makes it
+# the first axis worth the backbones.
+#
+# The DECAY RAMP is the second axis. The rounds opened it when every tested
+# momentum had lost to the card's target.
 #
 # The number that ranks an arm is the momentum it HOLDS at the 40,000-step
 # stop, not the momentum its command line names: `dec_m090_r60` and
@@ -102,35 +107,43 @@
 #   dec_m050_fix   0.500. The sweep never ran it. ADDED MID-RUN, for the same
 #                  reason, one step further out.
 #
-#   dec_ramp30k_m080
-#                  0.840, the same schedule as `dec_m080_r200` at the same
-#                  seed. ADDED MID-RUN as the eighth backbone. It moves the
-#                  DECAY and not the schedule: the ramp runs to 30,000 steps
-#                  instead of 10,000. So the pair asks whether the decay costs
-#                  less when it takes longer.
+#   dec_ramp30k_m080, dec_ramp20k_m080, dec_ramp5k_m080
+#                  0.840, the schedule and the seed of `dec_m080_r200`. ADDED
+#                  MID-RUN, when every tested momentum had lost to the card's
+#                  target. They move the DECAY RAMP and not the schedule, to
+#                  30,000, 20,000 and 5,000 steps. With `dec_m080_r200` at
+#                  10,000 the four give one ordered row on the ramp axis.
+#
+#   dec_m080_r200_s24
+#                  0.840, the schedule, the ramp and the cell of
+#                  `dec_m080_r200`, at seed 20260524. It is a REPEAT SEED, and
+#                  it gives the error bar of the best score of this card.
 #
 # Seed 20260521 stays OUT. It lost the contrastive task once in the sweep, so a
 # collapse there could not be read as the decay's.
 #
 # ---- What the run actually spent ---------------------------------------------
 #
-# Seven backbones of the eight. The score is the 97-config GIFT-Eval
-# GM-Relative MASE, in `results/scores.csv`. The AUC verdict is in
-# `results/auc_verdicts.tsv`.
+# The score is the 97-config GIFT-Eval GM-Relative MASE, in
+# `results/scores.csv`. The AUC verdict is in `results/auc_verdicts.tsv`.
 #
-#   arm             reached    score     what happened
-#   dec_s20          40,000    1.2670    held the contrastive task
-#   dec_s22          40,000    1.2593    held
-#   dec_s24          40,000    1.2812    held
-#   dec_m099_fix     40,000    1.2849    held. Resumed as `_r2` after a crash
-#   dec_m080_r200    40,000    1.2352    held. Best of the decay arms
-#   dec_m070_fix     40,000    1.3534    held
-#   dec_m050_fix     10,600    none      LOST the contrastive task at 10,162
+#   arm                reached  score     what happened
+#   dec_s20             40,000  1.2670    held the contrastive task
+#   dec_s22             40,000  1.2593    held
+#   dec_s24             40,000  1.2812    held
+#   dec_m099_fix        40,000  1.2849    held. Resumed as `_r2` after a crash
+#   dec_m080_r200       40,000  1.2352    held. The best score of the card
+#   dec_m070_fix        40,000  1.3534    held
+#   dec_ramp5k_m080     40,000  1.2727    held
+#   dec_ramp20k_m080    40,000  1.3178    held
+#   dec_ramp30k_m080    40,000  1.3623    held
+#   dec_m050_fix        10,600  none      LOST the contrastive task at 10,162
 #
-#   dec_ramp30k_m080  running   none      started 08-25 16:14, gpu 0
+#   dec_m080_r200_s24  running  none      started 08-26 23:57, gpu 0. The
+#                                         repeat seed of the best arm
 #
-#   dec_s23          22,900    none      an outside SIGKILL at 14:18 on 08-23
-#   dec_s25          22,700    none      the same kill, the same second
+#   dec_s23             22,900  none      an outside SIGKILL at 14:18 on 08-23
+#   dec_s25             22,700  none      the same kill, the same second
 #
 #                                        Both are seed repeats of a schedule
 #                                        already measured at three seeds, so
@@ -138,27 +151,27 @@
 #                                        here because the card asks for the
 #                                        contrastive AUC of EVERY run.
 #
-#   dec_m090_r60        100    none      the Hub outage of 08-23 18:48
-#   dec_m095_fix          0    none      the same outage
-#   dec_m090_fix     never started
-#   dec_m090_r200    never started
-#   dec_m095_r100    never started
+#   dec_m090_r60           100  none      the Hub outage of 08-23 18:48
+#   dec_m095_fix             0  none      the same outage
+#   dec_m090_fix        never started
+#   dec_m090_r200       never started
+#   dec_m095_r100       never started
 #
 # `dec_s26` also never started, so it has no row: it wrote a header and no step.
 #
-# WHY THE EIGHTH BACKBONE LEFT THE EMA AXIS. Five schedules hold 0.500, 0.700,
-# 0.840, 0.940 and 0.990 at the stop, and every one of them loses to the card's
-# target of 1.1491 by 0.0861 or more. That is nearly four times this card's
-# measured seed spread of 0.022. A sixth schedule on the same axis cannot close
-# that gap, so the eighth backbone moves the decay ramp instead.
+# WHY THE SEARCH LEFT THE EMA AXIS. Five schedules hold 0.500, 0.700, 0.840,
+# 0.940 and 0.990 at the stop, and every one of them loses to the card's target
+# of 1.1491 by 0.0861 or more. That is nearly four times this card's measured
+# seed spread of 0.022. A sixth schedule on the same axis cannot close that
+# gap, so the round after it moved the decay ramp instead.
 #
 # ---- The order ---------------------------------------------------------------
 #
 # `launch.sh` deals the rows round-robin over the two cards, so each card holds
 # a spread of the momentum ladder and one lost card takes no whole end of it.
 #
-# The five seed rows carry the seed in their names. They were trained before
-# the axis changed and their checkpoints are on disk under those names.
+# A row that moves the seed carries it in its name, so a reader never takes two
+# seeds of one arm for two treatments.
 #
 # ---- What to watch -----------------------------------------------------------
 #
@@ -167,22 +180,22 @@
 # the `auc` column of <run>_losses.csv every step, and #409 adds `rep_w`,
 # `l_rep` and `l_align` beside it. Read the AUC of every arm and name the step
 # any run leaves the 0.95 to 0.98 band the sweep's healthy arms held.
-# arm	tau	end	ramp	seed
-dec_s20	0.9	1.0	100000	20260520
-dec_s22	0.9	1.0	100000	20260522
-dec_s23	0.9	1.0	100000	20260523
-dec_s24	0.9	1.0	100000	20260524
-dec_s25	0.9	1.0	100000	20260525
-dec_m090_fix	0.9	-	-	20260520
-dec_m090_r60	0.9	1.0	60000	20260520
-dec_m095_fix	0.95	-	-	20260520
-dec_m099_fix	0.99	-	-	20260520
-dec_m090_r200	0.9	1.0	200000	20260520
-dec_m080_r200	0.8	1.0	200000	20260520
-dec_m095_r100	0.95	1.0	100000	20260520
-dec_m070_fix	0.7	-	-	20260520
-dec_m050_fix	0.5	-	-	20260520
-dec_ramp30k_m080	0.8	1.0	200000	20260520
-dec_ramp20k_m080	0.8	1.0	200000	20260520
-dec_ramp5k_m080	0.8	1.0	200000	20260520
-dec_m080_r200_s24	0.8	1.0	200000	20260524
+# arm	tau	end	ema_ramp	rep_ramp	seed
+dec_s20	0.9	1.0	100000	10000	20260520
+dec_s22	0.9	1.0	100000	10000	20260522
+dec_s23	0.9	1.0	100000	10000	20260523
+dec_s24	0.9	1.0	100000	10000	20260524
+dec_s25	0.9	1.0	100000	10000	20260525
+dec_m090_fix	0.9	-	-	10000	20260520
+dec_m090_r60	0.9	1.0	60000	10000	20260520
+dec_m095_fix	0.95	-	-	10000	20260520
+dec_m099_fix	0.99	-	-	10000	20260520
+dec_m090_r200	0.9	1.0	200000	10000	20260520
+dec_m080_r200	0.8	1.0	200000	10000	20260520
+dec_m095_r100	0.95	1.0	100000	10000	20260520
+dec_m070_fix	0.7	-	-	10000	20260520
+dec_m050_fix	0.5	-	-	10000	20260520
+dec_ramp30k_m080	0.8	1.0	200000	30000	20260520
+dec_ramp20k_m080	0.8	1.0	200000	20000	20260520
+dec_ramp5k_m080	0.8	1.0	200000	5000	20260520
+dec_m080_r200_s24	0.8	1.0	200000	10000	20260524

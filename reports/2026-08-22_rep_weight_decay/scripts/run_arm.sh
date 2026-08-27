@@ -14,7 +14,8 @@
 #                  three momentum flags. It replaces and does not append: a
 #                  fixed arm passes `--ema-tau` alone, and no repeated flag can
 #                  remove `--ema-tau-end`.
-#   GAP_ARGS       the reduction, the L_align target and the decay flags,
+#   GAP_ARGS       the reduction, the L_align target and this arm's decay
+#                  flags, whose ramp is column 5 of the arm's row,
 #                  appended LAST to the trainer command line. The cell states
 #                  `--align-target` earlier, so a repeat here is what keeps it:
 #                  argparse keeps the last value.
@@ -25,7 +26,9 @@
 #   CF_STUDY_DIR   this study's directory, so the leg's log lands here
 #   CF_RESULTS     this study's results/
 #
-# The decay is NOT an arm's own. Every arm carries the card's one shape.
+# The decay falls from 1.0 to 0.0. Those two ends are the card's. The RAMP is
+# the arm's, and `cf409_ramp` reads it off the arm's row. `CF409_REP_W_RAMP`
+# replaces it, which is how a dry run tries a ramp that has no row yet.
 #
 # The runner is idempotent: a stop whose checkpoint is on disk is a no-op, and
 # a leg resumes the cell's furthest checkpoint with its optimizer state. So a
@@ -33,12 +36,11 @@
 #
 # ---- The schedule and the decay have to reach the trainer --------------------
 #
-# Every arm shares one configuration and one decay, and differs in the EMA
-# schedule. So an arm whose schedule did not arrive is a DUPLICATE of arm 1,
-# under a name that says otherwise: same file names, same CSV columns, same log
-# lines. The card's result is one number per schedule, and two of them would be
-# one number twice. An arm whose decay did not arrive repeats a number the
-# sweep already published.
+# Every arm shares one cell and differs in the EMA schedule, the decay ramp or
+# the seed. So an arm whose schedule or whose ramp did not arrive is a
+# DUPLICATE of another arm, under a name that says otherwise: same file names,
+# same CSV columns, same log lines. The card's result is one number for each
+# treatment, and two of them would be one number twice.
 #
 # The `rep_w` column of the losses CSV would show the decay, but only after the
 # run. The trainer's own command line names all five values in its first log
@@ -67,7 +69,7 @@ mkdir -p "$CF409_RESULTS"
 ARM_ROOT="$(cf409_arm_root "$ARM")"
 ARM_SEED="$(cf409_seed "$ARM")"
 ARM_EMA="$(cf409_ema_args "$ARM")"
-DECAY_ARGS="$(cf409_decay_args)"
+DECAY_ARGS="$(cf409_decay_args "$ARM")"
 # The reduction and the L_align target are stated on every leg, so the log
 # names the objective it trained rather than leaving the reader to infer the
 # cell's own values. The decay rides the same block, which is the LAST thing on
@@ -86,8 +88,9 @@ if [ -n "${CF409_DRY_RUN:-}" ]; then
   echo "arm $ARM cell=$CF409_CELL k=$CF409_K steps=$STOP gpu=$BB_GPU" \
        "save_every=$CF409_SAVE_EVERY"
   echo "  decay=$DECAY_ARGS"
-  echo "  rep_w at 0 / ramp / stop = $(cf409_rep_w_at 0)" \
-       "$(cf409_rep_w_at "$(cf409_ramp)")" "$(cf409_rep_w_at "$STOP")"
+  echo "  rep_w at 0 / ramp / stop = $(cf409_rep_w_at "$ARM" 0)" \
+       "$(cf409_rep_w_at "$ARM" "$(cf409_ramp "$ARM")")" \
+       "$(cf409_rep_w_at "$ARM" "$STOP")"
   echo "  ema=$ARM_EMA"
   echo "  momentum at 0 / stop = $(cf409_momentum_at "$ARM" 0)" \
        "$(cf409_momentum_at "$ARM" "$STOP") ($(cf409_ema_label "$ARM"))"
@@ -145,7 +148,7 @@ if [ -n "$line" ]; then
   got_target="$(printf '%s' "$line" | cf409_align_target_of_cmdline)"
   got_red="$(printf '%s' "$line" | cf409_reduce_of_cmdline)"
   got_ema="$(printf '%s' "$line" | cf409_ema_of_cmdline)"
-  want_decay="$(cf409_decay_sig)"
+  want_decay="$(cf409_decay_sig "$ARM")"
   want_ema="$(cf409_ema_sig "$ARM")"
   if [ "$got_decay" != "$want_decay" ] || [ "$got_seed" != "$ARM_SEED" ] \
      || [ "$got_target" != "$CF409_ALIGN_TARGET" ] \
@@ -176,10 +179,10 @@ fi
 
 # ---- The AUC gate ------------------------------------------------------------
 #
-# The decay ends at step 10,000 and the leg trains to 40,000. An arm that lost
-# the contrastive task has nothing left to train, so it would climb about
-# 30,000 dead steps to a checkpoint whose score is already known to be bad.
-# Past the ramp nothing pushes the representations apart.
+# The decay ends at the arm's ramp and the leg trains to 40,000 steps. An arm
+# that lost the contrastive task has nothing left to train, so it would climb
+# tens of thousands of dead steps to a checkpoint whose score is already known
+# to be bad. Past the ramp nothing pushes the representations apart.
 # `auc_guard.sh` reads the trainer's own `auc` column while the leg runs and
 # stops the leg on a `lost` verdict. See its header for the reading and the
 # warmup.

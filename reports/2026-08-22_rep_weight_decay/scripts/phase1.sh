@@ -163,7 +163,7 @@ for arm in $ARMS; do
     if [ -n "${CF409_DRY_RUN:-}" ]; then
       echo "arm $arm steps=$stop gpu=$BB_GPU tries=$CF409_LEG_TRIES" \
            "ema='$(cf409_ema_label "$arm")'" \
-           "seed=$(cf409_seed "$arm") decay=$(cf409_decay_args)"
+           "seed=$(cf409_seed "$arm") decay=$(cf409_decay_args "$arm")"
       [ "$HEADS" = "1" ] && \
         echo "head $arm stop=$stop steps=$CF409_HEAD_STEPS enc=$CF409_ENC"
       continue

@@ -358,3 +358,24 @@ hours plus a head and an eval, so the same staleness would return.
 It starts no leg, kills nothing and commits nothing. Four tests pin that. A
 session must commit the refreshed artefacts: a background `git` beside a live
 session is how two sessions lose each other's work.
+
+## 08-27 02:20 — the decay ramp became a column of the arms table
+
+Four rows, `dec_m080_r200`, `dec_ramp5k_m080`, `dec_ramp20k_m080` and
+`dec_ramp30k_m080`, held identical values. They differed only in
+`CF409_REP_W_RAMP` on the lane that ran each one, so a reader could not
+reproduce an arm from its row. The 08-25 entry above records that state.
+
+`scripts/arms.tsv` now carries a `rep_ramp` column, filled with the ramp each
+arm actually ran. Every value matches the arm's leg log and the `ramp` column
+of `results/scores.csv`, and `collect.sh` rewrites `scores.csv` byte for byte.
+
+`cf409_decay_ramp_of` reads that column, and no environment value moves it: a
+stray `CF409_REP_W_RAMP` in a lane environment would otherwise rewrite the ramp
+of every arm in the tables. `cf409_ramp <arm>` is what one LEG runs, and
+`CF409_REP_W_RAMP` overrides it for a dry run of a ramp that has no row yet.
+`cf409_decay_args`, `cf409_decay_sig` and `cf409_rep_w_at` now take the arm.
+
+`arm_style.DECAY_RAMP`, a second copy of the same three arm names, is gone.
+`plot_auc.py` reads the ramp of each arm it draws and shades the longest one,
+because one band at one arm's ramp read as every arm's.

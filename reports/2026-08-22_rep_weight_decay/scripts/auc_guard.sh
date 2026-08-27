@@ -1,18 +1,20 @@
 #!/bin/bash
 # #409 — stop the leg that lost the contrastive task.
 #
-# WHY THIS SCRIPT EXISTS. The decay ends at step 10,000 and every arm trains to
-# 40,000. Past the ramp the weight is 0.0, so nothing pushes the
-# representations apart. A collapsed arm then climbs about 30,000 dead steps to
-# a checkpoint whose score is already known to be bad. The Fable opinion
+# WHY THIS SCRIPT EXISTS. The decay ends at the arm's ramp, which is 5,000 to
+# 30,000 steps, and every arm trains to 40,000. Past the ramp the weight is
+# 0.0, so nothing pushes the representations apart. A collapsed arm then climbs
+# tens of thousands of dead steps to a checkpoint whose score is already known
+# to be bad. The Fable opinion
 # (scripts/fable_opinion.md, section 5) asks for a gate on the trainer's own
 # AUC column. This is that gate.
 #
 # HOW IT READS. `auc_watch.py` gives the verdict: the rolling median of the
 # `auc` column over CF409_AUC_WINDOW steps, against CF409_AUC_THRESHOLD. Rows
-# at or below CF409_AUC_WARMUP do not count — the AUC of a fresh run starts
-# near 0.5 and climbs, and every arm still holds a weight of 0.9 or more there,
-# so no arm can collapse from the decay inside the warmup.
+# at or below CF409_AUC_WARMUP do not count. The AUC of a fresh run starts near
+# 0.5 and climbs. The warmup is also well inside the shortest ramp of 5,000
+# steps, where every arm still holds a weight of 0.8 or more, so no arm can
+# collapse from the decay before the gate turns on.
 #
 # WHAT IT DOES. It reads the live CSV every CF409_AUC_POLL seconds while the
 # leg runs. On a `lost` verdict it stops the whole process tree and writes

@@ -42,10 +42,10 @@ cf409_run_state(){  # <state file> <note>
     echo "- note: $note"
     echo "- cell: \`$CF409_CELL\`, k = $CF409_K, reduce \`$CF409_REDUCE\`," \
          "target \`$CF409_ALIGN_TARGET\`"
-    echo "- decay: $CF409_REP_W_START to $CF409_REP_W_END at step" \
-         "$(cf409_ramp). Fixed on every arm."
-    echo "- axis: the EMA schedule. No control arm: the sweep scored these" \
-         "schedules with no decay, in" \
+    echo "- decay: $CF409_REP_W_START to $CF409_REP_W_END at the arm's" \
+         "ramp, which is column 5 of \`scripts/arms.tsv\`."
+    echo "- axes: the EMA schedule and the decay ramp. No control arm: the" \
+         "sweep scored these schedules with no decay, in" \
          "\`reports/2026-08-19_ema_momentum_k32/\`."
     echo "- arms: $arms"
     echo "- cards: ${GPUS:--}, launcher pid ${CF409_LAUNCHER_PID:--}"
@@ -53,15 +53,16 @@ cf409_run_state(){  # <state file> <note>
     echo "- artefacts: elisa holds them all, and no sync loop runs." \
          "See \`notes/artefacts.md\`."
     echo
-    echo "## The schedules, and what each one reached"
+    echo "## The arms, and what each one reached"
     echo
     echo '```'
-    printf '%-14s %-22s %-8s %-9s %-8s %s\n' \
-      arm schedule reaches seed reached score
+    printf '%-18s %-22s %-8s %-7s %-9s %-8s %s\n' \
+      arm schedule reaches ramp seed reached score
     for a in $arms; do
-      printf '%-14s %-22s %-8s %-9s %-8s %s\n' "$a" \
+      printf '%-18s %-22s %-8s %-7s %-9s %-8s %s\n' "$a" \
         "$(cf409_ema_label "$a")" \
         "$(cf409_momentum_at "$a" "${CF409_STOPS%% *}")" \
+        "$(cf409_decay_ramp_of "$a")" \
         "$(cf409_seed "$a")" \
         "$(cf409_reached "$a")" \
         "$(awk -F, -v a="$a" '$1==a{print $NF}' \

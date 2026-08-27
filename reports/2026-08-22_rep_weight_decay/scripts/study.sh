@@ -1,5 +1,5 @@
 #!/bin/bash
-# #409 — one fixed decay of the L_rep weight, over eight EMA schedules.
+# #409 — a decay of the L_rep weight to zero, over an EMA schedule and a ramp.
 # Sourced, never run.
 #
 # The cell is #373's `arm6_v2_combab_alignT` at k = 32 under the `mean`
@@ -7,10 +7,10 @@
 # weight 1.0, MoCo rep keys, tau_rep = 1.0, no CPC auxiliary, SIGReg on the
 # embedding and the encoding at weight 1.0, tau = 0.10.
 #
-# The decay is FIXED, exactly as the card gives it: one extra factor in front
-# of L_rep that starts at 1.0 and falls linearly to 0.0 at step 10,000. There
-# is no floor and no second shape, so the decay lives here and not in the arms
-# table.
+# The decay is one extra factor in front of L_rep. It starts at 1.0 and falls
+# linearly to 0.0 at the arm's RAMP. The two ends are the card's, so they live
+# here. The RAMP is a column of the arms table: four rows hold one schedule and
+# one seed and differ in the ramp alone.
 #
 # ---- Why the weight ----------------------------------------------------------
 #
@@ -26,10 +26,14 @@
 # left. The schedule sets how fast that teacher moves, so it keeps acting for
 # three quarters of the run.
 #
-# The card allows eight backbones. They go to EIGHT SCHEDULES, one seed each.
+# The card allows eight backbones, and the search spends them one round at a
+# time. Each round reads the scores of the round before it, so
+# `scripts/arms.tsv` is a CATALOGUE of candidates and not a queue. Some of its
+# rows never ran. `notes/search_protocol.md` holds the rule.
+#
 # `EMA_ARGS` in #373's runner REPLACES the three momentum flags, which is what
 # a fixed arm needs: it passes `--ema-tau` alone, and no repeated flag can
-# remove `--ema-tau-end`. See scripts/arms.tsv for the eight and for why each
+# remove `--ema-tau-end`. See scripts/arms.tsv for every row and for why each
 # one earns a backbone.
 #
 # ---- This card runs no control -----------------------------------------------
@@ -79,12 +83,19 @@ CF409_ENC="student"
 
 # ---- The decay, which is the card's whole change -----------------------------
 #
-# One shape: the weight starts at 1.0 and falls linearly to 0.0 at step 10,000,
-# then holds. The card states it, so it lives here. An arms table that carried
-# it per row could hold a second shape, and the card allows none.
+# The weight starts at 1.0 and falls linearly to 0.0 at the arm's ramp, then
+# holds. The two ends are the card's, so they live here.
 CF409_REP_W_START="${CF409_REP_W_START:-1.0}"
 CF409_REP_W_END="${CF409_REP_W_END:-0.0}"
-CF409_REP_W_RAMP="${CF409_REP_W_RAMP:-10000}"
+# The ramp of an ARM is column 5 of its row, and `cf409_decay_ramp_of` reads
+# it. The card's own ramp is 10,000 steps, and `scripts/arms.tsv` states it
+# where a reader writes a new row.
+#
+# This is an OVERRIDE of that column, for one dry run of a ramp no row carries
+# yet. It moves the LEG only. It never moves `cf409_decay_ramp_of`, because a
+# stray value in a lane environment would otherwise rewrite the ramp column of
+# every arm in `results/scores.csv`.
+CF409_REP_W_RAMP="${CF409_REP_W_RAMP:-}"
 
 # ---- The latent-drift probe --------------------------------------------------
 #
@@ -116,11 +127,11 @@ CF409_ARMS_TSV="${CF409_ARMS_TSV:-$CF409_SCRIPTS/arms.tsv}"
 #
 #   CF409_TRIAL=400 bash scripts/run_arm.sh dec_s20 400
 #
-# The ramp scales with the budget, so a trial still crosses its whole decay.
+# `cf409_ramp` scales each arm's own ramp by the same fraction, so every arm of
+# a trial still crosses its whole decay.
 if [ -n "${CF409_TRIAL:-}" ]; then
   CF409_STOPS="$CF409_TRIAL"
   CF409_HEAD_STEPS=$(( CF409_TRIAL / 2 ))
-  CF409_RAMP_SCALE="${CF409_RAMP_SCALE:-$(( CF409_TRIAL * CF409_REP_W_RAMP / 40000 ))}"
   # The AUC gate scales too, or a 400-step trial would end inside its own
   # warmup and the gate would never fire.
   CF409_AUC_WARMUP="${CF409_AUC_WARMUP:-$(( CF409_TRIAL / 40 ))}"
@@ -164,16 +175,16 @@ fi
 
 # Every arm name, in the card's order.
 cf409_arms(){
-  awk -F'\t' '!/^#/ && NF >= 5 { print $1 }' "$CF409_ARMS_TSV"
+  awk -F'\t' '!/^#/ && NF >= 6 { print $1 }' "$CF409_ARMS_TSV"
 }
 CF409_ARMS="$(cf409_arms | tr '\n' ' ')"
 CF409_ARMS="${CF409_ARMS% }"
 
-# One arm's row, as `<arm> <tau> <end> <ramp> <seed>`. Prints nothing, and
-# returns non-zero, for an arm the table does not hold.
+# One arm's row, as `<arm> <tau> <end> <ema ramp> <decay ramp> <seed>`. Prints
+# nothing, and returns non-zero, for an arm the table does not hold.
 cf409_arm_row(){  # <arm>
   awk -F'\t' -v a="${1:?arm}" \
-    '!/^#/ && $1 == a { print $1, $2, $3, $4, $5; found = 1 }
+    '!/^#/ && $1 == a { print $1, $2, $3, $4, $5, $6; found = 1 }
      END { exit !found }' "$CF409_ARMS_TSV"
 }
 
@@ -190,11 +201,12 @@ cf409_require_stop(){  # <stop steps>
   return 2
 }
 
-# The backbone seed of one arm, from column 5. Seven of the eight schedules
-# carry ONE seed, so a seed that does not reach the trainer moves an arm onto
-# another arm's data order.
+# The backbone seed of one arm, from column 6. A seed that does not reach the
+# trainer moves an arm onto another arm's data order. A row that moves the seed
+# says so in its name, because a repeat seed measures the error bar of the arm
+# it repeats.
 cf409_seed(){  # <arm>
-  cf409_arm_row "${1:?arm}" | awk '{print $5}'
+  cf409_arm_row "${1:?arm}" | awk '{print $6}'
 }
 
 # ---- The EMA schedule, which is this card's axis ------------------------------
@@ -207,9 +219,9 @@ cf409_seed(){  # <arm>
 # schedule through `EMA_ARGS` rather than ride the appended `GAP_ARGS` block —
 # a repeat can change a flag, never remove one.
 cf409_ema_args(){  # <arm>
-  local row name tau end ramp seed
+  local row name tau end ramp rep_ramp seed
   row="$(cf409_arm_row "${1:?arm}")" || return 1
-  read -r name tau end ramp seed <<<"$row"
+  read -r name tau end ramp rep_ramp seed <<<"$row"
   if [ "$end" = "-" ]; then
     printf -- '--ema-tau %s\n' "$tau"
   else
@@ -235,9 +247,9 @@ cf409_ema_sig(){  # <arm>
 # readers of this study must not need a Python interpreter to print a table.
 # `tests/test_409_launcher_shape.py` holds the two against each other.
 cf409_momentum_at(){  # <arm> <step>
-  local row name tau end ramp seed
+  local row name tau end ramp rep_ramp seed
   row="$(cf409_arm_row "${1:?arm}")" || return 1
-  read -r name tau end ramp seed <<<"$row"
+  read -r name tau end ramp rep_ramp seed <<<"$row"
   if [ "$end" = "-" ]; then printf '%.3f\n' "$tau"; return 0; fi
   awk -v t="$tau" -v e="$end" -v r="$ramp" -v s="${2:?step}" 'BEGIN{
     if (r + 0 <= 0) { printf "%.3f\n", e; exit }
@@ -247,47 +259,50 @@ cf409_momentum_at(){  # <arm> <step>
 
 # One arm's schedule, as a reader sees it. `0.9 fixed` or `0.9 to 1.0 at 100k`.
 cf409_ema_label(){  # <arm>
-  local row name tau end ramp seed
+  local row name tau end ramp rep_ramp seed
   row="$(cf409_arm_row "${1:?arm}")" || return 1
-  read -r name tau end ramp seed <<<"$row"
+  read -r name tau end ramp rep_ramp seed <<<"$row"
   if [ "$end" = "-" ]; then printf '%s fixed\n' "$tau"
   else printf '%s to %s at %s\n' "$tau" "$end" "$(cf409_steps_label "$ramp")"
   fi
 }
 
-# How long the decay is, in steps. Every arm shares it, so this takes no arm.
-#
-# A trial scales the ramp with the budget through CF409_RAMP_SCALE, so a
-# 400-step trial still crosses its whole decay and its `rep_w` column still
-# reaches 0.0.
-cf409_ramp(){
-  if [ -n "${CF409_RAMP_SCALE:-}" ]; then printf '%s\n' "$CF409_RAMP_SCALE"
-  else printf '%s\n' "$CF409_REP_W_RAMP"; fi
-}
+# ---- The decay ---------------------------------------------------------------
 
-# The decay ramp one arm GOT, for the tables. Three arms moved the ramp from
-# their lane's CF409_REP_W_RAMP, and each leg log records the flag. This
-# repeats DECAY_RAMP in `arm_style.py`. `cf409_ramp` stays the launch value.
+# The decay ramp of one arm, in steps, from column 5 of its row. This is a FACT
+# about the arm, so no environment value moves it: `results/scores.csv`, the
+# figures and `results/RUN_STATE.md` all read it.
 cf409_decay_ramp_of(){  # <arm>
-  case "${1:?arm}" in
-    dec_ramp5k_m080) echo 5000 ;;
-    dec_ramp20k_m080) echo 20000 ;;
-    dec_ramp30k_m080) echo 30000 ;;
-    *) cf409_ramp ;;
-  esac
+  cf409_arm_row "${1:?arm}" | awk '{print $5}'
 }
 
-# The trainer flags of the decay, as ONE unit. Every arm carries them.
-cf409_decay_args(){
+# The ramp ONE LEG of an arm runs, in steps. The row gives it.
+# `CF409_REP_W_RAMP` replaces it, which is how a dry run tries a ramp that has
+# no row yet. A trial scales it by the trial budget, so a 400-step trial still
+# crosses its whole decay and its `rep_w` column still reaches 0.0.
+cf409_ramp(){  # <arm>
+  local ramp
+  ramp="${CF409_REP_W_RAMP:-$(cf409_decay_ramp_of "${1:?arm}")}" || return 1
+  [ -n "$ramp" ] || return 1
+  if [ -n "${CF409_TRIAL:-}" ]; then
+    ramp=$(( ramp * CF409_TRIAL / 40000 ))
+    [ "$ramp" -ge 1 ] || ramp=1
+  fi
+  printf '%s\n' "$ramp"
+}
+
+# The trainer flags of the decay of one arm, as ONE unit.
+cf409_decay_args(){  # <arm>
   printf -- '--rep-loss-weight %s --rep-loss-weight-end %s --rep-loss-weight-ramp-steps %s\n' \
-    "$CF409_REP_W_START" "$CF409_REP_W_END" "$(cf409_ramp)"
+    "$CF409_REP_W_START" "$CF409_REP_W_END" "$(cf409_ramp "${1:?arm}")"
 }
 
 # The same three values as the trainer's own command line reports them, so a
 # leg's log can be read against the card. `-` for a flag the command line does
 # not carry.
-cf409_decay_sig(){
-  printf '%s %s %s\n' "$CF409_REP_W_START" "$CF409_REP_W_END" "$(cf409_ramp)"
+cf409_decay_sig(){  # <arm>
+  printf '%s %s %s\n' "$CF409_REP_W_START" "$CF409_REP_W_END" \
+    "$(cf409_ramp "${1:?arm}")"
 }
 
 # The same three values, read off a trainer command line on stdin.
@@ -339,9 +354,9 @@ cf409_ema_of_cmdline(){
 # because the shell readers of this study must not need a Python interpreter
 # to print a table. `tests/test_409_launcher_shape.py` holds the two against
 # each other.
-cf409_rep_w_at(){  # <step>
+cf409_rep_w_at(){  # <arm> <step>
   awk -v w="$CF409_REP_W_START" -v e="$CF409_REP_W_END" \
-      -v r="$(cf409_ramp)" -v s="${1:?step}" 'BEGIN{
+      -v r="$(cf409_ramp "${1:?arm}")" -v s="${2:?step}" 'BEGIN{
     if (r + 0 <= 0) { printf "%.3f\n", e; exit }
     f = s / r; if (f > 1) f = 1; if (f < 0) f = 0;
     printf "%.3f\n", w + f * (e - w) }'
