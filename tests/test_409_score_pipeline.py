@@ -1327,8 +1327,9 @@ class TestTheRankGate:
 
     def test_every_arm_loses_to_the_card_target_by_more_than_the_gate(self):
         """The card's first question: does the decay give a new best score?
-        The `vs target` block answers it. Every arm loses to the target 1.1491,
-        and every gap is a rank."""
+        The `vs target` block answers it. No arm beats the target 1.1491, and
+        no arm's loss is inside the seed range. The best arm, at 1.8 gates, is
+        a threshold, and the other nine are ranks."""
         gate = self._gate()
         rows = [r for r in self._rows() if r["block"] == "vs target"]
         assert rows
@@ -1336,8 +1337,8 @@ class TestTheRankGate:
             assert float(r["right_score"]) == 1.1491, r
             gap = float(r["gap"])
             assert gap > 0, r                  # the decay costs the score
+            assert r["verdict"] != "noise", r  # the loss clears the gate
             assert r["verdict"] == self._verdict(gap, gate), r
-            assert r["verdict"] == "rank", r
 
     def test_the_no_decay_gaps_read_against_the_comparator_own_range(self):
         """The `vs no-decay` block reads each arm against the sweep's run of
