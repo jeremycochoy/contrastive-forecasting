@@ -1,28 +1,30 @@
 # A decay of the L_rep weight to zero never beats the no-decay reference at k = 32
 
-A linear decay of the L_rep weight, the contrastive representation term of the training loss, does not improve the GM-Relative MASE of the k = 32 cell. Its best setting loses to the no-decay reference by 3.9 times the seed range, the spread of three seeds of one schedule, 0.0219.
+A linear decay of the L_rep weight, the contrastive representation term of the training loss, does not improve the GM-Relative MASE of the k = 32 cell, one backbone configuration at rollout depth 32. Its best setting loses to the no-decay reference by 3.9 times the seed range. The seed range is the spread of three seeds of one schedule.
 
 ![scores](plots/scores.png)
 
-filled = an arm (one backbone run) with the decay, open = the same EMA schedule without it
-
-Both axes have their best value inside the tested range.
+Filled: an arm (one backbone run) with the decay. Open: the same EMA schedule without it.
 
 ![axes](plots/axes.png)
 
-left: EMA momentum at the stop. Right: decay ramp
+Left: EMA momentum at the stop. Right: decay ramp.
 
-One run lost the contrastive task, momentum 0.500. The contrastive AUC is the area under the ROC curve of the contrastive task on the training stream, 1.0 the ceiling and 0.5 chance.
+Both axes have their best value inside the tested range.
 
 ![auc](plots/auc.png)
 
-Every scored arm still reduces its total loss over steps 20,000 to 40,000. Over the last 10,000 steps, three arms have a positive slope and six a negative one (`results/loss_slope.csv`).
+The contrastive AUC is the area under the ROC curve of the contrastive task on the training stream, 1.0 the ceiling and 0.5 chance. The run at momentum 0.500 lost the contrastive task.
 
 ![loss terms](plots/loss_terms.png)
+
+Every scored arm still reduces its total loss over steps 20,000 to 40,000, and over the last 10,000 steps three arms have a positive slope and six a negative one (`results/loss_slope.csv`).
 
 | term in the figure | definition |
 |---|---|
 | `L_align, reduced` | the residual `(loss - rep_w * l_rep - sigreg_e - sigreg_h) / align_w` |
+| `sigreg_e`, `sigreg_h` | the two SIGReg regularisation terms of the loss, each at weight 1.0 (`notes/loss_decomposition.md`) |
+| `align_w` | the weight of L_align, 1.0 (`scripts/plot_loss_terms.py`, `--align-weight`) |
 | `cos_err` | the mean forecast cosine error over the 33 rollout depths d0 to d32 |
 | `l_rep` | not computed past the ramp, so its lines end there |
 
@@ -45,7 +47,7 @@ Score of each arm at the 40,000-step stop, named by its EMA schedule, decay ramp
 | dec_m099_fix | 0.99 fixed | 0.990 | 10,000 | 20260520 | 1.2849 | not run |
 | reference | 0.9 to 1.0 at 100k | 0.940 | no decay | 20260520, 20260522 | | 1.1491, 1.1507 |
 
-Gaps against the seed range of 0.0219, the range of `dec_s20`, `dec_s22`, `dec_s24` (`results/rank_gate.tsv`). Rank rule: a gap under the seed range is not a rank, and a gap that clears it by less than the range is a threshold, not a rank.
+Gaps against the seed range of 0.0219, the range of `dec_s20`, `dec_s22`, `dec_s24` (`results/rank_gate.tsv`). Verdict rule: a gap under the seed range is noise, a gap under twice the seed range is a threshold, and a gap of twice the seed range or more is a rank.
 
 | comparison | gap | gap over seed range | verdict |
 |---|---|---|---|
@@ -53,7 +55,7 @@ Gaps against the seed range of 0.0219, the range of `dec_s20`, `dec_s22`, `dec_s
 | each scored arm whose EMA schedule the reference study also ran, against that schedule with no decay | +0.0570 to +0.1841 | 2.6 to 8.4 | rank |
 | best arm 1.2352 against the second 1.2593 | +0.0241 | 1.1 | threshold |
 
-Contrastive AUC per arm (`results/auc_verdicts.tsv`). The floor is the lowest trailing mean over every leg of the arm.
+Contrastive AUC per scored arm (`results/auc_verdicts.tsv`), with the floor the lowest trailing mean over every leg of the arm; the figure also draws the three unscored runs `dec_s23`, `dec_s25` and `dec_m080_r200_s24`.
 
 | arm | momentum at the stop | AUC floor | floor step | last AUC | last step | verdict |
 |---|---|---|---|---|---|---|
@@ -84,7 +86,7 @@ Total loss and its slope per 10,000 steps, fitted on 1,000-step blocks (`results
 
 ## Protocol
 
-- Cell: the k = 32 cell is the configuration `arm6_v2_combab_alignT` at rollout depth k = 32, reduction `mean`, align target the EMA teacher. `scripts/study.sh` holds every value.
+- Cell: configuration `arm6_v2_combab_alignT`, reduction `mean`, align target the EMA teacher. `scripts/study.sh` holds every value.
 - Decay: `--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps <ramp>`, linear. The ramp of each arm is column 5 of `scripts/arms.tsv`.
 - EMA: `--ema-tau <tau>`, with `--ema-tau-end 1.0 --ema-tau-ramp-steps <ramp>` on the ramped schedules. The momentum at the stop is the value the schedule holds at step 40,000.
 - Backbone: 40,000 steps, seed 20260520 unless the arm name carries `s22`, `s24`. Checkpoints every 5,000 steps.
@@ -103,5 +105,5 @@ Runs without a score and why (`results/RUN_STATE.md`, `notes/execution_log.md`):
 |---|---|---|
 | dec_m050_fix | 10,600 | the AUC gate stopped it |
 | dec_s23, dec_s25 | 22,900, 22,700 | the schedule already had three seeds |
-| dec_m090_r60, dec_m095_fix | 100, 0 | |
+| dec_m090_r60, dec_m095_fix | 100, 0 | no readable AUC row above step 1,000 (`results/auc_verdicts.tsv`) |
 | dec_m090_fix, dec_m090_r200, dec_m095_r100 | never started | every tested momentum lost to the reference by 3.9 times the seed range or more, so no further momentum ran |

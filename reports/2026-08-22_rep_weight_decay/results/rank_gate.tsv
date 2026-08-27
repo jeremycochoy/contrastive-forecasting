@@ -1,7 +1,8 @@
 # the gate: 0.0219, the range of 3 seeds of one schedule, 0.9 1.0 100000, decay ramp 10000
 # those arms: dec_s20, dec_s22, dec_s24
 # a gap under the gate is not a rank. This card measured no other spread.
-# the narrowest pair the gate passes: dec_m080_r200 vs dec_s22, gap +0.0241, over the gate by 0.0022. A margin this thin is a threshold, not a rank.
+# the narrowest pair the gate passes: dec_m080_r200 vs dec_s22, gap +0.0241, over the gate by 0.0022. A margin under one gate is a threshold, not a rank.
+# verdict: noise under the gate, threshold under twice the gate, rank at twice the gate or more.
 block	left	right	left_score	right_score	gap	verdict
 vs no-decay	dec_m080_r200	the same schedule, no decay	1.2352	1.1782	+0.0570	rank
 vs target	dec_m080_r200	the card's target	1.2352	1.1491	+0.0861	rank
@@ -21,9 +22,9 @@ vs no-decay	dec_m070_fix	the sweep never ran this schedule	1.3534	-	-	-
 vs target	dec_m070_fix	the card's target	1.3534	1.1491	+0.2043	rank
 vs no-decay	dec_ramp30k_m080	the same schedule, no decay	1.3623	1.1782	+0.1841	rank
 vs target	dec_ramp30k_m080	the card's target	1.3623	1.1491	+0.2132	rank
-arm vs arm	dec_m080_r200	dec_s22	1.2352	1.2593	+0.0241	rank
-arm vs arm	dec_m080_r200	dec_s20	1.2352	1.2670	+0.0318	rank
-arm vs arm	dec_m080_r200	dec_ramp5k_m080	1.2352	1.2727	+0.0375	rank
+arm vs arm	dec_m080_r200	dec_s22	1.2352	1.2593	+0.0241	threshold
+arm vs arm	dec_m080_r200	dec_s20	1.2352	1.2670	+0.0318	threshold
+arm vs arm	dec_m080_r200	dec_ramp5k_m080	1.2352	1.2727	+0.0375	threshold
 arm vs arm	dec_m080_r200	dec_s24	1.2352	1.2812	+0.0460	rank
 arm vs arm	dec_m080_r200	dec_m099_fix	1.2352	1.2849	+0.0497	rank
 arm vs arm	dec_m080_r200	dec_ramp20k_m080	1.2352	1.3178	+0.0826	rank
@@ -32,7 +33,7 @@ arm vs arm	dec_m080_r200	dec_ramp30k_m080	1.2352	1.3623	+0.1271	rank
 arm vs arm	dec_s22	dec_s20	1.2593	1.2670	+0.0077	noise
 arm vs arm	dec_s22	dec_ramp5k_m080	1.2593	1.2727	+0.0134	noise
 arm vs arm	dec_s22	dec_s24	1.2593	1.2812	+0.0219	noise
-arm vs arm	dec_s22	dec_m099_fix	1.2593	1.2849	+0.0256	rank
+arm vs arm	dec_s22	dec_m099_fix	1.2593	1.2849	+0.0256	threshold
 arm vs arm	dec_s22	dec_ramp20k_m080	1.2593	1.3178	+0.0585	rank
 arm vs arm	dec_s22	dec_m070_fix	1.2593	1.3534	+0.0941	rank
 arm vs arm	dec_s22	dec_ramp30k_m080	1.2593	1.3623	+0.1030	rank
@@ -48,12 +49,12 @@ arm vs arm	dec_ramp5k_m080	dec_ramp20k_m080	1.2727	1.3178	+0.0451	rank
 arm vs arm	dec_ramp5k_m080	dec_m070_fix	1.2727	1.3534	+0.0807	rank
 arm vs arm	dec_ramp5k_m080	dec_ramp30k_m080	1.2727	1.3623	+0.0896	rank
 arm vs arm	dec_s24	dec_m099_fix	1.2812	1.2849	+0.0037	noise
-arm vs arm	dec_s24	dec_ramp20k_m080	1.2812	1.3178	+0.0366	rank
+arm vs arm	dec_s24	dec_ramp20k_m080	1.2812	1.3178	+0.0366	threshold
 arm vs arm	dec_s24	dec_m070_fix	1.2812	1.3534	+0.0722	rank
 arm vs arm	dec_s24	dec_ramp30k_m080	1.2812	1.3623	+0.0811	rank
-arm vs arm	dec_m099_fix	dec_ramp20k_m080	1.2849	1.3178	+0.0329	rank
+arm vs arm	dec_m099_fix	dec_ramp20k_m080	1.2849	1.3178	+0.0329	threshold
 arm vs arm	dec_m099_fix	dec_m070_fix	1.2849	1.3534	+0.0685	rank
 arm vs arm	dec_m099_fix	dec_ramp30k_m080	1.2849	1.3623	+0.0774	rank
-arm vs arm	dec_ramp20k_m080	dec_m070_fix	1.3178	1.3534	+0.0356	rank
+arm vs arm	dec_ramp20k_m080	dec_m070_fix	1.3178	1.3534	+0.0356	threshold
 arm vs arm	dec_ramp20k_m080	dec_ramp30k_m080	1.3178	1.3623	+0.0445	rank
 arm vs arm	dec_m070_fix	dec_ramp30k_m080	1.3534	1.3623	+0.0089	noise
