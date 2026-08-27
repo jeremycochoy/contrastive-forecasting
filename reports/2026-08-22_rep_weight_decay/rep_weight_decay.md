@@ -34,7 +34,7 @@ Score of each arm at the 40,000-step stop, by EMA schedule, decay ramp and seed 
 | dec_m070_fix | 0.7 fixed | 0.700 | 10,000 | 20260520 | 1.3534 | not run |
 | dec_ramp5k_m080 | 0.8 to 1.0 at 200k | 0.840 | 5,000 | 20260520 | 1.2727 | 1.1782 |
 | dec_m080_r200 | 0.8 to 1.0 at 200k | 0.840 | 10,000 | 20260520 | **1.2352** | 1.1782 |
-| dec_m080_r200_s24 | 0.8 to 1.0 at 200k | 0.840 | 10,000 | 20260524 | pending | 1.1782 |
+| dec_m080_r200_s24 | 0.8 to 1.0 at 200k | 0.840 | 10,000 | 20260524 | pending | 1.1782 (seed 20260520) |
 | dec_ramp20k_m080 | 0.8 to 1.0 at 200k | 0.840 | 20,000 | 20260520 | 1.3178 | 1.1782 |
 | dec_ramp30k_m080 | 0.8 to 1.0 at 200k | 0.840 | 30,000 | 20260520 | 1.3623 | 1.1782 |
 | dec_s20 | 0.9 to 1.0 at 100k | 0.940 | 10,000 | 20260520 | 1.2670 | 1.1507 |
@@ -43,7 +43,7 @@ Score of each arm at the 40,000-step stop, by EMA schedule, decay ramp and seed 
 | dec_m099_fix | 0.99 fixed | 0.990 | 10,000 | 20260520 | 1.2849 | not run |
 | reference | 0.9 to 1.0 at 100k | 0.940 | no decay | 20260524, 20260520 | | 1.1491, 1.1507 |
 
-Gaps against the seed range of 0.0219, the range of `dec_s20`, `dec_s22`, `dec_s24` (`results/rank_gate.tsv`). Verdict rule: a gap under the seed range is noise, a gap under twice the seed range is a threshold, and a gap of twice the seed range or more is a rank. Column 4: the comparator's own seed range from `reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md`, 1.1782 to 1.3214 over three counted seeds of `0.8 to 1.0 at 200k`; a gap inside it is not a rank.
+Gaps against the seed range of 0.0219, the range of `dec_s20`, `dec_s22`, `dec_s24` (`results/rank_gate.tsv`). Verdict rule: a gap at or under the seed range is noise, a gap under twice the seed range is a threshold, and a gap of twice the seed range or more is a rank. Column 4: the comparator's own seed range from `reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md`, 1.1782 to 1.3214 over three counted seeds of `0.8 to 1.0 at 200k`; a gap inside it is not a rank.
 
 | comparison | gap | gap over seed range | seed range of the no-decay comparator | verdict |
 |---|---|---|---|---|
@@ -52,7 +52,7 @@ Gaps against the seed range of 0.0219, the range of `dec_s20`, `dec_s22`, `dec_s
 | the four `0.8 to 1.0 at 200k` arms against that schedule with no decay | +0.0570 to +0.1841 | 2.6 to 8.4 | 0.1432 | inside the comparator range, except `dec_ramp30k_m080` |
 | best arm 1.2352 against the second 1.2593 | +0.0241 | 1.1 | | threshold |
 
-Contrastive AUC per scored arm (`results/auc_verdicts.tsv`), with the floor the lowest trailing mean over every leg of the arm; the figure also draws the three unscored runs `dec_s23`, `dec_s25` and `dec_m080_r200_s24`.
+Contrastive AUC per arm that passed the warm-up (`results/auc_verdicts.tsv`), with the floor the lowest trailing mean over every leg of the arm; the figure also draws the three unscored runs `dec_s23`, `dec_s25` and `dec_m080_r200_s24`.
 
 | arm | momentum at the stop | AUC floor | floor step | last AUC | last step | verdict |
 |---|---|---|---|---|---|---|
@@ -86,7 +86,7 @@ Total loss and its slope per 10,000 steps, fitted on 1,000-step blocks (`results
 - Cell: configuration `arm6_v2_combab_alignT`, reduction `mean`, align target the EMA teacher. `scripts/study.sh` holds every value.
 - Decay: `--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps <ramp>`, linear. The ramp of each arm is column 5 of `scripts/arms.tsv`.
 - EMA: `--ema-tau <tau>`, with `--ema-tau-end 1.0 --ema-tau-ramp-steps <ramp>` on the ramped schedules. The momentum at the stop is the value the schedule holds at step 40,000.
-- Backbone: 40,000 steps, seed 20260520 unless the arm name carries `s22`, `s24`. Checkpoints every 5,000 steps.
+- Backbone: 40,000 steps, seed 20260520 unless the arm name carries `s22`, `s23`, `s24`, `s25`. Checkpoints every 5,000 steps.
 - AUC gate: `scripts/auc_guard.sh`, trailing window 500 steps, threshold 0.55, warm-up 1,000 steps. A run under the gate stops and gets no head.
 - Head: 30,000 steps on the student encoder, head seed 20260722, runner `reports/2026-08-08_rollout_depth/scripts/head_eval_bb.sh`.
 - Eval: GIFT-Eval, 97 configs, batch 4, forecast length 16. Score: GM-Relative MASE, lower is better.
