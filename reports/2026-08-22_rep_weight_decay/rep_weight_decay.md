@@ -52,7 +52,7 @@ Gaps against the seed range of 0.0219, the range of `dec_s20`, `dec_s22`, `dec_s
 | the four `0.8 to 1.0 at 200k` arms against that schedule with no decay | +0.0570 to +0.1841 | 2.6 to 8.4 | 0.1432 | inside the comparator range, except `dec_ramp30k_m080` |
 | best arm 1.2352 against the second 1.2593 | +0.0241 | 1.1 | | threshold |
 
-Contrastive AUC per arm that passed the warm-up (`results/auc_verdicts.tsv`), with the floor the lowest rolling median over every leg of the arm; the figure also draws the three unscored runs `dec_s23`, `dec_s25` and `dec_m080_r200_s24`.
+Contrastive AUC per arm that passed the warm-up (`results/auc_verdicts.tsv`), with the floor the lowest rolling median over every leg of the arm; the figure also draws three runs this table leaves out: `dec_s23`, `dec_s25` and `dec_m080_r200_s24`.
 
 | arm | momentum at the stop | AUC floor | floor step | last AUC | last step | verdict |
 |---|---|---|---|---|---|---|
