@@ -1297,6 +1297,20 @@ class TestTheRankGate:
             body = [ln for ln in fh if not ln.startswith("#")]
         return list(csv.DictReader(body, delimiter="\t"))
 
+    def _gate(self):
+        """The gate value, from the header line that states it."""
+        head = self.GATE.read_text().splitlines()[0]
+        return float(head.split(":")[1].split(",")[0])
+
+    @staticmethod
+    def _verdict(gap, gate):
+        """The rule the report states. A gap at or under the gate is noise, a
+        gap under twice the gate is a threshold, and a gap of twice the gate or
+        more is a rank."""
+        if abs(gap) <= gate:
+            return "noise"
+        return "threshold" if abs(gap) < 2 * gate else "rank"
+
     def test_the_table_and_the_script_exist(self):
         assert self.SCRIPT.is_file()
         assert self.GATE.is_file()
@@ -1311,15 +1325,40 @@ class TestTheRankGate:
         for arm in named:
             assert arm in ARMS, arm
 
-    def test_every_arm_loses_to_the_no_decay_reference_by_more_than_the_gate(self):
-        """The card's first question. This is the one comparison the card CAN
-        make, and it clears the gate on every arm that has a reference."""
+    def test_every_arm_loses_to_the_card_target_by_more_than_the_gate(self):
+        """The card's first question: does the decay give a new best score?
+        The `vs target` block answers it. Every arm loses to the target 1.1491,
+        and every gap is a rank."""
+        gate = self._gate()
+        rows = [r for r in self._rows() if r["block"] == "vs target"]
+        assert rows
+        for r in rows:
+            assert float(r["right_score"]) == 1.1491, r
+            gap = float(r["gap"])
+            assert gap > 0, r                  # the decay costs the score
+            assert r["verdict"] == self._verdict(gap, gate), r
+            assert r["verdict"] == "rank", r
+
+    def test_the_no_decay_gaps_read_against_the_comparator_own_range(self):
+        """The `vs no-decay` block reads each arm against the sweep's run of
+        the SAME schedule, and that comparator carries its own seed range. A
+        gap inside that range is not a rank, whatever this card's gate says.
+        The schedule `0.8 to 1.0 at 200k` spans 0.1432 over the sweep's seeds,
+        so most of its arms give `inside the comparator range`."""
+        gate = self._gate()
         rows = [r for r in self._rows() if r["block"] == "vs no-decay"
                 and r["gap"] != "-"]
         assert rows
+        inside = 0
         for r in rows:
-            assert float(r["gap"]) > 0, r      # the decay costs the score
-            assert r["verdict"] == "rank", r
+            gap, comparator = float(r["gap"]), float(r["comparator_range"])
+            assert gap > 0, r                  # the decay costs the score
+            if gap <= comparator:
+                assert r["verdict"] == "inside the comparator range", r
+                inside += 1
+            else:
+                assert r["verdict"] == self._verdict(gap, gate), r
+        assert inside, "a wide comparator range must hold some gap"
 
     def test_the_decay_schedules_do_not_all_separate_from_each_other(self):
         """The review's point 5. Some arm-to-arm gaps are under the gate, so
