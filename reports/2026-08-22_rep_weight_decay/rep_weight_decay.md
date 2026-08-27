@@ -8,7 +8,7 @@ A linear decay of the L_rep weight, the contrastive representation term of the t
 
 Against the seed range of 0.0471, momentum 0.700 and the ramps 20,000 and 30,000 are worse than the interior, and the rest of both axes sit inside one seed range.
 
-Gap of each axis point against the mean of its axis at momentum 0.840 and ramp 10,000, 1.2588 over two seeds; verdict against the seed range of 0.0471 with the rule of the gate table below.
+Gap of each axis point against the mean of its axis at momentum 0.840 and ramp 10,000, 1.2588 over two seeds. The verdict reads against the seed range of 0.0471 with the rule of the gate table below.
 
 | axis | point | score | gap | gap over seed range | verdict |
 |---|---|---|---|---|---|
