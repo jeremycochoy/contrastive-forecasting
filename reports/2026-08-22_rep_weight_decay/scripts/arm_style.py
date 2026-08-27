@@ -72,7 +72,7 @@ SWEEP_SEED_SCORES = {
 }
 # The sweep's own seed spread per schedule, (low, high) over its counted seeds.
 # `0.8 to 1.0 at 200k` spans 1.1782 / 1.2893 / 1.3214, so a gap against it
-# is read against 0.1432 and not only against this card's 0.0219.
+# is read against 0.1432 and not only against this card's 0.0471.
 SWEEP_RANGES = {
     ("0.9", "1.0", "100000"): (1.1491, 1.1507),
     ("0.8", "1.0", "200000"): (1.1782, 1.3214),

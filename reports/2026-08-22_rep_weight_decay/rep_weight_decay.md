@@ -1,12 +1,23 @@
 # A decay of the L_rep weight to zero never beats the no-decay reference at k = 32
 
-A linear decay of the L_rep weight, the contrastive representation term of the training loss, does not improve the GM-Relative MASE of the k = 32 cell, one backbone configuration at rollout depth 32. Its best arm, one backbone run, loses to the no-decay reference by 3.9 times the seed range.
+A linear decay of the L_rep weight, the contrastive representation term of the training loss, does not improve the GM-Relative MASE of the k = 32 cell, one backbone configuration at rollout depth 32. Its best arm, one backbone run, loses to the no-decay reference by 1.8 times the seed range.
 
 ![scores](plots/scores.png)
 
 ![axes](plots/axes.png)
 
-Both axes have their best value inside the tested range.
+Against the seed range of 0.0471, momentum 0.700 and the ramps 20,000 and 30,000 are worse than the interior, and the rest of both axes sit inside one seed range.
+
+Gap of each axis point against the mean of its axis at momentum 0.840 and ramp 10,000, 1.2588 over two seeds; verdict against the seed range of 0.0471 with the rule of the gate table below.
+
+| axis | point | score | gap | gap over seed range | verdict |
+|---|---|---|---|---|---|
+| momentum, ramp 10,000 | 0.700 | 1.3534 | +0.0946 | 2.0 | rank |
+| momentum, ramp 10,000 | 0.940 | 1.2692, mean of three seeds | +0.0104 | 0.2 | inside the seed range |
+| momentum, ramp 10,000 | 0.990 | 1.2849 | +0.0261 | 0.6 | inside the seed range |
+| ramp, momentum 0.840 | 5,000 | 1.2727 | +0.0139 | 0.3 | inside the seed range |
+| ramp, momentum 0.840 | 20,000 | 1.3178 | +0.0591 | 1.3 | threshold |
+| ramp, momentum 0.840 | 30,000 | 1.3623 | +0.1036 | 2.2 | rank |
 
 ![auc](plots/auc.png)
 
@@ -14,7 +25,7 @@ The contrastive AUC is the area under the ROC curve of the contrastive task on t
 
 ![loss terms](plots/loss_terms.png)
 
-Every scored arm still reduces its total loss over steps 20,000 to 40,000, and over the last 10,000 steps three arms have a positive slope and six a negative one (`results/loss_slope.csv`).
+Every scored arm still reduces its total loss over steps 20,000 to 40,000, and over the last 10,000 steps three arms have a positive slope and seven a negative one (`results/loss_slope.csv`).
 
 | term in the figure | definition |
 |---|---|
@@ -34,7 +45,7 @@ Score of each arm at the 40,000-step stop, by EMA schedule, decay ramp and seed 
 | dec_m070_fix | 0.7 fixed | 0.700 | 10,000 | 20260520 | 1.3534 | not run |
 | dec_ramp5k_m080 | 0.8 to 1.0 at 200k | 0.840 | 5,000 | 20260520 | 1.2727 | 1.1782 |
 | dec_m080_r200 | 0.8 to 1.0 at 200k | 0.840 | 10,000 | 20260520 | **1.2352** | 1.1782 |
-| dec_m080_r200_s24 | 0.8 to 1.0 at 200k | 0.840 | 10,000 | 20260524 | pending | 1.1782 (seed 20260520) |
+| dec_m080_r200_s24 | 0.8 to 1.0 at 200k | 0.840 | 10,000 | 20260524 | 1.2823 | 1.1782 (seed 20260520) |
 | dec_ramp20k_m080 | 0.8 to 1.0 at 200k | 0.840 | 20,000 | 20260520 | 1.3178 | 1.1782 |
 | dec_ramp30k_m080 | 0.8 to 1.0 at 200k | 0.840 | 30,000 | 20260520 | 1.3623 | 1.1782 |
 | dec_s20 | 0.9 to 1.0 at 100k | 0.940 | 10,000 | 20260520 | 1.2670 | 1.1507 |
@@ -43,16 +54,16 @@ Score of each arm at the 40,000-step stop, by EMA schedule, decay ramp and seed 
 | dec_m099_fix | 0.99 fixed | 0.990 | 10,000 | 20260520 | 1.2849 | not run |
 | reference | 0.9 to 1.0 at 100k | 0.940 | no decay | 20260524, 20260520 | | 1.1491, 1.1507 |
 
-Gaps against the seed range of 0.0219, the range of `dec_s20`, `dec_s22`, `dec_s24` (`results/rank_gate.tsv`). Verdict rule: a gap at or under the seed range is noise, a gap under twice the seed range is a threshold, and a gap of twice the seed range or more is a rank. Column 4: the comparator's own seed range from `reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md`, 1.1782 to 1.3214 over three counted seeds of `0.8 to 1.0 at 200k`; a gap inside it is not a rank.
+Gaps against the seed range of 0.0471, the range of `dec_m080_r200` and `dec_m080_r200_s24`, the widest pair of repeat seeds in this study (`results/rank_gate.tsv`). Verdict rule: a gap at or under the seed range is noise, a gap under twice the seed range is a threshold, and a gap of twice the seed range or more is a rank. Column 4: the comparator's own seed range from `reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md`, 1.1782 to 1.3214 over three counted seeds of `0.8 to 1.0 at 200k`; a gap inside it is not a rank.
 
 | comparison | gap | gap over seed range | seed range of the no-decay comparator | verdict |
 |---|---|---|---|---|
-| each scored arm against the reference 1.1491 | +0.0861 to +0.2132 | 3.9 to 9.7 | 0.0016 | rank |
-| the three `0.9 to 1.0 at 100k` arms against that schedule with no decay, two of the three at the arm's own seed, `dec_s22` against the seed 20260520 run | +0.1086 to +0.1321 | 5.0 to 6.0 | 0.0016 | rank |
-| the four `0.8 to 1.0 at 200k` arms against that schedule with no decay | +0.0570 to +0.1841 | 2.6 to 8.4 | 0.1432 | inside the comparator range, except `dec_ramp30k_m080` |
-| best arm 1.2352 against the second 1.2593 | +0.0241 | 1.1 | | threshold |
+| each scored arm against the reference 1.1491 | +0.0861 to +0.2132 | 1.8 to 4.5 | 0.0016 | threshold for `dec_m080_r200`, rank for the other nine |
+| the three `0.9 to 1.0 at 100k` arms against that schedule with no decay, two of the three at the arm's own seed, `dec_s22` against the seed 20260520 run | +0.1086 to +0.1321 | 2.3 to 2.8 | 0.0016 | rank |
+| the five `0.8 to 1.0 at 200k` arms against that schedule with no decay | +0.0570 to +0.1841 | 1.2 to 3.9 | 0.1432 | inside the comparator range, except `dec_ramp30k_m080` |
+| best arm 1.2352 against the second 1.2593 | +0.0241 | 0.5 | | noise |
 
-Contrastive AUC per arm that passed the warm-up (`results/auc_verdicts.tsv`), with the floor the lowest rolling median over every leg of the arm. The figure also draws three runs this table leaves out: `dec_s23`, `dec_s25` and `dec_m080_r200_s24`.
+Contrastive AUC per arm that passed the warm-up (`results/auc_verdicts.tsv`), with the floor the lowest rolling median over every leg of the arm. The figure also draws two runs this table leaves out: `dec_s23` and `dec_s25`.
 
 | arm | momentum at the stop | AUC floor | floor step | last AUC | last step | verdict |
 |---|---|---|---|---|---|---|
@@ -60,6 +71,7 @@ Contrastive AUC per arm that passed the warm-up (`results/auc_verdicts.tsv`), wi
 | dec_m070_fix | 0.700 | 0.5732 | 11,452 | 0.9166 | 40,000 | held |
 | dec_ramp5k_m080 | 0.840 | 0.7157 | 6,630 | 0.9928 | 40,000 | held |
 | dec_m080_r200 | 0.840 | 0.7685 | 11,213 | 0.9924 | 40,000 | held |
+| dec_m080_r200_s24 | 0.840 | 0.7780 | 11,270 | 0.8790 | 40,000 | held |
 | dec_ramp20k_m080 | 0.840 | 0.8353 | 27,830 | 0.9659 | 40,000 | held |
 | dec_ramp30k_m080 | 0.840 | 0.5428 | 34,826 | 0.9310 | 40,000 | held |
 | dec_s20 | 0.940 | 0.8638 | 13,123 | 0.9842 | 40,000 | held |
@@ -74,6 +86,7 @@ Total loss and its slope per 10,000 steps, fitted on 1,000-step blocks (`results
 | dec_m070_fix | 0.367 | -0.194 | -0.258 | 0.236 |
 | dec_ramp5k_m080 | 0.318 | -0.113 | -0.201 | 0.210 |
 | dec_m080_r200 | 0.208 | -0.179 | -0.088 | 0.151 |
+| dec_m080_r200_s24 | 0.748 | -0.374 | -0.186 | 0.521 |
 | dec_ramp20k_m080 | 0.555 | -0.163 | -0.457 | 0.387 |
 | dec_ramp30k_m080 | 0.486 | -2.261 | -0.389 | 0.307 |
 | dec_s20 | 0.553 | -0.082 | +0.106 | 0.330 |
@@ -91,8 +104,7 @@ Total loss and its slope per 10,000 steps, fitted on 1,000-step blocks (`results
 - Head: 30,000 steps on the student encoder, head seed 20260722, runner `reports/2026-08-08_rollout_depth/scripts/head_eval_bb.sh`.
 - Eval: GIFT-Eval, 97 configs, batch 4, forecast length 16. Score: GM-Relative MASE, lower is better.
 - Reference: the EMA momentum study at `reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md`, the same cell with no decay. Its cell, stop, head, head seed, encoder and eval match this study on 11 of 11 items (`results/reference_match.tsv`). Its best score is 1.1491, and its own range is 0.0016 over two seeds.
-- Seed range: the three seeds of `0.9 to 1.0 at 100k` under the decay, `results/rank_gate.tsv`.
-- Pending: `dec_m080_r200_s24`, the repeat seed of the best arm, which gives its error bar.
+- Seed range: the two seeds of `0.8 to 1.0 at 200k` at ramp 10,000 under the decay, 0.0471, wider than the 0.0219 of the three seeds of `0.9 to 1.0 at 100k`, `results/rank_gate.tsv`.
 
 ## Annex
 
@@ -103,4 +115,4 @@ Runs without a score and why (`results/RUN_STATE.md`, `notes/execution_log.md`):
 | dec_m050_fix | 10,600 | the AUC gate stopped it |
 | dec_s23, dec_s25 | 22,900, 22,700 | the schedule already had three seeds |
 | dec_m090_r60, dec_m095_fix | 100, 0 | no readable AUC row above step 1,000 (`results/auc_verdicts.tsv`) |
-| dec_m090_fix, dec_m090_r200, dec_m095_r100 | never started | every scored momentum lost to the reference by 3.9 times the seed range or more, so no further momentum ran |
+| dec_m090_fix, dec_m090_r200, dec_m095_r100 | never started | every scored momentum lost to the reference by 1.8 times the seed range or more, so no further momentum ran |

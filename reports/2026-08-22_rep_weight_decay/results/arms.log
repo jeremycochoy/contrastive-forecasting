@@ -159,3 +159,4 @@
 [08-26 23:57:45] [#409] arm dec_m080_r200_s24 ema='--ema-tau 0.8 --ema-tau-end 1.0 --ema-tau-ramp-steps 200000' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000' seed=20260524 reduce=mean target=teacher -> 40000 steps on gpu 0, save every 5000
 [08-26 23:57:50] [#409] arm dec_m080_r200_s24 decay='1.0 0.0 10000' seed=20260524 target=teacher reduce=mean ema='0.8 1.0 200000' OK — all five reached the trainer
 [08-26 23:57:50] [#409] arm dec_m080_r200_s24 AUC gate pid 1806471 — window 500, threshold 0.55, warmup 1000
+[08-27 08:16:37] [#409] arm dec_m080_r200_s24 stop=40000 rc=0

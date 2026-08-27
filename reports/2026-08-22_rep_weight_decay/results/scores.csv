@@ -1,6 +1,7 @@
 arm,ema_tau,ema_end,ema_ramp,ema_at_stop,seed,rep_end,ramp,rep_w_at_stop,align_target,stop,head_steps,encoder,score
 dec_m070_fix,0.7,-,-,0.700,20260520,0.0,10000,0.000,teacher,40000,30000,student,1.3534
 dec_m080_r200,0.8,1.0,200000,0.840,20260520,0.0,10000,0.000,teacher,40000,30000,student,1.2352
+dec_m080_r200_s24,0.8,1.0,200000,0.840,20260524,0.0,10000,0.000,teacher,40000,30000,student,1.2823
 dec_m099_fix,0.99,-,-,0.990,20260520,0.0,10000,0.000,teacher,40000,30000,student,1.2849
 dec_ramp20k_m080,0.8,1.0,200000,0.840,20260520,0.0,20000,0.000,teacher,40000,30000,student,1.3178
 dec_ramp30k_m080,0.8,1.0,200000,0.840,20260520,0.0,30000,0.000,teacher,40000,30000,student,1.3623

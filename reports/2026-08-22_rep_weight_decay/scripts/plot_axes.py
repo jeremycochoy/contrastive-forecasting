@@ -13,9 +13,10 @@ as a small dot and their mean as the large one. Right: x is the decay ramp,
 at the one schedule the card varied it on.
 
 Both panels carry the reference (the best schedule with no decay) as a dashed
-line, and a band of the seed range above it. The seed range is the range of
-the one treatment with three seeds, 0.0219; the reference's own range is
-0.0016. A point inside the band is within the seed range, not a rank.
+line, and a band of the seed range above it. The seed range is the widest
+range over the repeat-seed groups of this card, 0.0471 from the two seeds of
+0.8 to 1.0 at 200k at ramp 10,000; the reference's own range is 0.0016. A
+point inside the band is within the seed range, not a rank.
 
 Usage:
   plot_axes.py --scores results/scores.csv --arms scripts/arms.tsv \

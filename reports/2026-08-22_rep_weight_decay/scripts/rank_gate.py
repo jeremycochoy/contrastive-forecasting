@@ -22,21 +22,16 @@ share a schedule and differ in seed. `scores.csv` names them. If no schedule
 here has two seeds, the script says so and refuses to gate: a spread taken
 from another study would not be this treatment's.
 
-WHAT THE TABLE SAID ON 2026-08-25. The gate is 0.0219, from three seeds of the
-schedule 0.9 to 1.0 at 100k: 1.2670, 1.2593 and 1.2812.
+WHAT THE TABLE SAID ON 2026-08-27. The gate is 0.0471, the widest repeat-seed
+range on this card, from the two seeds of 0.8 to 1.0 at 200k at ramp 10,000:
+1.2352 and 1.2823. The three seeds of 0.9 to 1.0 at 100k span 0.0219.
 
-Against the no-decay reference, every arm clears the gate, by +0.0570 to
-+0.1305. The smallest of those is 2.6 times the gate. So this card CAN state
-that the decay costs the score at every momentum it ran.
+Against the no-decay reference, the best arm sits 1.8 times the gate above
+it, a threshold; the other nine arms sit at twice the gate or more, a rank.
 
-Against each other, 5 of the 15 arm pairs fall UNDER the gate. So this card
-CANNOT order the decay schedules.
-
-READ THE ONE MARGINAL PAIR WITH CARE. `dec_m080_r200` leads `dec_s22` by
-0.0241 against a gate of 0.0219. A range over three seeds is a crude
-estimator and it runs low at small n, and a lead that clears the gate by a
-tenth of itself is not a separation. The table marks it `threshold`, not
-`rank`.
+Against each other, the arm pairs under one gate are noise, and the best arm
+against the second, +0.0241, is one of them. So this card CANNOT order the
+decay schedules.
 
 Usage:
   rank_gate.py --scores results/scores.csv --arms scripts/arms.tsv \
