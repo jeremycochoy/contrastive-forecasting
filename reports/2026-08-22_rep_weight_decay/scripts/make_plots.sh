@@ -25,6 +25,9 @@ python3 "$HERE/plot_loss_terms.py" --root "$CF409_ROOT" \
   --table "$CF409_RESULTS/loss_terms_at_stop.csv"
 python3 "$HERE/plot_scores.py" --scores "$CF409_RESULTS/scores.csv" \
   --arms "$CF409_ARMS_TSV" --out "$CF409_PLOTS/scores.png"
+# The score on each axis: the momentum at the stop, and the decay ramp.
+python3 "$HERE/plot_axes.py" --scores "$CF409_RESULTS/scores.csv" \
+  --arms "$CF409_ARMS_TSV" --out "$CF409_PLOTS/axes.png"
 # The slope at the stop, which is the card's second question.
 python3 "$HERE/loss_slope.py" --root "$CF409_ROOT" --arms "$CF409_ARMS_TSV" \
   --out "$CF409_RESULTS/loss_slope.csv"

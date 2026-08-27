@@ -19,7 +19,7 @@ it as one bar. `arm_style.repeat_groups` picks that treatment, and
 `rank_gate.py` reads the same one.
 
 A run the AUC gate stopped has no score. The figure names it under the axis
-rather than leaving the reader to count the missing rows.
+and the report annex names it.
 
 Usage:
   plot_scores.py --scores results/scores.csv --arms scripts/arms.tsv \
@@ -32,7 +32,6 @@ import csv
 import importlib.util
 import statistics
 import sys
-import textwrap
 from pathlib import Path
 
 import matplotlib
@@ -97,7 +96,11 @@ def main(argv=None):
     ticks, labels = [], []
     for y, (row, value) in enumerate(reversed(ranked)):
         ticks.append(y)
-        labels.append(S.arm_label(row))
+        # The arm id beside the schedule: one arm reads the same here and in
+        # every table of the report.
+        label = S.arm_label(row)
+        labels.append(label if row.get("ambiguous")
+                      else f"{label}, {row['arm']}")
         ref = S.SWEEP_SCORES.get(S.schedule(row))
         if ref is not None:
             # The pair, and the move between them. A slope reads as one fact
@@ -135,13 +138,13 @@ def main(argv=None):
     ax.set_ylim(-0.6, len(ticks) - 0.4)
     ax.set_xlabel(
         "GM-Relative MASE over the 97 GIFT-Eval configs (lower is better)")
-    ax.set_title("Does the L_rep decay improve the score, at any EMA schedule?",
-                 color=S.INK, fontsize=11, loc="left")
+    ax.set_title("GM-Relative MASE of every scored arm, with and without "
+                 "the decay", color=S.INK, fontsize=11, loc="left")
     # Inside the axes, at the top, on whichever side of the line has room. A
     # label above the axes would sit on the title.
     x_lo, x_hi = ax.get_xlim()
     right = (S.SWEEP_BEST - x_lo) / max(x_hi - x_lo, 1e-12) > 0.6
-    ax.annotate(f"the sweep's best on this cell, {S.SWEEP_BEST:.4f}",
+    ax.annotate(f"reference, no decay, {S.SWEEP_BEST:.4f}",
                 (S.SWEEP_BEST, 0.995), xycoords=("data", "axes fraction"),
                 xytext=(-6 if right else 6, 0),
                 textcoords="offset points", fontsize=7.5, color=S.REFERENCE,
@@ -153,19 +156,12 @@ def main(argv=None):
             markersize=7, label="with the decay")
     ax.plot([], [], marker="o", linestyle="none", color=S.SURFACE,
             markeredgecolor=S.REFERENCE, markeredgewidth=1.4, markersize=7,
-            label="the same schedule, no decay (the sweep)")
+            label="the same schedule, no decay")
     ax.plot([], [], color=S.REFERENCE, linestyle="--", linewidth=1.4,
-            label="the sweep's best on this cell")
+            label="reference: the best schedule, no decay")
     ax.legend(frameon=False, fontsize=8, labelcolor=S.INK, ncol=3,
               loc="upper center", bbox_to_anchor=(0.5, -0.20))
-    if missing:
-        # Under the legend, in axes fractions. A figure-coordinate note lands
-        # on the x label when the panel is short, and this card can hold eight
-        # rows with no score at once.
-        ax.annotate(textwrap.fill("no score: " + ", ".join(missing), 96),
-                    (0.5, -0.30), xycoords="axes fraction", fontsize=7,
-                    color=S.LOST, ha="center", va="top",
-                    annotation_clip=False)
+    # The arms without a score are in the report annex, not in the figure.
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(args.out, dpi=160, bbox_inches="tight", facecolor=S.SURFACE)
     print(f"{args.out}: {len(ranked)} score(s), {len(missing)} without one")

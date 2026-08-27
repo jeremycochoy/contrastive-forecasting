@@ -43,6 +43,10 @@ GRID = "#d9d9d9"
 SURFACE = "#fcfcfb"
 # The reference lines are the sweep's published scores, so they are recessive.
 REFERENCE = MUTED
+# The arm the headline names. It keeps the series color in every curve figure,
+# and the other held arms step back to a light grey, so a reader can follow it.
+HIGHLIGHT_ARM = "dec_m080_r200"
+HELD = "#b0b0b0"
 
 # What `reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md` published for
 # each of this card's schedules, on this same cell, at the same 40,000-step
@@ -398,6 +402,15 @@ def run_colour(paths, verdicts):
         if verdict == "lost" and (run in names or Path(run).name in names):
             return LOST
     return SERIES
+
+
+def curve_colour(arm, paths, verdicts):
+    """The color of one arm's curve: alarm if it lost the task, the series
+    color for `HIGHLIGHT_ARM`, light grey for every other held arm."""
+    colour = run_colour(paths, verdicts)
+    if colour == LOST:
+        return LOST
+    return SERIES if arm == HIGHLIGHT_ARM else HELD
 
 
 def study_paths(root, arms, cell="arm6_v2_combab_alignT", k=32, stop=40000):

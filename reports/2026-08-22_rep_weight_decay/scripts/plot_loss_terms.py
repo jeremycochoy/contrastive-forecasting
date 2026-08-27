@@ -220,14 +220,14 @@ def main(argv=None):
                     "seed": row["seed"], "term": column, "step": step,
                     "value": f"{value:.6f}",
                 })
-        curves[row["arm"]] = (drawn, S.run_colour(files[-1], verdicts))
+        curves[row["arm"]] = (drawn, S.curve_colour(row["arm"], files, verdicts))
     # No silent cap. A run this figure leaves out is named on stdout, and
     # `results/auc_verdicts.tsv` carries the same runs as `error`.
     for arm, reached in skipped:
         print(f"skipped {arm}: reached step {reached}, under --min-steps "
               f"{args.min_steps}")
 
-    fig, axes = plt.subplots(len(PANELS), 1, figsize=(8.6, 12.0), sharex=True)
+    fig, axes = plt.subplots(len(PANELS), 1, figsize=(8.6, 13.5), sharex=True)
     panel_labels = []
     for ax, (column, title, log_y) in zip(axes, PANELS):
         labels = []
@@ -253,14 +253,16 @@ def main(argv=None):
     for ax, labels in panel_labels:
         S.label_right(ax, labels, fontsize=7)
     axes[-1].set_xlabel("backbone step")
-    axes[0].set_title("The loss by term, to the 40,000-step stop",
-                      color=S.INK, fontsize=11, loc="left")
-    # Two colors, two meanings. The seed is the direct label on each line.
-    axes[0].plot([], [], color=S.SERIES, linewidth=2.0, label="held the task")
+    axes[0].set_title("Loss by term to the 40,000-step stop",
+                      color=S.INK, fontsize=11, loc="left", pad=14)
+    # Three colors, three meanings. The arm is the direct label on each line.
+    axes[0].plot([], [], color=S.SERIES, linewidth=2.0,
+                 label=f"{S.HIGHLIGHT_ARM}, the best arm")
+    axes[0].plot([], [], color=S.HELD, linewidth=2.0, label="held the task")
     axes[0].plot([], [], color=S.LOST, linewidth=2.0, label="lost the task")
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(handles, labels, frameon=False, fontsize=8, labelcolor=S.INK,
-               loc="lower center", ncol=2, bbox_to_anchor=(0.5, -0.01))
+               loc="lower center", ncol=3, bbox_to_anchor=(0.5, -0.01))
     fig.subplots_adjust(right=0.78, hspace=0.18)
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(args.out, dpi=160, bbox_inches="tight", facecolor=S.SURFACE)
