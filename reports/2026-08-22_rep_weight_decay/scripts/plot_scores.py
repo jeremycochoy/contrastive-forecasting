@@ -101,7 +101,7 @@ def main(argv=None):
         label = S.arm_label(row)
         labels.append(label if row.get("ambiguous")
                       else f"{label}, {row['arm']}")
-        ref = S.sweep_score(row)
+        ref, ref_seed = S.sweep_ref(row)
         if ref is not None:
             # The comparator's own seed spread, when the sweep ran that
             # schedule at more than one seed and the spread is visible.
@@ -116,6 +116,11 @@ def main(argv=None):
             ax.plot([ref], [y], marker="o", markersize=7, color=S.SURFACE,
                     markeredgecolor=S.REFERENCE, markeredgewidth=1.4,
                     linestyle="none", zorder=2)
+            # The comparator is another seed's run: the circle says which.
+            if ref_seed and ref_seed != str(row.get("seed", "")):
+                ax.annotate(f"seed {ref_seed}", (ref, y), xytext=(6, -14),
+                            textcoords="offset points", fontsize=7,
+                            color=S.REFERENCE, ha="left")
         # The arm the headline names keeps the series colour, as in every
         # curve figure. Every other decayed arm steps back to grey.
         fill = S.SERIES if row["arm"] == S.HIGHLIGHT_ARM else S.HELD

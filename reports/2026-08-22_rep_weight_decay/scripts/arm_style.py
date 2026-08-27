@@ -93,9 +93,23 @@ def schedule(row):
 def sweep_score(row):
     """What the sweep scored for this arm's schedule, at the arm's seed when
     the sweep ran that seed, else at its first seed. None if never run."""
+    return sweep_ref(row)[0]
+
+
+def sweep_ref(row):
+    """(score, seed) of the sweep's run this arm reads against. The seed is
+    the arm's own when the sweep ran it, else the seed of the sweep's first
+    run of that schedule. (None, None) if the sweep never ran it."""
     seed = str(row.get("seed", ""))
-    return SWEEP_SEED_SCORES.get(schedule(row) + (seed,),
-                                 SWEEP_SCORES.get(schedule(row)))
+    key = schedule(row) + (seed,)
+    if key in SWEEP_SEED_SCORES:
+        return SWEEP_SEED_SCORES[key], seed
+    score = SWEEP_SCORES.get(schedule(row))
+    if score is None:
+        return None, None
+    fallback = next((k[3] for k, v in SWEEP_SEED_SCORES.items()
+                     if k[:3] == schedule(row) and v == score), None)
+    return score, fallback
 
 
 def decay_ramp(row):

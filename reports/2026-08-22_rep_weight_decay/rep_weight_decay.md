@@ -26,7 +26,7 @@ Every scored arm still reduces its total loss over steps 20,000 to 40,000, and o
 
 ## Tables
 
-Score of each arm at the 40,000-step stop, by EMA schedule, decay ramp and seed (`scripts/arms.tsv`); last column: the same schedule with no decay, at the arm's seed where the reference study ran it.
+Score of each arm at the 40,000-step stop, by EMA schedule, decay ramp and seed (`scripts/arms.tsv`); last column: the same schedule with no decay, at the arm's seed where the reference study ran it, else at the seed named in the cell.
 
 | arm | EMA schedule | momentum at the stop | decay ramp, steps | seed | score | same schedule, no decay |
 |---|---|---|---|---|---|---|
@@ -38,7 +38,7 @@ Score of each arm at the 40,000-step stop, by EMA schedule, decay ramp and seed 
 | dec_ramp20k_m080 | 0.8 to 1.0 at 200k | 0.840 | 20,000 | 20260520 | 1.3178 | 1.1782 |
 | dec_ramp30k_m080 | 0.8 to 1.0 at 200k | 0.840 | 30,000 | 20260520 | 1.3623 | 1.1782 |
 | dec_s20 | 0.9 to 1.0 at 100k | 0.940 | 10,000 | 20260520 | 1.2670 | 1.1507 |
-| dec_s22 | 0.9 to 1.0 at 100k | 0.940 | 10,000 | 20260522 | 1.2593 | 1.1507 |
+| dec_s22 | 0.9 to 1.0 at 100k | 0.940 | 10,000 | 20260522 | 1.2593 | 1.1507 (seed 20260520) |
 | dec_s24 | 0.9 to 1.0 at 100k | 0.940 | 10,000 | 20260524 | 1.2812 | 1.1491 |
 | dec_m099_fix | 0.99 fixed | 0.990 | 10,000 | 20260520 | 1.2849 | not run |
 | reference | 0.9 to 1.0 at 100k | 0.940 | no decay | 20260524, 20260520 | | 1.1491, 1.1507 |
@@ -48,7 +48,7 @@ Gaps against the seed range of 0.0219, the range of `dec_s20`, `dec_s22`, `dec_s
 | comparison | gap | gap over seed range | seed range of the no-decay comparator | verdict |
 |---|---|---|---|---|
 | each scored arm against the reference 1.1491 | +0.0861 to +0.2132 | 3.9 to 9.7 | 0.0016 | rank |
-| the three `0.9 to 1.0 at 100k` arms against that schedule with no decay, seed-matched | +0.1086 to +0.1321 | 5.0 to 6.0 | 0.0016 | rank |
+| the three `0.9 to 1.0 at 100k` arms against that schedule with no decay, two of the three at the arm's own seed, `dec_s22` against the seed 20260520 run | +0.1086 to +0.1321 | 5.0 to 6.0 | 0.0016 | rank |
 | the four `0.8 to 1.0 at 200k` arms against that schedule with no decay | +0.0570 to +0.1841 | 2.6 to 8.4 | 0.1432 | inside the comparator range, except `dec_ramp30k_m080` |
 | best arm 1.2352 against the second 1.2593 | +0.0241 | 1.1 | | threshold |
 
@@ -103,4 +103,4 @@ Runs without a score and why (`results/RUN_STATE.md`, `notes/execution_log.md`):
 | dec_m050_fix | 10,600 | the AUC gate stopped it |
 | dec_s23, dec_s25 | 22,900, 22,700 | the schedule already had three seeds |
 | dec_m090_r60, dec_m095_fix | 100, 0 | no readable AUC row above step 1,000 (`results/auc_verdicts.tsv`) |
-| dec_m090_fix, dec_m090_r200, dec_m095_r100 | never started | every tested momentum lost to the reference by 3.9 times the seed range or more, so no further momentum ran |
+| dec_m090_fix, dec_m090_r200, dec_m095_r100 | never started | every scored momentum lost to the reference by 3.9 times the seed range or more, so no further momentum ran |
