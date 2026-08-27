@@ -2,25 +2,26 @@
 # those arms: dec_s20, dec_s22, dec_s24
 # a gap under the gate is not a rank. This card measured no other spread.
 # the narrowest pair the gate passes: dec_m080_r200 vs dec_s22, gap +0.0241, over the gate by 0.0022. A margin under one gate is a threshold, not a rank.
+# vs no-decay: the comparator is the sweep's run at the arm's own seed when it ran one, and `comparator_range` is the sweep's spread over its counted seeds of that schedule. A gap inside that spread is `inside the comparator range` whatever the gate says.
 # verdict: noise under the gate, threshold under twice the gate, rank at twice the gate or more.
-block	left	right	left_score	right_score	gap	verdict
-vs no-decay	dec_m080_r200	the same schedule, no decay	1.2352	1.1782	+0.0570	rank
+block	left	right	left_score	right_score	gap	verdict	comparator_range
+vs no-decay	dec_m080_r200	the same schedule, no decay	1.2352	1.1782	+0.0570	inside the comparator range	0.1432
 vs target	dec_m080_r200	the card's target	1.2352	1.1491	+0.0861	rank
-vs no-decay	dec_s22	the same schedule, no decay	1.2593	1.1507	+0.1086	rank
+vs no-decay	dec_s22	the same schedule, no decay	1.2593	1.1507	+0.1086	rank	0.0016
 vs target	dec_s22	the card's target	1.2593	1.1491	+0.1102	rank
-vs no-decay	dec_s20	the same schedule, no decay	1.2670	1.1507	+0.1163	rank
+vs no-decay	dec_s20	the same schedule, no decay	1.2670	1.1507	+0.1163	rank	0.0016
 vs target	dec_s20	the card's target	1.2670	1.1491	+0.1179	rank
-vs no-decay	dec_ramp5k_m080	the same schedule, no decay	1.2727	1.1782	+0.0945	rank
+vs no-decay	dec_ramp5k_m080	the same schedule, no decay	1.2727	1.1782	+0.0945	inside the comparator range	0.1432
 vs target	dec_ramp5k_m080	the card's target	1.2727	1.1491	+0.1236	rank
-vs no-decay	dec_s24	the same schedule, no decay	1.2812	1.1507	+0.1305	rank
+vs no-decay	dec_s24	the same schedule, no decay	1.2812	1.1491	+0.1321	rank	0.0016
 vs target	dec_s24	the card's target	1.2812	1.1491	+0.1321	rank
-vs no-decay	dec_m099_fix	the sweep never ran this schedule	1.2849	-	-	-
+vs no-decay	dec_m099_fix	the sweep never ran this schedule	1.2849	-	-	-	-
 vs target	dec_m099_fix	the card's target	1.2849	1.1491	+0.1358	rank
-vs no-decay	dec_ramp20k_m080	the same schedule, no decay	1.3178	1.1782	+0.1396	rank
+vs no-decay	dec_ramp20k_m080	the same schedule, no decay	1.3178	1.1782	+0.1396	inside the comparator range	0.1432
 vs target	dec_ramp20k_m080	the card's target	1.3178	1.1491	+0.1687	rank
-vs no-decay	dec_m070_fix	the sweep never ran this schedule	1.3534	-	-	-
+vs no-decay	dec_m070_fix	the sweep never ran this schedule	1.3534	-	-	-	-
 vs target	dec_m070_fix	the card's target	1.3534	1.1491	+0.2043	rank
-vs no-decay	dec_ramp30k_m080	the same schedule, no decay	1.3623	1.1782	+0.1841	rank
+vs no-decay	dec_ramp30k_m080	the same schedule, no decay	1.3623	1.1782	+0.1841	rank	0.1432
 vs target	dec_ramp30k_m080	the card's target	1.3623	1.1491	+0.2132	rank
 arm vs arm	dec_m080_r200	dec_s22	1.2352	1.2593	+0.0241	threshold
 arm vs arm	dec_m080_r200	dec_s20	1.2352	1.2670	+0.0318	threshold

@@ -101,8 +101,14 @@ def main(argv=None):
         label = S.arm_label(row)
         labels.append(label if row.get("ambiguous")
                       else f"{label}, {row['arm']}")
-        ref = S.SWEEP_SCORES.get(S.schedule(row))
+        ref = S.sweep_score(row)
         if ref is not None:
+            # The comparator's own seed spread, when the sweep ran that
+            # schedule at more than one seed and the spread is visible.
+            lo, hi = S.SWEEP_RANGES.get(S.schedule(row), (ref, ref))
+            if hi - lo > 0.01:
+                ax.plot([lo, hi], [y, y], color=S.HELD, linewidth=6.0,
+                        alpha=0.30, solid_capstyle="round", zorder=0)
             # The pair, and the move between them. A slope reads as one fact
             # where two separate dots read as two.
             ax.plot([ref, value], [y, y], color=S.MUTED, linewidth=1.2,
@@ -142,7 +148,8 @@ def main(argv=None):
     ax.set_xlabel(
         "GM-Relative MASE over the 97 GIFT-Eval configs (lower is better)")
     ax.set_title("GM-Relative MASE of every scored arm, with and without "
-                 "the decay", color=S.INK, fontsize=11, loc="left")
+                 "the decay, at the 40,000-step stop", color=S.INK,
+                 fontsize=11, loc="left")
     # Inside the axes, at the top, on whichever side of the line has room. A
     # label above the axes would sit on the title.
     x_lo, x_hi = ax.get_xlim()
@@ -162,9 +169,11 @@ def main(argv=None):
     ax.plot([], [], marker="o", linestyle="none", color=S.SURFACE,
             markeredgecolor=S.REFERENCE, markeredgewidth=1.4, markersize=7,
             label="the same schedule, no decay")
+    ax.plot([], [], color=S.HELD, linewidth=6.0, alpha=0.30,
+            label="seed range of the no-decay schedule")
     ax.plot([], [], color=S.REFERENCE, linestyle="--", linewidth=1.4,
             label="reference: the best schedule, no decay")
-    ax.legend(frameon=False, fontsize=8, labelcolor=S.INK, ncol=4,
+    ax.legend(frameon=False, fontsize=8, labelcolor=S.INK, ncol=3,
               loc="upper center", bbox_to_anchor=(0.5, -0.20))
     # The arms without a score are in the report annex, not in the figure.
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)

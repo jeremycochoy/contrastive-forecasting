@@ -135,7 +135,7 @@ def main(argv=None):
     right.plot([], [], color=S.REFERENCE, linestyle="--", linewidth=1.4,
                label=f"reference, no decay, {S.SWEEP_BEST:.4f}")
     right.fill_between([], [], [], color=S.SERIES, alpha=0.10,
-                       label=f"the seed range, {band:.4f}")
+                       label=f"one seed range above the reference, {band:.4f}")
     right.plot([], [], marker="o", linestyle="none", color=S.SERIES,
                markersize=7, label="with the decay")
     fig.legend(frameon=False, fontsize=8, labelcolor=S.INK, ncol=3,

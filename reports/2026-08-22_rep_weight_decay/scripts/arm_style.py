@@ -62,6 +62,21 @@ SWEEP_SCORES = {
     ("0.95", "1.0", "100000"): 1.2130,
     ("0.8", "1.0", "200000"): 1.1782,
 }
+# The same study at a named backbone seed, for the arms of this card that
+# share that seed: `dec_s24` reads against the sweep's 20260524 run.
+SWEEP_SEED_SCORES = {
+    ("0.9", "1.0", "100000", "20260524"): 1.1491,
+    ("0.9", "1.0", "100000", "20260520"): 1.1507,
+    ("0.8", "1.0", "200000", "20260520"): 1.1782,
+    ("0.8", "1.0", "200000", "20260522"): 1.3214,
+}
+# The sweep's own seed spread per schedule, (low, high) over its counted seeds.
+# `0.8 to 1.0 at 200k` spans 1.1782 / 1.2893 / 1.3214, so a gap against it
+# is read against 0.1432 and not only against this card's 0.0219.
+SWEEP_RANGES = {
+    ("0.9", "1.0", "100000"): (1.1491, 1.1507),
+    ("0.8", "1.0", "200000"): (1.1782, 1.3214),
+}
 # The best of them, which is the number the card asks an arm to beat.
 SWEEP_BEST = 1.1491
 # The card's own decay ramp, in steps. Every row of `arms.tsv` takes it unless
@@ -73,6 +88,14 @@ STOP = 40000
 def schedule(row):
     """One arm's EMA schedule, as the key that identifies its row."""
     return (row["tau"], row["end"], row["ramp"])
+
+
+def sweep_score(row):
+    """What the sweep scored for this arm's schedule, at the arm's seed when
+    the sweep ran that seed, else at its first seed. None if never run."""
+    seed = str(row.get("seed", ""))
+    return SWEEP_SEED_SCORES.get(schedule(row) + (seed,),
+                                 SWEEP_SCORES.get(schedule(row)))
 
 
 def decay_ramp(row):

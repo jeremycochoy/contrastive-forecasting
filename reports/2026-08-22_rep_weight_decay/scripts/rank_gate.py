@@ -115,25 +115,32 @@ def main(argv=None):
         f"# those arms: {', '.join(seeds)}",
         "# a gap under the gate is not a rank. This card measured no other "
         "spread.",
+        "# vs no-decay: the comparator is the sweep's run at the arm's own "
+        "seed when it ran one, and `comparator_range` is the sweep's spread "
+        "over its counted seeds of that schedule. A gap inside that spread is "
+        "`inside the comparator range` whatever the gate says.",
         "# verdict: noise under the gate, threshold under twice the gate, "
         "rank at twice the gate or more.",
-        "block\tleft\tright\tleft_score\tright_score\tgap\tverdict",
+        "block\tleft\tright\tleft_score\tright_score\tgap\tverdict\tcomparator_range",
     ]
 
     # Block 1: each arm against what the sweep scored for its own schedule,
     # and against the number the card asks an arm to beat.
     for arm, value in sorted(scores.items(), key=lambda kv: kv[1]):
         row = arms.get(arm)
-        ref = S.SWEEP_SCORES.get(S.schedule(row)) if row else None
+        ref = S.sweep_score(row) if row else None
         if ref is None:
             lines.append(f"vs no-decay\t{arm}\tthe sweep never ran this "
-                         f"schedule\t{value:.4f}\t-\t-\t-")
+                         f"schedule\t{value:.4f}\t-\t-\t-\t-")
         else:
             gap = value - ref
+            lo, hi = S.SWEEP_RANGES.get(S.schedule(row), (ref, ref))
+            comp = hi - lo
+            v = ("inside the comparator range" if abs(gap) <= comp
+                 else verdict(gap, spread))
             lines.append(
                 f"vs no-decay\t{arm}\tthe same schedule, no decay\t"
-                f"{value:.4f}\t{ref:.4f}\t{gap:+.4f}\t"
-                f"{verdict(gap, spread)}")
+                f"{value:.4f}\t{ref:.4f}\t{gap:+.4f}\t{v}\t{comp:.4f}")
         gap = value - S.SWEEP_BEST
         lines.append(
             f"vs target\t{arm}\tthe card's target\t{value:.4f}\t"
@@ -153,7 +160,7 @@ def main(argv=None):
     margins = []
     for line in lines:
         parts = line.split("\t")
-        if (len(parts) == 7 and parts[6] in ("rank", "threshold")
+        if (len(parts) >= 7 and parts[6] in ("rank", "threshold")
                 and parts[0] == "arm vs arm"):
             margins.append((abs(float(parts[5])) - spread, parts[1], parts[2],
                             float(parts[5])))
