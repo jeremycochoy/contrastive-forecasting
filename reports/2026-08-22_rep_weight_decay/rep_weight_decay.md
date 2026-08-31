@@ -6,7 +6,7 @@ A linear decay of the L_rep weight, the contrastive representation term of the t
 
 *Score of every scored arm at the 40,000-step stop, against the same EMA schedule with no decay.*
 
-The best decay ramp depends on the momentum: a shorter ramp scores worse at 0.840 and better at 0.940, each inside the seed range.
+The best ramp at each momentum, 10,000 at 0.840 and 2,000 at 0.940, leads the next ramp by less than the seed range.
 
 ![grid](plots/grid.png)
 
@@ -18,7 +18,7 @@ The gap between the best arm and the best arm at ramp 10,000, 1.2295 and 1.2352,
 
 *Score against each axis: the momentum at ramp 10,000, and the ramp at each of the two momenta.*
 
-Both continuations scored worse at 80,000 steps than at 40,000, and the two stops differ in the momentum as well as in the step count. The EMA schedule ramps to 1.0 at 100,000 steps, so the momentum at the stop is 0.940 at 40,000 and 0.980 at 80,000.
+The two stops differ in the momentum as well as in the step count. The EMA schedule ramps to 1.0 at 100,000 steps, so the momentum at the stop is 0.940 at 40,000 and 0.980 at 80,000.
 
 ![auc](plots/auc.png)
 
@@ -139,7 +139,7 @@ Total loss and its slope per 10,000 steps, fitted on 1,000-step blocks (`results
 - Continuation: `CF409_STOPS=80000` (`scripts/study.sh`) resumes the arm's newest step checkpoint with its optimizer state and trains to 80,000 steps, same schedule, decay, head and eval. The score at each stop is one row of `results/scores.csv`, keyed by (arm, stop).
 - AUC gate: `scripts/auc_guard.sh`, rolling median over 500 rows, threshold 0.55, warm-up 1,000 steps. A run whose rolling median ends under the threshold and does not come back stops and gets no head. A dip that recovers is not a loss.
 - Head: 30,000 steps on the student encoder, head seed 20260722, runner `reports/2026-08-08_rollout_depth/scripts/head_eval_bb.sh`.
-- Eval: GIFT-Eval, 97 configs, batch 4, forecast length 16. Score: GM-Relative MASE, lower is better, line `Aggregate GM-Relative MASE (97 configs)` of each run's `eval_local.log`.
+- Eval: GIFT-Eval, 97 configs, strategy B4, forecast length 16. Score: GM-Relative MASE, lower is better, line `Aggregate GM-Relative MASE (97 configs)` of each run's `eval_local.log`.
 - Reference: the EMA momentum study at `reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md`, the same cell with no decay. Its cell, stop, head, head seed, encoder and eval match this study on 11 of 11 items (`results/reference_match.tsv`). Its best score is 1.1491, and its own range is 0.0016 over two seeds.
 - Seed range: the two seeds of `0.8 to 1.0 at 200k` at ramp 10,000 under the decay, 0.0471, wider than the 0.0219 of the three seeds of `0.9 to 1.0 at 100k`, `results/rank_gate.tsv`. No other configuration has a repeat seed.
 
