@@ -176,3 +176,35 @@ WARN: the AUC pass exited rc=2 — see /tmp/contrastive-forecasting-409/reports/
 WARN: the AUC pass exited rc=2 — see /tmp/contrastive-forecasting-409/reports/2026-08-22_rep_weight_decay/results/auc_verdicts.tsv
 /tmp/contrastive-forecasting-409/reports/2026-08-22_rep_weight_decay/results/auc_verdicts.tsv: 19 run(s)
 [08-27 10:57:52] [#409 lane 0] lane drained — 0 leg(s) and 0 head(s) failed
+[08-31 07:46:00] [#409 lane 0] head queue on — one head at a time, worker pid 28147
+[08-31 07:46:00] [#409 lane 0] arm dec_m090r100_ramp2k -> 80000
+[08-31 07:46:07] [#409 lane 0] arm dec_m090r100_ramp2k stop=80000 rc=2 — no head for this arm
+[08-31 07:46:07] [#409 lane 0] waiting for the head queue to drain
+/tmp/contrastive-forecasting-409/reports/2026-08-22_rep_weight_decay/results/scores.csv: 10 score(s)
+/tmp/contrastive-forecasting-409/reports/2026-08-22_rep_weight_decay/results/auc_verdicts.tsv: 2 run(s)
+[08-31 07:46:10] [#409 lane 0] lane drained — 1 leg(s) and 0 head(s) failed
+[08-31 07:46:20] [#409 lane 1] head queue on — one head at a time, worker pid 29213
+[08-31 07:46:20] [#409 lane 1] arm dec_m090r100_ramp1k -> 80000
+[08-31 07:46:27] [#409 lane 1] arm dec_m090r100_ramp1k stop=80000 rc=2 — no head for this arm
+[08-31 07:46:27] [#409 lane 1] waiting for the head queue to drain
+/tmp/contrastive-forecasting-409/reports/2026-08-22_rep_weight_decay/results/scores.csv: 10 score(s)
+/tmp/contrastive-forecasting-409/reports/2026-08-22_rep_weight_decay/results/auc_verdicts.tsv: 2 run(s)
+[08-31 07:46:30] [#409 lane 1] lane drained — 1 leg(s) and 0 head(s) failed
+[08-31 07:47:54] [#409 lane 0] head queue on — one head at a time, worker pid 30935
+[08-31 07:47:54] [#409 lane 0] arm dec_m090r100_ramp2k -> 80000
+[08-31 07:48:01] [#409 lane 0] head dec_m090r100_ramp2k stop=80000 (queued)
+[08-31 07:48:01] [#409 lane 0] head dec_m090r100_ramp2k stop=80000 start
+[08-31 07:48:01] [#409 lane 0] waiting for the head queue to drain
+[08-31 07:48:05] [#409 lane 0] head dec_m090r100_ramp2k stop=80000 rc=0
+/tmp/contrastive-forecasting-409/reports/2026-08-22_rep_weight_decay/results/scores.csv: 11 score(s)
+/tmp/contrastive-forecasting-409/reports/2026-08-22_rep_weight_decay/results/auc_verdicts.tsv: 2 run(s)
+[08-31 07:48:08] [#409 lane 0] lane drained — 0 leg(s) and 0 head(s) failed
+[08-31 07:48:19] [#409 lane 1] head queue on — one head at a time, worker pid 32045
+[08-31 07:48:19] [#409 lane 1] arm dec_m090r100_ramp1k -> 80000
+[08-31 07:48:26] [#409 lane 1] head dec_m090r100_ramp1k stop=80000 (queued)
+[08-31 07:48:26] [#409 lane 1] waiting for the head queue to drain
+[08-31 07:48:26] [#409 lane 1] head dec_m090r100_ramp1k stop=80000 start
+[08-31 07:48:30] [#409 lane 1] head dec_m090r100_ramp1k stop=80000 rc=0
+/tmp/contrastive-forecasting-409/reports/2026-08-22_rep_weight_decay/results/scores.csv: 12 score(s)
+/tmp/contrastive-forecasting-409/reports/2026-08-22_rep_weight_decay/results/auc_verdicts.tsv: 2 run(s)
+[08-31 07:48:33] [#409 lane 1] lane drained — 0 leg(s) and 0 head(s) failed

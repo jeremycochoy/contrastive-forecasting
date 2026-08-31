@@ -160,3 +160,15 @@
 [08-26 23:57:50] [#409] arm dec_m080_r200_s24 decay='1.0 0.0 10000' seed=20260524 target=teacher reduce=mean ema='0.8 1.0 200000' OK — all five reached the trainer
 [08-26 23:57:50] [#409] arm dec_m080_r200_s24 AUC gate pid 1806471 — window 500, threshold 0.55, warmup 1000
 [08-27 08:16:37] [#409] arm dec_m080_r200_s24 stop=40000 rc=0
+[08-31 07:46:00] [#409] arm dec_m090r100_ramp2k ema='--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 2000' seed=20260520 reduce=mean target=teacher -> 80000 steps on gpu 0, save every 5000
+[08-31 07:46:05] [#409] arm dec_m090r100_ramp2k AUC gate pid 28256 — window 500, threshold 0.55, warmup 1000
+[08-31 07:46:07] [#409] arm dec_m090r100_ramp2k stop=80000 rc=2
+[08-31 07:46:20] [#409] arm dec_m090r100_ramp1k ema='--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 1000' seed=20260520 reduce=mean target=teacher -> 80000 steps on gpu 1, save every 5000
+[08-31 07:46:25] [#409] arm dec_m090r100_ramp1k AUC gate pid 29309 — window 500, threshold 0.55, warmup 1000
+[08-31 07:46:27] [#409] arm dec_m090r100_ramp1k stop=80000 rc=2
+[08-31 07:47:54] [#409] arm dec_m090r100_ramp2k ema='--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 2000' seed=20260520 reduce=mean target=teacher -> 80000 steps on gpu 0, save every 5000
+[08-31 07:47:59] [#409] arm dec_m090r100_ramp2k AUC gate pid 31061 — window 500, threshold 0.55, warmup 1000
+[08-31 07:48:01] [#409] arm dec_m090r100_ramp2k stop=80000 rc=0
+[08-31 07:48:19] [#409] arm dec_m090r100_ramp1k ema='--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 1000' seed=20260520 reduce=mean target=teacher -> 80000 steps on gpu 1, save every 5000
+[08-31 07:48:24] [#409] arm dec_m090r100_ramp1k AUC gate pid 32131 — window 500, threshold 0.55, warmup 1000
+[08-31 07:48:26] [#409] arm dec_m090r100_ramp1k stop=80000 rc=0
