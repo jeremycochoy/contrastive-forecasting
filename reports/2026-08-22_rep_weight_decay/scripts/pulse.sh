@@ -11,4 +11,4 @@ for f in "$R"/*/arm6_v2_combab_alignT/leg_40k/*_losses.csv; do
   age=$(( ( $(date +%s) - $(stat -c %Y "$f") ) / 60 ))
   [ "$age" -le 20 ] && printf '  %-14s step %6d  (last write %2d min ago)\n' "$arm" "$n" "$age"
 done
-printf '  scores: '; tail -n +2 "$R2/scores.csv" 2>/dev/null | awk -F, '{printf "%s=%s ", $1, $NF}'; echo
+printf '  scores: '; tail -n +2 "$R2/scores.csv" 2>/dev/null | awk -F, '{printf "%s@%s=%s ", $1, $11, $NF}'; echo

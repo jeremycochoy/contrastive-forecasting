@@ -36,6 +36,10 @@ cf409_reached(){  # <arm>
 cf409_run_state(){  # <state file> <note>
   local state="${1:?state file}" note="${2:-}" a
   local arms="${ARMS:-$CF409_ARMS}"
+  # The first stop of the study. The `reaches` and the `score` columns
+  # both read it, so an arm carried to a second stop cannot put that
+  # stop's score beside the first stop's momentum.
+  local stop="${CF409_STOPS%% *}"
   { echo "# #409 run state — the L_rep weight decay at k = 32"
     echo
     echo "- updated: $(date '+%Y-%m-%d %H:%M:%S')"
@@ -61,17 +65,19 @@ cf409_run_state(){  # <state file> <note>
     for a in $arms; do
       printf '%-18s %-22s %-8s %-7s %-9s %-8s %s\n' "$a" \
         "$(cf409_ema_label "$a")" \
-        "$(cf409_momentum_at "$a" "${CF409_STOPS%% *}")" \
+        "$(cf409_momentum_at "$a" "$stop")" \
         "$(cf409_decay_ramp_of "$a")" \
         "$(cf409_seed "$a")" \
         "$(cf409_reached "$a")" \
-        "$(awk -F, -v a="$a" '$1==a{print $NF}' \
+        "$(awk -F, -v a="$a" -v s="$stop" '$1==a && $11==s{print $NF}' \
              "$CF409_RESULTS/scores.csv" 2>/dev/null | tail -1)"
     done
     echo '```'
     echo
     echo "\`reached\` is the last step that arm's losses CSVs hold." \
-         "0 means the arm never wrote a step."
+         "0 means the arm never wrote a step." \
+         "\`score\` is the score at the $stop-step stop." \
+         "The Scores section below holds every stop."
     echo
     echo "## Scores"
     echo
