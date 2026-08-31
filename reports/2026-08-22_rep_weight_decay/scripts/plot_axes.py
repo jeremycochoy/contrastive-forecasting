@@ -9,10 +9,12 @@ point is from the reference.
 
 Left: x is the momentum the arm holds at the 40,000-step stop, at the card's
 own decay ramp of 10,000 steps. A schedule with several seeds draws each seed
-as a small dot and their mean as the large one. Right: x is the decay ramp,
-one line per schedule the card varied it on. The two families take the first
-two categorical hues of the data-viz standard, and each carries its momentum
-as a legend entry, so identity is never the colour alone.
+as a small dot and their mean as the large one. The line joins four different
+schedules, so it takes categorical slot 3 of the data-viz standard and its own
+legend entry, never the colour of a schedule family. Right: x is the decay
+ramp, one line per schedule the card varied it on. The two families take the
+first two categorical hues, and each carries its momentum as a legend entry,
+so identity is never the colour alone.
 
 Both panels carry the reference (the best schedule with no decay) as a dashed
 line, and a band of the seed range above it. The seed range is the widest
@@ -45,6 +47,9 @@ spec.loader.exec_module(S)
 # The second ramp family, at momentum 0.940. Categorical slot 2 of the
 # data-viz standard, beside `S.SERIES`, which is slot 1.
 FAMILY_2 = "#eb6834"
+# The momentum panel. Its one line joins arms of four schedules, so it wears
+# categorical slot 3, a colour no schedule family claims in the legend.
+MOMENTUM = "#1baf7a"
 
 
 def frame(ax, x_label, band, x_ticks=None):
@@ -141,7 +146,8 @@ def main(argv=None):
     fig, (left, right) = plt.subplots(1, 2, figsize=(10.4, 4.4), sharey=True)
     frame(left, "EMA momentum at the stop, decay ramp 10,000", band,
           x_ticks=sorted(by_momentum))
-    series(left, by_momentum)
+    series(left, by_momentum, colour=MOMENTUM,
+           label="four EMA schedules, one point per momentum")
     # The ramps sit at equal spacing: 1,000 to 30,000 on a linear axis
     # squashes four of the six into one fifth of the panel.
     ramp_ticks = sorted({r for f in families.values() for r in f})
@@ -168,7 +174,7 @@ def main(argv=None):
     right.fill_between([], [], [], color=S.SERIES, alpha=0.10,
                        label=f"one seed range above the reference, {band:.4f}")
     fig.legend(frameon=False, fontsize=8, labelcolor=S.INK, ncol=2,
-               loc="lower center", bbox_to_anchor=(0.5, -0.10))
+               loc="lower center", bbox_to_anchor=(0.5, -0.16))
     fig.subplots_adjust(wspace=0.08)
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(args.out, dpi=160, bbox_inches="tight", facecolor=S.SURFACE)

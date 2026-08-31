@@ -12,34 +12,13 @@ The best decay ramp depends on the momentum: a shorter ramp scores worse at 0.84
 
 *The measured grid, decay ramp by EMA momentum at the stop, colour by score.*
 
-The gap between the two best arms, 1.2295 and 1.2352, is 0.0057, 0.1 of the seed range of 0.0471, so this study cannot rank them.
+The gap between the best arm and the best arm at ramp 10,000, 1.2295 and 1.2352, is 0.0057, 0.1 of the seed range of 0.0471, so this study cannot rank them.
 
 ![axes](plots/axes.png)
 
 *Score against each axis: the momentum at ramp 10,000, and the ramp at each of the two momenta.*
 
-Gap of each axis point against the mean of its axis at ramp 10,000: 1.2588 over two seeds at momentum 0.840, 1.2692 over three seeds at momentum 0.940. Verdict against the seed range of 0.0471, with the rule of the gate table below:
-
-| axis | point | score | gap | gap over seed range | verdict |
-|---|---|---|---|---|---|
-| momentum, ramp 10,000 | 0.700 | 1.3534 | +0.0946 | 2.0 | rank |
-| momentum, ramp 10,000 | 0.940 | 1.2692, mean of three seeds | +0.0104 | 0.2 | inside the seed range |
-| momentum, ramp 10,000 | 0.990 | 1.2849 | +0.0261 | 0.6 | inside the seed range |
-| ramp, momentum 0.840 | 5,000 | 1.2727 | +0.0139 | 0.3 | inside the seed range |
-| ramp, momentum 0.840 | 20,000 | 1.3178 | +0.0591 | 1.3 | threshold |
-| ramp, momentum 0.840 | 30,000 | 1.3623 | +0.1036 | 2.2 | rank |
-| ramp, momentum 0.940 | 1,000 | 1.2322 | -0.0370 | 0.8 | inside the seed range |
-| ramp, momentum 0.940 | 2,000 | 1.2295 | -0.0397 | 0.8 | inside the seed range |
-| ramp, momentum 0.940 | 5,000 | 1.2537 | -0.0155 | 0.3 | inside the seed range |
-
 Both continuations scored worse at 80,000 steps than at 40,000, and the two stops differ in the momentum as well as in the step count. The EMA schedule ramps to 1.0 at 100,000 steps, so the momentum at the stop is 0.940 at 40,000 and 0.980 at 80,000.
-
-Score of the two arms carried to 80,000 steps, each resumed from its own 40,000-step checkpoint and optimizer state (`results/scores.csv`):
-
-| arm | decay ramp, steps | momentum at 40,000 | score at 40,000 | momentum at 80,000 | score at 80,000 | change | change over seed range |
-|---|---|---|---|---|---|---|---|
-| dec_m090r100_ramp2k | 2,000 | 0.940 | 1.2295 | 0.980 | 1.2473 | +0.0178 | 0.4 |
-| dec_m090r100_ramp1k | 1,000 | 0.940 | 1.2322 | 0.980 | 1.2381 | +0.0059 | 0.1 |
 
 ![auc](plots/auc.png)
 
@@ -51,7 +30,7 @@ Score of the two arms carried to 80,000 steps, each resumed from its own 40,000-
 
 Over steps 20,000 to 40,000, 12 of the 13 scored arms reduce their total loss. Over the last 10,000 steps, six arms have a positive slope and seven a negative one (`results/loss_slope.csv`).
 
-| term in the figure | definition |
+| symbol | definition |
 |---|---|
 | `L_align, reduced` | `L_align` is the alignment term of the loss, the student against the EMA teacher. The figure draws the residual `(loss - rep_w * l_rep - sigreg_e - sigreg_h) / align_w` |
 | `sigreg_e`, `sigreg_h` | the two SIGReg regularisation terms of the loss, each at weight 1.0 (`notes/loss_decomposition.md`) |
@@ -61,7 +40,7 @@ Over steps 20,000 to 40,000, 12 of the 13 scored arms reduce their total loss. O
 
 ## Tables
 
-Score of each arm at the 40,000-step stop, by EMA schedule, decay ramp and seed (`scripts/arms.tsv`); last column: the same schedule with no decay, at the arm's seed where the reference study ran it, else at the seed named in the cell.
+Score of each arm at the 40,000-step stop, by EMA schedule, decay ramp and seed (`scripts/arms.tsv`). Last column: the same schedule with no decay, at the arm's seed where the reference study ran it, else at the seed named in the cell.
 
 | arm | EMA schedule | momentum at the stop | decay ramp, steps | seed | score | same schedule, no decay |
 |---|---|---|---|---|---|---|
@@ -81,7 +60,7 @@ Score of each arm at the 40,000-step stop, by EMA schedule, decay ramp and seed 
 | dec_m099_fix | 0.99 fixed | 0.990 | 10,000 | 20260520 | 1.2849 | not run |
 | reference | 0.9 to 1.0 at 100k | 0.940 | no decay | 20260524, 20260520 | | 1.1491, 1.1507 |
 
-Gaps against the seed range of 0.0471, the range of `dec_m080_r200` and `dec_m080_r200_s24`, the widest pair of repeat seeds in this study (`results/rank_gate.tsv`). Verdict rule: a gap at or under the seed range is noise, a gap under twice the seed range is a threshold, and a gap of twice the seed range or more is a rank. Column 4: the comparator's own seed range from `reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md`, 1.1782 to 1.3214 over three counted seeds of `0.8 to 1.0 at 200k`; a gap inside it is not a rank.
+Gaps against the seed range of 0.0471, the range of `dec_m080_r200` and `dec_m080_r200_s24`, the widest pair of repeat seeds in this study (`results/rank_gate.tsv`). Verdict rule: a gap at or under the seed range is noise, a gap under twice the seed range is a threshold, and a gap of twice the seed range or more is a rank. Column 4: the comparator's own seed range from `reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md`, 1.1782 to 1.3214 over three counted seeds of `0.8 to 1.0 at 200k`. A gap inside it is not a rank.
 
 | comparison | gap | gap over seed range | seed range of the no-decay comparator | verdict |
 |---|---|---|---|---|
@@ -91,7 +70,28 @@ Gaps against the seed range of 0.0471, the range of `dec_m080_r200` and `dec_m08
 | best arm 1.2295 against the second 1.2322 | +0.0027 | 0.1 | | noise |
 | best arm 1.2295 against the best arm at ramp 10,000, 1.2352 | +0.0057 | 0.1 | | noise |
 
-Contrastive AUC per run that passed the warm-up (`results/auc_verdicts.tsv`), with the floor the lowest rolling median over every leg of the run. The figure also draws two runs this table leaves out: `dec_s23` and `dec_s25`.
+Gap of each axis point against the baseline of its axis. The momentum axis and the ramp axis at 0.840 use 1.2588, the mean of two seeds at momentum 0.840 and ramp 10,000. The ramp axis at 0.940 uses 1.2692, the mean of three seeds at momentum 0.940 and ramp 10,000. Verdict with the rule of the gate table above, against the seed range of 0.0471.
+
+| axis | point | score | gap | gap over seed range | verdict |
+|---|---|---|---|---|---|
+| momentum, ramp 10,000 | 0.700 | 1.3534 | +0.0946 | 2.0 | rank |
+| momentum, ramp 10,000 | 0.940 | 1.2692, mean of three seeds | +0.0104 | 0.2 | inside the seed range |
+| momentum, ramp 10,000 | 0.990 | 1.2849 | +0.0261 | 0.6 | inside the seed range |
+| ramp, momentum 0.840 | 5,000 | 1.2727 | +0.0139 | 0.3 | inside the seed range |
+| ramp, momentum 0.840 | 20,000 | 1.3178 | +0.0591 | 1.3 | threshold |
+| ramp, momentum 0.840 | 30,000 | 1.3623 | +0.1036 | 2.2 | rank |
+| ramp, momentum 0.940 | 1,000 | 1.2322 | -0.0370 | 0.8 | inside the seed range |
+| ramp, momentum 0.940 | 2,000 | 1.2295 | -0.0397 | 0.8 | inside the seed range |
+| ramp, momentum 0.940 | 5,000 | 1.2537 | -0.0155 | 0.3 | inside the seed range |
+
+Score of the two arms carried to 80,000 steps, each resumed from its own 40,000-step checkpoint and optimizer state (`results/scores.csv`):
+
+| arm | decay ramp, steps | momentum at 40,000 | score at 40,000 | momentum at 80,000 | score at 80,000 | change | change over seed range |
+|---|---|---|---|---|---|---|---|
+| dec_m090r100_ramp2k | 2,000 | 0.940 | 1.2295 | 0.980 | 1.2473 | +0.0178 | 0.4 |
+| dec_m090r100_ramp1k | 1,000 | 0.940 | 1.2322 | 0.980 | 1.2381 | +0.0059 | 0.1 |
+
+Contrastive AUC per run the study scored, plus the run the gate stopped and the two continuations (`results/auc_verdicts.tsv`), with the floor the lowest rolling median over every leg of the run. The figure also draws two runs this table leaves out: `dec_s23` and `dec_s25`.
 
 | run | momentum at the stop | AUC floor | floor step | last AUC | last step | verdict |
 |---|---|---|---|---|---|---|
