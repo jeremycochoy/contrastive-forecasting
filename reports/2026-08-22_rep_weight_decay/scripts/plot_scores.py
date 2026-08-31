@@ -28,7 +28,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import csv
 import importlib.util
 import statistics
 import sys
@@ -45,21 +44,6 @@ S = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(S)
 
 
-def read_scores(path):
-    """`{arm: score}` from `results/scores.csv`."""
-    out = {}
-    try:
-        with open(path, newline="") as fh:
-            for r in csv.DictReader(fh):
-                try:
-                    out[r["arm"]] = float(r["score"])
-                except (KeyError, TypeError, ValueError):
-                    continue
-    except OSError:
-        pass
-    return out
-
-
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--scores",
@@ -69,7 +53,7 @@ def main(argv=None):
     args = p.parse_args(argv)
 
     arms = S.read_arms(args.arms)
-    scored = read_scores(args.scores)
+    scored = S.read_scores(args.scores)
     if not scored:
         print(f"no score in {args.scores}", file=sys.stderr)
         return 2

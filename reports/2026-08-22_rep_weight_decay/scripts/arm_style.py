@@ -202,6 +202,33 @@ def curve_label(row):
     return f"{momentum_at(row):.3f}  {row['arm']}"
 
 
+def read_scores(path, stop=STOP):
+    """`{arm: score}` from `results/scores.csv`, at ONE stop.
+
+    The stop keys a row beside the arm: an arm carried past 40,000 steps holds
+    one measured score at each stop. A map keyed by the arm alone takes
+    whichever of the two rows comes last, so every figure and the gate name the
+    stop they read. `stop=None` takes every row.
+
+    A table with no `stop` column is not filtered. A missing file gives no
+    score, and each caller says what it does with that.
+    """
+    out = {}
+    try:
+        with open(path, newline="") as fh:
+            for row in csv.DictReader(fh):
+                got = row.get("stop")
+                if stop is not None and got is not None and got != str(stop):
+                    continue
+                try:
+                    out[row["arm"]] = float(row["score"])
+                except (KeyError, TypeError, ValueError):
+                    continue
+    except OSError:
+        pass
+    return out
+
+
 def read_arms(path):
     """The arms table, in the card's order, as a list of dicts.
 

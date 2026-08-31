@@ -25,7 +25,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import csv
 import importlib.util
 import statistics
 import sys
@@ -39,17 +38,6 @@ HERE = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location("arm_style", HERE / "arm_style.py")
 S = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(S)
-
-
-def read_scores(path):
-    out = {}
-    with open(path, newline="") as fh:
-        for r in csv.DictReader(fh):
-            try:
-                out[r["arm"]] = float(r["score"])
-            except (KeyError, TypeError, ValueError):
-                continue
-    return out
 
 
 def panel(ax, points, x_label, band, x_ticks=None):
@@ -96,7 +84,7 @@ def main(argv=None):
     args = p.parse_args(argv)
 
     arms = S.read_arms(args.arms)
-    scored = read_scores(args.scores)
+    scored = S.read_scores(args.scores)
     if not scored:
         print(f"no score in {args.scores}", file=sys.stderr)
         return 2

@@ -100,6 +100,9 @@ ARM_ROWS = (
     ("dec_ramp20k_m080", "0.8", "1.0", "200000", "20000", "20260520"),
     ("dec_ramp5k_m080",  "0.8", "1.0", "200000", "5000",  "20260520"),
     ("dec_m080_r200_s24", "0.8", "1.0", "200000", "10000", "20260524"),
+    ("dec_m090r100_ramp5k", "0.9", "1.0", "100000", "5000", "20260520"),
+    ("dec_m090r100_ramp2k", "0.9", "1.0", "100000", "2000", "20260520"),
+    ("dec_m090r100_ramp1k", "0.9", "1.0", "100000", "1000", "20260520"),
 )
 ARMS = tuple(r[0] for r in ARM_ROWS)
 SEEDS = tuple(r[5] for r in ARM_ROWS)
@@ -120,6 +123,8 @@ REACHED = {
     "dec_m095_r100": 0.970, "dec_m070_fix": 0.700, "dec_m050_fix": 0.500,
     "dec_ramp30k_m080": 0.840, "dec_ramp20k_m080": 0.840,
     "dec_ramp5k_m080": 0.840, "dec_m080_r200_s24": 0.840,
+    "dec_m090r100_ramp5k": 0.940, "dec_m090r100_ramp2k": 0.940,
+    "dec_m090r100_ramp1k": 0.940,
 }
 # One schedule per distinct `(tau, end, ramp)`. Ten of them over the rows.
 SCHEDULE_COUNT = 10
@@ -177,6 +182,13 @@ class TestTheStudyIsTheCard:
         assert study_value("CF409_HEAD_STEPS") == "30000"
         assert study_value("CF409_HEAD_SEED") == "20260722"
         assert study_value("CF409_ENC") == "student"
+
+    def test_the_environment_can_carry_an_arm_past_the_stop(self):
+        """A scored arm can run on to a second stop. `CF409_STOPS` was a plain
+        assignment, so study.sh dropped the value the environment gave it and
+        no script ever saw the second stop."""
+        assert study_value("CF409_STOPS",
+                           {"CF409_STOPS": "40000 80000"}) == "40000 80000"
 
     def test_the_decay_ramp_is_a_column_of_the_arms_table(self):
         """The weight falls from 1.0 to 0.0, and those two ends are the

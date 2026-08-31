@@ -379,3 +379,30 @@ of every arm in the tables. `cf409_ramp <arm>` is what one LEG runs, and
 `arm_style.DECAY_RAMP`, a second copy of the same three arm names, is gone.
 `plot_auc.py` reads the ramp of each arm it draws and shades the longest one,
 because one band at one arm's ramp read as every arm's.
+
+## 08-31 08:10 — the stop became part of the key of `scores.csv`
+
+Two arms ran past the 40,000-step stop, to 80,000. `collect.sh` built one row
+for each arm, so each of those two arms lost a measured score. It also read the
+score files alone, and `results/` is under git: a checkout took the 40,000-step
+score files of `dec_m090r100_ramp5k`, `dec_m090r100_ramp2k` and
+`dec_m090r100_ramp1k`, and the table then showed the 80,000-step numbers in
+their place.
+
+The key is now (arm, stop), and a second source reads the aggregate line of the
+eval's own log when this results directory no longer holds the score file. The
+table carries 15 rows over the two stops. The three lost score files are back,
+from their own eval logs, so no head runs a second time.
+
+`plot_scores.py`, `plot_axes.py` and `rank_gate.py` held three copies of one
+`read_scores`, each keyed by the arm alone. One copy is left, in
+`arm_style.py`, and it takes one stop. Every figure and the gate read the
+40,000-step rows, which is the stop each of them names.
+
+`plots/axes.png` still draws one ramp family, the one at momentum 0.840. The
+three new arms move the ramp on the 0.940 schedule, so no panel holds them.
+
+The AUC gate's 1,000-step warmup was inside every ramp before these three
+arms. The shortest ramp is now 1,000 steps, so the gate turns on at the step
+that arm's weight reaches 0.0. All three held the task, at floors 0.9075,
+0.9092 and 0.8688 against the 0.55 threshold.

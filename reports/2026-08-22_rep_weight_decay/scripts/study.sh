@@ -69,9 +69,12 @@ CF409_REDUCE="mean"
 # the objective it trained instead of leaving a reader to infer the cell's
 # default.
 CF409_ALIGN_TARGET="teacher"
-# One stop. The card trains each arm to 40,000 backbone steps, because that is
-# where the sweep measured this cell.
-CF409_STOPS="40000"
+# The stop. The card trains each arm to 40,000 backbone steps, because that is
+# where the sweep measured this cell. Set CF409_STOPS to carry a scored arm
+# past that stop: the leg resumes the newest step checkpoint under any leg_*
+# directory, so `CF409_STOPS=80000` continues a 40,000-step arm instead of
+# starting it again.
+CF409_STOPS="${CF409_STOPS:-40000}"
 CF409_HEAD_STEPS=30000
 # How often a leg writes a step checkpoint. #373's runner defaults to 20,000,
 # which is half of this card's whole stop: on 08-23 `dec_m080_r200` reached
@@ -594,6 +597,31 @@ cf409_eval_dir(){  # <arm> <tag>
 cf409_score_file(){  # <arm> <stop steps>
   printf '%s/score_%s.txt\n' "$CF409_RESULTS" \
     "$(cf409_tag "${1:?arm}" "${2:?stop}" "$CF409_HEAD_STEPS")"
+}
+
+# The GM-Relative MASE one (arm, stop) measured, or nothing.
+#
+# TWO SOURCES, in this order. The score file above is the first: #373's head
+# script writes it, and it refuses to eval a tag that already has one, so it
+# is never older than the eval beside it.
+#
+# The eval's own log is the second. `results/` is under git and the eval root
+# is not, so a checkout takes a score file away while the measurement stays.
+# That took the 40,000-step files of three arms, and `scores.csv` then carried
+# their 80,000-step scores in place of them.
+cf409_score_of(){  # <arm> <stop steps>
+  local file value log
+  file="$(cf409_score_file "${1:?arm}" "${2:?stop}")"
+  value=""
+  [ -s "$file" ] && value="$(tr -d ' \t\r\n' <"$file")"
+  if [ -z "$value" ]; then
+    log="$(cf409_eval_dir "$1" \
+      "$(cf409_tag "$1" "$2" "$CF409_HEAD_STEPS")")/eval_local.log"
+    value="$(grep -oE 'Aggregate GM-Relative MASE \([0-9]+ configs\): *[0-9.]+' \
+      "$log" 2>/dev/null | tail -1 | awk '{print $NF}')"
+  fi
+  [ -n "$value" ] || return 1
+  printf '%s\n' "$value"
 }
 
 # Every (arm, stop) pair of the study, one per line.

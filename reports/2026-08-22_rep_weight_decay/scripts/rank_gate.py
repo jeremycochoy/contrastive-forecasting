@@ -40,7 +40,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import csv
 import importlib.util
 import itertools
 import sys
@@ -50,17 +49,6 @@ HERE = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location("arm_style", HERE / "arm_style.py")
 S = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(S)
-
-
-def read_scores(path):
-    out = {}
-    with open(path, newline="") as fh:
-        for row in csv.DictReader(fh):
-            try:
-                out[row["arm"]] = float(row["score"])
-            except (KeyError, TypeError, ValueError):
-                continue
-    return out
 
 
 def verdict(gap, spread):
@@ -84,7 +72,7 @@ def main(argv=None):
     args = p.parse_args(argv)
 
     arms = {r["arm"]: r for r in S.read_arms(args.arms)}
-    scores = read_scores(args.scores)
+    scores = S.read_scores(args.scores)
     if not scores:
         print(f"no score in {args.scores}", file=sys.stderr)
         return 2

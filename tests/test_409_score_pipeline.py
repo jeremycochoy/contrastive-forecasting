@@ -179,10 +179,28 @@ class TestCollect:
     def _run(self, res, env=None):
         full = dict(os.environ)
         full["CF409_RESULTS"] = str(res)
+        # Never the machine's own checkpoint root. `collect.sh` reads the eval
+        # log of every (arm, stop), and the real root would put real scores in
+        # a temporary table.
+        full["CF409_ROOT"] = str(Path(res).parent / "root")
         full.update(env or {})
         return subprocess.run(["bash", str(COLLECT)], capture_output=True,
                               text=True, env=full, cwd=str(REPO_ROOT),
                               timeout=180)
+
+    def _eval_log(self, root, arm, stop, value):
+        """The aggregate line #373's eval writes under the arm's eval root."""
+        tag = study_out(f"cf409_tag {arm} {stop} {HEAD_STEPS}")
+        out = Path(study_out(f"cf409_eval_dir {arm} {tag}",
+                             {"CF409_ROOT": str(root)}))
+        out.mkdir(parents=True, exist_ok=True)
+        (out / "eval_local.log").write_text(
+            f"Aggregate GM-Relative MASE (97 configs): {value}\n")
+
+    def _by_stop(self, res):
+        rows = list(csv.DictReader(
+            (res / "scores.csv").read_text().splitlines()))
+        return {r["stop"]: r["score"] for r in rows}
 
     def test_one_row_for_each_scored_arm(self, tmp_path):
         res = self._results(tmp_path, {"dec_s20": "1.1400\n",
@@ -234,6 +252,36 @@ class TestCollect:
         assert cell["rep_w_at_stop"] == "0.000"
         assert cell["stop"] == str(STOP)
         assert cell["head_steps"] == str(HEAD_STEPS)
+
+    def test_two_stops_of_one_arm_are_two_rows(self, tmp_path):
+        """The STOP keys a row beside the arm. `dec_m090r100_ramp1k` scored
+        1.2322 at the 40,000-step stop and 1.2381 at 80,000. A table keyed by
+        the arm alone keeps one of those measured numbers and drops the
+        other."""
+        arm = "dec_m090r100_ramp1k"
+        res = tmp_path / "results"
+        res.mkdir()
+        for stop, value in ((40_000, "1.2322"), (80_000, "1.2381")):
+            tag = study_out(f"cf409_tag {arm} {stop} {HEAD_STEPS}")
+            (res / f"score_{tag}.txt").write_text(value + "\n")
+        out = self._run(res, {"CF409_STOPS": "40000 80000"})
+        assert out.returncode == 0, out.stderr
+        assert self._by_stop(res) == {"40000": "1.2322", "80000": "1.2381"}
+
+    def test_a_stop_whose_score_file_is_gone_still_lands(self, tmp_path):
+        """`results/` is under git, so a checkout can take a score file away
+        while the measurement stays in the eval's own log. That took the
+        40,000-step files of three arms, and the table then showed their
+        80,000-step scores in place of them."""
+        arm = "dec_m090r100_ramp1k"
+        res = tmp_path / "results"
+        res.mkdir()
+        tag = study_out(f"cf409_tag {arm} 80000 {HEAD_STEPS}")
+        (res / f"score_{tag}.txt").write_text("1.2381\n")
+        self._eval_log(tmp_path / "root", arm, 40_000, "1.2322")
+        out = self._run(res, {"CF409_STOPS": "40000 80000"})
+        assert out.returncode == 0, out.stderr
+        assert self._by_stop(res) == {"40000": "1.2322", "80000": "1.2381"}
 
     def test_an_empty_score_file_is_not_a_zero(self, tmp_path):
         """An eval killed between opening and writing leaves one, and 0.0
@@ -741,16 +789,28 @@ class TestTheAucGuard:
         finally:
             self._reap(warm)
 
-    def test_the_card_warmup_is_inside_every_arm_ramp(self, tmp_path):
-        """The gate turns on while the repel term still carries most of its
-        weight, so no arm can collapse from the decay before it. The shortest
-        ramp is 5,000 steps, which sets the floor."""
+    def test_the_card_warmup_reaches_the_shortest_ramp(self):
+        """The gate reads no step below the warmup. So the warmup must not
+        outlast the shortest decay ramp, or an arm would run its whole decay
+        unwatched.
+
+        `dec_m090r100_ramp1k` sets that floor. Its weight reaches 0.0 at step
+        1,000, which is the step the gate turns on. The three short-ramp arms
+        held the task, at floors 0.9075, 0.9092 and 0.8688 against the 0.55
+        threshold, so the gate read each of them in time."""
         warmup = int(study_out('printf %s "$CF409_AUC_WARMUP"'))
-        assert 0 < warmup <= 2000
+        assert 0 < warmup <= min(int(RAMPS[arm]) for arm in ARMS)
+
+    def test_a_longer_ramp_still_meets_the_gate_under_weight(self):
+        """An arm whose ramp outlasts the warmup meets the gate with at least
+        half of the repel term in front of it. `dec_m090r100_ramp2k` is the
+        tightest, at 0.5."""
+        warmup = int(study_out('printf %s "$CF409_AUC_WARMUP"'))
         for arm in ARMS:
-            assert warmup < int(RAMPS[arm]), arm
+            if int(RAMPS[arm]) <= warmup:
+                continue
             got = float(study_out(f"cf409_rep_w_at {arm} {warmup}"))
-            assert got >= 0.8, (arm, got)
+            assert got >= 0.5, (arm, got)
 
 
 class TestTheLaneHoldsOneHead:
@@ -1200,6 +1260,26 @@ class TestTheReaderStitchesARefiredLeg:
                          [(1, 11.0, 0.9), (1, "", 0.9)],
                          columns=("l_rep", "auc"))
         assert S.read_run([path], ["l_rep"])["l_rep"] == []
+
+    def test_the_figures_read_one_stop_of_the_score_table(self, tmp_path):
+        """Every figure and the rank gate compare arms AT ONE STOP. Two rows
+        of one arm reach them, so a reader keyed by the arm alone would draw
+        the 80,000-step score under a 40,000-step title."""
+        S = self.style
+        path = tmp_path / "scores.csv"
+        path.write_text("arm,stop,score\n"
+                        "dec_m090r100_ramp1k,40000,1.2322\n"
+                        "dec_m090r100_ramp1k,80000,1.2381\n")
+        assert S.read_scores(path) == {"dec_m090r100_ramp1k": 1.2322}
+        assert S.read_scores(path, 80000) == {"dec_m090r100_ramp1k": 1.2381}
+        assert S.read_scores(path, None) == {"dec_m090r100_ramp1k": 1.2381}
+
+    def test_a_score_table_without_a_stop_column_is_not_filtered(self, tmp_path):
+        """`rank_gate.py` takes any table its caller names."""
+        S = self.style
+        path = tmp_path / "scores.csv"
+        path.write_text("arm,score\na,1.10\nb,1.30\n")
+        assert S.read_scores(path) == {"a": 1.10, "b": 1.30}
 
     def test_the_window_mean_names_the_steps_it_covers(self, tmp_path):
         S = self.style
