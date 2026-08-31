@@ -43,9 +43,10 @@ GRID = "#d9d9d9"
 SURFACE = "#fcfcfb"
 # The reference lines are the sweep's published scores, so they are recessive.
 REFERENCE = MUTED
-# The arm the headline names. It keeps the series color in every curve figure,
+# The arm the headline names, the best score at the 40,000-step stop. It keeps
+# the series color in every curve figure,
 # and the other held arms step back to a light grey, so a reader can follow it.
-HIGHLIGHT_ARM = "dec_m080_r200"
+HIGHLIGHT_ARM = "dec_m090r100_ramp2k"
 HELD = "#b0b0b0"
 
 # What `reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md` published for

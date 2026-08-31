@@ -28,6 +28,9 @@ python3 "$HERE/plot_scores.py" --scores "$CF409_RESULTS/scores.csv" \
 # The score on each axis: the momentum at the stop, and the decay ramp.
 python3 "$HERE/plot_axes.py" --scores "$CF409_RESULTS/scores.csv" \
   --arms "$CF409_ARMS_TSV" --out "$CF409_PLOTS/axes.png"
+# The measured grid: every (decay ramp, momentum) cell the card scored.
+python3 "$HERE/plot_grid.py" --scores "$CF409_RESULTS/scores.csv" \
+  --arms "$CF409_ARMS_TSV" --verdicts "$VERDICTS" --out "$CF409_PLOTS/grid.png"
 # The slope at the stop, which is the card's second question.
 python3 "$HERE/loss_slope.py" --root "$CF409_ROOT" --arms "$CF409_ARMS_TSV" \
   --out "$CF409_RESULTS/loss_slope.csv"
