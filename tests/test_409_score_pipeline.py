@@ -22,6 +22,7 @@ from __future__ import annotations
 import csv
 import importlib.util
 import os
+import re
 import subprocess
 import sys
 import time
@@ -1527,11 +1528,20 @@ class TestTheStudyKeepsOneReport:
     # The notes this study carries, each one a decision or an operational
     # record and not a findings summary.
     ALLOWED = {"artefacts.md", "execution_log.md", "loss_decomposition.md",
-               "search_protocol.md", "SECOND_ANSWER.md"}
+               "search_protocol.md", "SECOND_ANSWER.md", "one_report.md"}
 
     def test_no_new_report_file_grew_under_notes(self):
         got = {p.name for p in self.NOTES.glob("*.md")}
         assert got == self.ALLOWED, sorted(got ^ self.ALLOWED)
+
+    def test_the_decision_note_carries_no_result(self):
+        """`one_report.md` is the decision that kept this study at one report.
+        Agents kept proposing a second one. A note that starts to carry scores
+        IS that second report under an allowed name, so this note names the
+        one file that holds them and holds none itself."""
+        body = (self.NOTES / "one_report.md").read_text()
+        assert "rep_weight_decay.md" in body
+        assert not re.search(r"\b\d\.\d{4}\b", body), "a score in the note"
 
     def test_the_findings_live_in_the_script_and_the_table(self):
         """The rank gate and the reference match state their result in the
