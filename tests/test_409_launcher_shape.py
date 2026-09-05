@@ -103,6 +103,9 @@ ARM_ROWS = (
     ("dec_m090r100_ramp5k", "0.9", "1.0", "100000", "5000", "20260520"),
     ("dec_m090r100_ramp2k", "0.9", "1.0", "100000", "2000", "20260520"),
     ("dec_m090r100_ramp1k", "0.9", "1.0", "100000", "1000", "20260520"),
+    ("dec_f094_r2k",     "0.94", "-",   "-",      "2000",  "20260520"),
+    ("dec_f090_r2k",     "0.90", "-",   "-",      "2000",  "20260520"),
+    ("dec_f086_r2k",     "0.86", "-",   "-",      "2000",  "20260520"),
 )
 ARMS = tuple(r[0] for r in ARM_ROWS)
 SEEDS = tuple(r[5] for r in ARM_ROWS)
@@ -114,7 +117,10 @@ SEED = "20260520"
 # The schedule this card repeated most, at five seeds.
 ARM_ONE = ("dec_s20", "dec_s22", "dec_s23", "dec_s24", "dec_s25")
 # The momentum each arm holds at the 40,000-step stop. That value ranks the
-# arms, and no two SCHEDULES share it.
+# arms on the EMA axis. It does NOT name the schedule: the fixed-momentum
+# round put an arm AT the value a ramping arm reaches, so 0.940 is held by
+# `dec_f094_r2k` from step 0 and by the `0.9 to 1.0 over 100k` rows at the
+# stop.
 REACHED = {
     "dec_s20": 0.940, "dec_s22": 0.940, "dec_s23": 0.940,
     "dec_s24": 0.940, "dec_s25": 0.940,
@@ -125,9 +131,28 @@ REACHED = {
     "dec_ramp5k_m080": 0.840, "dec_m080_r200_s24": 0.840,
     "dec_m090r100_ramp5k": 0.940, "dec_m090r100_ramp2k": 0.940,
     "dec_m090r100_ramp1k": 0.940,
+    "dec_f094_r2k": 0.940, "dec_f090_r2k": 0.900, "dec_f086_r2k": 0.860,
 }
-# One schedule per distinct `(tau, end, ramp)`. Ten of them over the rows.
-SCHEDULE_COUNT = 10
+# One schedule per distinct `(tau, end, ramp)`. Twelve of them over the rows.
+SCHEDULE_COUNT = 12
+# The distinct values the rows HOLD at the stop. It is one less than the count
+# of schedules, because two schedules hold 0.940 there.
+REACHED_COUNT = 11
+# The one value two schedules share, and the reason the two counts differ.
+SHARED_REACHED = 0.940
+
+
+def schedule_key(sig: str) -> tuple:
+    """One EMA schedule of `cf409_ema_sig`, as numbers.
+
+    The table writes one momentum two ways: `dec_m090_fix` holds `0.9` and
+    `dec_f090_r2k` holds `0.90`. Both reach the trainer as one float, so a
+    count over the raw strings would report two schedules where the runs hold
+    one. `-` is a flag the arm does not pass.
+    """
+    tau, end, ramp = sig.split()
+    return (float(tau), None if end == "-" else float(end),
+            None if ramp == "-" else int(ramp))
 
 
 def study_value(name: str, env=None) -> str:
@@ -244,8 +269,8 @@ class TestTheEmaScheduleIsTheAxis:
         assert "EMA_ARGS" in PARENT_LEG.read_text()
         assert EMA in PARENT_LEG.read_text()
 
-    def test_the_table_holds_ten_schedules(self):
-        got = {study_out(f'cf409_ema_sig {a}') for a in ARMS}
+    def test_the_table_holds_twelve_schedules(self):
+        got = {schedule_key(study_out(f'cf409_ema_sig {a}')) for a in ARMS}
         assert len(got) == SCHEDULE_COUNT, sorted(got)
 
     def test_a_ramp_arm_passes_all_three_flags(self):
@@ -291,19 +316,36 @@ class TestTheEmaScheduleIsTheAxis:
                 got = float(study_out(f'cf409_momentum_at {arm} {step}'))
                 assert got == pytest.approx(want, abs=5e-4), (arm, step)
 
-    def test_the_momentum_at_the_stop_identifies_the_schedule(self):
-        """That value ranks the arms on the EMA axis. Rows that share it
-        share a schedule and move the decay ramp or the seed instead."""
-        reached = {}
+    def test_the_momentum_at_the_stop_ranks_the_arms(self):
+        """That value ranks the arms on the EMA axis. It stopped naming the
+        schedule when the fixed-momentum round started: 0.940 is the only
+        value two schedules hold, and every other value still names one."""
+        by_reached = {}
         for arm in ARMS:
-            reached.setdefault(
-                float(study_out(f'cf409_momentum_at {arm} {STOP}')), []
-            ).append(arm)
-            assert float(study_out(f'cf409_momentum_at {arm} {STOP}')) == \
-                pytest.approx(REACHED[arm], abs=5e-4), arm
-        # Rows on one schedule share one value, so the count is the count of
-        # schedules and not the count of rows.
-        assert len(reached) == SCHEDULE_COUNT, reached
+            got = float(study_out(f'cf409_momentum_at {arm} {STOP}'))
+            assert got == pytest.approx(REACHED[arm], abs=5e-4), arm
+            by_reached.setdefault(round(got, 3), set()).add(
+                schedule_key(study_out(f'cf409_ema_sig {arm}')))
+        assert len(by_reached) == REACHED_COUNT, sorted(by_reached)
+        shared = {v for v, keys in by_reached.items() if len(keys) > 1}
+        assert shared == {SHARED_REACHED}, sorted(shared)
+
+    def test_a_fixed_arm_holds_what_a_ramping_arm_reaches(self):
+        """The fixed-momentum round separates the value from the shape that
+        reaches it. `dec_f094_r2k` holds 0.940 from step 0. The ramping arm
+        `dec_m090r100_ramp2k` climbs to 0.940 by the stop. The two hold one
+        decay ramp and one seed, so the report reads them against each
+        other."""
+        pair = ("dec_f094_r2k", "dec_m090r100_ramp2k")
+        assert {float(study_out(f'cf409_momentum_at {a} {STOP}'))
+                for a in pair} == {SHARED_REACHED}
+        assert len({schedule_key(study_out(f'cf409_ema_sig {a}'))
+                    for a in pair}) == 2
+        assert len({study_out(f'cf409_decay_ramp_of {a}') for a in pair}) == 1
+        assert len({study_out(f'cf409_seed {a}') for a in pair}) == 1
+        # They part before the stop, or the pair would be one arm twice.
+        assert len({study_out(f'cf409_momentum_at {a} 1000')
+                    for a in pair}) == 2
 
     def test_the_leg_flags_carry_the_arm_schedule(self):
         """The dry run prints the whole block."""
