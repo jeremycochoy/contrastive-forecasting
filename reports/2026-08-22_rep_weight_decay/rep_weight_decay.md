@@ -1,6 +1,6 @@
-# A decay of the L_rep weight to zero never beats the no-decay reference, and the weight at 0.0 collapses the best cell
+# A decay of the L_rep weight to zero never beats the no-decay reference, and the weight at 0.0 collapses the best cell on the student align target
 
-A linear decay of the L_rep weight, the contrastive representation term of the training loss, does not improve the GM-Relative MASE of the k = 32 cell, over 22 scored runs. The best arm loses to the no-decay reference by 1.7 times the seed range at 40,000 steps, and its score rises at every later stop.
+A linear decay of the L_rep weight, the contrastive representation term of the training loss, does not improve the GM-Relative MASE of the k = 32 cell, over 21 scored runs. The best arm loses to the no-decay reference by 1.7 times the seed range at 40,000 steps, and its score rises at every later stop.
 
 ![scores](plots/scores.png)
 
@@ -26,7 +26,7 @@ The best arm held the contrastive task to 200,000 steps, AUC 0.98 falling to 0.9
 
 *The A4 cell resumed from its 40,000-step checkpoint and optimizer state with the L_rep weight at 0.0, one run per align target, trained to 200,000 steps, against the original A4 ([`a4_full_pass`](../2026-08-20_a4_full_pass/a4_full_pass.md)).*
 
-The two runs above use a DIFFERENT cell, `arm6_v2_combab_alignS` at k = 3 with the student align target: the project's best model, which this card asks how to beat. The student-target run collapsed: on this cell the EMA teacher enters the loss only through the MoCo keys inside L_rep, so at weight 0.0 the teacher leaves the objective. `L_align` then pulls the student's forecast toward the student's own detached latent (`src/loss.py:2915`), which a constant embedding satisfies: total loss 0.0008, AUC at chance. The teacher-target run did not collapse and still lost 0.315 against its own reference, and the align target alone separates the two weight-0.0 runs by 0.488, the largest single effect this card measured.
+The two runs above use a DIFFERENT cell, `arm6_v2_combab_alignS` at k = 3 with the student align target: the project's best model, which this card asks how to beat. The student-target run collapsed: on this cell the EMA teacher enters the loss only through the MoCo keys inside L_rep, so at weight 0.0 the teacher leaves the objective. `L_align` then pulls the student's forecast toward the student's own detached latent (`src/loss.py:2915`), which a constant embedding satisfies: total loss 0.1595 at step 200,000, AUC at chance. The teacher-target run did not collapse and still lost 0.315 to the original A4, and the align target alone separates the two weight-0.0 runs by 0.488.
 
 ![auc](plots/auc.png)
 
