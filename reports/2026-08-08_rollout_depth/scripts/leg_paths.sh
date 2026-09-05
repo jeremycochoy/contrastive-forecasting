@@ -59,6 +59,15 @@ newest_ckpt(){  # <cell runs dir> <run name>
     | sort -k1,1n | tail -1 | cut -d' ' -f2-
 }
 
+# EVERY step checkpoint under a cell's runs dir, whatever run name it
+# carries. `newest_ckpt` above is pinned to ONE run name, so a checkpoint
+# written under any other name reads there as "nothing on disk" and the leg
+# starts fresh at step 0. This is the second reading, and a leg refuses to
+# start fresh while it returns anything.
+step_ckpts(){  # <cell runs dir>
+  ls "$1"/leg_*/*_[0-9]*k.pth 2>/dev/null | grep -v optimizer
+}
+
 # The step a checkpoint path carries, in thousands.
 ckpt_step_k(){  # <checkpoint path>
   printf '%s\n' "$1" | sed -E 's|.*_([0-9]+)k\.pth$|\1|'

@@ -3,7 +3,7 @@
 Three pieces of behaviour, each independently defaulting to the #382 run:
 
 1. :func:`src.loss.align_loss` accepts an explicit ``target_latent``. Passing
-   the EMA teacher's ``h`` makes L_align a teacher-target BYOL term; omitting
+   the EMA teacher's ``h`` makes L_align a teacher-target BYOL term. Omitting
    it keeps the student's own ``sg(h_{t+1})`` target, byte-for-byte.
 2. :func:`src.models.ema_tau_at_step` interpolates the EMA momentum α linearly
    from a start to an end value across the step budget. ``end=None`` (default)
@@ -372,7 +372,7 @@ class TestEndToEnd:
 
         rows = list(csv.DictReader(open(save_dir / "a388res_losses.csv")))
         by_step = {int(r["step"]): float(r["ema_tau"]) for r in rows}
-        # Steps 3 and 4 come from the resumed leg; α must be 0.975 / 1.0,
+        # Steps 3 and 4 come from the resumed leg. α must be 0.975 / 1.0,
         # the values the schedule gives at those global steps.
         assert by_step[3] == pytest.approx(0.975)
         assert by_step[4] == pytest.approx(1.0)
@@ -410,6 +410,10 @@ LOSSES_HEADER_PRE_388 = [
     "u_batchtime", "u_batchtime_e",
 ]
 
+# The four columns #409 appended after `ema_tau`: the live weight on L_rep
+# and the three per-term readouts.
+LOSSES_COLUMNS_409 = ["rep_w", "l_pred", "l_rep", "l_align"]
+
 # The drift-CSV header as it stood before #388 inserted `latent` (PR #387).
 DRIFT_HEADER_PRE_388 = [
     "step", "kind", "step_ref", "delta_step",
@@ -439,7 +443,8 @@ class TestLossesCsvResumeSchema:
     def test_current_losses_csv_is_appended_to(self, tmp_path):
         train = load_train_module()
         path = write_csv(tmp_path / "cur_losses.csv",
-                         LOSSES_HEADER_PRE_388 + ["ema_tau"])
+                         LOSSES_HEADER_PRE_388 + ["ema_tau"]
+                         + LOSSES_COLUMNS_409)
         logger = train.CSVLogger(path)
         logger.close()
         with open(path) as fh:
@@ -470,7 +475,7 @@ class TestDriftCsvResumeSchema:
             assert len(list(csv.reader(fh))) == 1     # no duplicate header
 
     def test_column_order_is_the_one_the_runs_write(self):
-        """The #388 runs are in flight against this exact order; moving a
+        """The #388 runs are in flight against this exact order. Moving a
         column would corrupt their CSV on the next resume."""
         train = load_train_module()
         assert train.LatentDriftProbe.COLUMNS == [

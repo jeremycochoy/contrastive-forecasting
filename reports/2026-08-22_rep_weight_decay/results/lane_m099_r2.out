@@ -1,0 +1,14 @@
+[08-24 21:27:57] [#409 lane 1] head queue on — one head at a time, worker pid 2505432
+[08-24 21:27:57] [#409 lane 1] arm dec_m099_fix -> 40000
+[08-24 21:27:57] [#409] arm dec_m099_fix ema='--ema-tau 0.99' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000' seed=20260520 reduce=mean target=teacher -> 40000 steps on gpu 1
+[08-24 21:27:57] [arm6_v2_combab_alignT] RESUME from cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m099_fix_15k.pth (step 15k)
+[08-24 21:27:57] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m099_fix/arm6_v2_combab_alignT/leg_40k
+[08-24 21:28:02] [#409] arm dec_m099_fix decay='1.0 0.0 10000' seed=20260520 target=teacher reduce=mean ema='0.99 - -' OK — all five reached the trainer
+[08-24 21:28:02] [#409] arm dec_m099_fix AUC gate pid 2505767 — window 500, threshold 0.55, warmup 1000
+[08-25 01:36:23] [arm6_v2_combab_alignT] DONE target=40000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-409/dec_m099_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m099_fix_r2_40k.pth
+[08-25 01:36:25] [#409] arm dec_m099_fix stop=40000 rc=0
+[08-25 01:36:25] [#409 lane 1] head dec_m099_fix stop=40000 (queued)
+[08-25 01:36:25] [#409 lane 1] head dec_m099_fix stop=40000 start
+[08-25 01:36:25] [#409 lane 1] waiting for the head queue to drain
+[08-25 03:53:25] [#409 lane 1] head dec_m099_fix stop=40000 rc=0
+[08-25 03:53:32] [#409 lane 1] lane drained — 0 leg(s) and 0 head(s) failed

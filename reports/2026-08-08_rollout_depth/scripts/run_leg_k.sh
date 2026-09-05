@@ -48,6 +48,11 @@ RES="${CF_RESULTS:-$OUT/results}"
 # step 0 with "CUDA-capable device(s) is/are busy". No-op on elisa, which
 # shares each 4090 between two cells deliberately.
 . "$(dirname "${BASH_SOURCE[0]}")/gpu_gate.sh"
+# Tells a Hub outage apart from a crashed leg. The data streams from the Hub,
+# so a box that loses DNS kills every leg in about 3 seconds, and a lane that
+# reads those as failed arms spends its whole retry ladder in two minutes
+# (08-23, 27 hours of idle card). See the header of hub_gate.sh.
+. "$(dirname "${BASH_SOURCE[0]}")/../../../scripts/hub_gate.sh"
 ROOT="$(runs_root)" || exit 2
 RUNS="$ROOT/$CELL"
 LEG="$(leg_dir "$RUNS" "$TARGET_STEPS")"
@@ -183,6 +188,17 @@ if [ -n "$latest" ]; then
   RESUME=(--resume "$latest")
   log "RESUME from $(basename "$latest") (step $(ckpt_step_k "$latest")k)"
 else
+  # A fresh start throws away every step the cell holds, so it is correct
+  # ONLY when the cell holds nothing. `newest_ckpt` reads one run name, and a
+  # checkpoint under any other name is invisible to it — a changed RUN_SUFFIX
+  # is enough. Refuse rather than restart: 15,000 steps is about 3 GPU hours.
+  stray="$(step_ckpts "$RUNS")"
+  if [ -n "$stray" ]; then
+    log "ABORT: no checkpoint named '$NAME', but $RUNS holds step checkpoints:"
+    while read -r f; do log "  $(basename "$f")"; done <<<"$stray"
+    log "  Point RUN_SUFFIX at the run that wrote them, or move them aside."
+    exit 2
+  fi
   log "FRESH start at step 0"
 fi
 
@@ -269,6 +285,12 @@ CUDA_VISIBLE_DEVICES="$BB_GPU" python3 -u "$TRAIN" "${RESUME[@]}" \
 rc=$?
 if [ $rc -ne 0 ]; then
   log "train exited rc=$rc — tail: $(tail -3 "$tlog" | tr '\n' ' ')"
+  # A leg the Hub killed is not a failed arm. It carries its own code, so a
+  # lane can wait for the network and re-fire without spending a try.
+  if hub_outage_in_log "$tlog"; then
+    log "the Hub was unreachable — this is a network failure, not a bad arm"
+    exit "$HUB_GATE_RC"
+  fi
   exit 1
 fi
 
