@@ -1,0 +1,114 @@
+[08-21 21:44:24] [A4_k3_bb450k_student_s20260724] head-train start enc=student steps=30000 seed=20260724 gpu=1 bb=cf393_arm6_v2_combab_alignS_cf373k3_450k.pth
+  [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+  [head-train] auto-detected qk_norm=True from backbone checkpoint
+  [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+  [head-train] auto-detected patch_stats=none
+Backbone loaded from /home/jupyter/cf373_r3/sync/arm6_v2_combab_alignS/leg_450k/cf393_arm6_v2_combab_alignS_cf373k3_450k.pth (0 params, frozen, encoder=student)
+/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(
+Forecasting head [transformer-q (2L H64 nhead8 causal)]: 109,456 trainable params
+Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+Loss CSV: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260724/qhead_A4_k3_bb450k_student_s20260724_s20260724_losses.csv
+Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20280724, emit_labels=True
+
+Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+Checkpoints: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260724/qhead_A4_k3_bb450k_student_s20260724_s20260724_*.pth
+[    500] loss=0.210040  ema_loss=0.213903  6.8 sps  ETA 1.2h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260724/qhead_A4_k3_bb450k_student_s20260724_s20260724_best.pth (ema_loss=0.213903)
+[   1000] loss=0.213926  ema_loss=0.208962  7.1 sps  ETA 1.1h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260724/qhead_A4_k3_bb450k_student_s20260724_s20260724_best.pth (ema_loss=0.208962)
+[   1500] loss=0.216581  ema_loss=0.206290  7.4 sps  ETA 1.1h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260724/qhead_A4_k3_bb450k_student_s20260724_s20260724_best.pth (ema_loss=0.206290)
+[   2000] loss=0.201183  ema_loss=0.206209  7.5 sps  ETA 1.0h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260724/qhead_A4_k3_bb450k_student_s20260724_s20260724_best.pth (ema_loss=0.206209)
+[   2500] loss=0.212963  ema_loss=0.205004  7.3 sps  ETA 1.0h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260724/qhead_A4_k3_bb450k_student_s20260724_s20260724_best.pth (ema_loss=0.205004)
+[   3000] loss=0.201725  ema_loss=0.204763  7.3 sps  ETA 1.0h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260724/qhead_A4_k3_bb450k_student_s20260724_s20260724_best.pth (ema_loss=0.204763)
+[   3500] loss=0.191681  ema_loss=0.204726  7.3 sps  ETA 1.0h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260724/qhead_A4_k3_bb450k_student_s20260724_s20260724_best.pth (ema_loss=0.204726)
+[   4000] loss=0.224652  ema_loss=0.204521  7.4 sps  ETA 1.0h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260724/qhead_A4_k3_bb450k_student_s20260724_s20260724_best.pth (ema_loss=0.204521)
+[   4500] loss=0.218844  ema_loss=0.205171  7.4 sps  ETA 1.0h
+[   5000] loss=0.205340  ema_loss=0.204732  7.4 sps  ETA 0.9h
+  -> Saved /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260724/qhead_A4_k3_bb450k_student_s20260724_s20260724_5k.pth
+[   5500] loss=0.204915  ema_loss=0.204600  7.3 sps  ETA 0.9h
+[   6000] loss=0.196375  ema_loss=0.203806  7.4 sps  ETA 0.9h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260724/qhead_A4_k3_bb450k_student_s20260724_s20260724_best.pth (ema_loss=0.203806)
+[   6500] loss=0.200662  ema_loss=0.203409  7.4 sps  ETA 0.9h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260724/qhead_A4_k3_bb450k_student_s20260724_s20260724_best.pth (ema_loss=0.203409)
+[   7000] loss=0.191988  ema_loss=0.203938  7.4 sps  ETA 0.9h
+[   7500] loss=0.206467  ema_loss=0.204136  7.4 sps  ETA 0.8h
+[   8000] loss=0.199840  ema_loss=0.203703  7.4 sps  ETA 0.8h
+[   8500] loss=0.211106  ema_loss=0.202670  7.4 sps  ETA 0.8h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260724/qhead_A4_k3_bb450k_student_s20260724_s20260724_best.pth (ema_loss=0.202670)
+[   9000] loss=0.191578  ema_loss=0.202686  7.5 sps  ETA 0.8h
+[   9500] loss=0.195760  ema_loss=0.202975  7.5 sps  ETA 0.8h
+[  10000] loss=0.201295  ema_loss=0.203193  7.5 sps  ETA 0.7h
+  -> Saved /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260724/qhead_A4_k3_bb450k_student_s20260724_s20260724_10k.pth
+[  10500] loss=0.207977  ema_loss=0.201366  7.5 sps  ETA 0.7h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260724/qhead_A4_k3_bb450k_student_s20260724_s20260724_best.pth (ema_loss=0.201366)
+[  11000] loss=0.200517  ema_loss=0.203447  7.4 sps  ETA 0.7h
+[  11500] loss=0.209395  ema_loss=0.203410  7.4 sps  ETA 0.7h
+[  12000] loss=0.199833  ema_loss=0.202659  7.4 sps  ETA 0.7h
+'HTTPSConnectionPool(host='us.aws.cdn.hf.co', port=443): Read timed out.' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00080.parquet
+Retrying in 1s [Retry 1/5].
+[  12500] loss=0.207365  ema_loss=0.203674  7.1 sps  ETA 0.7h
+[  13000] loss=0.198825  ema_loss=0.202231  7.2 sps  ETA 0.7h
+[  13500] loss=0.210209  ema_loss=0.202837  7.2 sps  ETA 0.6h
+[  14000] loss=0.217784  ema_loss=0.203649  7.2 sps  ETA 0.6h
+[  14500] loss=0.185664  ema_loss=0.202050  7.2 sps  ETA 0.6h
+[  15000] loss=0.207948  ema_loss=0.202788  7.2 sps  ETA 0.6h
+  -> Saved /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260724/qhead_A4_k3_bb450k_student_s20260724_s20260724_15k.pth
+[  15500] loss=0.196858  ema_loss=0.202152  7.2 sps  ETA 0.6h
+'HTTPSConnectionPool(host='us.aws.cdn.hf.co', port=443): Read timed out.' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00102.parquet
+Retrying in 1s [Retry 1/5].
+[  16000] loss=0.213531  ema_loss=0.202787  7.2 sps  ETA 0.5h
+[  16500] loss=0.195141  ema_loss=0.202590  7.2 sps  ETA 0.5h
+'('Connection broken: IncompleteRead(129492563 bytes read, 16000148 more expected)', IncompleteRead(129492563 bytes read, 16000148 more expected))' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00107.parquet
+Retrying in 1s [Retry 1/5].
+[  17000] loss=0.186113  ema_loss=0.201333  6.8 sps  ETA 0.5h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260724/qhead_A4_k3_bb450k_student_s20260724_s20260724_best.pth (ema_loss=0.201333)
+[  17500] loss=0.207573  ema_loss=0.202887  6.8 sps  ETA 0.5h
+[  18000] loss=0.210697  ema_loss=0.202444  6.8 sps  ETA 0.5h
+[  18500] loss=0.195289  ema_loss=0.201895  6.8 sps  ETA 0.5h
+[  19000] loss=0.212734  ema_loss=0.202772  6.7 sps  ETA 0.5h
+[  19500] loss=0.177974  ema_loss=0.202922  6.7 sps  ETA 0.4h
+[  20000] loss=0.201399  ema_loss=0.202670  6.8 sps  ETA 0.4h
+  -> Saved /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260724/qhead_A4_k3_bb450k_student_s20260724_s20260724_20k.pth
+[  20500] loss=0.205555  ema_loss=0.201700  6.8 sps  ETA 0.4h
+[  21000] loss=0.212348  ema_loss=0.202556  6.8 sps  ETA 0.4h
+[  21500] loss=0.204757  ema_loss=0.201745  6.8 sps  ETA 0.3h
+[  22000] loss=0.210190  ema_loss=0.202497  6.8 sps  ETA 0.3h
+[  22500] loss=0.201415  ema_loss=0.201144  6.8 sps  ETA 0.3h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260724/qhead_A4_k3_bb450k_student_s20260724_s20260724_best.pth (ema_loss=0.201144)
+[  23000] loss=0.202710  ema_loss=0.202385  6.9 sps  ETA 0.3h
+[  23500] loss=0.201451  ema_loss=0.202121  6.9 sps  ETA 0.3h
+[  24000] loss=0.206239  ema_loss=0.202083  6.9 sps  ETA 0.2h
+[  24500] loss=0.213592  ema_loss=0.202028  7.0 sps  ETA 0.2h
+[  25000] loss=0.185966  ema_loss=0.202526  7.0 sps  ETA 0.2h
+  -> Saved /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260724/qhead_A4_k3_bb450k_student_s20260724_s20260724_25k.pth
+[  25500] loss=0.197189  ema_loss=0.202527  7.0 sps  ETA 0.2h
+[  26000] loss=0.199997  ema_loss=0.201763  7.0 sps  ETA 0.2h
+[  26500] loss=0.207637  ema_loss=0.202975  7.0 sps  ETA 0.1h
+[  27000] loss=0.211206  ema_loss=0.202406  7.0 sps  ETA 0.1h
+[  27500] loss=0.200571  ema_loss=0.202371  7.1 sps  ETA 0.1h
+[  28000] loss=0.207948  ema_loss=0.201975  7.1 sps  ETA 0.1h
+'HTTPSConnectionPool(host='us.aws.cdn.hf.co', port=443): Read timed out.' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00181.parquet
+Retrying in 1s [Retry 1/5].
+[  28500] loss=0.211355  ema_loss=0.201831  7.1 sps  ETA 0.1h
+[  29000] loss=0.195303  ema_loss=0.202552  7.1 sps  ETA 0.0h
+[  29500] loss=0.197867  ema_loss=0.202856  7.1 sps  ETA 0.0h
+[  30000] loss=0.191494  ema_loss=0.200902  7.1 sps  ETA 0.0h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260724/qhead_A4_k3_bb450k_student_s20260724_s20260724_best.pth (ema_loss=0.200902)
+  -> Saved /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260724/qhead_A4_k3_bb450k_student_s20260724_s20260724_30k.pth
+
+Done in 1.2h. Best loss=0.200902 at step 30000
+[08-21 22:54:41] [A4_k3_bb450k_student_s20260724] head-train rc=0
+[08-21 22:54:41] [A4_k3_bb450k_student_s20260724] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-21 22:54:41] START A4_k3_bb450k_student_s20260724 bb40k enc=student shards=4 slot=0
+[08-22 00:05:46] merged 97 configs -> /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260724/gift/all_results.csv
+[08-22 00:05:48] DONE A4_k3_bb450k_student_s20260724 bb40k student — Aggregate GM-Relative MASE (97 configs): 1.0778 -> 1.0778
+[08-22 00:05:48] [A4_k3_bb450k_student_s20260724] eval rc=0
+[08-22 00:05:48] [A4_k3_bb450k_student_s20260724] DONE — GM-Relative MASE 1.0778

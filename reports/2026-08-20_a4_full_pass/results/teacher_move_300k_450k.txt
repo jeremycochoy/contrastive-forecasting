@@ -1,0 +1,12 @@
+a  /home/jupyter/cf373_r3/sync/arm6_v2_combab_alignS/leg_300k/cf393_arm6_v2_combab_alignS_cf373k3_300k.pth
+b  /home/jupyter/cf373_r3/sync/arm6_v2_combab_alignS/leg_450k/cf393_arm6_v2_combab_alignS_cf373k3_450k.pth
+side      tensors identical  moved     max |d|      rel L2
+teacher        52        52      0   0.000e+00   0.000e+00
+student       110         4    106   1.584e+00   5.461e-01
+            transformer.layers.1.self_attn.out_proj.weight  max |d| 1.584e+00
+            transformer.layers.1.linear2.weight  max |d| 1.069e+00
+            transformer.encoder_layers.2.linear2.weight  max |d| 1.035e+00
+            transformer.layers.0.self_attn.out_proj.weight  max |d| 1.027e+00
+            transformer.encoder_layers.1.linear2.weight  max |d| 9.951e-01
+the teacher is FROZEN: every teacher tensor is equal bit for bit, while the student moved
+wrote /tmp/contrastive-forecasting-407/reports/2026-08-20_a4_full_pass/results/teacher_move_300k_450k.json

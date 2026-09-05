@@ -1,0 +1,105 @@
+[08-21 20:34:11] [A4_k3_bb450k_student_s20260723] head-train start enc=student steps=30000 seed=20260723 gpu=1 bb=cf393_arm6_v2_combab_alignS_cf373k3_450k.pth
+  [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+  [head-train] auto-detected qk_norm=True from backbone checkpoint
+  [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+  [head-train] auto-detected patch_stats=none
+Backbone loaded from /home/jupyter/cf373_r3/sync/arm6_v2_combab_alignS/leg_450k/cf393_arm6_v2_combab_alignS_cf373k3_450k.pth (0 params, frozen, encoder=student)
+/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(
+Forecasting head [transformer-q (2L H64 nhead8 causal)]: 109,456 trainable params
+Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+Loss CSV: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260723/qhead_A4_k3_bb450k_student_s20260723_s20260723_losses.csv
+Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20280723, emit_labels=True
+
+Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+Checkpoints: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260723/qhead_A4_k3_bb450k_student_s20260723_s20260723_*.pth
+[    500] loss=0.210069  ema_loss=0.213947  6.9 sps  ETA 1.2h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260723/qhead_A4_k3_bb450k_student_s20260723_s20260723_best.pth (ema_loss=0.213947)
+[   1000] loss=0.213585  ema_loss=0.208855  7.2 sps  ETA 1.1h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260723/qhead_A4_k3_bb450k_student_s20260723_s20260723_best.pth (ema_loss=0.208855)
+[   1500] loss=0.216481  ema_loss=0.206172  7.6 sps  ETA 1.0h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260723/qhead_A4_k3_bb450k_student_s20260723_s20260723_best.pth (ema_loss=0.206172)
+[   2000] loss=0.201115  ema_loss=0.206088  7.7 sps  ETA 1.0h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260723/qhead_A4_k3_bb450k_student_s20260723_s20260723_best.pth (ema_loss=0.206088)
+[   2500] loss=0.212373  ema_loss=0.204891  7.5 sps  ETA 1.0h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260723/qhead_A4_k3_bb450k_student_s20260723_s20260723_best.pth (ema_loss=0.204891)
+[   3000] loss=0.201989  ema_loss=0.204664  7.5 sps  ETA 1.0h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260723/qhead_A4_k3_bb450k_student_s20260723_s20260723_best.pth (ema_loss=0.204664)
+[   3500] loss=0.191742  ema_loss=0.204610  7.5 sps  ETA 1.0h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260723/qhead_A4_k3_bb450k_student_s20260723_s20260723_best.pth (ema_loss=0.204610)
+[   4000] loss=0.224157  ema_loss=0.204398  7.1 sps  ETA 1.0h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260723/qhead_A4_k3_bb450k_student_s20260723_s20260723_best.pth (ema_loss=0.204398)
+[   4500] loss=0.218773  ema_loss=0.205073  6.7 sps  ETA 1.1h
+[   5000] loss=0.205106  ema_loss=0.204617  6.5 sps  ETA 1.1h
+  -> Saved /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260723/qhead_A4_k3_bb450k_student_s20260723_s20260723_5k.pth
+[   5500] loss=0.204803  ema_loss=0.204523  6.5 sps  ETA 1.0h
+[   6000] loss=0.196184  ema_loss=0.203718  6.6 sps  ETA 1.0h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260723/qhead_A4_k3_bb450k_student_s20260723_s20260723_best.pth (ema_loss=0.203718)
+[   6500] loss=0.200598  ema_loss=0.203299  6.7 sps  ETA 1.0h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260723/qhead_A4_k3_bb450k_student_s20260723_s20260723_best.pth (ema_loss=0.203299)
+[   7000] loss=0.192013  ema_loss=0.203811  6.7 sps  ETA 1.0h
+[   7500] loss=0.206403  ema_loss=0.204039  6.7 sps  ETA 0.9h
+[   8000] loss=0.199713  ema_loss=0.203594  6.8 sps  ETA 0.9h
+[   8500] loss=0.210910  ema_loss=0.202552  6.8 sps  ETA 0.9h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260723/qhead_A4_k3_bb450k_student_s20260723_s20260723_best.pth (ema_loss=0.202552)
+[   9000] loss=0.191422  ema_loss=0.202574  6.9 sps  ETA 0.8h
+[   9500] loss=0.195611  ema_loss=0.202867  6.9 sps  ETA 0.8h
+[  10000] loss=0.201227  ema_loss=0.203090  6.9 sps  ETA 0.8h
+  -> Saved /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260723/qhead_A4_k3_bb450k_student_s20260723_s20260723_10k.pth
+[  10500] loss=0.208058  ema_loss=0.201272  6.7 sps  ETA 0.8h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260723/qhead_A4_k3_bb450k_student_s20260723_s20260723_best.pth (ema_loss=0.201272)
+[  11000] loss=0.200402  ema_loss=0.203342  6.8 sps  ETA 0.8h
+[  11500] loss=0.209354  ema_loss=0.203300  6.8 sps  ETA 0.8h
+[  12000] loss=0.199531  ema_loss=0.202547  6.9 sps  ETA 0.7h
+[  12500] loss=0.207173  ema_loss=0.203612  6.9 sps  ETA 0.7h
+[  13000] loss=0.198686  ema_loss=0.202129  6.9 sps  ETA 0.7h
+[  13500] loss=0.209982  ema_loss=0.202748  6.9 sps  ETA 0.7h
+[  14000] loss=0.217667  ema_loss=0.203574  6.9 sps  ETA 0.6h
+[  14500] loss=0.185367  ema_loss=0.201969  6.9 sps  ETA 0.6h
+[  15000] loss=0.207724  ema_loss=0.202734  7.0 sps  ETA 0.6h
+  -> Saved /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260723/qhead_A4_k3_bb450k_student_s20260723_s20260723_15k.pth
+[  15500] loss=0.196510  ema_loss=0.202092  7.0 sps  ETA 0.6h
+[  16000] loss=0.213560  ema_loss=0.202737  7.0 sps  ETA 0.6h
+[  16500] loss=0.195292  ema_loss=0.202535  7.0 sps  ETA 0.5h
+[  17000] loss=0.186302  ema_loss=0.201275  7.0 sps  ETA 0.5h
+[  17500] loss=0.207464  ema_loss=0.202839  7.0 sps  ETA 0.5h
+[  18000] loss=0.210533  ema_loss=0.202383  7.0 sps  ETA 0.5h
+[  18500] loss=0.194944  ema_loss=0.201852  7.0 sps  ETA 0.5h
+[  19000] loss=0.212737  ema_loss=0.202734  7.0 sps  ETA 0.4h
+[  19500] loss=0.178167  ema_loss=0.202899  7.0 sps  ETA 0.4h
+[  20000] loss=0.201279  ema_loss=0.202618  7.0 sps  ETA 0.4h
+  -> Saved /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260723/qhead_A4_k3_bb450k_student_s20260723_s20260723_20k.pth
+[  20500] loss=0.205506  ema_loss=0.201668  7.0 sps  ETA 0.4h
+[  21000] loss=0.211985  ema_loss=0.202522  7.0 sps  ETA 0.4h
+[  21500] loss=0.204792  ema_loss=0.201701  7.0 sps  ETA 0.3h
+[  22000] loss=0.209984  ema_loss=0.202464  7.0 sps  ETA 0.3h
+[  22500] loss=0.201042  ema_loss=0.201103  7.1 sps  ETA 0.3h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260723/qhead_A4_k3_bb450k_student_s20260723_s20260723_best.pth (ema_loss=0.201103)
+[  23000] loss=0.202706  ema_loss=0.202352  7.1 sps  ETA 0.3h
+[  23500] loss=0.201263  ema_loss=0.202092  7.1 sps  ETA 0.3h
+[  24000] loss=0.206234  ema_loss=0.202060  7.1 sps  ETA 0.2h
+[  24500] loss=0.213420  ema_loss=0.202000  7.2 sps  ETA 0.2h
+[  25000] loss=0.185924  ema_loss=0.202521  7.2 sps  ETA 0.2h
+  -> Saved /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260723/qhead_A4_k3_bb450k_student_s20260723_s20260723_25k.pth
+[  25500] loss=0.197008  ema_loss=0.202517  7.2 sps  ETA 0.2h
+[  26000] loss=0.199800  ema_loss=0.201734  7.2 sps  ETA 0.2h
+[  26500] loss=0.207495  ema_loss=0.202942  7.2 sps  ETA 0.1h
+[  27000] loss=0.211228  ema_loss=0.202378  7.2 sps  ETA 0.1h
+[  27500] loss=0.200651  ema_loss=0.202336  7.1 sps  ETA 0.1h
+[  28000] loss=0.207928  ema_loss=0.201964  7.1 sps  ETA 0.1h
+[  28500] loss=0.211512  ema_loss=0.201809  7.1 sps  ETA 0.1h
+[  29000] loss=0.195120  ema_loss=0.202517  7.1 sps  ETA 0.0h
+[  29500] loss=0.197906  ema_loss=0.202826  7.1 sps  ETA 0.0h
+[  30000] loss=0.191408  ema_loss=0.200873  7.1 sps  ETA 0.0h
+  -> New best: /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260723/qhead_A4_k3_bb450k_student_s20260723_s20260723_best.pth (ema_loss=0.200873)
+  -> Saved /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260723/qhead_A4_k3_bb450k_student_s20260723_s20260723_30k.pth
+
+Done in 1.2h. Best loss=0.200873 at step 30000
+[08-21 21:44:24] [A4_k3_bb450k_student_s20260723] head-train rc=0
+[08-21 21:44:24] [A4_k3_bb450k_student_s20260723] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-21 21:44:24] START A4_k3_bb450k_student_s20260723 bb40k enc=student shards=4 slot=1
+[08-21 22:58:24] merged 97 configs -> /home/jupyter/cf373_r3/sync/eval/A4_k3_bb450k_student_s20260723/gift/all_results.csv
+[08-21 22:58:26] DONE A4_k3_bb450k_student_s20260723 bb40k student — Aggregate GM-Relative MASE (97 configs): 1.0761 -> 1.0761
+[08-21 22:58:26] [A4_k3_bb450k_student_s20260723] eval rc=0
+[08-21 22:58:26] [A4_k3_bb450k_student_s20260723] DONE — GM-Relative MASE 1.0761
