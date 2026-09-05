@@ -1,6 +1,6 @@
 # A decay of the L_rep weight to zero never beats the no-decay reference, and the weight at 0.0 collapses the best cell on the student align target
 
-A linear decay of the L_rep weight, the contrastive representation term of the training loss, does not improve the GM-Relative MASE of the k = 32 cell, over 21 scored runs. The best arm loses to the no-decay reference by 1.7 times the seed range at 40,000 steps, and its score rises at every later stop.
+A linear decay of the L_rep weight, the contrastive representation term of the training loss, does not improve the GM-Relative MASE of the k = 32 cell, over 19 scored runs. The best arm loses to the no-decay reference by 1.7 times the seed range at 40,000 steps, and its score rises at every later stop.
 
 ![scores](plots/scores.png)
 
