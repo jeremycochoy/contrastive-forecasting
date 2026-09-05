@@ -142,6 +142,10 @@ def main(argv=None):
         if row["arm"] in scored and S.schedule(row) in families:
             families[S.schedule(row)].setdefault(S.decay_ramp(row), []).append(
                 (row["arm"], scored[row["arm"]]))
+    # A line against the ramp needs a schedule the card varied the ramp ON.
+    # The three fixed-momentum arms hold one ramp each, so they are cells of
+    # the grid figure, not a family here.
+    families = {s: f for s, f in families.items() if len(f) > 1}
 
     fig, (left, right) = plt.subplots(1, 2, figsize=(10.4, 4.4), sharey=True)
     frame(left, "EMA momentum at the stop, decay ramp 10,000", band,

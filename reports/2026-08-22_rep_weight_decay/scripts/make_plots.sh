@@ -8,6 +8,9 @@
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# The report reads every stop, so the tables rebuild over all three. A lane
+# script that continues one arm sets its own CF409_STOPS and is not affected.
+export CF409_STOPS="${CF409_STOPS:-40000 80000 200000}"
 . "$HERE/study.sh"
 mkdir -p "$CF409_PLOTS"
 
@@ -31,6 +34,13 @@ python3 "$HERE/plot_axes.py" --scores "$CF409_RESULTS/scores.csv" \
 # The measured grid: every (decay ramp, momentum) cell the card scored.
 python3 "$HERE/plot_grid.py" --scores "$CF409_RESULTS/scores.csv" \
   --arms "$CF409_ARMS_TSV" --verdicts "$VERDICTS" --out "$CF409_PLOTS/grid.png"
+# The score of the carried arms at each stop, which is the card's second
+# question.
+python3 "$HERE/plot_stops.py" --scores "$CF409_RESULTS/scores.csv" \
+  --arms "$CF409_ARMS_TSV" --out "$CF409_PLOTS/stops.png"
+# The L_rep weight at 0.0 on the A4 cell, from the artefacts under results/.
+python3 "$HERE/plot_a4_zero.py" --results "$CF409_RESULTS" \
+  --out "$CF409_PLOTS/a4_zero.png"
 # The slope at the stop, which is the card's second question.
 python3 "$HERE/loss_slope.py" --root "$CF409_ROOT" --arms "$CF409_ARMS_TSV" \
   --out "$CF409_RESULTS/loss_slope.csv"

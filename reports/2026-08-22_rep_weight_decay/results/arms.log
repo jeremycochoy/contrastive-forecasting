@@ -172,3 +172,30 @@
 [08-31 07:48:19] [#409] arm dec_m090r100_ramp1k ema='--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 1000' seed=20260520 reduce=mean target=teacher -> 80000 steps on gpu 1, save every 5000
 [08-31 07:48:24] [#409] arm dec_m090r100_ramp1k AUC gate pid 32131 — window 500, threshold 0.55, warmup 1000
 [08-31 07:48:26] [#409] arm dec_m090r100_ramp1k stop=80000 rc=0
+[08-31 15:11:54] [#409] arm dec_f094_r2k ema='--ema-tau 0.94' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 2000' seed=20260520 reduce=mean target=teacher -> 40000 steps on gpu 0, save every 5000
+[08-31 15:11:59] [#409] arm dec_f094_r2k decay='1.0 0.0 2000' seed=20260520 target=teacher reduce=mean ema='0.94 - -' OK — all five reached the trainer
+[08-31 15:11:59] [#409] arm dec_f094_r2k AUC gate pid 540719 — window 500, threshold 0.55, warmup 1000
+[08-31 15:12:19] [#409] arm dec_f090_r2k ema='--ema-tau 0.90' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 2000' seed=20260520 reduce=mean target=teacher -> 40000 steps on gpu 1, save every 5000
+[08-31 15:12:24] [#409] arm dec_f090_r2k decay='1.0 0.0 2000' seed=20260520 target=teacher reduce=mean ema='0.90 - -' OK — all five reached the trainer
+[08-31 15:12:24] [#409] arm dec_f090_r2k AUC gate pid 541197 — window 500, threshold 0.55, warmup 1000
+[08-31 21:31:51] [#409] arm dec_f090_r2k stop=40000 rc=0
+[08-31 22:06:09] [#409] arm dec_f094_r2k stop=40000 rc=0
+[09-01 23:12:34] [#409] arm dec_f086_r2k ema='--ema-tau 0.86' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 2000' seed=20260520 reduce=mean target=teacher -> 40000 steps on gpu 0, save every 5000
+[09-01 23:12:39] [#409] arm dec_f086_r2k decay='1.0 0.0 2000' seed=20260520 target=teacher reduce=mean ema='0.86 - -' OK — all five reached the trainer
+[09-01 23:12:39] [#409] arm dec_f086_r2k AUC gate pid 1996633 — window 500, threshold 0.55, warmup 1000
+[09-01 23:13:59] [#409] arm dec_f086_r2k stop=40000 rc=1
+[09-01 23:14:15] [#409] arm dec_m090r100_ramp2k ema='--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 2000' seed=20260520 reduce=mean target=teacher -> 200000 steps on gpu 0, save every 10000
+[09-01 23:14:20] [#409] arm dec_m090r100_ramp2k decay='1.0 0.0 2000' seed=20260520 target=teacher reduce=mean ema='0.9 1.0 100000' OK — all five reached the trainer
+[09-01 23:14:20] [#409] arm dec_m090r100_ramp2k AUC gate pid 1998256 — window 500, threshold 0.55, warmup 1000
+[09-01 23:14:59] [#409] arm dec_f086_r2k ema='--ema-tau 0.86' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 2000' seed=20260520 reduce=mean target=teacher -> 40000 steps on gpu 0, save every 5000
+[09-01 23:15:04] [#409] arm dec_f086_r2k decay='1.0 0.0 2000' seed=20260520 target=teacher reduce=mean ema='0.86 - -' OK — all five reached the trainer
+[09-01 23:15:04] [#409] arm dec_f086_r2k AUC gate pid 1999112 — window 500, threshold 0.55, warmup 1000
+[09-01 23:16:45] [#409] arm dec_f086_r2k ema='--ema-tau 0.86' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 2000' seed=20260520 reduce=mean target=teacher -> 40000 steps on gpu 0, save every 5000
+[09-01 23:16:50] [#409] arm dec_f086_r2k decay='1.0 0.0 2000' seed=20260520 target=teacher reduce=mean ema='0.86 - -' OK — all five reached the trainer
+[09-01 23:16:50] [#409] arm dec_f086_r2k AUC gate pid 2001200 — window 500, threshold 0.55, warmup 1000
+[09-02 05:57:28] [#409] arm dec_f086_r2k stop=40000 rc=0
+[09-02 18:35:36] [#409] arm dec_m090r100_ramp2k stop=200000 rc=0
+[09-04 22:54:49] [#409] arm dec_m090r100_ramp2k ema='--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 2000' seed=20260520 reduce=mean target=teacher -> 200000 steps on gpu 1, save every 5000
+[09-04 22:54:54] [#409] arm dec_m090r100_ramp2k decay='1.0 0.0 2000' seed=20260520 target=teacher reduce=mean ema='0.9 1.0 100000' OK — all five reached the trainer
+[09-04 22:54:54] [#409] arm dec_m090r100_ramp2k AUC gate pid 1319682 — window 500, threshold 0.55, warmup 1000
+[09-04 22:54:56] [#409] arm dec_m090r100_ramp2k stop=200000 rc=0

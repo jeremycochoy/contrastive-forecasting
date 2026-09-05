@@ -68,15 +68,18 @@ def main(argv=None):
                     if f"_{row['arm']}_losses" in rec["run"]:
                         lost[row["arm"]] = rec.get("lost_at", "")
 
-    # A cell is (ramp, momentum at the stop). Only cells with a scored run or
-    # a lost run are on the grid: an arm that never wrote a step is not a
-    # measurement, and the annex names it.
+    # A cell is (ramp, momentum at the stop, fixed or ramping). The last part
+    # keeps `0.94 fixed` and `0.9 to 1.0 at 100k` apart: both hold 0.940 at
+    # the stop, and they are two schedules, not two seeds. Only cells with a
+    # scored run or a lost run are on the grid: an arm that never wrote a step
+    # is not a measurement, and the annex names it.
     cells = {}
     for row in arms:
         arm = row["arm"]
         if arm not in scored and arm not in lost:
             continue
-        key = (S.decay_ramp(row), round(S.momentum_at(row), 3))
+        fixed = row["end"] == "-"
+        key = (S.decay_ramp(row), (round(S.momentum_at(row), 3), fixed))
         cells.setdefault(key, []).append(arm)
     ramps = sorted({k[0] for k in cells})
     moms = sorted({k[1] for k in cells})
@@ -89,7 +92,7 @@ def main(argv=None):
     cmap = LinearSegmentedColormap.from_list("blue", list(reversed(RAMP)))
     norm = Normalize(vmin, vmax)
 
-    fig, ax = plt.subplots(figsize=(8.0, 5.2))
+    fig, ax = plt.subplots(figsize=(9.6, 5.2))
     for i, ramp in enumerate(ramps):
         for j, mom in enumerate(moms):
             key = (ramp, mom)
@@ -109,7 +112,7 @@ def main(argv=None):
                 ax.text(x + 0.5, y + 0.58, text, ha="center", va="center",
                         fontsize=10, color=ink, fontweight="bold")
                 ax.text(x + 0.5, y + 0.32, sub, ha="center", va="center",
-                        fontsize=6.5, color=ink)
+                        fontsize=5.6 if len(sub) > 16 else 6.5, color=ink)
                 if key == best_key:
                     ax.add_patch(Rectangle((x + 0.03, y + 0.03), 0.94, 0.94,
                                            facecolor="none",
@@ -134,7 +137,8 @@ def main(argv=None):
     ax.set_xlim(0, len(moms))
     ax.set_ylim(0, len(ramps))
     ax.set_xticks([j + 0.5 for j in range(len(moms))])
-    ax.set_xticklabels([f"{m:.3f}" for m in moms])
+    ax.set_xticklabels([f"{m:.3f}\n{'fixed' if fixed else 'ramping'}"
+                        for m, fixed in moms])
     ax.set_yticks([len(ramps) - 0.5 - i for i in range(len(ramps))])
     ax.set_yticklabels([f"{r:,}" for r in ramps])
     ax.set_xlabel("EMA momentum at the 40,000-step stop")

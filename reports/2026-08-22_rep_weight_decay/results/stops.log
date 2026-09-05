@@ -60,3 +60,40 @@
 [08-31 07:48:26] [dec_m090r100_ramp1k_bb80k_h30k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
 [08-31 07:48:30] [dec_m090r100_ramp1k_bb80k_h30k_student] eval rc=0
 [08-31 07:48:30] [dec_m090r100_ramp1k_bb80k_h30k_student] DONE — GM-Relative MASE 1.2381
+[08-31 21:31:51] [dec_f090_r2k_bb40k_h30k_student] head-train start enc=student steps=30000 seed=20260722 gpu=1 bb=cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_f090_r2k_40k.pth
+[08-31 22:06:09] [dec_f094_r2k_bb40k_h30k_student] waiting for VRAM on GPU 0: 5853 MiB free, need 7000
+[08-31 22:16:10] [dec_f094_r2k_bb40k_h30k_student] waiting for VRAM on GPU 0: 5853 MiB free, need 7000
+[08-31 22:26:10] [dec_f094_r2k_bb40k_h30k_student] waiting for VRAM on GPU 0: 5853 MiB free, need 7000
+[08-31 22:36:10] [dec_f094_r2k_bb40k_h30k_student] waiting for VRAM on GPU 0: 5853 MiB free, need 7000
+[08-31 22:41:52] [dec_f090_r2k_bb40k_h30k_student] head-train rc=0
+[08-31 22:41:52] [dec_f090_r2k_bb40k_h30k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[08-31 22:46:11] [dec_f094_r2k_bb40k_h30k_student] waiting for VRAM on GPU 0: 5853 MiB free, need 7000
+[08-31 22:56:11] [dec_f094_r2k_bb40k_h30k_student] waiting for VRAM on GPU 0: 6309 MiB free, need 7000
+[08-31 23:06:11] [dec_f094_r2k_bb40k_h30k_student] waiting for VRAM on GPU 0: 6764 MiB free, need 7000
+[08-31 23:16:12] [dec_f094_r2k_bb40k_h30k_student] waiting for VRAM on GPU 0: 6764 MiB free, need 7000
+[08-31 23:26:12] [dec_f094_r2k_bb40k_h30k_student] waiting for VRAM on GPU 0: 6764 MiB free, need 7000
+[08-31 23:36:13] [dec_f094_r2k_bb40k_h30k_student] waiting for VRAM on GPU 0: 6309 MiB free, need 7000
+[08-31 23:46:13] [dec_f094_r2k_bb40k_h30k_student] waiting for VRAM on GPU 0: 6764 MiB free, need 7000
+[08-31 23:53:07] [dec_f090_r2k_bb40k_h30k_student] eval rc=0
+[08-31 23:53:07] [dec_f090_r2k_bb40k_h30k_student] DONE — GM-Relative MASE 1.2652
+[08-31 23:56:13] [dec_f094_r2k_bb40k_h30k_student] waiting for VRAM on GPU 0: 6764 MiB free, need 7000
+[09-01 00:06:14] [dec_f094_r2k_bb40k_h30k_student] waiting for VRAM on GPU 0: 5853 MiB free, need 7000
+[09-01 00:16:14] [dec_f094_r2k_bb40k_h30k_student] waiting for VRAM on GPU 0: 6309 MiB free, need 7000
+[09-01 00:26:14] [dec_f094_r2k_bb40k_h30k_student] waiting for VRAM on GPU 0: 6309 MiB free, need 7000
+[09-01 00:26:44] [dec_f094_r2k_bb40k_h30k_student] GPU 0 has 11872 MiB free after 8430s
+[09-01 00:26:44] [dec_f094_r2k_bb40k_h30k_student] head-train start enc=student steps=30000 seed=20260722 gpu=0 bb=cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_f094_r2k_40k.pth
+[09-01 01:25:37] [dec_f094_r2k_bb40k_h30k_student] head-train rc=0
+[09-01 01:25:37] [dec_f094_r2k_bb40k_h30k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[09-01 02:34:50] [dec_f094_r2k_bb40k_h30k_student] eval rc=0
+[09-01 02:34:50] [dec_f094_r2k_bb40k_h30k_student] DONE — GM-Relative MASE 1.3167
+[09-02 05:57:28] [dec_f086_r2k_bb40k_h30k_student] head-train start enc=student steps=30000 seed=20260722 gpu=0 bb=cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_f086_r2k_40k.pth
+[09-02 07:10:17] [dec_f086_r2k_bb40k_h30k_student] head-train rc=0
+[09-02 07:10:17] [dec_f086_r2k_bb40k_h30k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[09-02 08:20:23] [dec_f086_r2k_bb40k_h30k_student] eval rc=0
+[09-02 08:20:23] [dec_f086_r2k_bb40k_h30k_student] DONE — GM-Relative MASE 1.2698
+[09-02 18:35:36] [dec_m090r100_ramp2k_bb200k_h30k_student] head-train start enc=student steps=30000 seed=20260722 gpu=0 bb=cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m090r100_ramp2k_200k.pth
+[09-02 19:41:57] [dec_m090r100_ramp2k_bb200k_h30k_student] head-train rc=0
+[09-02 19:41:57] [dec_m090r100_ramp2k_bb200k_h30k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[09-02 20:54:27] [dec_m090r100_ramp2k_bb200k_h30k_student] eval rc=0
+[09-02 20:54:27] [dec_m090r100_ramp2k_bb200k_h30k_student] DONE — GM-Relative MASE 1.3062
+[09-04 22:54:57] [dec_m090r100_ramp2k_bb200k_h30k_student] SKIP — already scored 1.3062

@@ -122,3 +122,22 @@
 [08-31 07:46:20] [arm6_v2_combab_alignT] ABORT: HF token missing at /tmp/contrastive-forecasting-409/experiments/hf_token.txt
 [08-31 07:47:54] [arm6_v2_combab_alignT] SKIP: cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m090r100_ramp2k_80k.pth already on disk
 [08-31 07:48:19] [arm6_v2_combab_alignT] SKIP: cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m090r100_ramp1k_80k.pth already on disk
+[08-31 15:11:54] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-31 15:11:54] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_f094_r2k/arm6_v2_combab_alignT/leg_40k
+[08-31 15:12:19] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-31 15:12:19] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_f090_r2k/arm6_v2_combab_alignT/leg_40k
+[08-31 21:31:49] [arm6_v2_combab_alignT] DONE target=40000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-409/dec_f090_r2k/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_f090_r2k_40k.pth
+[08-31 22:06:07] [arm6_v2_combab_alignT] DONE target=40000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-409/dec_f094_r2k/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_f094_r2k_40k.pth
+[09-01 23:12:34] [arm6_v2_combab_alignT] FRESH start at step 0
+[09-01 23:12:34] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_f086_r2k/arm6_v2_combab_alignT/leg_40k
+[09-01 23:13:57] [arm6_v2_combab_alignT] train exited rc=137 — tail: Latent-drift CSV: /home/jupyter/checkpoints_backup/cf-409/dec_f086_r2k/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_f086_r2k_latent_drift.csv (every 5000 steps, probe_bs=16, probe_seed=20260722) Attn-amplitude CSV: /home/jupyter/checkpoints_backup/cf-409/dec_f086_r2k/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_f086_r2k_attn_amplitude.csv (every 200 steps) Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, hf_bs=64, synth_bs=0, cross_bs=0, total_bs=67 
+[09-01 23:14:15] [arm6_v2_combab_alignT] RESUME from cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m090r100_ramp2k_80k.pth (step 80k)
+[09-01 23:14:15] [arm6_v2_combab_alignT] START target=200000 gpu=0 save_every=10000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m090r100_ramp2k/arm6_v2_combab_alignT/leg_200k
+[09-01 23:14:59] [arm6_v2_combab_alignT] FRESH start at step 0
+[09-01 23:14:59] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_f086_r2k/arm6_v2_combab_alignT/leg_40k
+[09-01 23:15:58] [arm6_v2_combab_alignT] train exited rc=137 — tail: Latent-drift CSV: /home/jupyter/checkpoints_backup/cf-409/dec_f086_r2k/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_f086_r2k_latent_drift.csv (every 5000 steps, probe_bs=16, probe_seed=20260722) Attn-amplitude CSV: /home/jupyter/checkpoints_backup/cf-409/dec_f086_r2k/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_f086_r2k_attn_amplitude.csv (every 200 steps) Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, hf_bs=64, synth_bs=0, cross_bs=0, total_bs=67 
+[09-01 23:16:45] [arm6_v2_combab_alignT] FRESH start at step 0
+[09-01 23:16:45] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_f086_r2k/arm6_v2_combab_alignT/leg_40k
+[09-02 05:57:26] [arm6_v2_combab_alignT] DONE target=40000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-409/dec_f086_r2k/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_f086_r2k_40k.pth
+[09-02 18:35:34] [arm6_v2_combab_alignT] DONE target=200000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-409/dec_m090r100_ramp2k/arm6_v2_combab_alignT/leg_200k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m090r100_ramp2k_200k.pth
+[09-04 22:54:49] [arm6_v2_combab_alignT] SKIP: cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m090r100_ramp2k_200k.pth already on disk
