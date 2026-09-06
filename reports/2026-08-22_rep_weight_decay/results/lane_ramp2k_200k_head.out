@@ -1,0 +1,12 @@
+[09-04 22:54:49] [#409 lane 1] head queue on — one head at a time, worker pid 1319543
+[09-04 22:54:49] [#409 lane 1] arm dec_m090r100_ramp2k -> 200000
+[09-04 22:54:49] [#409] arm dec_m090r100_ramp2k ema='--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 2000' seed=20260520 reduce=mean target=teacher -> 200000 steps on gpu 1, save every 5000
+[09-04 22:54:49] [arm6_v2_combab_alignT] SKIP: cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m090r100_ramp2k_200k.pth already on disk
+[09-04 22:54:54] [#409] arm dec_m090r100_ramp2k decay='1.0 0.0 2000' seed=20260520 target=teacher reduce=mean ema='0.9 1.0 100000' OK — all five reached the trainer
+[09-04 22:54:54] [#409] arm dec_m090r100_ramp2k AUC gate pid 1319682 — window 500, threshold 0.55, warmup 1000
+[09-04 22:54:56] [#409] arm dec_m090r100_ramp2k stop=200000 rc=0
+[09-04 22:54:56] [#409 lane 1] head dec_m090r100_ramp2k stop=200000 (queued)
+[09-04 22:54:56] [#409 lane 1] waiting for the head queue to drain
+[09-04 22:54:56] [#409 lane 1] head dec_m090r100_ramp2k stop=200000 start
+[09-04 22:54:57] [#409 lane 1] head dec_m090r100_ramp2k stop=200000 rc=0
+[09-04 22:55:01] [#409 lane 1] lane drained — 0 leg(s) and 0 head(s) failed

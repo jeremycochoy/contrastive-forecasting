@@ -20,7 +20,7 @@ What this file pins:
 * **Terms that carry no `f`** — `L_rep`, the h-only half of `mse` — enter the
   total once, at any k.
 * **`cpc_multistep` / `cpc_multistep_cpcnegs` raise** and name themselves at
-  any k > 0; no other shape raises.
+  any k > 0. No other shape raises.
 * **The re-entry composes the operator the eval composes**: one depth equals
   one token of `rollout_latent` on the same input.
 * **The eval numerics do not change.** #373 changes the training objective
@@ -143,7 +143,7 @@ def _latents(shape, seed=0, depth=0, requires_grad=False):
     return f, o, teacher_o, rollouts
 
 
-# Modifier combinations. `base` and `pos_in_denom` sweep the whole dispatch;
+# Modifier combinations. `base` and `pos_in_denom` sweep the whole dispatch.
 # the rest are the combinations #373's 14 cells train with.
 K0_CONFIGS = {
     'base': dict(cfg={}, teacher=False),
@@ -249,7 +249,11 @@ K0_REFERENCE = {
     ('cosine_similarity_batch_rep_only', 'align_teacher'): 11.017597477176613,
     ('cosine_similarity_batch_rep_only', 'align_moco_rep'): 9.97496984116677,
     ('cosine_similarity_batch_rep_only', 'stopgrad_pos'): 8.989816132750237,
-    ('cosine_similarity_batch_rep_only', 'tau_rep'): 4.865525677822549,
+    # #409 scaled this entry by the `rep_loss_weight` of the `tau_rep`
+    # case, 0.3. Before #409 the `rep_only` shape read no rep weight,
+    # so the entry held the unweighted 4.865525677822549. No published
+    # run moves: every `rep_only` command line takes the default 1.0.
+    ('cosine_similarity_batch_rep_only', 'tau_rep'): 1.4596577033467646,
     ('cosine_similarity_batch_split_pred_rep', 'base'): 15.73789835105975,
     ('cosine_similarity_batch_split_pred_rep', 'align_teacher'): 17.880922522184363,
     ('cosine_similarity_batch_split_pred_rep', 'align_moco_rep'): 16.83829488617452,
@@ -481,7 +485,7 @@ class TestDepthCopyHoldsNoDepthZeroTensor:
         assert abs(float(k1 - k0) - float(leaked)) > 1e-6
 
     def test_perturbing_f1_alone_moves_the_depth_one_negatives(self):
-        """f^(1) at the last window step feeds ONLY the adjacent f↔f family;
+        """f^(1) at the last window step feeds ONLY the adjacent f↔f family.
         perturbing it must move the loss."""
         latents = _latents(_SPLIT, depth=1)
         _f, _o, _teacher, rollouts = latents
@@ -1055,7 +1059,7 @@ class TestFloorAtDepthOverEveryShape:
 
     @staticmethod
     def _floor_flags(shape):
-        """The floor needs the normalized form on the pooled shapes; the
+        """The floor needs the normalized form on the pooled shapes. The
         split shape carries its own two-term floor and its own form."""
         return dict(include_positive_in_denominator=shape in _NORMALIZED,
                     subtract_contrastive_floor=True)
@@ -1116,7 +1120,7 @@ class TestFloorAtDepthOverEveryShape:
         assert reached == FOUR_D_SHAPES
 
     def test_the_split_shape_re_bases_l_pred_once_per_depth(self):
-        """L_pred's floor repeats with the depth; L_rep's does not."""
+        """L_pred's floor repeats with the depth. L_rep's does not."""
         latents = _latents(_SPLIT, depth=3)
         f_pred, f_rep = loss_module._split_pred_rep_floors(0.1, B, T, C)
         offsets = []
@@ -1327,7 +1331,7 @@ class TestTrainerWiring:
 
     def test_the_depths_are_built_from_the_forward_output(self):
         """Which tensor feeds the re-entry. Static, on the parse tree, so it
-        survives a reflow; no run can show it, because a depth built from the
+        survives a reflow. No run can show it, because a depth built from the
         wrong tensor still trains and still logs. The runtime guard that the
         depth reaches the objective at all is the 4-step run at the bottom of
         this file."""
@@ -1479,7 +1483,7 @@ class TestNoBranchOfTheLossBlockTrainsAtDepthZero:
     """A run labelled k must train at k on EVERY branch of the loss block.
 
     Two branches split it. `--shard-loss-on-batch` picks whether the
-    latents are all-gathered; `--no-main-contrastive-loss` picks the main
+    latents are all-gathered. `--no-main-contrastive-loss` picks the main
     contrastive term or the standalone `align_loss`. A branch that dropped
     the depths would train its term at k = 0 while the CSV still wrote
     k + 1 plausible `cos_err_dj` curves, because the diagnostic reads
@@ -1580,7 +1584,7 @@ def test_a_sharded_run_trains_at_the_depth_it_is_given(tmp_path, arm):
     Step 0 is the discriminating row. The depth pass runs AFTER the
     forward, so the k = 0 and k = 2 runs reach their first loss on the same
     weights and the same batch. `loss_tau_ref` is pinned to depth 0, so it
-    stays equal and proves the two runs saw the same inputs; `loss` moves
+    stays equal and proves the two runs saw the same inputs. `loss` moves
     only if the depths entered the objective. Unwire the branch and the two
     losses are the same number.
     """

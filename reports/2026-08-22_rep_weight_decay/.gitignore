@@ -1,0 +1,6 @@
+# `CF409_TRIAL=<steps>` runs the whole pipeline at a few hundred backbone
+# steps. Its score is a wiring check, not a measurement, and a trial file
+# beside the study's own results is one glob away from being read as a
+# study number.
+results/trial/*
+!results/trial/trial.log
