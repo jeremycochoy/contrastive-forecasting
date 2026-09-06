@@ -1,0 +1,105 @@
+Command line: /home/jupyter/cf409_frozen/experiments/2026-04-27_freq-embedding/scripts/train.py --qk-norm --attn-out-norm --batch-size 64 --device cuda --total-steps 40000 --lr 1e-3 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 --seed 20260520 --save-every 5000 --extra-save-steps 40000 --save-dir /home/jupyter/checkpoints_backup/cf-409/dec_m095_fix/arm6_v2_combab_alignT/leg_40k --run-name cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m095_fix --log-every 200 --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1 --t-raw 4096 --n-channels 1 --d-model 64 --n-heads 8 --num-encoder-layers 3 --num-layers 3 --encoder-dropkey 0.70 --encoder-dropkey-share-heads --encoder-dropkey-share-layers --depthwise-conv 3 --deprecated-depthwise-conv 0 --loss-shape cosine_similarity_batch_rep_only --align-loss-weight 1.0 --moco-rep-keys --tau-rep 1.0 --align-target teacher --ema-embedding --ema-encoder --ema-tau 0.95 --cpc-infonce-weight 1.0 --sigreg-embedding --sigreg-encoding --sigreg-n-chunk 2048 --sigreg-embedding-weight 1.0 --sigreg-encoding-weight 1.0 --tau 0.10 --rev-norm-kind ewma --rev-norm-span 128 --encoder-type gru --synth-kind forked-arma --mix-ratio 0.0078125 --crossfade-triplets 1 --mixup-p 0.3 --freq-emb-dim 3 --seasonality-emb-dim 3 --log-attn-amplitude --log-attn-amplitude-every 200 --residual-dtype fp32 --attn-dtype fp16 --ffn-dtype fp16 --conv-dtype fp16 --patch-emb-dtype fp32 --train-rollout-depth 32 --cpc-infonce-weight 0.0 --train-rollout-reduce mean --align-target teacher --rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000 --latent-drift-probe-batch-size 16
+Device: cuda | Params: 720,668
+Training for 40000 steps, bs=64, lr=0.001, T=4096, C=1, mix_ratio=0.0078125, freq_emb_dim=3, seasonality_emb_dim=3, mixup_p=0.3, rev_norm_kind=ewma(span=128), patch_stats=none, encoder_type=gru
+Checkpoints: /home/jupyter/checkpoints_backup/cf-409/dec_m095_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m095_fix_*.pth
+Loss CSV: /home/jupyter/checkpoints_backup/cf-409/dec_m095_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m095_fix_losses.csv
+Latent-drift CSV: /home/jupyter/checkpoints_backup/cf-409/dec_m095_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m095_fix_latent_drift.csv (every 5000 steps, probe_bs=16, probe_seed=20260722)
+Attn-amplitude CSV: /home/jupyter/checkpoints_backup/cf-409/dec_m095_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m095_fix_attn_amplitude.csv (every 200 steps)
+Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, hf_bs=64, synth_bs=0, cross_bs=0, total_bs=67
+  [dataloader] Could not list shards for fast skip: (MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /api/datasets/jeremycochoy/gift-pretrain-full-4096 (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x78a680bb1150>: Failed to resolve \'huggingface.co\' ([Errno -3] Temporary failure in name resolution)"))'), '(Request ID: 45db0dd2-7a47-45a4-8fda-0caf1c3db30f)')
+Traceback (most recent call last):
+  File "/home/jupyter/cf409_frozen/experiments/2026-04-27_freq-embedding/scripts/train.py", line 2330, in <module>
+    main()
+  File "/home/jupyter/cf409_frozen/experiments/2026-04-27_freq-embedding/scripts/train.py", line 1810, in main
+    batch = next(data_iter)
+  File "/home/jupyter/cf409_frozen/src/dataloader.py", line 1042, in __iter__
+    hf_batch = next(hf_iter)
+  File "/home/jupyter/cf409_frozen/src/dataloader.py", line 196, in __iter__
+    raise item
+  File "/home/jupyter/cf409_frozen/src/dataloader.py", line 163, in _producer
+    for item in self._iterable:
+  File "/home/jupyter/cf409_frozen/src/dataloader.py", line 490, in _raw_iter
+    row_iter = _open_at(rows_consumed)
+  File "/home/jupyter/cf409_frozen/src/dataloader.py", line 488, in _open_at
+    return iter(self._open_stream())
+  File "/home/jupyter/cf409_frozen/src/dataloader.py", line 286, in _open_stream
+    return iter(load_dataset(self.repo_id, **kwargs))
+  File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 2548, in load_dataset
+    builder_instance = load_dataset_builder(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 2220, in load_dataset_builder
+    dataset_module = dataset_module_factory(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1871, in dataset_module_factory
+    raise e1 from None
+  File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory
+    raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})")
+ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError)
+Command line: /home/jupyter/cf409_frozen/experiments/2026-04-27_freq-embedding/scripts/train.py --qk-norm --attn-out-norm --batch-size 64 --device cuda --total-steps 40000 --lr 1e-3 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 --seed 20260520 --save-every 5000 --extra-save-steps 40000 --save-dir /home/jupyter/checkpoints_backup/cf-409/dec_m095_fix/arm6_v2_combab_alignT/leg_40k --run-name cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m095_fix --log-every 200 --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1 --t-raw 4096 --n-channels 1 --d-model 64 --n-heads 8 --num-encoder-layers 3 --num-layers 3 --encoder-dropkey 0.70 --encoder-dropkey-share-heads --encoder-dropkey-share-layers --depthwise-conv 3 --deprecated-depthwise-conv 0 --loss-shape cosine_similarity_batch_rep_only --align-loss-weight 1.0 --moco-rep-keys --tau-rep 1.0 --align-target teacher --ema-embedding --ema-encoder --ema-tau 0.95 --cpc-infonce-weight 1.0 --sigreg-embedding --sigreg-encoding --sigreg-n-chunk 2048 --sigreg-embedding-weight 1.0 --sigreg-encoding-weight 1.0 --tau 0.10 --rev-norm-kind ewma --rev-norm-span 128 --encoder-type gru --synth-kind forked-arma --mix-ratio 0.0078125 --crossfade-triplets 1 --mixup-p 0.3 --freq-emb-dim 3 --seasonality-emb-dim 3 --log-attn-amplitude --log-attn-amplitude-every 200 --residual-dtype fp32 --attn-dtype fp16 --ffn-dtype fp16 --conv-dtype fp16 --patch-emb-dtype fp32 --train-rollout-depth 32 --cpc-infonce-weight 0.0 --train-rollout-reduce mean --align-target teacher --rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000 --latent-drift-probe-batch-size 16
+Device: cuda | Params: 720,668
+Training for 40000 steps, bs=64, lr=0.001, T=4096, C=1, mix_ratio=0.0078125, freq_emb_dim=3, seasonality_emb_dim=3, mixup_p=0.3, rev_norm_kind=ewma(span=128), patch_stats=none, encoder_type=gru
+Checkpoints: /home/jupyter/checkpoints_backup/cf-409/dec_m095_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m095_fix_*.pth
+Loss CSV: /home/jupyter/checkpoints_backup/cf-409/dec_m095_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m095_fix_losses.csv
+Latent-drift CSV: /home/jupyter/checkpoints_backup/cf-409/dec_m095_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m095_fix_latent_drift.csv (every 5000 steps, probe_bs=16, probe_seed=20260722)
+Attn-amplitude CSV: /home/jupyter/checkpoints_backup/cf-409/dec_m095_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m095_fix_attn_amplitude.csv (every 200 steps)
+Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, hf_bs=64, synth_bs=0, cross_bs=0, total_bs=67
+  [dataloader] Could not list shards for fast skip: (MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /api/datasets/jeremycochoy/gift-pretrain-full-4096 (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x742ff40c3b50>: Failed to resolve \'huggingface.co\' ([Errno -3] Temporary failure in name resolution)"))'), '(Request ID: bd089371-38da-4875-a714-97dd952ae652)')
+Traceback (most recent call last):
+  File "/home/jupyter/cf409_frozen/experiments/2026-04-27_freq-embedding/scripts/train.py", line 2330, in <module>
+    main()
+  File "/home/jupyter/cf409_frozen/experiments/2026-04-27_freq-embedding/scripts/train.py", line 1810, in main
+    batch = next(data_iter)
+  File "/home/jupyter/cf409_frozen/src/dataloader.py", line 1042, in __iter__
+    hf_batch = next(hf_iter)
+  File "/home/jupyter/cf409_frozen/src/dataloader.py", line 196, in __iter__
+    raise item
+  File "/home/jupyter/cf409_frozen/src/dataloader.py", line 163, in _producer
+    for item in self._iterable:
+  File "/home/jupyter/cf409_frozen/src/dataloader.py", line 490, in _raw_iter
+    row_iter = _open_at(rows_consumed)
+  File "/home/jupyter/cf409_frozen/src/dataloader.py", line 488, in _open_at
+    return iter(self._open_stream())
+  File "/home/jupyter/cf409_frozen/src/dataloader.py", line 286, in _open_stream
+    return iter(load_dataset(self.repo_id, **kwargs))
+  File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 2548, in load_dataset
+    builder_instance = load_dataset_builder(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 2220, in load_dataset_builder
+    dataset_module = dataset_module_factory(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1871, in dataset_module_factory
+    raise e1 from None
+  File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory
+    raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})")
+ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError)
+Command line: /home/jupyter/cf409_frozen/experiments/2026-04-27_freq-embedding/scripts/train.py --qk-norm --attn-out-norm --batch-size 64 --device cuda --total-steps 40000 --lr 1e-3 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 --seed 20260520 --save-every 5000 --extra-save-steps 40000 --save-dir /home/jupyter/checkpoints_backup/cf-409/dec_m095_fix/arm6_v2_combab_alignT/leg_40k --run-name cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m095_fix --log-every 200 --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1 --t-raw 4096 --n-channels 1 --d-model 64 --n-heads 8 --num-encoder-layers 3 --num-layers 3 --encoder-dropkey 0.70 --encoder-dropkey-share-heads --encoder-dropkey-share-layers --depthwise-conv 3 --deprecated-depthwise-conv 0 --loss-shape cosine_similarity_batch_rep_only --align-loss-weight 1.0 --moco-rep-keys --tau-rep 1.0 --align-target teacher --ema-embedding --ema-encoder --ema-tau 0.95 --cpc-infonce-weight 1.0 --sigreg-embedding --sigreg-encoding --sigreg-n-chunk 2048 --sigreg-embedding-weight 1.0 --sigreg-encoding-weight 1.0 --tau 0.10 --rev-norm-kind ewma --rev-norm-span 128 --encoder-type gru --synth-kind forked-arma --mix-ratio 0.0078125 --crossfade-triplets 1 --mixup-p 0.3 --freq-emb-dim 3 --seasonality-emb-dim 3 --log-attn-amplitude --log-attn-amplitude-every 200 --residual-dtype fp32 --attn-dtype fp16 --ffn-dtype fp16 --conv-dtype fp16 --patch-emb-dtype fp32 --train-rollout-depth 32 --cpc-infonce-weight 0.0 --train-rollout-reduce mean --align-target teacher --rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000 --latent-drift-probe-batch-size 16
+Device: cuda | Params: 720,668
+Training for 40000 steps, bs=64, lr=0.001, T=4096, C=1, mix_ratio=0.0078125, freq_emb_dim=3, seasonality_emb_dim=3, mixup_p=0.3, rev_norm_kind=ewma(span=128), patch_stats=none, encoder_type=gru
+Checkpoints: /home/jupyter/checkpoints_backup/cf-409/dec_m095_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m095_fix_*.pth
+Loss CSV: /home/jupyter/checkpoints_backup/cf-409/dec_m095_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m095_fix_losses.csv
+Latent-drift CSV: /home/jupyter/checkpoints_backup/cf-409/dec_m095_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m095_fix_latent_drift.csv (every 5000 steps, probe_bs=16, probe_seed=20260722)
+Attn-amplitude CSV: /home/jupyter/checkpoints_backup/cf-409/dec_m095_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m095_fix_attn_amplitude.csv (every 200 steps)
+Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, hf_bs=64, synth_bs=0, cross_bs=0, total_bs=67
+  [dataloader] Could not list shards for fast skip: (MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /api/datasets/jeremycochoy/gift-pretrain-full-4096 (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x7ef01ff2d150>: Failed to resolve \'huggingface.co\' ([Errno -3] Temporary failure in name resolution)"))'), '(Request ID: d4d63a0d-5005-40e2-944d-4383def87d9b)')
+Traceback (most recent call last):
+  File "/home/jupyter/cf409_frozen/experiments/2026-04-27_freq-embedding/scripts/train.py", line 2330, in <module>
+    main()
+  File "/home/jupyter/cf409_frozen/experiments/2026-04-27_freq-embedding/scripts/train.py", line 1810, in main
+    batch = next(data_iter)
+  File "/home/jupyter/cf409_frozen/src/dataloader.py", line 1042, in __iter__
+    hf_batch = next(hf_iter)
+  File "/home/jupyter/cf409_frozen/src/dataloader.py", line 196, in __iter__
+    raise item
+  File "/home/jupyter/cf409_frozen/src/dataloader.py", line 163, in _producer
+    for item in self._iterable:
+  File "/home/jupyter/cf409_frozen/src/dataloader.py", line 490, in _raw_iter
+    row_iter = _open_at(rows_consumed)
+  File "/home/jupyter/cf409_frozen/src/dataloader.py", line 488, in _open_at
+    return iter(self._open_stream())
+  File "/home/jupyter/cf409_frozen/src/dataloader.py", line 286, in _open_stream
+    return iter(load_dataset(self.repo_id, **kwargs))
+  File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 2548, in load_dataset
+    builder_instance = load_dataset_builder(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 2220, in load_dataset_builder
+    dataset_module = dataset_module_factory(
+  File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1871, in dataset_module_factory
+    raise e1 from None
+  File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory
+    raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})")
+ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError)

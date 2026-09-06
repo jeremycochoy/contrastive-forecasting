@@ -1,0 +1,318 @@
+Command line: /tmp/contrastive-forecasting-409/experiments/2026-04-27_freq-embedding/scripts/train.py --qk-norm --attn-out-norm --batch-size 64 --device cuda --total-steps 40000 --lr 1e-3 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 --seed 20260520 --save-every 5000 --extra-save-steps 40000 --save-dir /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k --run-name cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix --log-every 200 --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1 --t-raw 4096 --n-channels 1 --d-model 64 --n-heads 8 --num-encoder-layers 3 --num-layers 3 --encoder-dropkey 0.70 --encoder-dropkey-share-heads --encoder-dropkey-share-layers --depthwise-conv 3 --deprecated-depthwise-conv 0 --loss-shape cosine_similarity_batch_rep_only --align-loss-weight 1.0 --moco-rep-keys --tau-rep 1.0 --align-target teacher --ema-embedding --ema-encoder --ema-tau 0.5 --cpc-infonce-weight 1.0 --sigreg-embedding --sigreg-encoding --sigreg-n-chunk 2048 --sigreg-embedding-weight 1.0 --sigreg-encoding-weight 1.0 --tau 0.10 --rev-norm-kind ewma --rev-norm-span 128 --encoder-type gru --synth-kind forked-arma --mix-ratio 0.0078125 --crossfade-triplets 1 --mixup-p 0.3 --freq-emb-dim 3 --seasonality-emb-dim 3 --log-attn-amplitude --log-attn-amplitude-every 200 --residual-dtype fp32 --attn-dtype fp16 --ffn-dtype fp16 --conv-dtype fp16 --patch-emb-dtype fp32 --train-rollout-depth 32 --cpc-infonce-weight 0.0 --train-rollout-reduce mean --align-target teacher --rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000 --latent-drift-probe-batch-size 16
+Traceback (most recent call last):
+  File "/tmp/contrastive-forecasting-409/experiments/2026-04-27_freq-embedding/scripts/train.py", line 2330, in <module>
+    main()
+  File "/tmp/contrastive-forecasting-409/experiments/2026-04-27_freq-embedding/scripts/train.py", line 1611, in main
+    model = ConfigurableModel(**model_config).to(device)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1369, in to
+    return self._apply(convert)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 928, in _apply
+    module._apply(fn)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 928, in _apply
+    module._apply(fn)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/rnn.py", line 291, in _apply
+    self._init_flat_weights()
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/rnn.py", line 215, in _init_flat_weights
+    self.flatten_parameters()
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/rnn.py", line 272, in flatten_parameters
+    torch._cudnn_rnn_flatten_weight(
+torch.AcceleratorError: CUDA error: out of memory
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+Command line: /tmp/contrastive-forecasting-409/experiments/2026-04-27_freq-embedding/scripts/train.py --qk-norm --attn-out-norm --batch-size 64 --device cuda --total-steps 40000 --lr 1e-3 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 --seed 20260520 --save-every 5000 --extra-save-steps 40000 --save-dir /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k --run-name cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix --log-every 200 --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1 --t-raw 4096 --n-channels 1 --d-model 64 --n-heads 8 --num-encoder-layers 3 --num-layers 3 --encoder-dropkey 0.70 --encoder-dropkey-share-heads --encoder-dropkey-share-layers --depthwise-conv 3 --deprecated-depthwise-conv 0 --loss-shape cosine_similarity_batch_rep_only --align-loss-weight 1.0 --moco-rep-keys --tau-rep 1.0 --align-target teacher --ema-embedding --ema-encoder --ema-tau 0.5 --cpc-infonce-weight 1.0 --sigreg-embedding --sigreg-encoding --sigreg-n-chunk 2048 --sigreg-embedding-weight 1.0 --sigreg-encoding-weight 1.0 --tau 0.10 --rev-norm-kind ewma --rev-norm-span 128 --encoder-type gru --synth-kind forked-arma --mix-ratio 0.0078125 --crossfade-triplets 1 --mixup-p 0.3 --freq-emb-dim 3 --seasonality-emb-dim 3 --log-attn-amplitude --log-attn-amplitude-every 200 --residual-dtype fp32 --attn-dtype fp16 --ffn-dtype fp16 --conv-dtype fp16 --patch-emb-dtype fp32 --train-rollout-depth 32 --cpc-infonce-weight 0.0 --train-rollout-reduce mean --align-target teacher --rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000 --latent-drift-probe-batch-size 16
+Traceback (most recent call last):
+  File "/tmp/contrastive-forecasting-409/experiments/2026-04-27_freq-embedding/scripts/train.py", line 2330, in <module>
+    main()
+  File "/tmp/contrastive-forecasting-409/experiments/2026-04-27_freq-embedding/scripts/train.py", line 1611, in main
+    model = ConfigurableModel(**model_config).to(device)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1369, in to
+    return self._apply(convert)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 928, in _apply
+    module._apply(fn)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 928, in _apply
+    module._apply(fn)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/rnn.py", line 291, in _apply
+    self._init_flat_weights()
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/rnn.py", line 215, in _init_flat_weights
+    self.flatten_parameters()
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/rnn.py", line 272, in flatten_parameters
+    torch._cudnn_rnn_flatten_weight(
+torch.AcceleratorError: CUDA error: out of memory
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+Command line: /tmp/contrastive-forecasting-409/experiments/2026-04-27_freq-embedding/scripts/train.py --qk-norm --attn-out-norm --batch-size 64 --device cuda --total-steps 40000 --lr 1e-3 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 --seed 20260520 --save-every 5000 --extra-save-steps 40000 --save-dir /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k --run-name cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix --log-every 200 --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1 --t-raw 4096 --n-channels 1 --d-model 64 --n-heads 8 --num-encoder-layers 3 --num-layers 3 --encoder-dropkey 0.70 --encoder-dropkey-share-heads --encoder-dropkey-share-layers --depthwise-conv 3 --deprecated-depthwise-conv 0 --loss-shape cosine_similarity_batch_rep_only --align-loss-weight 1.0 --moco-rep-keys --tau-rep 1.0 --align-target teacher --ema-embedding --ema-encoder --ema-tau 0.5 --cpc-infonce-weight 1.0 --sigreg-embedding --sigreg-encoding --sigreg-n-chunk 2048 --sigreg-embedding-weight 1.0 --sigreg-encoding-weight 1.0 --tau 0.10 --rev-norm-kind ewma --rev-norm-span 128 --encoder-type gru --synth-kind forked-arma --mix-ratio 0.0078125 --crossfade-triplets 1 --mixup-p 0.3 --freq-emb-dim 3 --seasonality-emb-dim 3 --log-attn-amplitude --log-attn-amplitude-every 200 --residual-dtype fp32 --attn-dtype fp16 --ffn-dtype fp16 --conv-dtype fp16 --patch-emb-dtype fp32 --train-rollout-depth 32 --cpc-infonce-weight 0.0 --train-rollout-reduce mean --align-target teacher --rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000 --latent-drift-probe-batch-size 16
+Device: cuda | Params: 720,668
+Training for 40000 steps, bs=64, lr=0.001, T=4096, C=1, mix_ratio=0.0078125, freq_emb_dim=3, seasonality_emb_dim=3, mixup_p=0.3, rev_norm_kind=ewma(span=128), patch_stats=none, encoder_type=gru
+Checkpoints: /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_*.pth
+Loss CSV: /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_losses.csv
+Latent-drift CSV: /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_latent_drift.csv (every 5000 steps, probe_bs=16, probe_seed=20260722)
+Attn-amplitude CSV: /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_attn_amplitude.csv (every 200 steps)
+Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, hf_bs=64, synth_bs=0, cross_bs=0, total_bs=67
+Command line: /tmp/contrastive-forecasting-409/experiments/2026-04-27_freq-embedding/scripts/train.py --qk-norm --attn-out-norm --batch-size 64 --device cuda --total-steps 40000 --lr 1e-3 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 --seed 20260520 --save-every 5000 --extra-save-steps 40000 --save-dir /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k --run-name cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix --log-every 200 --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1 --t-raw 4096 --n-channels 1 --d-model 64 --n-heads 8 --num-encoder-layers 3 --num-layers 3 --encoder-dropkey 0.70 --encoder-dropkey-share-heads --encoder-dropkey-share-layers --depthwise-conv 3 --deprecated-depthwise-conv 0 --loss-shape cosine_similarity_batch_rep_only --align-loss-weight 1.0 --moco-rep-keys --tau-rep 1.0 --align-target teacher --ema-embedding --ema-encoder --ema-tau 0.5 --cpc-infonce-weight 1.0 --sigreg-embedding --sigreg-encoding --sigreg-n-chunk 2048 --sigreg-embedding-weight 1.0 --sigreg-encoding-weight 1.0 --tau 0.10 --rev-norm-kind ewma --rev-norm-span 128 --encoder-type gru --synth-kind forked-arma --mix-ratio 0.0078125 --crossfade-triplets 1 --mixup-p 0.3 --freq-emb-dim 3 --seasonality-emb-dim 3 --log-attn-amplitude --log-attn-amplitude-every 200 --residual-dtype fp32 --attn-dtype fp16 --ffn-dtype fp16 --conv-dtype fp16 --patch-emb-dtype fp32 --train-rollout-depth 32 --cpc-infonce-weight 0.0 --train-rollout-reduce mean --align-target teacher --rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000 --latent-drift-probe-batch-size 16
+Traceback (most recent call last):
+  File "/tmp/contrastive-forecasting-409/experiments/2026-04-27_freq-embedding/scripts/train.py", line 2330, in <module>
+    main()
+  File "/tmp/contrastive-forecasting-409/experiments/2026-04-27_freq-embedding/scripts/train.py", line 1611, in main
+    model = ConfigurableModel(**model_config).to(device)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1369, in to
+    return self._apply(convert)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 928, in _apply
+    module._apply(fn)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 928, in _apply
+    module._apply(fn)
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/rnn.py", line 291, in _apply
+    self._init_flat_weights()
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/rnn.py", line 215, in _init_flat_weights
+    self.flatten_parameters()
+  File "/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/rnn.py", line 272, in flatten_parameters
+    torch._cudnn_rnn_flatten_weight(
+torch.AcceleratorError: CUDA error: out of memory
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+[    200] loss=12.2214  ema_loss=12.7733  gap=-0.0979  ema_gap=-0.1740  mixup=61/200  1.4 sps  ETA 7.8h
+              R²_rand=0.5766  R²_naive=0.2553  U_t=0.0783  U_b=0.1343  AUC=0.9064  Top1=0.0708
+  timing: data=48.5ms  fwd=290.2ms  bwd=306.5ms  total=646.0ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[    400] loss=12.0377  ema_loss=12.1990  gap=-0.0886  ema_gap=-0.1017  mixup=58/200  1.5 sps  ETA 7.5h
+              R²_rand=0.5135  R²_naive=0.2979  U_t=0.0880  U_b=0.1100  AUC=0.8609  Top1=0.0391
+  timing: data=4.7ms  fwd=287.8ms  bwd=299.6ms  total=592.9ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[    600] loss=11.7546  ema_loss=11.8869  gap=-0.0837  ema_gap=-0.0888  mixup=65/200  1.5 sps  ETA 7.4h
+              R²_rand=0.5769  R²_naive=0.2911  U_t=0.0827  U_b=0.1105  AUC=0.9060  Top1=0.0540
+  timing: data=4.7ms  fwd=281.8ms  bwd=294.8ms  total=582.1ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[    800] loss=11.5009  ema_loss=11.6167  gap=-0.0702  ema_gap=-0.0762  mixup=65/200  1.5 sps  ETA 7.3h
+              R²_rand=0.5591  R²_naive=0.2889  U_t=0.0841  U_b=0.1211  AUC=0.9156  Top1=0.0621
+  timing: data=14.8ms  fwd=282.8ms  bwd=297.0ms  total=595.3ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   1000] loss=11.2870  ema_loss=11.3769  gap=-0.0538  ema_gap=-0.0642  mixup=61/200  1.5 sps  ETA 7.3h
+              R²_rand=0.5419  R²_naive=0.2695  U_t=0.0772  U_b=0.1192  AUC=0.9205  Top1=0.0744
+  timing: data=4.9ms  fwd=288.1ms  bwd=302.4ms  total=596.2ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   1200] loss=11.2626  ema_loss=11.2562  gap=-0.0403  ema_gap=-0.0443  mixup=59/200  1.5 sps  ETA 7.2h
+              R²_rand=0.4887  R²_naive=0.2907  U_t=0.0901  U_b=0.1069  AUC=0.8675  Top1=0.0491
+  timing: data=4.8ms  fwd=290.1ms  bwd=304.4ms  total=600.0ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   1400] loss=10.8921  ema_loss=10.9942  gap=-0.0453  ema_gap=-0.0439  mixup=77/200  1.5 sps  ETA 7.2h
+              R²_rand=0.5284  R²_naive=0.2659  U_t=0.0796  U_b=0.1177  AUC=0.9040  Top1=0.0646
+  timing: data=22.7ms  fwd=286.7ms  bwd=302.1ms  total=612.5ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   1600] loss=10.6713  ema_loss=10.7595  gap=-0.0544  ema_gap=-0.0506  mixup=65/200  1.5 sps  ETA 7.1h
+              R²_rand=0.5181  R²_naive=0.2591  U_t=0.0915  U_b=0.1221  AUC=0.8893  Top1=0.0448
+  timing: data=4.9ms  fwd=286.5ms  bwd=298.2ms  total=590.4ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   1800] loss=10.4860  ema_loss=10.5544  gap=-0.0462  ema_gap=-0.0485  mixup=64/200  1.5 sps  ETA 7.1h
+              R²_rand=0.5288  R²_naive=0.2919  U_t=0.0935  U_b=0.1222  AUC=0.8957  Top1=0.0564
+  timing: data=5.0ms  fwd=285.6ms  bwd=301.0ms  total=592.5ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   2000] loss=10.2859  ema_loss=10.3588  gap=-0.0386  ema_gap=-0.0421  mixup=66/200  1.5 sps  ETA 7.1h
+              R²_rand=0.5322  R²_naive=0.2904  U_t=0.1015  U_b=0.1210  AUC=0.9062  Top1=0.0513
+  timing: data=29.3ms  fwd=287.2ms  bwd=304.4ms  total=621.8ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   2200] loss=9.9712  ema_loss=10.1018  gap=-0.0400  ema_gap=-0.0382  mixup=67/200  1.5 sps  ETA 7.0h
+              R²_rand=0.5695  R²_naive=0.2967  U_t=0.0927  U_b=0.1183  AUC=0.9174  Top1=0.0882
+  timing: data=5.0ms  fwd=288.5ms  bwd=301.3ms  total=595.6ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   2400] loss=9.7736  ema_loss=9.8587  gap=-0.0377  ema_gap=-0.0353  mixup=53/200  1.5 sps  ETA 7.0h
+              R²_rand=0.5487  R²_naive=0.3376  U_t=0.0958  U_b=0.1214  AUC=0.9079  Top1=0.0600
+  timing: data=5.2ms  fwd=287.0ms  bwd=302.1ms  total=595.1ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   2600] loss=9.4931  ema_loss=9.6160  gap=-0.0323  ema_gap=-0.0337  mixup=55/200  1.5 sps  ETA 7.0h
+              R²_rand=0.5532  R²_naive=0.3242  U_t=0.0964  U_b=0.1306  AUC=0.9195  Top1=0.0722
+  timing: data=19.9ms  fwd=286.4ms  bwd=304.0ms  total=611.2ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   2800] loss=9.3036  ema_loss=9.3953  gap=-0.0290  ema_gap=-0.0351  mixup=55/200  1.5 sps  ETA 6.9h
+              R²_rand=0.5750  R²_naive=0.3004  U_t=0.1089  U_b=0.1333  AUC=0.9158  Top1=0.0776
+  timing: data=4.8ms  fwd=288.5ms  bwd=302.4ms  total=596.5ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   3000] loss=8.9865  ema_loss=9.1939  gap=-0.0219  ema_gap=-0.0299  mixup=52/200  1.5 sps  ETA 6.9h
+              R²_rand=0.5948  R²_naive=0.3103  U_t=0.0983  U_b=0.1386  AUC=0.9243  Top1=0.0619
+  timing: data=4.6ms  fwd=286.3ms  bwd=301.8ms  total=593.4ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   3200] loss=8.8595  ema_loss=8.9719  gap=-0.0255  ema_gap=-0.0242  mixup=68/200  1.5 sps  ETA 6.8h
+              R²_rand=0.5387  R²_naive=0.3471  U_t=0.1120  U_b=0.1323  AUC=0.8942  Top1=0.0426
+  timing: data=22.1ms  fwd=286.9ms  bwd=301.2ms  total=611.1ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   3400] loss=8.6897  ema_loss=8.7685  gap=-0.0231  ema_gap=-0.0209  mixup=53/200  1.5 sps  ETA 6.8h
+              R²_rand=0.5402  R²_naive=0.3324  U_t=0.1135  U_b=0.1517  AUC=0.9156  Top1=0.0760
+  timing: data=5.0ms  fwd=286.2ms  bwd=303.0ms  total=595.1ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   3600] loss=8.4063  ema_loss=8.5524  gap=-0.0065  ema_gap=-0.0123  mixup=44/200  1.5 sps  ETA 6.8h
+              R²_rand=0.5463  R²_naive=0.3222  U_t=0.1187  U_b=0.1420  AUC=0.9149  Top1=0.0725
+  timing: data=4.6ms  fwd=285.4ms  bwd=298.1ms  total=588.9ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   3800] loss=8.1975  ema_loss=8.3348  gap=-0.0117  ema_gap=-0.0087  mixup=55/200  1.5 sps  ETA 6.7h
+              R²_rand=0.5566  R²_naive=0.3290  U_t=0.1206  U_b=0.1577  AUC=0.9204  Top1=0.0871
+  timing: data=22.0ms  fwd=285.8ms  bwd=304.2ms  total=612.8ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   4000] loss=8.0755  ema_loss=8.1260  gap=-0.0026  ema_gap=-0.0072  mixup=65/200  1.5 sps  ETA 6.7h
+              R²_rand=0.4887  R²_naive=0.3243  U_t=0.1369  U_b=0.1556  AUC=0.9120  Top1=0.0716
+  timing: data=5.0ms  fwd=286.3ms  bwd=303.3ms  total=595.4ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   4200] loss=7.7317  ema_loss=7.8564  gap=-0.0060  ema_gap=-0.0044  mixup=57/200  1.5 sps  ETA 6.6h
+              R²_rand=0.5388  R²_naive=0.3631  U_t=0.1244  U_b=0.1499  AUC=0.9111  Top1=0.0646
+  timing: data=4.7ms  fwd=288.5ms  bwd=301.7ms  total=595.7ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   4400] loss=7.4734  ema_loss=7.6183  gap=0.0016  ema_gap=0.0031  mixup=62/200  1.5 sps  ETA 6.6h
+              R²_rand=0.5460  R²_naive=0.3109  U_t=0.1128  U_b=0.1567  AUC=0.9231  Top1=0.0909
+  timing: data=15.6ms  fwd=287.2ms  bwd=302.4ms  total=606.0ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   4600] loss=7.3968  ema_loss=7.3943  gap=-0.0073  ema_gap=-0.0012  mixup=66/200  1.5 sps  ETA 6.6h
+              R²_rand=0.5130  R²_naive=0.3007  U_t=0.1238  U_b=0.1457  AUC=0.8979  Top1=0.0581
+  timing: data=4.8ms  fwd=289.7ms  bwd=299.8ms  total=595.1ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   4800] loss=7.0816  ema_loss=7.1560  gap=-0.0051  ema_gap=-0.0018  mixup=63/200  1.5 sps  ETA 6.5h
+              R²_rand=0.5116  R²_naive=0.3134  U_t=0.1229  U_b=0.1549  AUC=0.9078  Top1=0.0830
+  timing: data=5.0ms  fwd=286.3ms  bwd=300.6ms  total=592.7ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   5000] loss=6.8765  ema_loss=6.9424  gap=-0.0009  ema_gap=0.0030  mixup=60/200  1.5 sps  ETA 6.5h
+              R²_rand=0.5160  R²_naive=0.3103  U_t=0.1291  U_b=0.1606  AUC=0.9068  Top1=0.0798
+  timing: data=14.7ms  fwd=287.4ms  bwd=304.3ms  total=607.2ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_5k.pth
+[   5200] loss=6.5728  ema_loss=6.7146  gap=-0.0036  ema_gap=0.0002  mixup=69/200  1.5 sps  ETA 6.5h
+              R²_rand=0.5282  R²_naive=0.3162  U_t=0.1312  U_b=0.1645  AUC=0.9134  Top1=0.0662
+  timing: data=5.0ms  fwd=285.2ms  bwd=317.3ms  total=608.3ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   5400] loss=6.3945  ema_loss=6.4856  gap=0.0056  ema_gap=0.0007  mixup=55/200  1.5 sps  ETA 6.4h
+              R²_rand=0.5020  R²_naive=0.3391  U_t=0.1396  U_b=0.1647  AUC=0.9017  Top1=0.0578
+  timing: data=5.0ms  fwd=286.4ms  bwd=318.2ms  total=610.5ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   5600] loss=6.1136  ema_loss=6.3007  gap=-0.0001  ema_gap=0.0077  mixup=50/200  1.5 sps  ETA 6.4h
+              R²_rand=0.5452  R²_naive=0.3068  U_t=0.1252  U_b=0.1699  AUC=0.9237  Top1=0.0961
+  timing: data=4.8ms  fwd=284.4ms  bwd=320.2ms  total=610.2ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   5800] loss=5.9839  ema_loss=6.1179  gap=0.0062  ema_gap=0.0194  mixup=64/200  1.5 sps  ETA 6.4h
+              R²_rand=0.5206  R²_naive=0.3181  U_t=0.1389  U_b=0.1786  AUC=0.9081  Top1=0.1001
+  timing: data=30.0ms  fwd=286.9ms  bwd=320.1ms  total=637.8ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   6000] loss=5.8029  ema_loss=5.8368  gap=0.0241  ema_gap=0.0255  mixup=64/200  1.5 sps  ETA 6.3h
+              R²_rand=0.4443  R²_naive=0.3434  U_t=0.1443  U_b=0.1695  AUC=0.8867  Top1=0.1026
+  timing: data=4.8ms  fwd=286.1ms  bwd=320.6ms  total=612.2ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   6200] loss=5.4954  ema_loss=5.6089  gap=0.0075  ema_gap=0.0201  mixup=51/200  1.5 sps  ETA 6.3h
+              R²_rand=0.5155  R²_naive=0.3279  U_t=0.1367  U_b=0.1770  AUC=0.9130  Top1=0.1210
+  timing: data=5.1ms  fwd=289.0ms  bwd=322.1ms  total=617.0ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   6400] loss=5.1277  ema_loss=5.3504  gap=0.0138  ema_gap=0.0242  mixup=58/200  1.5 sps  ETA 6.3h
+              R²_rand=0.5573  R²_naive=0.3187  U_t=0.1100  U_b=0.1313  AUC=0.9140  Top1=0.1039
+  timing: data=37.2ms  fwd=286.2ms  bwd=324.2ms  total=648.4ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   6600] loss=5.1035  ema_loss=5.1511  gap=0.0491  ema_gap=0.0329  mixup=57/200  1.5 sps  ETA 6.2h
+              R²_rand=0.5245  R²_naive=0.3533  U_t=0.1461  U_b=0.1628  AUC=0.9252  Top1=0.1140
+  timing: data=4.9ms  fwd=285.9ms  bwd=318.3ms  total=609.9ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   6800] loss=4.7305  ema_loss=4.9501  gap=0.0274  ema_gap=0.0329  mixup=61/200  1.5 sps  ETA 6.2h
+              R²_rand=0.5416  R²_naive=0.3038  U_t=0.1353  U_b=0.1564  AUC=0.9116  Top1=0.0866
+  timing: data=5.1ms  fwd=286.0ms  bwd=322.1ms  total=614.0ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   7000] loss=4.6074  ema_loss=4.7338  gap=0.0259  ema_gap=0.0301  mixup=41/200  1.5 sps  ETA 6.2h
+              R²_rand=0.5119  R²_naive=0.3165  U_t=0.1443  U_b=0.1833  AUC=0.9229  Top1=0.0877
+  timing: data=41.6ms  fwd=283.9ms  bwd=320.6ms  total=646.8ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   7200] loss=4.4475  ema_loss=4.4795  gap=0.0135  ema_gap=0.0263  mixup=66/200  1.5 sps  ETA 6.1h
+              R²_rand=0.4540  R²_naive=0.3169  U_t=0.1488  U_b=0.1702  AUC=0.9170  Top1=0.0825
+  timing: data=5.0ms  fwd=288.6ms  bwd=327.2ms  total=621.6ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   7400] loss=4.1985  ema_loss=4.2440  gap=0.0205  ema_gap=0.0158  mixup=65/200  1.5 sps  ETA 6.1h
+              R²_rand=0.4956  R²_naive=0.3328  U_t=0.1557  U_b=0.1689  AUC=0.9058  Top1=0.0860
+  timing: data=4.9ms  fwd=284.3ms  bwd=316.7ms  total=606.7ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   7600] loss=3.9509  ema_loss=4.0323  gap=0.0129  ema_gap=0.0155  mixup=63/200  1.5 sps  ETA 6.1h
+              R²_rand=0.4700  R²_naive=0.3277  U_t=0.1492  U_b=0.1733  AUC=0.9191  Top1=0.0882
+  timing: data=28.0ms  fwd=279.4ms  bwd=314.6ms  total=622.7ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   7800] loss=3.7687  ema_loss=3.8298  gap=0.0347  ema_gap=0.0317  mixup=78/200  1.5 sps  ETA 6.0h
+              R²_rand=0.4957  R²_naive=0.3091  U_t=0.1471  U_b=0.1560  AUC=0.9043  Top1=0.0896
+  timing: data=4.8ms  fwd=283.7ms  bwd=317.2ms  total=606.5ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   8000] loss=3.4757  ema_loss=3.5446  gap=0.0560  ema_gap=0.0449  mixup=74/200  1.5 sps  ETA 6.0h
+              R²_rand=0.4926  R²_naive=0.3461  U_t=0.1306  U_b=0.1484  AUC=0.8802  Top1=0.0738
+  timing: data=4.9ms  fwd=286.5ms  bwd=319.1ms  total=611.3ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   8200] loss=3.3190  ema_loss=3.3659  gap=0.0745  ema_gap=0.0645  mixup=55/200  1.5 sps  ETA 6.0h
+              R²_rand=0.4815  R²_naive=0.3543  U_t=0.1540  U_b=0.1511  AUC=0.8903  Top1=0.0689
+  timing: data=66.2ms  fwd=285.6ms  bwd=319.1ms  total=671.7ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   8400] loss=2.8813  ema_loss=3.1079  gap=0.0458  ema_gap=0.0661  mixup=62/200  1.5 sps  ETA 5.9h
+              R²_rand=0.5197  R²_naive=0.3549  U_t=0.1211  U_b=0.1435  AUC=0.8720  Top1=0.0554
+  timing: data=4.7ms  fwd=285.9ms  bwd=323.3ms  total=614.8ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   8600] loss=2.7332  ema_loss=2.9008  gap=0.0605  ema_gap=0.0714  mixup=55/200  1.5 sps  ETA 5.9h
+              R²_rand=0.4983  R²_naive=0.3550  U_t=0.1305  U_b=0.1387  AUC=0.8912  Top1=0.0431
+  timing: data=5.2ms  fwd=287.4ms  bwd=320.9ms  total=614.3ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   8800] loss=2.4612  ema_loss=2.5599  gap=0.0462  ema_gap=0.0612  mixup=65/200  1.5 sps  ETA 5.9h
+              R²_rand=0.5031  R²_naive=0.3544  U_t=0.1335  U_b=0.1393  AUC=0.8886  Top1=0.0654
+  timing: data=41.9ms  fwd=282.9ms  bwd=320.3ms  total=645.9ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   9000] loss=2.3052  ema_loss=2.3546  gap=0.0627  ema_gap=0.0560  mixup=57/200  1.5 sps  ETA 5.8h
+              R²_rand=0.5040  R²_naive=0.3675  U_t=0.1250  U_b=0.1514  AUC=0.9135  Top1=0.0898
+  timing: data=5.1ms  fwd=288.7ms  bwd=320.8ms  total=615.3ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   9200] loss=2.0944  ema_loss=2.1878  gap=0.0578  ema_gap=0.0468  mixup=68/200  1.5 sps  ETA 5.8h
+              R²_rand=0.4768  R²_naive=0.2990  U_t=0.1107  U_b=0.1243  AUC=0.8733  Top1=0.0380
+  timing: data=6.0ms  fwd=298.3ms  bwd=329.0ms  total=634.2ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   9400] loss=1.8731  ema_loss=1.9785  gap=-0.0079  ema_gap=0.0321  mixup=51/200  1.5 sps  ETA 5.8h
+              R²_rand=0.4259  R²_naive=0.2503  U_t=0.0860  U_b=0.1007  AUC=0.8050  Top1=0.0361
+  timing: data=52.4ms  fwd=297.0ms  bwd=327.5ms  total=677.7ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   9600] loss=1.5771  ema_loss=1.7418  gap=0.0292  ema_gap=0.0453  mixup=50/200  1.5 sps  ETA 5.7h
+              R²_rand=0.4923  R²_naive=0.2526  U_t=0.1042  U_b=0.1335  AUC=0.8376  Top1=0.0385
+  timing: data=6.0ms  fwd=299.6ms  bwd=328.5ms  total=635.0ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[   9800] loss=1.2606  ema_loss=1.5521  gap=-0.0282  ema_gap=0.0373  mixup=72/200  1.5 sps  ETA 5.7h
+              R²_rand=0.3696  R²_naive=0.1891  U_t=0.0974  U_b=0.1139  AUC=0.7368  Top1=0.0372
+  timing: data=6.5ms  fwd=302.0ms  bwd=331.0ms  total=640.4ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[  10000] loss=1.1149  ema_loss=1.4047  gap=-0.0416  ema_gap=-0.0279  mixup=61/200  1.5 sps  ETA 5.7h
+              R²_rand=0.0179  R²_naive=-0.1667  U_t=0.0579  U_b=0.0581  AUC=0.5114  Top1=0.0043
+  timing: data=83.4ms  fwd=298.3ms  bwd=328.6ms  total=711.2ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_10k.pth
+[  10200] loss=1.7056  ema_loss=1.3128  gap=-0.1036  ema_gap=-0.0440  mixup=51/200  1.5 sps  ETA 5.6h
+              R²_rand=0.0974  R²_naive=-0.1311  U_t=0.0626  U_b=0.0635  AUC=0.5796  Top1=0.0049
+  timing: data=6.1ms  fwd=263.6ms  bwd=286.8ms  total=557.3ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth
+[  10400] loss=1.2458  ema_loss=1.4771  gap=-0.1150  ema_gap=-0.0989  mixup=57/200  1.5 sps  ETA 5.6h
+              R²_rand=0.2673  R²_naive=-0.0433  U_t=0.0429  U_b=0.0447  AUC=0.6096  Top1=0.0068
+  timing: data=6.3ms  fwd=260.6ms  bwd=286.4ms  total=554.2ms
+[  10600] loss=0.6526  ema_loss=0.9210  gap=-0.0093  ema_gap=-0.0369  mixup=56/200  1.5 sps  ETA 5.5h
+              R²_rand=-0.0311  R²_naive=-0.0445  U_t=0.0537  U_b=0.0541  AUC=0.5051  Top1=0.0046
+  timing: data=6.3ms  fwd=264.8ms  bwd=287.5ms  total=559.5ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m050_fix_best_loss.pth

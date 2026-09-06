@@ -1,0 +1,143 @@
+[08-23 02:28:43] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 02:28:44] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_s20/arm6_v2_combab_alignT/leg_40k
+[08-23 02:30:43] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 02:30:44] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_s24/arm6_v2_combab_alignT/leg_40k
+[08-23 02:32:43] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 02:32:44] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_s22/arm6_v2_combab_alignT/leg_40k
+[08-23 09:47:31] [arm6_v2_combab_alignT] DONE target=40000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-409/dec_s20/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s20_40k.pth
+[08-23 09:47:33] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 09:47:33] [arm6_v2_combab_alignT] HOLD: session capped at 1000; not starting the 40000 leg
+[08-23 09:48:27] [arm6_v2_combab_alignT] DONE target=40000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-409/dec_s22/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s22_40k.pth
+[08-23 09:48:29] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 09:48:29] [arm6_v2_combab_alignT] HOLD: session capped at 1000; not starting the 40000 leg
+[08-23 09:50:32] [arm6_v2_combab_alignT] DONE target=40000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-409/dec_s24/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s24_40k.pth
+[08-23 09:50:34] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 09:50:34] [arm6_v2_combab_alignT] HOLD: session capped at 1000; not starting the 40000 leg
+[08-23 09:52:05] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 09:52:05] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_s23/arm6_v2_combab_alignT/leg_40k
+[08-23 09:52:30] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 09:52:30] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_s25/arm6_v2_combab_alignT/leg_40k
+[08-23 14:18:40] [arm6_v2_combab_alignT] train exited rc=137 — tail: [  22800] loss=0.7683  ema_loss=0.7515  gap=-0.2024  ema_gap=-0.2003  mixup=64/200  1.4 sps  ETA 3.3h               R²_rand=0.6040  R²_naive=0.2294  U_t=0.0990  U_b=0.2093  AUC=0.9540  Top1=0.2334   timing: data=6.7ms  fwd=264.7ms  bwd=279.3ms  total=551.5ms 
+[08-23 14:18:40] [arm6_v2_combab_alignT] train exited rc=137 — tail: [  22600] loss=1.5541  ema_loss=1.4370  gap=-0.0560  ema_gap=-0.0372  mixup=65/200  1.4 sps  ETA 3.4h               R²_rand=0.3448  R²_naive=0.1329  U_t=0.0750  U_b=0.0740  AUC=0.7780  Top1=0.0684   timing: data=57.7ms  fwd=263.4ms  bwd=282.6ms  total=604.6ms 
+[08-23 14:26:39] [arm6_v2_combab_alignT] RESUME from cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s23_20k.pth (step 20k)
+[08-23 14:26:39] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_s23/arm6_v2_combab_alignT/leg_40k
+[08-23 14:28:09] [arm6_v2_combab_alignT] RESUME from cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s25_20k.pth (step 20k)
+[08-23 14:28:09] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_s25/arm6_v2_combab_alignT/leg_40k
+[08-23 14:29:39] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 14:29:39] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_s26/arm6_v2_combab_alignT/leg_40k
+[08-23 14:30:17] [arm6_v2_combab_alignT] train exited rc=137 — tail: Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, hf_bs=64, synth_bs=0, cross_bs=0, total_bs=67   [dataloader] 4274 shards, 42740000 total rows, target skip 1280000   [dataloader] Fast-skip: starting at shard 128/4274, then skipping 0 rows within it 
+[08-23 14:30:17] [arm6_v2_combab_alignT] train exited rc=137 — tail: [  20200] loss=0.8429  ema_loss=0.8837  gap=-0.2024  ema_gap=-0.1934  mixup=72/200  1.8 sps  ETA 3.0h               R²_rand=0.5505  R²_naive=0.2417  U_t=0.0986  U_b=0.1920  AUC=0.9401  Top1=0.2469   timing: data=61.4ms  fwd=219.9ms  bwd=253.9ms  total=535.9ms 
+[08-23 14:30:17] [arm6_v2_combab_alignT] train exited rc=137 — tail: Latent-drift CSV: /home/jupyter/checkpoints_backup/cf-409/dec_s26/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s26_latent_drift.csv (every 5000 steps, probe_bs=16, probe_seed=20260722) Attn-amplitude CSV: /home/jupyter/checkpoints_backup/cf-409/dec_s26/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s26_attn_amplitude.csv (every 200 steps) Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, hf_bs=64, synth_bs=0, cross_bs=0, total_bs=67 
+[08-23 15:01:04] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 15:01:04] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m099_fix/arm6_v2_combab_alignT/leg_40k
+[08-23 15:04:04] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 15:04:04] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m090_r60/arm6_v2_combab_alignT/leg_40k
+[08-23 15:04:37] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 15:04:37] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m099_fix/arm6_v2_combab_alignT/leg_40k
+[08-23 15:07:37] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 15:07:37] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m090_r60/arm6_v2_combab_alignT/leg_40k
+[08-23 15:10:49] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 15:10:49] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m080_r200/arm6_v2_combab_alignT/leg_40k
+[08-23 18:46:14] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/requests/adapters.py", line 677, in send     raise ConnectionError(e, request=request) requests.exceptions.ConnectionError: (MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00032.parquet (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x731095336020>: Failed to resolve \'huggingface.co\' ([Errno -3] Temporary failure in name resolution)"))'), '(Request ID: cf96dc4d-0d2a-4add-a598-264f61249f92)') 
+[08-23 18:47:16] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 18:47:16] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m080_r200/arm6_v2_combab_alignT/leg_40k
+[08-23 18:47:20] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-23 18:48:23] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 18:48:23] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m080_r200/arm6_v2_combab_alignT/leg_40k
+[08-23 18:48:27] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-23 18:48:56] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/requests/adapters.py", line 677, in send     raise ConnectionError(e, request=request) requests.exceptions.ConnectionError: (MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00032.parquet (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x7a7b7ea720e0>: Failed to resolve \'huggingface.co\' ([Errno -3] Temporary failure in name resolution)"))'), '(Request ID: aee64d99-5feb-456d-86dc-88005333b7a3)') 
+[08-23 18:49:58] [arm6_v2_combab_alignT] RESUME from cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m099_fix_15k.pth (step 15k)
+[08-23 18:49:58] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m099_fix/arm6_v2_combab_alignT/leg_40k
+[08-23 18:50:02] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-23 18:51:05] [arm6_v2_combab_alignT] RESUME from cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m099_fix_15k.pth (step 15k)
+[08-23 18:51:05] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m099_fix/arm6_v2_combab_alignT/leg_40k
+[08-23 18:51:09] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-23 18:51:12] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 18:51:12] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m095_fix/arm6_v2_combab_alignT/leg_40k
+[08-23 18:51:16] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-23 18:52:19] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 18:52:19] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m095_fix/arm6_v2_combab_alignT/leg_40k
+[08-23 18:52:23] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-23 18:53:27] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 18:53:27] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m095_fix/arm6_v2_combab_alignT/leg_40k
+[08-23 18:53:30] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-23 18:53:34] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 18:53:34] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m080_r200/arm6_v2_combab_alignT/leg_40k
+[08-23 18:53:37] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-23 18:54:41] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 18:54:41] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m080_r200/arm6_v2_combab_alignT/leg_40k
+[08-23 18:54:44] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-23 18:55:48] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-23 18:55:48] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m080_r200/arm6_v2_combab_alignT/leg_40k
+[08-23 18:55:51] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/datasets/load.py", line 1805, in dataset_module_factory     raise ConnectionError(f"Couldn't reach '{path}' on the Hub ({type(e).__name__})") ConnectionError: Couldn't reach 'jeremycochoy/gift-pretrain-full-4096' on the Hub (ConnectionError) 
+[08-24 21:27:57] [arm6_v2_combab_alignT] RESUME from cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m099_fix_15k.pth (step 15k)
+[08-24 21:27:57] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m099_fix/arm6_v2_combab_alignT/leg_40k
+[08-24 21:28:05] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-24 21:28:05] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m080_r200/arm6_v2_combab_alignT/leg_40k
+[08-25 01:36:23] [arm6_v2_combab_alignT] DONE target=40000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-409/dec_m099_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m099_fix_r2_40k.pth
+[08-25 04:12:07] [arm6_v2_combab_alignT] DONE target=40000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-409/dec_m080_r200/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m080_r200_40k.pth
+[08-25 06:28:21] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-25 06:28:21] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m070_fix/arm6_v2_combab_alignT/leg_40k
+[08-25 06:28:23] [arm6_v2_combab_alignT] train exited rc=1 — tail: For debugging consider passing CUDA_LAUNCH_BLOCKING=1 Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.  
+[08-25 06:28:31] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-25 06:28:31] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k
+[08-25 06:28:33] [arm6_v2_combab_alignT] train exited rc=1 — tail: For debugging consider passing CUDA_LAUNCH_BLOCKING=1 Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.  
+[08-25 06:29:28] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-25 06:29:28] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m070_fix/arm6_v2_combab_alignT/leg_40k
+[08-25 06:29:30] [arm6_v2_combab_alignT] train exited rc=1 — tail: For debugging consider passing CUDA_LAUNCH_BLOCKING=1 Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.  
+[08-25 06:29:38] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-25 06:29:38] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m070_fix/arm6_v2_combab_alignT/leg_40k
+[08-25 06:29:38] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-25 06:29:38] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k
+[08-25 06:29:40] [arm6_v2_combab_alignT] train exited rc=1 — tail: For debugging consider passing CUDA_LAUNCH_BLOCKING=1 Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.  
+[08-25 06:30:03] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-25 06:30:03] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k
+[08-25 06:30:35] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-25 06:30:35] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m070_fix/arm6_v2_combab_alignT/leg_40k
+[08-25 06:30:37] [arm6_v2_combab_alignT] train exited rc=1 — tail: For debugging consider passing CUDA_LAUNCH_BLOCKING=1 Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.  
+[08-25 06:30:45] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-25 06:30:45] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m050_fix/arm6_v2_combab_alignT/leg_40k
+[08-25 06:30:47] [arm6_v2_combab_alignT] train exited rc=1 — tail: For debugging consider passing CUDA_LAUNCH_BLOCKING=1 Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.  
+[08-25 13:08:18] [arm6_v2_combab_alignT] DONE target=40000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-409/dec_m070_fix/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m070_fix_40k.pth
+[08-25 16:07:55] [arm6_v2_combab_alignT] SKIP: cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s20_40k.pth already on disk
+[08-25 16:08:02] [arm6_v2_combab_alignT] RESUME from cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_s23_20k.pth (step 20k)
+[08-25 16:08:02] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_s23/arm6_v2_combab_alignT/leg_40k
+[08-25 16:14:34] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-25 16:14:34] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_ramp30k_m080/arm6_v2_combab_alignT/leg_40k
+[08-25 22:09:28] [arm6_v2_combab_alignT] train exited rc=1 — tail:   File "/home/jupyter/.local/lib/python3.10/site-packages/requests/adapters.py", line 677, in send     raise ConnectionError(e, request=request) requests.exceptions.ConnectionError: (MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00052.parquet (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x7ac7b8a5cc40>: Failed to resolve \'huggingface.co\' ([Errno -3] Temporary failure in name resolution)"))'), '(Request ID: 627ca691-6bb2-424e-b9d5-1f521050e668)') 
+[08-25 22:09:28] [arm6_v2_combab_alignT] the Hub was unreachable — this is a network failure, not a bad arm
+[08-25 22:10:30] [arm6_v2_combab_alignT] RESUME from cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_ramp30k_m080_30k.pth (step 30k)
+[08-25 22:10:30] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_ramp30k_m080/arm6_v2_combab_alignT/leg_40k
+[08-25 23:42:26] [arm6_v2_combab_alignT] DONE target=40000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-409/dec_ramp30k_m080/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_ramp30k_m080_r2_40k.pth
+[08-26 02:10:46] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-26 02:10:46] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_ramp20k_m080/arm6_v2_combab_alignT/leg_40k
+[08-26 08:40:40] [arm6_v2_combab_alignT] DONE target=40000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-409/dec_ramp20k_m080/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_ramp20k_m080_40k.pth
+[08-26 11:04:16] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-26 11:04:16] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_ramp5k_m080/arm6_v2_combab_alignT/leg_40k
+[08-26 21:02:53] [arm6_v2_combab_alignT] DONE target=40000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-409/dec_ramp5k_m080/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_ramp5k_m080_40k.pth
+[08-26 23:57:45] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-26 23:57:45] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m080_r200_s24/arm6_v2_combab_alignT/leg_40k
+[08-27 08:16:35] [arm6_v2_combab_alignT] DONE target=40000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-409/dec_m080_r200_s24/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m080_r200_s24_40k.pth
+[08-31 07:46:00] [arm6_v2_combab_alignT] ABORT: HF token missing at /tmp/contrastive-forecasting-409/experiments/hf_token.txt
+[08-31 07:46:20] [arm6_v2_combab_alignT] ABORT: HF token missing at /tmp/contrastive-forecasting-409/experiments/hf_token.txt
+[08-31 07:47:54] [arm6_v2_combab_alignT] SKIP: cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m090r100_ramp2k_80k.pth already on disk
+[08-31 07:48:19] [arm6_v2_combab_alignT] SKIP: cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m090r100_ramp1k_80k.pth already on disk
+[08-31 15:11:54] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-31 15:11:54] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_f094_r2k/arm6_v2_combab_alignT/leg_40k
+[08-31 15:12:19] [arm6_v2_combab_alignT] FRESH start at step 0
+[08-31 15:12:19] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_f090_r2k/arm6_v2_combab_alignT/leg_40k
+[08-31 21:31:49] [arm6_v2_combab_alignT] DONE target=40000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-409/dec_f090_r2k/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_f090_r2k_40k.pth
+[08-31 22:06:07] [arm6_v2_combab_alignT] DONE target=40000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-409/dec_f094_r2k/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_f094_r2k_40k.pth
+[09-01 23:12:34] [arm6_v2_combab_alignT] FRESH start at step 0
+[09-01 23:12:34] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_f086_r2k/arm6_v2_combab_alignT/leg_40k
+[09-01 23:13:57] [arm6_v2_combab_alignT] train exited rc=137 — tail: Latent-drift CSV: /home/jupyter/checkpoints_backup/cf-409/dec_f086_r2k/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_f086_r2k_latent_drift.csv (every 5000 steps, probe_bs=16, probe_seed=20260722) Attn-amplitude CSV: /home/jupyter/checkpoints_backup/cf-409/dec_f086_r2k/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_f086_r2k_attn_amplitude.csv (every 200 steps) Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, hf_bs=64, synth_bs=0, cross_bs=0, total_bs=67 
+[09-01 23:14:15] [arm6_v2_combab_alignT] RESUME from cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m090r100_ramp2k_80k.pth (step 80k)
+[09-01 23:14:15] [arm6_v2_combab_alignT] START target=200000 gpu=0 save_every=10000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_m090r100_ramp2k/arm6_v2_combab_alignT/leg_200k
+[09-01 23:14:59] [arm6_v2_combab_alignT] FRESH start at step 0
+[09-01 23:14:59] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_f086_r2k/arm6_v2_combab_alignT/leg_40k
+[09-01 23:15:58] [arm6_v2_combab_alignT] train exited rc=137 — tail: Latent-drift CSV: /home/jupyter/checkpoints_backup/cf-409/dec_f086_r2k/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_f086_r2k_latent_drift.csv (every 5000 steps, probe_bs=16, probe_seed=20260722) Attn-amplitude CSV: /home/jupyter/checkpoints_backup/cf-409/dec_f086_r2k/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_f086_r2k_attn_amplitude.csv (every 200 steps) Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, hf_bs=64, synth_bs=0, cross_bs=0, total_bs=67 
+[09-01 23:16:45] [arm6_v2_combab_alignT] FRESH start at step 0
+[09-01 23:16:45] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=5000 leg=/home/jupyter/checkpoints_backup/cf-409/dec_f086_r2k/arm6_v2_combab_alignT/leg_40k
+[09-02 05:57:26] [arm6_v2_combab_alignT] DONE target=40000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-409/dec_f086_r2k/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_f086_r2k_40k.pth
+[09-02 18:35:34] [arm6_v2_combab_alignT] DONE target=200000 (5.0M) -> /home/jupyter/checkpoints_backup/cf-409/dec_m090r100_ramp2k/arm6_v2_combab_alignT/leg_200k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m090r100_ramp2k_200k.pth
+[09-04 22:54:49] [arm6_v2_combab_alignT] SKIP: cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m090r100_ramp2k_200k.pth already on disk

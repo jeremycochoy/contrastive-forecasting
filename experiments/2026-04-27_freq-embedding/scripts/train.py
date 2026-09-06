@@ -36,7 +36,8 @@ import torch.optim as optim
 from types import SimpleNamespace
 
 from src.models import (ConfigurableModel, compute_metrics, count_parameters,
-                        ema_tau_at_step, generate_random_batch)
+                        ema_tau_at_step, generate_random_batch,
+                        linear_schedule_at_step)
 from src.blocks import ATTN_AMP_DIAG
 from src.dataloader import (
     create_mixed_periodic_dataloader,
@@ -88,6 +89,11 @@ LOSS_SPEC = SimpleNamespace(train_configuration={
     "contrastive_latent_delay": 0,
 })
 CLD = LOSS_SPEC.train_configuration["contrastive_latent_delay"] + 1
+
+# The loss shapes that read `rep_loss_weight` (#382, #409). Every other shape
+# ignores it, so a decay schedule on one of those would move nothing.
+REP_WEIGHT_SHAPES = ("cosine_similarity_batch_split_pred_rep",
+                     "cosine_similarity_batch_rep_only")
 
 T_RAW = 1024  # Default. Overridden by --t-raw CLI flag.
 
@@ -537,11 +543,36 @@ def parse_args():
                         "isolate L_rep (e.g. the 'rep' and 'rep_moco' arms); a "
                         "no-op for every other loss_shape.")
     p.add_argument("--rep-loss-weight", type=float, default=1.0,
-                   help="Scalar weight on L_rep inside the "
-                        "cosine_similarity_batch_split_pred_rep shape (#382). "
+                   help="Scalar weight on L_rep, the h-anchored repel term. "
                         "Default 1.0 = historical objective. Set to 0.0 to "
-                        "isolate L_pred (e.g. the 'pred' and 'pred_moco' arms); a "
-                        "no-op for every other loss_shape.")
+                        "isolate L_pred (e.g. the 'pred' and 'pred_moco' arms). "
+                        "Read by --loss-shape "
+                        "cosine_similarity_batch_split_pred_rep (#382) and "
+                        "cosine_similarity_batch_rep_only (#409), whose whole "
+                        "main loss IS L_rep; a no-op for every other "
+                        "loss_shape. This is the value at step 0 when "
+                        "--rep-loss-weight-end sets a schedule.")
+    p.add_argument("--rep-loss-weight-end", type=float, default=None,
+                   help="Decay L_rep's weight linearly from --rep-loss-weight "
+                        "at step 0 to this value, then hold (#409). Omit "
+                        "(default) = the weight is constant, byte-for-byte "
+                        "the objective of every run before #409. The ramp "
+                        "spans --total-steps unless --rep-loss-weight-ramp-"
+                        "steps anchors it. L_rep carries the negatives of "
+                        "this objective, so at 0.0 nothing pushes the "
+                        "representations apart: watch the `auc` column. "
+                        "Refused for a loss_shape that reads no rep weight, "
+                        "and refused at 0.0 when the run keeps no other "
+                        "gradient-bearing term.")
+    p.add_argument("--rep-loss-weight-ramp-steps", type=int, default=None,
+                   help="Anchor the --rep-loss-weight-end ramp to a FIXED "
+                        "step count instead of --total-steps (#409). The "
+                        "weight reaches --rep-loss-weight-end at this step "
+                        "and holds there. A ladder resumes each leg with a "
+                        "new --total-steps, so without this anchor every leg "
+                        "would ramp over its own budget and no two stops "
+                        "would sit on one curve. Same contract as "
+                        "--ema-tau-ramp-steps.")
     p.add_argument("--train-rollout-depth", type=int, default=0,
                    help="k — train the COMPOSED forecaster, not just one step "
                         "(#373). Every loss term that ties f to h is duplicated "
@@ -935,6 +966,25 @@ def rollout_depth_has_no_consumer(args):
             and args.cpc_infonce_weight <= 0)
 
 
+def keeps_gradient_without_rep(args):
+    """Whether this run still trains after L_rep's weight reaches 0.0 (#409).
+
+    L_rep is the whole main loss of `cosine_similarity_batch_rep_only` and
+    half of `..._split_pred_rep`. Every other term of the objective is an
+    add-on the training script attaches: L_pred, L_align, the CPC auxiliary,
+    align_moco and the two SIGReg terms. A run that keeps none of them at a
+    weight above 0 has nothing left to differentiate at the end of the ramp.
+    """
+    if (args.loss_shape == "cosine_similarity_batch_split_pred_rep"
+            and args.pred_loss_weight > 0):
+        return True
+    return (args.align_loss_weight > 0
+            or args.cpc_infonce_weight > 0
+            or args.align_moco_loss_weight > 0
+            or (args.sigreg_embedding and args.sigreg_embedding_weight > 0)
+            or (args.sigreg_encoding and args.sigreg_encoding_weight > 0))
+
+
 def safe_run_name(save_dir, run_name):
     if not _has_checkpoints(save_dir, run_name):
         return run_name
@@ -1003,6 +1053,16 @@ class CSVLogger:
         # runs without --ema-tau-end, blank for runs without a teacher.
         # Trailing so name-keyed readers of older CSVs are unaffected.
         header += ["ema_tau"]
+        # (#409) rep_w: the live weight on L_rep. Constant for runs without
+        # --rep-loss-weight-end, blank for a loss_shape that reads no rep
+        # weight. l_pred / l_rep / l_align: the UNWEIGHTED value of each
+        # term the loss computed this step, blank for a term it skipped.
+        # Before #409 the CSV carried the total alone, so a report had to
+        # read L_rep as the residual of every other term. l_align is the
+        # depth-0 copy: the `cos_err_d*` columns carry the other depths,
+        # and the column is blank under --no-main-contrastive-loss, where
+        # L_align is added outside the main loss.
+        header += ["rep_w", "l_pred", "l_rep", "l_align"]
         # Per-depth forecast error (#373), only on --train-rollout-depth runs.
         if self.rollout_depth:
             header += [f"cos_err_d{j}"
@@ -1040,6 +1100,7 @@ class CSVLogger:
             sigreg_e=None, sigreg_h=None,
             u_temporal_e=None, u_batch_e=None,
             u_batchtime=None, u_batchtime_e=None, ema_tau=None,
+            rep_w=None, l_pred=None, l_rep=None, l_align=None,
             cos_err_depths=None):
         if not self._enabled:
             return
@@ -1054,7 +1115,8 @@ class CSVLogger:
         row += [r2_random, r2_naive, u_temporal, u_batch, auc, top1, top3]
         row.append('' if cpc_aux is None else cpc_aux)
         for extra in (sigreg_e, sigreg_h, u_temporal_e, u_batch_e,
-                      u_batchtime, u_batchtime_e, ema_tau):
+                      u_batchtime, u_batchtime_e, ema_tau,
+                      rep_w, l_pred, l_rep, l_align):
             row.append('' if extra is None else extra)
         if self.rollout_depth:
             depths = cos_err_depths or []
@@ -1425,6 +1487,38 @@ def main():
         if args.ema_tau_end is None:
             raise SystemExit("--ema-tau-ramp-steps anchors the α ramp but no "
                              "ramp is configured; pass --ema-tau-end.")
+    # #409: the L_rep weight schedule. Every refusal below stops a run whose
+    # command line states a decay the objective would not carry.
+    if args.rep_loss_weight_end is not None:
+        if args.rep_loss_weight_end < 0.0:
+            raise SystemExit("--rep-loss-weight-end must be ≥ 0; got "
+                             f"{args.rep_loss_weight_end!r}.")
+        if args.loss_shape not in REP_WEIGHT_SHAPES:
+            raise SystemExit(
+                "--rep-loss-weight-end decays the weight on L_rep, and "
+                f"loss_shape {args.loss_shape!r} reads no rep weight. The "
+                f"shapes that do are {REP_WEIGHT_SHAPES}.")
+        if args.no_main_contrastive_loss:
+            raise SystemExit(
+                "--rep-loss-weight-end decays a term of the main "
+                "contrastive loss, and --no-main-contrastive-loss drops "
+                "that loss whole. The decay would move nothing.")
+        if args.rep_loss_weight_end == 0.0 and not keeps_gradient_without_rep(args):
+            raise SystemExit(
+                "--rep-loss-weight-end 0.0 removes L_rep, and this run keeps "
+                "no other term that carries a gradient. The backward pass "
+                "would have nothing to differentiate at the end of the ramp. "
+                "Add --align-loss-weight, --cpc-infonce-weight, "
+                "--align-moco-loss-weight or a SIGReg term with a weight "
+                "above 0, or decay to a value above 0.")
+    if args.rep_loss_weight_ramp_steps is not None:
+        if args.rep_loss_weight_ramp_steps <= 0:
+            raise SystemExit("--rep-loss-weight-ramp-steps must be positive; "
+                             f"got {args.rep_loss_weight_ramp_steps!r}.")
+        if args.rep_loss_weight_end is None:
+            raise SystemExit(
+                "--rep-loss-weight-ramp-steps anchors the L_rep weight ramp "
+                "but no ramp is configured; pass --rep-loss-weight-end.")
     # #388: L_align's teacher target. Both preconditions are hard errors —
     # silently falling back to the student target is the #382 bug this flag
     # exists to fix. The target applies to both L_align paths (#390): the
@@ -1862,6 +1956,20 @@ def main():
         # as tau_override so gradient reaches log_inv_tau. Otherwise the
         # loss uses LOSS_SPEC.train_configuration's scalar.
         tau_tensor = model.tau() if args.learnable_tau else None
+        # #409: L_rep's weight for THIS step. Constant at --rep-loss-weight
+        # unless --rep-loss-weight-end sets a decay, which spans
+        # --total-steps unless --rep-loss-weight-ramp-steps anchors it to a
+        # fixed step. It travels as a function argument, not through
+        # LOSS_SPEC, so the run's fixed base weight stays what the
+        # `loss_tau_ref` diagnostic below reads. The value used here is the
+        # one logged to the losses CSV.
+        rep_w_now = linear_schedule_at_step(
+            step, args.total_steps, args.rep_loss_weight,
+            args.rep_loss_weight_end, args.rep_loss_weight_ramp_steps)
+        # Per-term readout for the losses CSV: the loss fills this dict with
+        # the UNWEIGHTED L_pred / L_rep / L_align it computes, and leaves the
+        # key out for a term it skips.
+        loss_terms = {}
         with torch.amp.autocast('cuda', enabled=False):
             tau_tensor_loss = (tau_tensor.float()
                                if tau_tensor is not None else None)
@@ -1896,7 +2004,9 @@ def main():
                     (f_lat, o_lat), validation=False,
                     spec=LOSS_SPEC, tau_override=tau_tensor_loss,
                     teacher_original_latent=teacher_o_lat,
-                    rollout_latents=rollout_lats)
+                    rollout_latents=rollout_lats,
+                    rep_loss_weight=rep_w_now,
+                    term_out=loss_terms)
             # #374 arm 6: MoCo-style alignment on the encoder side (student
             # query, teacher key). Requires teacher_o_lat.
             align_moco_val = float('nan')
@@ -2119,6 +2229,13 @@ def main():
                        u_temporal_e=u_t_e, u_batch_e=u_b_e,
                        u_batchtime=u_bt, u_batchtime_e=u_bt_e,
                        ema_tau=ema_tau_now,
+                       rep_w=(rep_w_now
+                              if args.loss_shape in REP_WEIGHT_SHAPES
+                              and not args.no_main_contrastive_loss
+                              else None),
+                       l_pred=loss_terms.get('l_pred'),
+                       l_rep=loss_terms.get('l_rep'),
+                       l_align=loss_terms.get('l_align'),
                        cos_err_depths=cos_err_depths)
 
         if step % args.log_every == 0 and is_main_process():
