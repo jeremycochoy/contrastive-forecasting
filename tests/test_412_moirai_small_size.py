@@ -659,3 +659,74 @@ def test_a_smoke_writes_only_under_a_trial_root():
     text = SMOKE.read_text()
     fence = text.index("*-trial) rm -rf")
     assert "ABORT: a smoke must write under a trial root" in text[fence:]
+
+
+# ---- 12. The default run, the gate rule, and the cost table -------------------
+#
+# `bash run.sh` with no argument must not launch the whole grid. Seven arms at
+# every stop is 164 GPU-hours of backbone on one card, and the header of
+# `run.sh` forbids it. A lost arm must not climb either, and the second pass of
+# the plan is a SECOND invocation of `phase1.sh`. So a collapse that only the
+# first invocation knows about is not enough.
+
+
+def dry_phase1(tmp_path, extra: dict | None = None):
+    """Run `phase1.sh` with every leg and every head in dry-run."""
+    env = {"CF412_ROOT": str(tmp_path / "root"),
+           "CF412_RESULTS": str(tmp_path / "results"),
+           "CF412_DRY_RUN": "1"}
+    env.update(extra or {})
+    return bash(f'bash "{PHASE1}"', env=env)
+
+
+def legs_of(stdout: str):
+    """The `(arm, stop)` of every leg a dry-run of `phase1.sh` fired."""
+    return re.findall(r"^arm (\S+) cell=\S+ k=\d+ steps=(\d+)", stdout, re.M)
+
+
+def test_the_default_pass_trains_40000_steps_and_no_more(tmp_path):
+    """Every arm at every stop is the 164 GPU-hours the header forbids."""
+    proc = dry_phase1(tmp_path)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    legs = legs_of(proc.stdout)
+    assert sorted({stop for _, stop in legs}) == ["40000"], proc.stdout
+    assert [arm for arm, _ in legs] == study("printf '%s\\n' $CF412_ARMS").split()
+
+
+def test_a_higher_stop_still_runs_when_the_gate_asks_for_it(tmp_path):
+    """The gate climbs the arms that pass it, so `STOPS` must still carry."""
+    proc = dry_phase1(tmp_path, {"ARMS": CONFIGS[1], "STOPS": "200000"})
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert legs_of(proc.stdout) == [(CONFIGS[1], "200000")], proc.stdout
+
+
+def test_a_collapse_of_an_earlier_pass_keeps_the_arm_out(tmp_path):
+    """Pass 2 is a second invocation, and it must not retrain a collapse."""
+    lost, held = CONFIGS[5], CONFIGS[1]
+    note = tmp_path / "results" / f"collapsed_{lost}.txt"
+    note.parent.mkdir(parents=True, exist_ok=True)
+    note.write_text(f"arm {lost} lost the contrastive task.\n")
+    proc = dry_phase1(tmp_path, {"ARMS": f"{lost} {held}", "STOPS": "200000"})
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert legs_of(proc.stdout) == [(held, "200000")], proc.stdout
+    assert note.is_file(), "the note that keeps the arm out was deleted"
+
+
+def test_the_gate_rule_names_the_auc_condition():
+    """The rule listed the noise band alone, so a lost arm could climb."""
+    text = RUN_SH.read_text()
+    rule = text[text.index("The gate, then 200,000 steps"):]
+    assert study("printf '%s' $CF412_AUC_THRESHOLD") in rule, rule
+    assert "collapsed_" in rule, rule
+
+
+def test_the_cost_table_gives_every_reading_of_its_file():
+    """The table dropped the two decay arms, which are its cheapest rows."""
+    rows = (EXP / "results" / "trial" / "smoke.csv").read_text().splitlines()
+    text = RUN_SH.read_text()
+    for row in rows[1:]:
+        arm, mib, ms = row.split(",")[0], row.split(",")[-3], row.split(",")[-2]
+        hours = round(float(ms) * 40_000 / 3_600_000, 1)
+        line = (rf"^#\s+{arm}\s+{round(float(ms))} ms\s+"
+                rf"{int(mib):,} MiB\s+{hours} h")
+        assert re.search(line, text, re.M), f"{arm}: {line}"

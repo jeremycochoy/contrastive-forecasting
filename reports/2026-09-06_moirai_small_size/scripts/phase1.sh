@@ -25,10 +25,14 @@
 #        k8_r100_09 is optional and goes last, on an idle card.
 #
 #      This order completes the decay pair and the seed band first, so an
-#      interruption still leaves an answer. Cost about 27 GPU-hours.
+#      interruption still leaves an answer. Cost 28.9 GPU-hours of backbone.
 #
 #   2. the gate, on the 40,000-step GIFT scores. Then `STOPS=200000` on the
 #      arms that pass it. `run.sh` holds the gate rule.
+#
+# `STOPS` DEFAULTS TO THE FIRST PASS, 40,000 steps, and never to the whole
+# grid. Every arm at every stop is 164 GPU-hours of backbone on one card. The
+# gate spends that budget on the arms that earn it.
 #
 # Each stage is idempotent. An arm whose checkpoint is on disk is a no-op, a
 # head whose score file is written is a no-op, and a GIFT-Eval resumes for
@@ -42,7 +46,12 @@
 # still has its whole AUC curve and its loss by term, which is the answer the
 # card asks for.
 #
-# Usage:  BB_GPU=0 bash scripts/phase1.sh
+# THE COLLAPSE ALSO CROSSES INVOCATIONS. The plan above is two of them, and
+# `run_arm.sh` deletes `results/collapsed_<arm>.txt` when the arm's next leg
+# starts. So this script reads those files BEFORE the first leg, and pass 2
+# drops an arm that pass 1 lost. Delete that file to let the arm run again.
+#
+# Usage:  BB_GPU=0 bash scripts/phase1.sh   # every arm, 40,000 steps
 #         BB_GPU=0 STOPS=40000 ARMS="k32_r100_09 k32_r100_09_dec" \
 #           bash scripts/phase1.sh
 set -uo pipefail
@@ -52,7 +61,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 BB_GPU="${BB_GPU:-0}"
 ARMS="${ARMS:-$CF412_ARMS}"
-STOPS="${STOPS:-$CF412_STOPS}"
+STOPS="${STOPS:-$CF412_FIRST_STOP}"
 mkdir -p "$CF412_RESULTS"
 
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#412 phase1] $*" \
@@ -61,8 +70,18 @@ log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#412 phase1] $*" \
 log "arms: $ARMS"
 log "stops: $STOPS  gpu: $BB_GPU"
 
-failed=0
+# The arms an EARLIER invocation lost. See the header: the note of an arm that
+# runs again is deleted, so this list is read before the first leg.
 collapsed=""
+for arm in $ARMS; do
+  cf412_require_arm "$arm" || exit $?
+  [ -f "$(cf412_collapse_file "$arm")" ] || continue
+  collapsed="$collapsed $arm"
+  log "backbone $arm lost the contrastive task in an earlier pass — see" \
+      "$(cf412_collapse_file "$arm")"
+done
+
+failed=0
 for stop in $STOPS; do
   for arm in $ARMS; do
     cf412_require_arm "$arm" || exit $?

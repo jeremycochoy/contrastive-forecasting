@@ -121,6 +121,12 @@ if [ -n "${CF412_TRIAL:-}" ]; then
   CF412_AUC_POLL="${CF412_AUC_POLL:-10}"
 fi
 
+# The first pass of the plan, and the default stop of `phase1.sh`. Every arm at
+# every stop is 164 GPU-hours of backbone on one card, so no default asks for
+# it. The gate on the 40,000-step scores picks the arms that climb (`run.sh`).
+# A trial holds one stop, and this is that stop.
+CF412_FIRST_STOP="${CF412_STOPS%% *}"
+
 # ---- Where the artefacts live ------------------------------------------------
 #
 # Never /tmp, never inside the checkout (CLAUDE.md checkpoint safety rule 4),

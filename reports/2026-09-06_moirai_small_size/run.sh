@@ -13,7 +13,9 @@
 #               the backbone from flags, so this is where a wrong width shows.
 #   4. phase1   the arms of `ARMS` to each stop of `STOPS`, one 30,000-step
 #               student head for each stop, then that head's 97 GIFT-Eval
-#               configs. It also starts the AUC gate on every leg.
+#               configs. It also starts the AUC gate on every leg. `STOPS`
+#               defaults to 40,000 steps, the first pass, and never to the
+#               whole grid.
 #   5. collect  the scores, the AUC verdicts and the loss by term, in three
 #               tables.
 #
@@ -26,20 +28,27 @@
 #
 # ---- The measured cost -------------------------------------------------------
 #
-# `scripts/smoke.sh` measured this two times, 150 steps for each arm, while
-# the card carried 4.0 GB and 80 to 97 percent of other work. The memory is a
-# peak of a one-second sampler over this arm's OWN processes, so the other
-# tenants of the card are not in it.
+# `scripts/smoke.sh` ran each arm 150 steps and wrote `results/trial/smoke.csv`.
+# Every row of that file is below. The step time is the trainer's own last
+# timing line. The memory is a peak of a one-second sampler over this arm's OWN
+# processes, so the 4.0 GB of other work on the card is not in it.
 #
-#   k     step time      memory              40,000 steps
-#   3     272 ms         6,436 to 6,472 MiB  3.0 h
-#   8     346 ms         5,424 to 7,160 MiB  3.8 h
-#   32    651 to 688 ms  10,058 to 10,062 MiB  7.6 h
+#   arm                step time   memory      40,000 steps
+#   k3_r100_09_dec       179 ms     6,436 MiB     2.0 h
+#   k3_r100_09b          266 ms     6,472 MiB     3.0 h
+#   k3_r100_09           272 ms     6,436 MiB     3.0 h
+#   k8_r100_09           346 ms     7,160 MiB     3.8 h
+#   k32_r100_09_dec      550 ms    10,058 MiB     6.1 h
+#   k32_r200_08          651 ms    10,062 MiB     7.2 h
+#   k32_r100_09          688 ms    10,062 MiB     7.6 h
 #
-# THE STEP TIME IS AN UPPER BOUND. The card was busy through both runs. The
-# parent cards measured 231 ms and 586 ms for k = 3 and k = 32 on a quieter
-# card, which gives 2.6 h and 6.5 h. So the plan below costs 27 GPU-hours on
-# a quiet card and up to 32 on this one.
+# A DECAY ARM READS FASTER because its `L_rep` weight is 0.0 over most of a
+# smoke. The study ends that ramp at step 2,000, so 38,000 of its 40,000 steps
+# run at this lower cost.
+#
+# THE STEP TIME IS AN UPPER BOUND. The card carried 4.0 GB and 80 to 97 percent
+# of other work through every arm. The six mandatory arms add up to 28.9 h of
+# backbone at these readings, and the optional `k8_r100_09` adds 3.8 h.
 #
 # TWO k = 32 ARMS DO NOT SHARE ONE CARD HERE. 10.1 + 10.1 + 4.0 = 24.2 GB on
 # a 24.0 GB card. Card A runs its two k = 32 arms one after the other, which
@@ -48,7 +57,8 @@
 # ---- The run plan, from PR #413 ----------------------------------------------
 #
 # STOP AT 40,000 STEPS FIRST. Do not launch 200,000 steps for every arm: that
-# is 153 GPU-hours where the plan below is 38, or 64 if one k = 32 arm climbs.
+# is 164 GPU-hours of backbone where the plan below is 28.9. One k = 32 arm
+# that climbs to 200,000 steps adds 30.6. `phase1.sh` defaults to this pass.
 #
 #   Card A:  BB_GPU=0 STOPS=40000 ARMS="k32_r100_09 k32_r100_09_dec" \
 #              bash run.sh phase1
@@ -58,7 +68,7 @@
 #
 # `k8_r100_09` is optional. It goes last, and only on an idle card. This order
 # completes the decay pair and the seed band first, so an interruption still
-# leaves an answer. Cost about 27 GPU-hours.
+# leaves an answer. Cost 28.9 GPU-hours of backbone.
 #
 # Seeds: 20260520 on every arm, 20260525 on `k3_r100_09b` alone. No new seed.
 #
@@ -67,6 +77,12 @@
 # THE BAND is 0.0471 GM-Relative MASE, or the spread of the two `k3_r100_09`
 # seeds, whichever is wider. #409 measured 0.0471 at this stop.
 #
+#   * THE AUC COMES FIRST. An arm whose rolling AUC median ended under 0.55
+#     lost the contrastive task, and it does not climb. This applies to
+#     every arm, `k3_r100_09` included, because a higher stop trains the
+#     same collapse. The gate writes `results/collapsed_<arm>.txt`, which
+#     names the step, and `phase1.sh` reads those files before its first
+#     leg. Delete that file to let the arm run again.
 #   * Climb `k3_r100_09` ALWAYS. Its reference, 1.0651, is a 200,000-step
 #     number, so the main question is answered at 200,000 steps and nowhere
 #     else.
@@ -83,7 +99,7 @@
 #
 #   BB_GPU=0 STOPS=200000 ARMS="k3_r100_09" bash run.sh phase1 collect
 #
-# Usage:  BB_GPU=0 bash run.sh              # everything
+# Usage:  BB_GPU=0 bash run.sh              # every stage, phase1 at 40,000 steps
 #         BB_GPU=0 bash run.sh size smoke   # some stages
 set -uo pipefail
 
