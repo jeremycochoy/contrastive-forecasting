@@ -1,0 +1,14 @@
+[09-06 05:54:50] [#412] arm k32_r100_09 arch='--d-model 384 --n-heads 8 --num-layers 3 --num-encoder-layers 3' k=32 reduce=mean ema='--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000' decay='none' seed=20260520 -> 40000 steps on gpu 0
+[09-06 05:54:55] [#412] arm k32_r100_09 arch=384 3 3 k=32 reduce=mean ema='0.9 1.0 100000' decay='1.0 - -' seed=20260520 batch=64 align=teacher OK — all seven reached the trainer
+[09-06 05:54:56] [#412] arm k32_r100_09 AUC gate pid 4049804 — window 500, threshold 0.55, warmup 1000
+[09-06 05:55:07] [#412] arm k3_r100_09 arch='--d-model 384 --n-heads 8 --num-layers 3 --num-encoder-layers 3' k=3 reduce=sum ema='--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000' decay='none' seed=20260520 -> 40000 steps on gpu 1
+[09-06 05:55:12] [#412] arm k3_r100_09 arch=384 3 3 k=3 reduce=sum ema='0.9 1.0 100000' decay='1.0 - -' seed=20260520 batch=64 align=teacher OK — all seven reached the trainer
+[09-06 05:55:12] [#412] arm k3_r100_09 AUC gate pid 4050709 — window 500, threshold 0.55, warmup 1000
+[09-06 10:31:19] [#412] arm k3_r100_09 stop=40000 rc=0
+[09-06 15:15:47] [#412] arm k3_r100_09b arch='--d-model 384 --n-heads 8 --num-layers 3 --num-encoder-layers 3' k=3 reduce=sum ema='--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000' decay='none' seed=20260525 -> 40000 steps on gpu 1
+[09-06 15:15:52] [#412] arm k3_r100_09b arch=384 3 3 k=3 reduce=sum ema='0.9 1.0 100000' decay='1.0 - -' seed=20260525 batch=64 align=teacher OK — all seven reached the trainer
+[09-06 15:15:52] [#412] arm k3_r100_09b AUC gate pid 364747 — window 500, threshold 0.55, warmup 1000
+[09-06 15:33:27] [#412] arm k32_r100_09 stop=40000 rc=0
+[09-06 15:34:18] [#412] arm k3_r100_09 arch='--d-model 384 --n-heads 8 --num-layers 3 --num-encoder-layers 3' k=3 reduce=sum ema='--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000' decay='none' seed=20260520 -> 100000 steps on gpu 0
+[09-06 15:34:23] [#412] arm k3_r100_09 arch=384 3 3 k=3 reduce=sum ema='0.9 1.0 100000' decay='1.0 - -' seed=20260520 batch=64 align=teacher OK — all seven reached the trainer
+[09-06 15:34:23] [#412] arm k3_r100_09 AUC gate pid 380882 — window 500, threshold 0.55, warmup 1000

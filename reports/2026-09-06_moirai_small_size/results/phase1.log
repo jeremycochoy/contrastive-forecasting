@@ -1,0 +1,14 @@
+[09-06 05:54:50] [#412 phase1] arms: k32_r100_09 k32_r100_09_dec
+[09-06 05:54:50] [#412 phase1] stops: 40000  gpu: 0
+[09-06 05:54:50] [#412 phase1] backbone k32_r100_09 -> 40000 (gpu 0 holds the 11300 MiB it needs)
+[09-06 05:55:07] [#412 phase1] arms: k3_r100_09 k3_r100_09b k3_r100_09_dec k32_r200_08
+[09-06 05:55:07] [#412 phase1] stops: 40000  gpu: 1
+[09-06 05:55:07] [#412 phase1] backbone k3_r100_09 -> 40000 (gpu 1 holds the 7700 MiB it needs)
+[09-06 10:31:19] [#412 phase1] head k3_r100_09 bb40000
+[09-06 15:15:47] [#412 phase1] backbone k3_r100_09b -> 40000 (gpu 1 holds the 7700 MiB it needs)
+[09-06 15:33:27] [#412 phase1] head k32_r100_09 bb40000
+[09-06 15:34:18] [#412 phase1] arms: k3_r100_09
+[09-06 15:34:18] [#412 phase1] stops: 100000 200000  gpu: 0
+[09-06 15:34:18] [#412 phase1] backbone k3_r100_09 -> 100000 (gpu 0 holds the 7700 MiB it needs)
+[09-06 15:35:57] [#412 relay] waits for pid 364487 (arm k3_r100_09b), then runs: k3_r100_09b k3_r100_09_dec on gpu 1
+[09-06 15:35:57] [#412 relay] k32_r200_08 stays out — PR #413 gates it on the 100,000-step climb
