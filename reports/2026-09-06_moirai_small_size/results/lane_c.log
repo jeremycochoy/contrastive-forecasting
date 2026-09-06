@@ -6,3 +6,16 @@
 [09-06 15:34:18] [arm6_v2_combab_alignT] START target=100000 gpu=0 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-412/k3_r100_09/arm6_v2_combab_alignT/leg_100k
 [09-06 15:34:23] [#412] arm k3_r100_09 arch=384 3 3 k=3 reduce=sum ema='0.9 1.0 100000' decay='1.0 - -' seed=20260520 batch=64 align=teacher OK — all seven reached the trainer
 [09-06 15:34:23] [#412] arm k3_r100_09 AUC gate pid 380882 — window 500, threshold 0.55, warmup 1000
+[09-06 22:14:28] [arm6_v2_combab_alignT] DONE target=100000 (66M) -> /home/jupyter/checkpoints_backup/cf-412/k3_r100_09/arm6_v2_combab_alignT/leg_100k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_100k.pth
+/tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/scripts/run_arm.sh: line 246: cf412_auc_warmup: command not found
+[09-06 22:14:28] [#412] arm k3_r100_09 AUC gate pid 380882 — window 500, threshold 0.55, warmup 
+/tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/scripts/run_arm.sh: line 249: syntax error near unexpected token `else'
+/tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/scripts/run_arm.sh: line 249: `else'
+[09-06 22:14:28] [#412 phase1] backbone k3_r100_09 stop 100000 FAILED rc=2
+[09-06 22:14:28] [#412 phase1] backbone k3_r100_09 -> 200000 (gpu 0 holds the 7700 MiB it needs)
+[09-06 22:14:28] [#412] arm k3_r100_09 arch='--d-model 384 --n-heads 8 --num-layers 3 --num-encoder-layers 3' k=3 reduce=sum ema='--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000' decay='none' seed=20260520 lr=1e-3 -> 200000 steps on gpu 0
+[09-06 22:14:28] [arm6_v2_combab_alignT] RESUME from cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_100k.pth (step 100k)
+[09-06 22:14:28] [arm6_v2_combab_alignT] START target=200000 gpu=0 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-412/k3_r100_09/arm6_v2_combab_alignT/leg_200k
+[09-06 22:14:33] [#412] arm k3_r100_09 arch=384 3 3 k=3 reduce=sum ema='0.9 1.0 100000' decay='1.0 - -' seed=20260520 batch=64 lr=1e-3 align=teacher OK — all eight reached the trainer
+[09-06 22:14:33] [#412] arm k3_r100_09 AUC gate pid 897530 — window 500, threshold 0.55, warmup 1000
+[09-06 22:15:34] [#412] head k3_r100_09_bb100k_h30k_student on cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_100k.pth

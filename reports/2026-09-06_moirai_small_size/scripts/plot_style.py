@@ -127,6 +127,13 @@ def reference(arm, stop):
     return REF_1M1.get(arm, {}).get(int(stop))
 
 
+# The columns of `arms.tsv`, in its order.
+ARMS_COLUMNS = ("arm", "k", "reduce", "tau", "end", "ramp", "seed", "decay",
+                "lr")
+# The rate every published run of this cell trained at. Two arms bracket it.
+LR_DEFAULT = "1e-3"
+
+
 def read_arms(path):
     """The arms table of this card, in its order, as a list of dicts."""
     out = []
@@ -137,9 +144,10 @@ def read_arms(path):
             parts = line.rstrip("\n").split("\t")
             if len(parts) < 8 or parts[0] == "arm":
                 continue
-            out.append(dict(zip(
-                ("arm", "k", "reduce", "tau", "end", "ramp", "seed", "decay"),
-                parts)))
+            row = dict(zip(ARMS_COLUMNS, parts))
+            if row.get("lr", "-") == "-":
+                row["lr"] = LR_DEFAULT
+            out.append(row)
     return out
 
 
@@ -174,6 +182,10 @@ def arm_label(row):
         text += f", {row['tau']} fixed"
     if row["decay"] != "-":
         text += f", decay to 0 by {int(row['decay']) // 1000}k"
+    # The bracket arms differ from configuration 1 in the rate alone, so a
+    # label that dropped it would name three curves the same.
+    if row["lr"] != LR_DEFAULT:
+        text += f", lr {row['lr']}"
     return text
 
 

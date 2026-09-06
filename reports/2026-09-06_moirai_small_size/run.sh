@@ -42,6 +42,11 @@
 #   k32_r200_08          651 ms    10,062 MiB     7.2 h
 #   k32_r100_09          688 ms    10,062 MiB     7.6 h
 #
+# THE TWO BRACKET ARMS HAVE NO ROW. They are configuration 1 at another
+# learning rate, and the step time and the memory come from the depth, the
+# reduction and the decay. So each one reads the 272 ms and the 6,436 MiB of
+# `k3_r100_09`.
+#
 # A DECAY ARM READS FASTER because its `L_rep` weight is 0.0 over most of a
 # smoke. The study ends that ramp at step 2,000, so 38,000 of its 40,000 steps
 # run at this lower cost.
@@ -71,6 +76,38 @@
 # leaves an answer. Cost 28.9 GPU-hours of backbone.
 #
 # Seeds: 20260520 on every arm, 20260525 on `k3_r100_09b` alone. No new seed.
+#
+# ---- The learning-rate bracket -----------------------------------------------
+#
+# Every arm above trains at 1e-3. That rate is the Moirai recipe. This project
+# does not use muP, and the trainer builds ONE AdamW group over all parameters
+# with no width multiplier, so a rate that fits `d_model` 64 need not fit 384.
+# A capacity verdict taken at a rate that does not fit the width answers a
+# question about the rate.
+#
+# Two arms bracket the rate on the cheapest cell, configuration 1 at seed
+# 20260520. Each one moves the RATE column of `arms.tsv` and no other.
+#
+#   k3_r100_09_lr33   3.3e-4
+#   k3_r100_09_lr17   1.67e-4, which is 1e-3 times 64/384
+#
+# THEY GO ON CARD B, after the `k3_r100_09b` head. Cost about 13 GPU-hours with
+# their heads and evals. Do not launch them before that head ends.
+#
+#   Card B:  BB_GPU=1 STOPS=40000 \
+#              ARMS="k3_r100_09_lr33 k3_r100_09_lr17" bash run.sh phase1
+#
+# THE RULE. D = 1.3495 minus the better rate arm, where 1.3495 is
+# `k3_r100_09` at 40,000 steps and 1e-3.
+#
+#   * D above 0.0471, the band: the rate does not fit the width. Every 1e-3
+#     number of this card is void, and phase 1 re-runs at the winning rate.
+#   * Both arms inside the band, or worse: the learning rate does not explain
+#     the 11.4M deficit at width 384.
+#
+# A slower arm reaches the contrastive task later, so `cf412_auc_warmup` scales
+# the AUC warm-up by the rate ratio. Without that scale the gate can stop a
+# healthy slow arm on the rows of its first minutes.
 #
 # ---- The gate, then 200,000 steps --------------------------------------------
 #

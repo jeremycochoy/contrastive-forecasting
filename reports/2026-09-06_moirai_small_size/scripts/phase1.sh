@@ -98,11 +98,16 @@ for stop in $STOPS; do
       log "backbone $arm SKIPPED at $stop — it lost the contrastive task"
       continue; }
     need="$(cf412_leg_vram_mib "$arm")"
-    cf412_wait_for_vram "$BB_GPU" "$need" "backbone $arm" \
-      2>&1 | tee -a "$CF412_RESULTS/phase1.log"
-    [ "${PIPESTATUS[0]}" -eq 0 ] || {
-      log "backbone $arm SKIPPED at $stop — gpu $BB_GPU never had $need MiB free"
-      failed=$(( failed + 1 )); continue; }
+    # A dry run prints the plan and trains nothing, so it needs no card. The
+    # wait below blocks for up to CF412_VRAM_TIMEOUT, and a busy box would hold
+    # a plan the reader asked to see.
+    if [ -z "${CF412_DRY_RUN:-}" ]; then
+      cf412_wait_for_vram "$BB_GPU" "$need" "backbone $arm" \
+        2>&1 | tee -a "$CF412_RESULTS/phase1.log"
+      [ "${PIPESTATUS[0]}" -eq 0 ] || {
+        log "backbone $arm SKIPPED at $stop — gpu $BB_GPU never had $need MiB free"
+        failed=$(( failed + 1 )); continue; }
+    fi
     log "backbone $arm -> $stop (gpu $BB_GPU holds the ${need} MiB it needs)"
     BB_GPU="$BB_GPU" bash "$HERE/run_arm.sh" "$arm" "$stop"
     rc=$?

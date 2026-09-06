@@ -15,3 +15,10 @@
 [09-06 20:12:47] [#412] arm k32_r100_09_dec arch='--d-model 384 --n-heads 8 --num-layers 3 --num-encoder-layers 3' k=32 reduce=mean ema='--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 2000' seed=20260520 -> 40000 steps on gpu 0
 [09-06 20:12:52] [#412] arm k32_r100_09_dec arch=384 3 3 k=32 reduce=mean ema='0.9 1.0 100000' decay='1.0 0.0 2000' seed=20260520 batch=64 align=teacher OK — all seven reached the trainer
 [09-06 20:12:52] [#412] arm k32_r100_09_dec AUC gate pid 663584 — window 500, threshold 0.55, warmup 1000
+[09-06 21:33:03] [#412] arm k3_r100_09b AUC gate pid 364747 — window 500, threshold 0.55, warmup 
+[09-06 21:33:07] [#412] arm k3_r100_09b arch='--d-model 384 --n-heads 8 --num-layers 3 --num-encoder-layers 3' k=3 reduce=sum ema='--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000' decay='none' seed=20260525 lr=1e-3 -> 40000 steps on gpu 1
+[09-06 21:33:12] [#412] arm k3_r100_09b no trainer this leg (rc=0) — /home/jupyter/checkpoints_backup/cf-412/k3_r100_09b/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09b_40k.pth
+[09-06 22:14:28] [#412] arm k3_r100_09 AUC gate pid 380882 — window 500, threshold 0.55, warmup 
+[09-06 22:14:28] [#412] arm k3_r100_09 arch='--d-model 384 --n-heads 8 --num-layers 3 --num-encoder-layers 3' k=3 reduce=sum ema='--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000' decay='none' seed=20260520 lr=1e-3 -> 200000 steps on gpu 0
+[09-06 22:14:33] [#412] arm k3_r100_09 arch=384 3 3 k=3 reduce=sum ema='0.9 1.0 100000' decay='1.0 - -' seed=20260520 batch=64 lr=1e-3 align=teacher OK — all eight reached the trainer
+[09-06 22:14:33] [#412] arm k3_r100_09 AUC gate pid 897530 — window 500, threshold 0.55, warmup 1000

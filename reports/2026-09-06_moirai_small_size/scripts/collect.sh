@@ -3,7 +3,8 @@
 #
 #   results/scores.csv         the 97-config GM-Relative MASE of each
 #                              (arm, stop). The arm's depth, reduction,
-#                              momentum, seed and decay ride beside it.
+#                              momentum, seed, decay and learning rate ride
+#                              beside it.
 #   results/auc_verdicts.tsv   whether each run held the contrastive task, and
 #                              at which step it lost it.
 #   results/loss_terms.csv     the training loss by term at each stop:
@@ -40,16 +41,16 @@ PARAMS="$(python3 "$CF412_REPO/scripts/model_size.py" \
   | awk 'NR == 2 { print $4 }')"
 
 # ---- The scores --------------------------------------------------------------
-echo "arm,k,reduce,tau,end,ramp,seed,decay,d_model,params,stop,head_steps,score" \
+echo "arm,k,reduce,tau,end,ramp,seed,decay,lr,d_model,params,stop,head_steps,score" \
   >"$OUT"
 n=0
 while read -r arm stop; do
   [ -n "$arm" ] || continue
   score_file="$(cf412_score_file "$arm" "$stop")"
   [ -s "$score_file" ] || continue
-  read -r name k red tau end ramp seed decay <<<"$(cf412_arm_row "$arm")"
-  printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
-    "$arm" "$k" "$red" "$tau" "$end" "$ramp" "$seed" "$decay" \
+  read -r name k red tau end ramp seed decay lr <<<"$(cf412_arm_row "$arm")"
+  printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
+    "$arm" "$k" "$red" "$tau" "$end" "$ramp" "$seed" "$decay" "$lr" \
     "$CF412_D_MODEL" "$PARAMS" "$stop" "$CF412_HEAD_STEPS" \
     "$(tr -d ' \n' <"$score_file")" >>"$OUT"
   n=$(( n + 1 ))
@@ -99,22 +100,36 @@ echo "wrote $TERMS ($m stop(s) with a loss row)"
 # One row per losses CSV, not per arm: a leg re-fired after a crash resumes
 # under a `_rN` run name and writes a second CSV, and the report reads both.
 #
-# The verdict uses the card's own warm-up, which is the gate's. A table built
-# at warm-up 0 would call the first steps of every healthy run a loss.
-csvs=()
+# The verdict uses each arm's OWN warm-up, which is the gate's. A table built
+# at warm-up 0 would call the first steps of every healthy run a loss, and a
+# table built at one warm-up would do the same to the slow bracket arms. So the
+# CSVs are grouped by warm-up and the pass runs one time for each group. Only
+# the first group writes the header, so the file holds one table.
+groups=""
+declare -A GROUP
 for arm in $CF412_ARMS; do
+  warmup="$(cf412_auc_warmup "$arm")"
   for stop in $CF412_STOPS; do
     while read -r csv; do
-      [ -n "$csv" ] && csvs+=("$csv")
+      [ -n "$csv" ] || continue
+      cf412_is_in "$warmup" "$groups" || groups="$groups $warmup"
+      GROUP["$warmup"]="${GROUP[$warmup]:-} $csv"
     done < <(cf412_losses_csvs "$arm" "$stop")
   done
 done
 
-if [ -f "$CF412_AUC_WATCH_PY" ] && [ "${#csvs[@]}" -gt 0 ]; then
-  python3 "$CF412_AUC_WATCH_PY" "${csvs[@]}" --tsv \
-    --window "$CF412_AUC_WINDOW" --threshold "$CF412_AUC_THRESHOLD" \
-    --warmup "$CF412_AUC_WARMUP" >"$VERDICTS"
-  rc=$?
+if [ -f "$CF412_AUC_WATCH_PY" ] && [ -n "$groups" ]; then
+  rc=0
+  head_args=(--tsv)
+  : >"$VERDICTS"
+  for warmup in $groups; do
+    python3 "$CF412_AUC_WATCH_PY" ${GROUP[$warmup]} "${head_args[@]}" \
+      --window "$CF412_AUC_WINDOW" --threshold "$CF412_AUC_THRESHOLD" \
+      --warmup "$warmup" >>"$VERDICTS"
+    one=$?
+    [ "$one" -gt "$rc" ] && rc=$one
+    head_args=()
+  done
   # 1 means a run lost the task, which is a RESULT of this card and not a
   # failure of the collect. Only a broken CSV (2) is worth a warning.
   [ "$rc" -le 1 ] || echo "WARN: the AUC pass exited rc=$rc — see $VERDICTS" >&2

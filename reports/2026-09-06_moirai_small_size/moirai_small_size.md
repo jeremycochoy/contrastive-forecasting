@@ -53,6 +53,15 @@ under-trains a 384-wide encoder biases every 11.4M score in this report the
 same way. Comparisons inside one size survive that bias. The size headline
 does not, and it carries this caveat.
 
+**The learning rate is not proven at this width.** Every arm trains at 1e-3,
+which is the Moirai recipe. This project does not use muP, and the trainer
+builds one AdamW group over all parameters. So a rate that fits `d_model` 64
+need not fit 384. Two arms bracket the rate on configuration 1, at 3.3e-4 and
+1.67e-4. D is 1.3495 minus the better of the two. A D above the 0.0471 band
+voids every 1e-3 number of this card, and phase 1 repeats at the winning rate.
+Both arms inside the band, or worse, ends the learning-rate explanation at
+width 384.
+
 **The band is 0.0471.** #409 measured that spread over two backbone seeds of
 one configuration at the 40,000-step stop. Two numbers closer than that are
 not ranked. `k3_r100_09b` repeats `k3_r100_09` at seed 20260525 and measures
@@ -79,5 +88,6 @@ BB_GPU=0 bash run.sh size smoke trial       # the shape, the cost, one arm end t
 BB_GPU=0 STOPS=40000 ARMS="k32_r100_09 k32_r100_09_dec" bash run.sh phase1
 BB_GPU=1 STOPS=40000 ARMS="k3_r100_09 k3_r100_09b k3_r100_09_dec" bash run.sh phase1
 BB_GPU=0 STOPS="100000 200000" ARMS="k3_r100_09" bash run.sh phase1
+BB_GPU=1 STOPS=40000 ARMS="k3_r100_09_lr33 k3_r100_09_lr17" bash run.sh phase1
 bash run.sh collect && bash scripts/make_plots.sh
 ```

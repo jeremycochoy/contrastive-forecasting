@@ -345,11 +345,16 @@ CONFIGS = {
 }
 REPEAT_SEED_ARM = "k3_r100_09b"
 DECAY_RAMP = "2000"
+# The learning-rate bracket of section 13. Configuration 1 at two lower rates.
+RATE_ARMS = ["k3_r100_09_lr33", "k3_r100_09_lr17"]
+# The rate every published run of this cell trained at, and `run_leg_k.sh`'s.
+LR_DEFAULT = 1e-3
 
 
-def test_the_card_has_its_six_configurations_and_the_repeat_seed():
+def test_the_card_has_its_six_configurations_the_repeat_and_the_bracket():
     arms = study("printf '%s\\n' $CF412_ARMS").split()
-    assert arms == [CONFIGS[n] for n in (1, 2, 3, 4, 5, 6)] + [REPEAT_SEED_ARM]
+    assert arms == ([CONFIGS[n] for n in (1, 2, 3, 4, 5, 6)]
+                    + [REPEAT_SEED_ARM] + RATE_ARMS)
 
 
 @pytest.mark.parametrize("config,k,reduce,ema,decay", [
@@ -623,13 +628,26 @@ def test_the_smoke_samples_the_card_faster_than_an_arm_runs():
 
 
 def test_the_committed_smoke_agrees_with_the_claim():
-    """The evidence a reader sees must be the evidence the PR body describes."""
+    """The evidence a reader sees must be the evidence the PR body describes.
+
+    The smoke measures the step time and the peak memory. Both come from the
+    depth, the reduction and the decay, never from the learning rate. So an
+    arm that moves the rate alone reads the cost of the arm it repeats, and
+    the smoke gives no row of its own for it.
+    """
     log = (EXP / "results" / "trial" / "smoke.log").read_text()
     assert "smoke done — 0 failure(s)" in log, log
     assert " rc=" not in log, log
     rows = (EXP / "results" / "trial" / "smoke.csv").read_text().splitlines()
+    measured = [r.split(",")[0] for r in rows[1:]]
     arms = study("printf '%s\\n' $CF412_ARMS").split()
-    assert [r.split(",")[0] for r in rows[1:]] == arms
+    assert measured == [a for a in arms if a in measured]
+    def cost(arm):
+        return tuple(study(f"{r} {arm}") for r in
+                     ("cf412_depth", "cf412_reduce", "cf412_decay_ramp"))
+    twins = {cost(a) for a in measured}
+    for arm in arms:
+        assert arm in measured or cost(arm) in twins, arm
 
 
 def test_a_smoke_measures_and_never_inherits(tmp_path):
@@ -730,3 +748,187 @@ def test_the_cost_table_gives_every_reading_of_its_file():
         line = (rf"^#\s+{arm}\s+{round(float(ms))} ms\s+"
                 rf"{int(mib):,} MiB\s+{hours} h")
         assert re.search(line, text, re.M), f"{arm}: {line}"
+
+
+# ---- 13. The learning-rate bracket -------------------------------------------
+#
+# Every arm above trains at 1e-3, which is the Moirai recipe `run_leg_k.sh`
+# states. This project does not use muP, and the trainer builds ONE AdamW group
+# over all parameters with no width multiplier. So a rate that fits `d_model`
+# 64 need not fit 384, and a capacity verdict taken at a rate that does not fit
+# the width answers a question about the rate.
+#
+# Two arms bracket it on the cheapest cell, configuration 1. 1.67e-4 is 1e-3
+# times 64/384, and 3.3e-4 sits between. The verdict needs "does a lower rate
+# win", not the optimum, so the bracket holds two points and no more.
+
+# 1e-3 times 64 / 384, the width ratio of this card.
+LR_WIDTH_RATIO = LR_DEFAULT * 64 / CHOSEN_D_MODEL
+ARMS_COLUMNS = ["arm", "k", "reduce", "tau", "end", "ramp", "seed", "decay",
+                "lr"]
+
+
+def arms_rows():
+    """The data rows of `arms.tsv`, split on the tab."""
+    return [ln.split("\t") for ln in ARMS_TSV.read_text().splitlines()
+            if ln and not ln.startswith("#")]
+
+
+def cmdline(arm, lr, env=None):
+    """A trainer command line that carries every value `arm` asks for."""
+    return " ".join([
+        "python3 train.py",
+        f"--d-model 64 --batch-size {study('printf %s $CF412_BATCH_SIZE', env)}",
+        "--lr 1e-3 --align-target teacher",
+        f"--seed {study(f'cf412_seed {arm}', env)}",
+        f"--train-rollout-depth {study(f'cf412_depth {arm}', env)}",
+        f"--train-rollout-reduce {study(f'cf412_reduce {arm}', env)}",
+        study(f'cf412_ema_args {arm}', env),
+        study(f'cf412_decay_args {arm}', env),
+        f"--d-model {CHOSEN_D_MODEL} --num-layers {CHOSEN_LAYERS}",
+        f"--num-encoder-layers {CHOSEN_ENCODER_LAYERS}",
+        f"--lr {lr}",
+    ])
+
+
+def test_the_arms_table_carries_the_rate_as_its_last_column():
+    header = [ln for ln in ARMS_TSV.read_text().splitlines()
+              if ln.startswith("# arm\t")]
+    assert len(header) == 1, "the table names its columns one time"
+    assert header[0].lstrip("# ").split("\t") == ARMS_COLUMNS
+    for row in arms_rows():
+        assert len(row) == len(ARMS_COLUMNS), row
+
+
+def test_every_published_arm_keeps_the_rate_of_the_runner():
+    """The bracket adds a column. It must move no arm that already ran."""
+    published = [CONFIGS[n] for n in (1, 2, 3, 4, 5, 6)] + [REPEAT_SEED_ARM]
+    for arm in published:
+        assert float(study(f'cf412_lr {arm}')) == LR_DEFAULT, arm
+    assert "--lr 1e-3" in RUN_LEG.read_text()
+
+
+@pytest.mark.parametrize("arm,lr", [("k3_r100_09_lr33", 3.3e-4),
+                                    ("k3_r100_09_lr17", 1.67e-4)])
+def test_a_rate_arm_moves_the_rate_column_alone(arm, lr):
+    """Configuration 1 at another rate. Every other column is its twin's."""
+    for reader in ("cf412_depth", "cf412_reduce", "cf412_ema_sig",
+                   "cf412_decay_ramp", "cf412_seed"):
+        assert study(f'{reader} {arm}') == study(f'{reader} {CONFIGS[1]}'), reader
+    assert float(study(f'cf412_lr {arm}')) == lr
+
+
+def test_the_bracket_holds_the_width_ratio_and_one_point_above_it():
+    low, high = (float(study(f'cf412_lr {a}')) for a in RATE_ARMS[::-1])
+    assert low == pytest.approx(LR_WIDTH_RATIO, rel=0.01)
+    assert low < high < LR_DEFAULT
+    # Two points bracket the rate. More points buy an optimum the verdict does
+    # not need.
+    assert len(RATE_ARMS) == 2
+
+
+def test_the_rate_reaches_the_trainer_last_on_the_line():
+    """`run_leg_k.sh` states 1e-3 in its own block, so the repeat goes last."""
+    for arm in RATE_ARMS:
+        proc = bash(f'CF412_DRY_RUN=1 bash "{RUN_ARM}" {arm} 40000')
+        assert proc.returncode == 0, proc.stderr
+        gap = [ln for ln in proc.stdout.splitlines() if "gap=" in ln]
+        assert len(gap) == 1
+        assert f"--lr {study(f'cf412_lr {arm}')}" in gap[0], proc.stdout
+
+
+def test_the_rate_is_read_back_off_a_trainer_command_line():
+    line = "python3 train.py --lr 1e-3 --d-model 384 --lr 1.67e-4"
+    assert study(f"printf '%s' '{line}' | cf412_lr_of_cmdline") == "1.67e-4"
+    # A line with no rate must not read as the arm's rate.
+    assert study("printf '%s' 'python3 train.py' | cf412_lr_of_cmdline") == "-"
+
+
+def test_a_leg_at_the_right_rate_passes_the_guard(tmp_path):
+    arm = RATE_ARMS[1]
+    env = guard_env(tmp_path, tmp_path / "runner.sh")
+    log = Path(study(f'cf412_leg_log {arm}', env=env))
+    stub_runner(tmp_path / "runner.sh",
+                f'mkdir -p "{log.parent}"\n'
+                f'echo "Command line: {cmdline(arm, "1.67e-4", env)}" >>"{log}"')
+    proc = bash(f'bash "{RUN_ARM}" {arm} 40000', env=env)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+
+
+def test_a_leg_at_the_wrong_rate_stops(tmp_path):
+    """A wrong rate must stop the leg in its first minute, as a wrong width does."""
+    arm = RATE_ARMS[1]
+    env = guard_env(tmp_path, tmp_path / "runner.sh")
+    log = Path(study(f'cf412_leg_log {arm}', env=env))
+    stub_runner(tmp_path / "runner.sh",
+                f'mkdir -p "{log.parent}"\n'
+                f'echo "Command line: {cmdline(arm, "1e-3", env)}" >>"{log}"\n'
+                f'sleep 120')
+    proc = bash(f'bash "{RUN_ARM}" {arm} 40000', env=env)
+    assert proc.returncode == 3, proc.stdout + proc.stderr
+    assert "'1e-3'" in proc.stderr and "'1.67e-4'" in proc.stderr, proc.stderr
+
+
+# ---- 14. The AUC warm-up follows the rate ------------------------------------
+#
+# At 1e-3 the contrastive AUC crosses 0.55 before step 2,000, and the warm-up
+# is 1,000 steps. At a lower rate the crossing comes later, so a warm-up of
+# 1,000 lets the gate stop a healthy slow arm.
+
+
+def test_the_warmup_rises_as_the_rate_falls():
+    base = int(study(f'cf412_auc_warmup {CONFIGS[1]}'))
+    assert base == int(study("printf '%s' $CF412_AUC_WARMUP")) == 1000
+    high, low = (int(study(f'cf412_auc_warmup {a}')) for a in RATE_ARMS)
+    assert base < high < low
+    # The scale is the rate ratio: a run at a sixth of the rate reaches a step
+    # in six times the steps.
+    for arm, warmup in zip(RATE_ARMS, (high, low)):
+        want = base * LR_DEFAULT / float(study(f'cf412_lr {arm}'))
+        assert abs(warmup - want) < 1, arm
+
+
+def test_the_gate_does_not_stop_a_slow_arm_below_its_warmup(tmp_path):
+    """The rows of a slow arm's first steps are not a verdict on it."""
+    proc = gate_run(tmp_path, RATE_ARMS[1], lambda s: 0.50, hold=3)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert not (tmp_path / "results" / f"collapsed_{RATE_ARMS[1]}.txt").exists()
+
+
+def test_the_gate_still_stops_the_same_rows_at_the_card_rate(tmp_path):
+    """The pair of the test above: 1e-3 reads those rows, and stops the leg."""
+    proc = gate_run(tmp_path, CONFIGS[1], lambda s: 0.50, hold=120)
+    assert proc.returncode == 1, proc.stdout + proc.stderr
+    assert (tmp_path / "results" / f"collapsed_{CONFIGS[1]}.txt").is_file()
+
+
+def test_collect_reads_each_arm_at_its_own_warmup(tmp_path):
+    """A table built at one warm-up would call a slow arm's first steps a loss."""
+    root, results = tmp_path / "root", tmp_path / "results"
+    env = {"CF412_ROOT": str(root), "CF412_RESULTS": str(results)}
+    for arm in (CONFIGS[1], RATE_ARMS[1]):
+        leg = Path(study(f'cf412_leg_dir {arm} 40000', env=env))
+        name = study(f'cf412_run_name {arm}', env=env)
+        losses_csv(leg / f"{name}_losses.csv",
+                   [(s, 0.50) for s in range(1, 3001)])
+    proc = bash(f'bash "{COLLECT}"', env=env)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    rows = {}
+    for line in (results / "auc_verdicts.tsv").read_text().splitlines()[1:]:
+        run, verdict = line.split("\t")[:2]
+        rows[run.split("_cf412_")[-1].replace("_losses.csv", "")] = verdict
+    assert rows[CONFIGS[1]] == "lost"
+    assert rows[RATE_ARMS[1]] != "lost", rows
+    # One header, for one table.
+    assert (results / "auc_verdicts.tsv").read_text().count("floor_step") == 1
+
+
+# ---- 15. The rule the bracket is read against --------------------------------
+
+
+def test_the_run_plan_names_the_bracket_and_its_rule():
+    text = RUN_SH.read_text()
+    rule = text[text.index("The learning-rate bracket"):]
+    for arm in RATE_ARMS:
+        assert arm in rule, arm
+    assert "1.3495" in rule and "0.0471" in rule, rule

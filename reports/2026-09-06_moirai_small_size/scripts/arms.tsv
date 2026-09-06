@@ -2,7 +2,7 @@
 #
 # Columns: arm, the rollout depth k, the reduction over the k + 1 depth
 # copies, the EMA momentum alpha at step 0, alpha at the end of the ramp, the
-# ramp length, the backbone seed, the L_rep decay ramp.
+# ramp length, the backbone seed, the L_rep decay ramp, the learning rate.
 #
 # Every arm trains #373's cell `arm6_v2_combab_alignT` at `d_model` 384. The
 # WIDTH is the one thing this card moves, and it is not a column: every arm
@@ -69,6 +69,27 @@
 # #404 saw seed 20260521 lose the contrastive task, so this card does not use
 # it.
 #
+# ---- The learning-rate bracket ----------------------------------------------
+#
+#   k3_r100_09_lr33   Configuration 1 at 3.3e-4.
+#   k3_r100_09_lr17   Configuration 1 at 1.67e-4, which is 1e-3 times 64/384.
+#
+# Every other arm trains at 1e-3. That rate is the Moirai recipe, and
+# `run_leg_k.sh` states it. This project does not use muP, and the trainer
+# builds ONE AdamW group over all parameters with no width multiplier
+# (`train.py`). So a rate that fits `d_model` 64 need not fit 384, and a
+# capacity verdict taken at a rate that does not fit the width answers a
+# question about the rate.
+#
+# Two points bracket the rate. The verdict needs "does a lower rate win", not
+# the optimum, so the bracket holds no third point. Both rows carry seed
+# 20260520 and the columns of configuration 1, so each one moves the RATE
+# alone.
+#
+# A lower rate also reaches the contrastive task later. `cf412_auc_warmup`
+# scales the AUC warm-up by the rate ratio for the same reason, or the gate
+# stops a healthy slow arm in its first minutes.
+#
 # ---- What this design can say, and what it cannot ---------------------------
 #
 # One backbone of this card costs about six times one backbone of its parent,
@@ -78,11 +99,13 @@
 # that band, and it measures the decay pair directly.
 #
 # Add an arm by adding a row. Every script, guard and figure reads this file.
-# arm	k	reduce	tau	end	ramp	seed	decay
-k3_r100_09	3	sum	0.9	1.0	100000	20260520	-
-k32_r100_09	32	mean	0.9	1.0	100000	20260520	-
-k32_r200_08	32	mean	0.8	1.0	200000	20260520	-
-k3_r100_09_dec	3	sum	0.9	1.0	100000	20260520	2000
-k32_r100_09_dec	32	mean	0.9	1.0	100000	20260520	2000
-k8_r100_09	8	mean	0.9	1.0	100000	20260520	-
-k3_r100_09b	3	sum	0.9	1.0	100000	20260525	-
+# arm	k	reduce	tau	end	ramp	seed	decay	lr
+k3_r100_09	3	sum	0.9	1.0	100000	20260520	-	1e-3
+k32_r100_09	32	mean	0.9	1.0	100000	20260520	-	1e-3
+k32_r200_08	32	mean	0.8	1.0	200000	20260520	-	1e-3
+k3_r100_09_dec	3	sum	0.9	1.0	100000	20260520	2000	1e-3
+k32_r100_09_dec	32	mean	0.9	1.0	100000	20260520	2000	1e-3
+k8_r100_09	8	mean	0.9	1.0	100000	20260520	-	1e-3
+k3_r100_09b	3	sum	0.9	1.0	100000	20260525	-	1e-3
+k3_r100_09_lr33	3	sum	0.9	1.0	100000	20260520	-	3.3e-4
+k3_r100_09_lr17	3	sum	0.9	1.0	100000	20260520	-	1.67e-4

@@ -13,9 +13,14 @@
 #
 # HOW IT READS. `scripts/auc_watch.py` of the main checkout gives the verdict:
 # the rolling median of the `auc` column over CF412_AUC_WINDOW rows, against
-# CF412_AUC_THRESHOLD. Rows at or below CF412_AUC_WARMUP do not count, because
-# the AUC of a fresh run starts near 0.5 and climbs. Without that warm-up the
-# gate would stop every arm in its first minute.
+# CF412_AUC_THRESHOLD. Rows at or below this arm's warm-up do not count,
+# because the AUC of a fresh run starts near 0.5 and climbs. Without that
+# warm-up the gate would stop every arm in its first minute.
+#
+# THE WARM-UP IS THE ARM'S, not one number for the card. `cf412_auc_warmup`
+# scales it by the learning rate: at 1e-3 the AUC crosses the threshold before
+# step 2,000, and the two bracket arms train slower. One warm-up for every arm
+# would let this gate stop a healthy slow arm.
 #
 # WHAT IT DOES. It reads the live CSV every CF412_AUC_POLL seconds while the
 # leg runs. On a `lost` verdict it stops the whole process tree and writes
@@ -55,6 +60,7 @@ cf412_require_arm "$ARM" || exit $?
 cf412_require_stop "$STOP" || exit $?
 
 WATCH="$CF412_AUC_WATCH_PY"
+WARMUP="$(cf412_auc_warmup "$ARM")"
 [ -f "$WATCH" ] || { echo "ABORT: no watch at $WATCH" >&2; exit 2; }
 mkdir -p "$CF412_RESULTS"
 
@@ -71,8 +77,8 @@ while IFS= read -r f; do
   log "arm $ARM skips ${BASE[$f]} row(s) of an earlier leg in $f"
 done < <(cf412_losses_csvs "$ARM" "$STOP")
 log "arm $ARM gate on — window $CF412_AUC_WINDOW," \
-    "threshold $CF412_AUC_THRESHOLD, warmup $CF412_AUC_WARMUP," \
-    "poll ${CF412_AUC_POLL}s"
+    "threshold $CF412_AUC_THRESHOLD, warmup $WARMUP," \
+    "poll ${CF412_AUC_POLL}s, rate $(cf412_lr "$ARM")"
 
 reading=""
 while kill -0 "$PID" 2>/dev/null; do
@@ -87,7 +93,7 @@ while kill -0 "$PID" 2>/dev/null; do
     fi
     line="$(python3 "$WATCH" "$csv" --window "$CF412_AUC_WINDOW" \
               --threshold "$CF412_AUC_THRESHOLD" \
-              --warmup "$CF412_AUC_WARMUP" --skip-rows "$skip" 2>&1)"
+              --warmup "$WARMUP" --skip-rows "$skip" 2>&1)"
     rc=$?
     if [ "$rc" -eq 1 ]; then
       log "arm $ARM LOST the contrastive task — stopping the leg"
@@ -95,7 +101,7 @@ while kill -0 "$PID" 2>/dev/null; do
       { echo "arm $ARM lost the contrastive task."
         echo "verdict: $line"
         echo "window: $CF412_AUC_WINDOW rows, threshold: $CF412_AUC_THRESHOLD"
-        echo "warmup: $CF412_AUC_WARMUP steps"
+        echo "warmup: $WARMUP steps, at rate $(cf412_lr "$ARM")"
         echo "csv: $csv"
         echo "skipped: $skip row(s), which an earlier leg wrote"
         echo "stopped: $(date '+%Y-%m-%d %H:%M:%S')"

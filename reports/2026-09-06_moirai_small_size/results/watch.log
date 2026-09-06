@@ -636,3 +636,97 @@ k32_r100_09_dec  step -       auc -        rep_w -     score  -
 k8_r100_09       step -       auc -        rep_w -     score  -
 k3_r100_09b      step 30900   auc 0.999026 rep_w 1.0   score  -
 lanes 4   trainers 2   heads 0   evals 1
+===== 2026-09-06 20:20:05 =====
+gpu 0, 6035 MiB, 100 %
+gpu 1, 11524 MiB, 94 %
+k3_r100_09       step 82900   auc 0.999666 rep_w 1.0   score  40k=1.3495
+k32_r100_09      step 40000   auc 0.762917 rep_w 1.0   score  40k=1.4629
+k32_r200_08      step -       auc -        rep_w -     score  -
+k3_r100_09_dec   step -       auc -        rep_w -     score  -
+k32_r100_09_dec  step 500     auc 0.978475 rep_w 0.75  score  -
+k8_r100_09       step -       auc -        rep_w -     score  -
+k3_r100_09b      step 33800   auc 0.998176 rep_w 1.0   score  -
+lanes 4   trainers 3   heads 0   evals 0
+===== 2026-09-06 20:35:18 =====
+gpu 0, 6035 MiB, 99 %
+gpu 1, 11524 MiB, 95 %
+k3_r100_09       step 85300   auc 0.998407 rep_w 1.0   score  40k=1.3495
+k32_r100_09      step 40000   auc 0.762917 rep_w 1.0   score  40k=1.4629
+k32_r200_08      step -       auc -        rep_w -     score  -
+k3_r100_09_dec   step -       auc -        rep_w -     score  -
+k32_r100_09_dec  step 1700    auc 0.979946 rep_w 0.15000000000000002 score  -
+k8_r100_09       step -       auc -        rep_w -     score  -
+k3_r100_09b      step 36600   auc 0.998098 rep_w 1.0   score  -
+lanes 4   trainers 3   heads 0   evals 0
+===== 2026-09-06 20:50:30 =====
+gpu 0, 6035 MiB, 99 %
+gpu 1, 11524 MiB, 89 %
+k3_r100_09       step 87700   auc 0.998449 rep_w 1.0   score  40k=1.3495
+k32_r100_09      step 40000   auc 0.762917 rep_w 1.0   score  40k=1.4629
+k32_r200_08      step -       auc -        rep_w -     score  -
+k3_r100_09_dec   step -       auc -        rep_w -     score  -
+k32_r100_09_dec  step 2900    auc 0.764671 rep_w 0.0   score  -
+k8_r100_09       step -       auc -        rep_w -     score  -
+k3_r100_09b      step 36800   auc 0.998584 rep_w 1.0   score  -
+lanes 4   trainers 3   heads 0   evals 0
+===== 2026-09-06 21:05:43 =====
+gpu 0, 6035 MiB, 98 %
+gpu 1, 11524 MiB, 92 %
+k3_r100_09       step 90100   auc 0.999839 rep_w 1.0   score  40k=1.3495
+k32_r100_09      step 40000   auc 0.762917 rep_w 1.0   score  40k=1.4629
+k32_r200_08      step -       auc -        rep_w -     score  -
+k3_r100_09_dec   step -       auc -        rep_w -     score  -
+k32_r100_09_dec  step 4200    auc 0.737126 rep_w 0.0   score  -
+k8_r100_09       step -       auc -        rep_w -     score  -
+k3_r100_09b      step 38900   auc 0.997248 rep_w 1.0   score  -
+lanes 4   trainers 3   heads 3   evals 0
+===== 2026-09-06 21:20:56 =====
+gpu 0, 6035 MiB, 88 %
+gpu 1, 11524 MiB, 91 %
+k3_r100_09       step 92400   auc 0.999821 rep_w 1.0   score  40k=1.3495
+k32_r100_09      step 40000   auc 0.762917 rep_w 1.0   score  40k=1.4629
+k32_r200_08      step -       auc -        rep_w -     score  -
+k3_r100_09_dec   step -       auc -        rep_w -     score  -
+k32_r100_09_dec  step 4900    auc 0.700830 rep_w 0.0   score  -
+k8_r100_09       step -       auc -        rep_w -     score  -
+k3_r100_09b      step 39900   auc 0.998817 rep_w 1.0   score  -
+lanes 4   trainers 3   heads 0   evals 0
+===== 2026-09-06 21:36:09 =====
+gpu 0, 6035 MiB, 98 %
+gpu 1, 11764 MiB, 91 %
+k3_r100_09       step 94000   auc 0.999805 rep_w 1.0   score  40k=1.3495
+k32_r100_09      step 40000   auc 0.762917 rep_w 1.0   score  40k=1.4629
+k32_r200_08      step -       auc -        rep_w -     score  -
+k3_r100_09_dec   step -       auc -        rep_w -     score  -
+k32_r100_09_dec  step 6300    auc 0.533243 rep_w 0.0   score  -
+k8_r100_09       step -       auc -        rep_w -     score  -
+k3_r100_09b      step 40000   auc 0.998401 rep_w 1.0   score  -
+k3_r100_09_lr33  step -       auc -        rep_w -     score  -
+k3_r100_09_lr17  step -       auc -        rep_w -     score  -
+lanes 7   trainers 2   heads 1   evals 0
+===== 2026-09-06 21:51:22 =====
+gpu 0, 6035 MiB, 99 %
+gpu 1, 11764 MiB, 96 %
+k3_r100_09       step 96400   auc 0.999899 rep_w 1.0   score  40k=1.3495
+k32_r100_09      step 40000   auc 0.762917 rep_w 1.0   score  40k=1.4629
+k32_r200_08      step -       auc -        rep_w -     score  -
+k3_r100_09_dec   step -       auc -        rep_w -     score  -
+k32_r100_09_dec  step 7600    auc 0.756979 rep_w 0.0   score  -
+k8_r100_09       step -       auc -        rep_w -     score  -
+k3_r100_09b      step 40000   auc 0.998401 rep_w 1.0   score  -
+k3_r100_09_lr33  step -       auc -        rep_w -     score  -
+k3_r100_09_lr17  step -       auc -        rep_w -     score  -
+lanes 7   trainers 2   heads 1   evals 0
+===== 2026-09-06 22:06:36 =====
+gpu 0, 6035 MiB, 100 %
+gpu 1, 11764 MiB, 90 %
+k3_r100_09       step 98700   auc 0.998805 rep_w 1.0   score  40k=1.3495
+k32_r100_09      step 40000   auc 0.762917 rep_w 1.0   score  40k=1.4629
+k32_r200_08      step -       auc -        rep_w -     score  -
+k3_r100_09_dec   step -       auc -        rep_w -     score  -
+k32_r100_09_dec  step 8900    auc 0.690375 rep_w 0.0   score  -
+k8_r100_09       step -       auc -        rep_w -     score  -
+k3_r100_09b      step 40000   auc 0.998401 rep_w 1.0   score  -
+k3_r100_09_lr33  step -       auc -        rep_w -     score  -
+k3_r100_09_lr17  step -       auc -        rep_w -     score  -
+lanes 8   trainers 2   heads 1   evals 0

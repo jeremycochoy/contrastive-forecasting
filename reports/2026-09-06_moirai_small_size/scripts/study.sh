@@ -89,6 +89,10 @@ CF412_STOPS="${CF412_STOPS:-40000 100000 200000}"
 CF412_HEAD_STEPS="${CF412_HEAD_STEPS:-30000}"
 CF412_ENC="${CF412_ENC:-student}"
 CF412_SEED_DEFAULT="${CF412_SEED_DEFAULT:-20260520}"
+# The learning rate of every published run of this cell. `run_leg_k.sh` states
+# it, and it is the Moirai recipe (`train.py`). An arm whose `lr` column is `-`
+# takes this value, and the two bracket arms of `arms.tsv` take their own.
+CF412_LR_DEFAULT="${CF412_LR_DEFAULT:-1e-3}"
 CF412_ARMS_TSV="${CF412_ARMS_TSV:-$CF412_SCRIPTS/arms.tsv}"
 # The leg runner. A variable so a test can hand `run_arm.sh` a stub and prove
 # the guards fire. The study never sets it.
@@ -163,11 +167,12 @@ cf412_arms(){
 CF412_ARMS="$(cf412_arms | tr '\n' ' ')"
 CF412_ARMS="${CF412_ARMS% }"
 
-# One arm's row, as `<arm> <k> <reduce> <tau> <end> <ramp> <seed> <decay>`.
-# Prints nothing, and returns non-zero, for an arm the table does not hold.
+# One arm's row, as `<arm> <k> <reduce> <tau> <end> <ramp> <seed> <decay>
+# <lr>`. Prints nothing, and returns non-zero, for an arm the table does not
+# hold.
 cf412_arm_row(){  # <arm>
   awk -F'\t' -v a="${1:?arm}" \
-    '!/^#/ && $1 == a { print $1, $2, $3, $4, $5, $6, $7, $8; found = 1 }
+    '!/^#/ && $1 == a { print $1, $2, $3, $4, $5, $6, $7, $8, $9; found = 1 }
      END { exit !found }' "$CF412_ARMS_TSV"
 }
 
@@ -190,6 +195,20 @@ cf412_seed(){  # <arm>
                *) printf '%s\n' "$v" ;; esac
 }
 
+# The learning rate of one arm. Two arms of this card bracket it below the
+# card's rate, and every other arm carries the published 1e-3.
+#
+# WHY THE COLUMN EXISTS. This project does not use muP, and the trainer builds
+# ONE AdamW group over all parameters with no width multiplier. So a rate that
+# fits `d_model` 64 need not fit 384, and a capacity verdict taken at a rate
+# that does not fit the width answers a question about the rate.
+cf412_lr(){  # <arm>
+  local v
+  v="$(cf412_arm_row "${1:?arm}" | awk '{print $9}')" || return 1
+  case "$v" in ''|-) printf '%s\n' "$CF412_LR_DEFAULT" ;;
+               *) printf '%s\n' "$v" ;; esac
+}
+
 # The trainer flags of one arm's EMA momentum, as ONE unit.
 #
 # They REPLACE `run_leg_k.sh`'s schedule rather than append to it. A repeated
@@ -197,9 +216,9 @@ cf412_seed(){  # <arm>
 # must pass no `--ema-tau-end` at all. No arm of this card is fixed today, and
 # the shape stays because a new row can be.
 cf412_ema_args(){  # <arm>
-  local row name k red tau end ramp seed decay
+  local row name k red tau end ramp seed decay lr
   row="$(cf412_arm_row "${1:?arm}")" || return 1
-  read -r name k red tau end ramp seed decay <<<"$row"
+  read -r name k red tau end ramp seed decay lr <<<"$row"
   if [ "$end" = "-" ]; then
     printf -- '--ema-tau %s\n' "$tau"
   else
@@ -445,6 +464,13 @@ cf412_seed_of_cmdline(){
   printf '%s\n' "${v:--}"
 }
 
+# The learning rate. `-` when the line carries no `--lr`, which no leg of this
+# card writes: `run_leg_k.sh` states the rate in its own block.
+cf412_lr_of_cmdline(){
+  local v; v="$(cf412_last_arg_of_cmdline --lr)"
+  printf '%s\n' "${v:--}"
+}
+
 cf412_batch_of_cmdline(){
   local v; v="$(cf412_last_arg_of_cmdline --batch-size)"
   printf '%s\n' "${v:--}"
@@ -547,11 +573,32 @@ cf412_csv_rows(){  # <csv>
 CF412_AUC_WATCH_PY="${CF412_AUC_WATCH_PY:-$CF412_REPO/scripts/auc_watch.py}"
 CF412_AUC_WINDOW="${CF412_AUC_WINDOW:-500}"
 CF412_AUC_THRESHOLD="${CF412_AUC_THRESHOLD:-0.55}"
-# Steps the verdict does not read. The AUC of a fresh run starts near 0.5 and
-# climbs, so a gate with no warm-up stops every arm in its first minute.
+# Steps the verdict does not read, at the card's own rate. The AUC of a fresh
+# run starts near 0.5 and climbs, so a gate with no warm-up stops every arm in
+# its first minute. `cf412_auc_warmup` scales it for a slower arm.
 CF412_AUC_WARMUP="${CF412_AUC_WARMUP:-1000}"
 # How often the gate reads the CSV. The trainer flushes every 100 rows.
 CF412_AUC_POLL="${CF412_AUC_POLL:-600}"
+
+# The warm-up of ONE arm, in steps.
+#
+# At 1e-3 the contrastive AUC crosses the 0.55 threshold before step 2,000, and
+# 1,000 steps of warm-up are enough. A slower arm reaches that crossing later,
+# so the same 1,000 steps would let the gate stop a HEALTHY arm on the rows of
+# its first minutes.
+#
+# The scale is the rate ratio: a run at a sixth of the rate takes about six
+# times the steps to reach a point on its curve. It is an estimate, and it errs
+# long on purpose. A late verdict costs GPU-hours. An early verdict kills an
+# arm the card needs.
+cf412_auc_warmup(){  # <arm>
+  local lr
+  lr="$(cf412_lr "${1:?arm}")" || return 1
+  awk -v w="$CF412_AUC_WARMUP" -v d="$CF412_LR_DEFAULT" -v l="$lr" 'BEGIN {
+    if (l + 0 <= 0 || l + 0 >= d + 0) { print w + 0; exit }
+    n = w * d / l
+    printf "%d\n", (n == int(n) ? n : int(n) + 1) }'
+}
 
 # What the gate writes when it stops an arm. The report reads the step out of
 # it, and `phase1.sh` reads its presence.
