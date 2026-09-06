@@ -538,6 +538,58 @@ cf412_collapse_file(){  # <arm>
   printf '%s/collapsed_%s.txt\n' "$CF412_RESULTS" "${1:?arm}"
 }
 
+# ---- The free memory one leg needs -------------------------------------------
+#
+# Both cards of this box carry other work from other projects, so a leg starts
+# only when the card holds room for it. `run_leg_k.sh` has no such gate: it
+# calls `gpu_gate`, which is a no-op on a Default-mode card, and elisa runs two
+# cells on one 4090 on purpose. Without this wait a leg that starts beside a
+# neighbour at its peak dies inside `.to(device)` and loses the steps since its
+# last 20,000-step save.
+#
+# The need is this arm's OWN peak from `results/trial/smoke.csv`, plus a
+# margin. #373's head gate reads the same `memory.free` column.
+CF412_VRAM_MARGIN_MIB="${CF412_VRAM_MARGIN_MIB:-1200}"
+CF412_VRAM_POLL="${CF412_VRAM_POLL:-60}"
+CF412_VRAM_TIMEOUT="${CF412_VRAM_TIMEOUT:-86400}"
+
+# The free memory one arm's leg waits for, in MiB. The peaks are the smoke's,
+# rounded up: 10,062 MiB at k = 32, 7,160 at k = 8, 6,472 at k = 3.
+cf412_leg_vram_mib(){  # <arm>
+  local k peak
+  k="$(cf412_depth "${1:?arm}")" || return 1
+  case "$k" in
+    3) peak=6500 ;;
+    8) peak=7200 ;;
+    *) peak=10100 ;;
+  esac
+  printf '%s\n' "$(( peak + CF412_VRAM_MARGIN_MIB ))"
+}
+
+# Wait until one card reports <need> MiB free. Returns 0 when it does, 1 on
+# the timeout. A card whose `memory.free` cannot be read returns 0: a box
+# without `nvidia-smi` must run, not block.
+cf412_wait_for_vram(){  # <gpu index> <need MiB> [label]
+  local gpu="${1:?gpu}" need="${2:?need}" label="${3:-leg}" waited=0 free
+  while :; do
+    free="$(nvidia-smi --id="$gpu" --query-gpu=memory.free \
+              --format=csv,noheader,nounits 2>/dev/null | tr -d ' ')"
+    [ -n "$free" ] || return 0
+    [ "$free" -ge "$need" ] && {
+      [ "$waited" -gt 0 ] && echo "[#412 vram] gpu $gpu has ${free} MiB free" \
+        "after ${waited}s — $label starts"
+      return 0; }
+    if [ "$waited" -ge "$CF412_VRAM_TIMEOUT" ]; then
+      echo "[#412 vram] TIMEOUT after ${waited}s: gpu $gpu has ${free} MiB" \
+        "free, $label needs ${need}" >&2
+      return 1
+    fi
+    [ $(( waited % 600 )) -eq 0 ] && \
+      echo "[#412 vram] gpu $gpu has ${free} MiB free, $label needs ${need}"
+    sleep "$CF412_VRAM_POLL"; waited=$(( waited + CF412_VRAM_POLL ))
+  done
+}
+
 # ---- The smoke ---------------------------------------------------------------
 #
 # The step time and the peak memory the run plan is sized from. A 5-second

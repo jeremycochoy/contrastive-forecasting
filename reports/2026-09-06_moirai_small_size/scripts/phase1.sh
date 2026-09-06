@@ -38,6 +38,14 @@
 # head whose score file is written is a no-op, and a GIFT-Eval resumes for
 # each shard. So a re-run after a crash costs only what did not finish.
 #
+# ---- A leg waits for the card it needs ----------------------------------------
+#
+# Both cards of this box carry other work from other projects. `run_leg_k.sh`
+# has no memory gate, so this script waits for `cf412_leg_vram_mib` MiB of
+# free memory before each leg: this arm's own smoke peak plus a margin. A leg
+# that started beside a neighbour at its peak would die in `.to(device)` and
+# lose the steps since its last 20,000-step save.
+
 # ---- An arm that lost the contrastive task does not climb ---------------------
 #
 # `run_arm.sh` exits CF412_RC_COLLAPSED (4) when the AUC gate stopped the leg.
@@ -89,7 +97,13 @@ for stop in $STOPS; do
     cf412_is_in "$arm" "$collapsed" && {
       log "backbone $arm SKIPPED at $stop — it lost the contrastive task"
       continue; }
-    log "backbone $arm -> $stop"
+    need="$(cf412_leg_vram_mib "$arm")"
+    cf412_wait_for_vram "$BB_GPU" "$need" "backbone $arm" \
+      2>&1 | tee -a "$CF412_RESULTS/phase1.log"
+    [ "${PIPESTATUS[0]}" -eq 0 ] || {
+      log "backbone $arm SKIPPED at $stop — gpu $BB_GPU never had $need MiB free"
+      failed=$(( failed + 1 )); continue; }
+    log "backbone $arm -> $stop (gpu $BB_GPU holds the ${need} MiB it needs)"
     BB_GPU="$BB_GPU" bash "$HERE/run_arm.sh" "$arm" "$stop"
     rc=$?
     if [ "$rc" -eq "$CF412_RC_COLLAPSED" ]; then

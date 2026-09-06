@@ -1,0 +1,35 @@
+#!/bin/bash
+# #412 — one status line of the whole card, for a reader and for a log.
+#
+# It reads the durable artefacts, never a lane's stdout: the losses CSV under
+# the checkpoint root gives the step, `results/score_*.txt` gives the score,
+# and `nvidia-smi` gives the card. A lane that died still reports its last
+# step here.
+set -uo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$HERE/study.sh"
+
+printf '===== %s =====\n' "$(date '+%Y-%m-%d %H:%M:%S')"
+nvidia-smi --query-gpu=index,memory.free,utilization.gpu --format=csv,noheader \
+  | sed 's/^/gpu /'
+for arm in $CF412_ARMS; do
+  csv="$(cf412_live_losses_csv "$arm" 40000)"
+  step="-"; auc="-"; rw="-"
+  if [ -n "$csv" ] && [ -s "$csv" ]; then
+    read -r step auc rw <<<"$(awk -F',' '
+      NR==1 { for (i=1;i<=NF;i++) c[$i]=i; next }
+      { s=$c["step"]; a=$c["auc"]; w=$c["rep_w"] }
+      END { print s, a, w }' "$csv")"
+  fi
+  score="$(cat "$(cf412_score_file "$arm" 40000)" 2>/dev/null | tr -d ' \n')"
+  note=""
+  [ -f "$(cf412_collapse_file "$arm")" ] && note=" COLLAPSED"
+  printf '%-16s step %-7s auc %-8s rep_w %-5s score %s%s\n' \
+    "$arm" "${step:--}" "${auc:--}" "${rw:--}" "${score:--}" "$note"
+done
+# The bracket keeps this script's own command line out of every count, and
+# `pgrep -c` exits 1 on a count of zero, so the status is not read.
+n(){ local c; c="$(pgrep -c -f "$1" 2>/dev/null)"; printf '%s' "${c:-0}"; }
+printf 'lanes %s   trainers %s   heads %s   evals %s\n' \
+  "$(n '[s]cripts/phase1.sh')" "$(n '[f]req-embedding/scripts/train.py')" \
+  "$(n '[t]rain_forecasting_head.py')" "$(n '[e]val_gift_eval_official.py')"
