@@ -503,6 +503,27 @@ cf412_live_losses_csv(){  # <arm> <stop steps>
   cf412_losses_csvs "${1:?arm}" "${2:?stop}" | tail -1
 }
 
+# The CSV of the FURTHEST leg this arm holds, whatever stop it was asked for.
+#
+# `cf412_live_losses_csv` takes one stop, because the AUC gate must read the
+# leg it guards and no other. A STATUS line has the opposite need: an arm that
+# climbs writes into `leg_100k` while its `leg_40k` CSV sits finished at
+# 40,000 steps, and a status that reads the 40,000-step leg reports a climb
+# that has not moved for hours.
+cf412_furthest_losses_csv(){  # <arm>
+  local arm="${1:?arm}" root dir k csv found=""
+  root="$(cf412_arm_root "$arm")/$CF412_CELL"
+  for dir in "$root"/leg_*k; do
+    [ -d "$dir" ] || continue
+    k="${dir##*/leg_}"; k="${k%k}"
+    case "$k" in ''|*[!0-9]*) continue ;; esac
+    csv="$(cf412_losses_csvs "$arm" "$(( k * 1000 ))" | tail -1)"
+    [ -n "$csv" ] && found="$found$k $csv
+"
+  done
+  printf '%s' "$found" | sort -n -k1,1 | tail -1 | cut -d' ' -f2-
+}
+
 # How many DATA rows a losses CSV holds. The header does not count, and a file
 # that is missing or empty holds none.
 cf412_csv_rows(){  # <csv>
