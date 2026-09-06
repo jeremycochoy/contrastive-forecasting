@@ -1,6 +1,6 @@
-# A decay of the L_rep weight to zero never beats the no-decay reference, and the weight at 0.0 collapses the best cell on the student align target
+# A decay of the L_rep weight to zero never beats the no-decay reference
 
-A linear decay of the L_rep weight, the contrastive representation term of the training loss, does not improve the GM-Relative MASE of the k = 32 cell, over 19 scored runs. The best arm loses to the no-decay reference by 1.7 times the seed range at 40,000 steps, and its score rises at every later stop.
+L_rep is the contrastive representation term of the training loss. A linear decay of its weight does not improve the GM-Relative MASE of the k = 32 cell, over 19 scored runs. The best arm loses to the no-decay reference by 1.7 times the seed range at 40,000 steps. Its score rises at every later stop.
 
 ![scores](plots/scores.png)
 
@@ -10,7 +10,7 @@ A linear decay of the L_rep weight, the contrastive representation term of the t
 
 *The measured grid, decay ramp by EMA momentum at the stop, fixed and ramping schedules in separate columns, colour by score.*
 
-No fixed momentum beats the ramping schedule at the same decay ramp of 2,000, and the two nearest gaps, +0.0357 and +0.0403, are inside the seed range of 0.0471.
+No fixed momentum beats the ramping schedule at the same decay ramp of 2,000. The two nearest gaps, +0.0357 and +0.0403, are inside the seed range of 0.0471.
 
 ![axes](plots/axes.png)
 
@@ -20,17 +20,19 @@ No fixed momentum beats the ramping schedule at the same decay ramp of 2,000, an
 
 *Score of the two carried arms at each backbone stop, each leg resumed from the arm's prior checkpoint and optimizer state.*
 
-The best arm held the contrastive task to 200,000 steps, AUC 0.98 falling to 0.95, while its score rose by +0.0767, 1.6 times the seed range.
+The best arm held the contrastive task to 200,000 steps, AUC 0.98 falling to 0.95 at the stop. Its score rose by +0.0767, 1.6 times the seed range.
 
 ![a4 zero](plots/a4_zero.png)
 
-*The A4 cell resumed from its 40,000-step checkpoint and optimizer state with the L_rep weight at 0.0, one run per align target, trained to 200,000 steps, against the original A4 ([`a4_full_pass`](../2026-08-20_a4_full_pass/a4_full_pass.md)).*
+*The A4 cell with the L_rep weight at 0.0, one run per align target, against the original A4 ([`a4_full_pass`](../2026-08-20_a4_full_pass/a4_full_pass.md)). Both runs resumed from the 40,000-step checkpoint and optimizer state, then trained to 200,000 steps.*
 
-The two runs above use a DIFFERENT cell, `arm6_v2_combab_alignS` at k = 3 with the student align target: the project's best model, which this card asks how to beat. The student-target run collapsed: on this cell the EMA teacher enters the loss only through the MoCo keys inside L_rep, so at weight 0.0 the teacher leaves the objective. `L_align` then pulls the student's forecast toward the student's own detached latent (`src/loss.py:2915`), which a constant embedding satisfies: total loss 0.1595 at step 200,000, AUC at chance. The teacher-target run did not collapse and still lost 0.315 to the original A4, and the align target alone separates the two weight-0.0 runs by 0.488.
+The two runs above use a DIFFERENT cell: `arm6_v2_combab_alignS` at k = 3 with the student align target. That cell is the project's best model, which this card asks how to beat. The student-target run collapsed: total loss 0.1595 at step 200,000, AUC at chance. The teacher-target run did not collapse. It still lost 0.315 to the original A4. The align target alone separates the two weight-0.0 runs by 0.488.
+
+The mechanism of the collapse: on this cell, the EMA teacher enters the loss only through the MoCo keys inside L_rep. At weight 0.0 the teacher leaves the objective. `L_align` then pulls the student's forecast toward the student's own detached latent (`src/loss.py:2915`). A constant embedding satisfies that pull.
 
 ![auc](plots/auc.png)
 
-*Contrastive AUC per run to the 40,000-step stop, the area under the ROC curve of the contrastive task on the training stream, 1.0 the ceiling and 0.5 chance. The run at momentum 0.500 lost the task.*
+*Contrastive AUC per run to the 40,000-step stop, 1.0 the ceiling and 0.5 chance. AUC: the area under the ROC curve of the contrastive task on the training stream. The run at momentum 0.500 lost the task.*
 
 ![loss terms](plots/loss_terms.png)
 
@@ -46,7 +48,7 @@ The two runs above use a DIFFERENT cell, `arm6_v2_combab_alignS` at k = 3 with t
 
 ## Tables
 
-Score of each arm at the 40,000-step stop, by EMA schedule, decay ramp and seed (`scripts/arms.tsv`, `results/scores.csv`). Last column: the same schedule with no decay, at the arm's seed where the reference study ran it, else at the seed named in the cell.
+Score of each arm at the 40,000-step stop, by EMA schedule, decay ramp and seed (`scripts/arms.tsv`, `results/scores.csv`). Last column: the same schedule with no decay. It is at the arm's seed where the reference study ran it, else at the seed named in the cell.
 
 | arm | EMA schedule | momentum at the stop | decay ramp, steps | seed | score | same schedule, no decay |
 |---|---|---|---|---|---|---|
@@ -69,7 +71,13 @@ Score of each arm at the 40,000-step stop, by EMA schedule, decay ramp and seed 
 | dec_m099_fix | 0.99 fixed | 0.990 | 10,000 | 20260520 | 1.2849 | not run |
 | reference | 0.9 to 1.0 at 100k | 0.940 | no decay | 20260524, 20260520 | | 1.1491, 1.1507 |
 
-Gaps against the seed range of 0.0471, the range of `dec_m080_r200` and `dec_m080_r200_s24`, the widest pair of repeat seeds in this study (`results/rank_gate.tsv`). Verdict rule: a gap at or under the seed range is noise, a gap under twice the seed range is a threshold, and a gap of twice the seed range or more is a rank. Column 4: the comparator's own seed range from `reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md`, 1.1782 to 1.3214 over three counted seeds of `0.8 to 1.0 at 200k`. A gap inside it is not a rank.
+Gaps against the seed range of 0.0471, the range of `dec_m080_r200` and `dec_m080_r200_s24`, the widest pair of repeat seeds in this study (`results/rank_gate.tsv`). Verdict rule:
+
+- A gap at or under the seed range is noise.
+- A gap under twice the seed range is a threshold.
+- A gap of twice the seed range or more is a rank.
+
+Column 4: the comparator's own seed range from `reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md`, 1.1782 to 1.3214 over three counted seeds of `0.8 to 1.0 at 200k`. A gap inside it is not a rank.
 
 | comparison | gap | gap over seed range | seed range of the no-decay comparator | verdict |
 |---|---|---|---|---|
@@ -80,7 +88,7 @@ Gaps against the seed range of 0.0471, the range of `dec_m080_r200` and `dec_m08
 | best arm 1.2295 against the second 1.2322 | +0.0027 | 0.1 | | noise |
 | best arm 1.2295 against the best arm at ramp 10,000, 1.2352 | +0.0057 | 0.1 | | noise |
 
-Gap of each axis point against the baseline of its axis. The momentum axis and the ramp axis at 0.840 use 1.2588, the mean of two seeds at momentum 0.840 and ramp 10,000. The ramp axis at 0.940 uses 1.2692, the mean of three seeds at momentum 0.940 and ramp 10,000. Verdict with the rule of the gate table above, against the seed range of 0.0471.
+Gap of each axis point against the baseline of its axis. The momentum axis and the ramp axis at 0.840 use 1.2588 as the baseline. That value is the mean of two seeds at momentum 0.840 and ramp 10,000. The ramp axis at 0.940 uses 1.2692, the mean of three seeds at momentum 0.940 and ramp 10,000. Verdict with the rule of the gate table above, against the seed range of 0.0471.
 
 | axis | point | score | gap | gap over seed range | verdict |
 |---|---|---|---|---|---|
@@ -94,7 +102,7 @@ Gap of each axis point against the baseline of its axis. The momentum axis and t
 | ramp, momentum 0.940 | 2,000 | 1.2295 | -0.0397 | 0.8 | inside the seed range |
 | ramp, momentum 0.940 | 5,000 | 1.2537 | -0.0155 | 0.3 | inside the seed range |
 
-Score of the two arms carried past 40,000 steps, each leg resumed from the arm's newest checkpoint and optimizer state (`results/scores.csv`, keyed by (arm, stop)). The EMA schedule ramps to 1.0 at 100,000 steps, so the momentum at the stop moves with the stop.
+Score of the two arms carried past 40,000 steps (`results/scores.csv`, keyed by (arm, stop)). Each leg resumed from the arm's newest checkpoint and optimizer state. The EMA schedule ramps to 1.0 at 100,000 steps, so the momentum at the stop moves with the stop.
 
 | arm | decay ramp, steps | stop | momentum at the stop | score | change against 40,000 | change over seed range |
 |---|---|---|---|---|---|---|
@@ -104,7 +112,7 @@ Score of the two arms carried past 40,000 steps, each leg resumed from the arm's
 | dec_m090r100_ramp1k | 1,000 | 40,000 | 0.940 | 1.2322 | | |
 | dec_m090r100_ramp1k | 1,000 | 80,000 | 0.980 | 1.2381 | +0.0059 | 0.1 |
 
-The L_rep weight at 0.0 on the A4 cell, `arm6_v2_combab_alignS` at k = 3, both runs resumed from the same 40,000-step A4 checkpoint and optimizer state and trained to 200,000 steps. The AUC is the mean over steps 195,000 to 200,000 of the run's log, and of the A4 losses CSV (`reports/2026-08-08_rollout_depth/curves/r3/`) for the reference. Scores: `results/score_a4*_bb200k_h30k_student.txt`, each the `Aggregate GM-Relative MASE (97 configs)` line of its run's eval_local.log. The original A4 score is the mean of three head seeds ([`a4_full_pass`](../2026-08-20_a4_full_pass/a4_full_pass.md)).
+The L_rep weight at 0.0 on the A4 cell (k = 3, `arm6_v2_combab_alignS`). Both runs resumed from the same 40,000-step A4 checkpoint and optimizer state, then trained to 200,000 steps. The AUC is the mean over steps 195,000 to 200,000 of the run's log. For the reference, it is the same mean of the A4 losses CSV (`reports/2026-08-08_rollout_depth/curves/r3/`). Scores: `results/score_a4*_bb200k_h30k_student.txt`, each the `Aggregate GM-Relative MASE (97 configs)` line of its run's eval_local.log. The original A4 score is the mean of three head seeds ([`a4_full_pass`](../2026-08-20_a4_full_pass/a4_full_pass.md)).
 
 | align target | L_rep weight | AUC at 200,000 | score | gap to the original A4 |
 |---|---|---|---|---|
@@ -112,7 +120,7 @@ The L_rep weight at 0.0 on the A4 cell, `arm6_v2_combab_alignS` at k = 3, both r
 | teacher | 0.0 | 0.78 | 1.3799 | +0.3148 |
 | student | 0.0 | 0.50 | 1.8677 | +0.8026 |
 
-Contrastive AUC per run the study scored, plus the run the gate stopped and the three continuation legs (`results/auc_verdicts.tsv`), with the floor the lowest rolling median over every leg of the run. The figure also draws two runs this table leaves out: `dec_s23` and `dec_s25`.
+Contrastive AUC per run the study scored, plus the run the gate stopped and the three continuation legs (`results/auc_verdicts.tsv`). The floor is the lowest rolling median over every leg of the run. The figure also draws two runs this table leaves out: `dec_s23` and `dec_s25`.
 
 | run | momentum at the stop | AUC floor | floor step | last AUC | last step | verdict |
 |---|---|---|---|---|---|---|
@@ -170,7 +178,7 @@ Total loss and its slope per 10,000 steps, fitted on 1,000-step blocks (`results
 - Eval: GIFT-Eval, 97 configs, strategy B4, forecast length 16. Score: GM-Relative MASE, lower is better, line `Aggregate GM-Relative MASE (97 configs)` of each run's `eval_local.log`.
 - Reference: the EMA momentum study at `reports/2026-08-19_ema_momentum_k32/ema_momentum_k32.md`, the same cell with no decay. Its cell, stop, head, head seed, encoder and eval match this study on 11 of 11 items (`results/reference_match.tsv`). Its best score is 1.1491, and its own range is 0.0016 over two seeds.
 - Seed range: the two seeds of `0.8 to 1.0 at 200k` at ramp 10,000 under the decay, 0.0471, wider than the 0.0219 of the three seeds of `0.9 to 1.0 at 100k`, `results/rank_gate.tsv`. No new configuration carries a repeat seed, so configurations whose gap is inside that range cannot be ranked against each other.
-- The A4 check: the first `Command line:` row of `results/run_cf393_arm6_v2_combab_alignS_cf373k3_cf409_a4{zero,teach}.log` holds the full flags. Cell `arm6_v2_combab_alignS`, k = 3, seed 20260520, `--rep-loss-weight 0.0`, `--align-target student` (a4zero) or `teacher` (a4teach), EMA 0.9 to 1.0 at 100,000, resumed at step 40,000, trained to 200,000, then the same 30,000-step head and eval as above. This item belongs to this card because the card asks how to beat that model (`notes/one_report.md`).
+- The A4 check: the first `Command line:` row of `results/run_cf393_arm6_v2_combab_alignS_cf373k3_cf409_a4{zero,teach}.log` holds the full flags. Cell `arm6_v2_combab_alignS`, k = 3, seed 20260520, `--rep-loss-weight 0.0`, `--align-target student` (a4zero) or `teacher` (a4teach). EMA 0.9 to 1.0 at 100,000, resumed at step 40,000, trained to 200,000 steps. Then the same 30,000-step head and eval as above. This item belongs to this card because the card asks how to beat that model (`notes/one_report.md`).
 
 ## Annex
 
