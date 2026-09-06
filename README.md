@@ -90,8 +90,8 @@ Total ~6.8M series, ~9 GB.
 
 The full pretraining mix also includes
 [GiftEvalPretrain](https://huggingface.co/datasets/Salesforce/GiftEvalPretrain)
-and synthetic ARMA/trend/sinusoid series; see the `training_data_prep`
-README for mix ratios and pipeline details.
+and synthetic ARMA/trend/sinusoid series. The `training_data_prep`
+README gives the mix ratios and the pipeline details.
 
 ## Training
 
@@ -108,6 +108,29 @@ python scripts/recover.py --device cuda --model-path model.pth --epochs 20000
 - [`docs/train_rollout_depth.md`](docs/train_rollout_depth.md) —
   `--train-rollout-depth K`, which trains the forecaster composed with itself
   `K` more times instead of one step only.
+
+### How large is the model?
+
+`scripts/model_size.py` counts the backbone, at one shape or at many. Use it
+to compare this project against a published model, and to find the width that
+gives a target count.
+
+```bash
+# the count of one shape
+python3 scripts/model_size.py --d-model 384 --num-layers 3 --num-encoder-layers 3
+
+# a table of widths, with a mark on the row nearest to 11.4M parameters
+python3 scripts/model_size.py --d-model-list 64,256,320,384 --target 11400000
+
+# a checkpoint on disk
+python3 scripts/model_size.py --checkpoint model.pth
+```
+
+One model gives three different counts, and only the first compares to a
+published model: the trainable parameters, the frozen EMA teacher beside them,
+and the sum over the checkpoint. The sum is the largest of the three, because
+the patch encoder is in the checkpoint under two names. `src/model_size.py`
+gives the numbers and the reason.
 
 ## License
 

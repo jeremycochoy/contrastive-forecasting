@@ -1,0 +1,57 @@
+# #412 — the arms of the card, one row each. Tab separated.
+#
+# Columns: arm, the rollout depth k, the reduction over the k + 1 depth
+# copies, the EMA momentum alpha at step 0, alpha at the end of the ramp, the
+# ramp length, the backbone seed.
+#
+# Every arm trains #373's cell `arm6_v2_combab_alignT` at `d_model` 384. The
+# WIDTH is the one thing this card moves, and it is not a column: every arm
+# carries it, so it lives in `study.sh`.
+#
+# Each row is a PUBLISHED configuration at the new width. So the depth, the
+# reduction and the momentum of a row are its parent's values, and a row that
+# changed one of them would answer a question no parent asked.
+#
+# ---- The four configurations of the card ------------------------------------
+#
+#   k3_r100_09    k = 3, the sum reduction. The cell that holds the project
+#                 best, 1.0651 at 200,000 steps, with the align target moved
+#                 to the teacher. That run is `arm6_v2_combab_alignS`, and it
+#                 carries no `--train-rollout-reduce`, which is the sum.
+#   k32_r100_09   k = 32, mean. #404's `r100_09`. The best teacher-align score
+#                 at the 40,000-step stop, 1.1491 over two seeds.
+#   k32_r200_08   k = 32, mean. #404's `s08`, 1.1782 at 40,000 steps. Its
+#                 momentum still climbs at 200,000 steps, so it has not
+#                 saturated.
+#   k8_r100_09    k = 8, mean. #401 ran this depth under the mean reduction
+#                 against the STUDENT target. The depth sits between the two
+#                 cells above, and at 1.1M parameters k = 3 beats k = 32. That
+#                 order may not hold at 11.4M.
+#
+# ---- What this design can say, and what it cannot ---------------------------
+#
+# #409 measured a seed band of 0.0471 GM-Relative MASE on one configuration at
+# 40,000 steps. Two arms that land closer than that cannot be ranked.
+#
+# One backbone of this card costs about six times one backbone of its parent,
+# so five seeds of each arm are out of reach. The design therefore answers ONE
+# question with confidence: does the 11.4M model beat the 1.1M model by more
+# than 0.0471? It ranks the four arms against each other ONLY where a gap is
+# wider than that band.
+#
+#   k3_r100_09b   `k3_r100_09` again at backbone seed 20260525. It differs
+#                 from row 1 in the SEED column alone.
+#
+# Row 5 measures this size's OWN band, and it goes on row 1 because row 1 is
+# the arm the headline rests on: it is the teacher twin of the run that holds
+# 1.0651. 20260525 continues the seed count of #404, which used 20260520 thru
+# 20260524. #404 saw seed 20260521 lose the contrastive task, so this card
+# does not use it.
+#
+# Add an arm by adding a row. Every script, guard and figure reads this file.
+# arm	k	reduce	tau	end	ramp	seed
+k3_r100_09	3	sum	0.9	1.0	100000	20260520
+k32_r100_09	32	mean	0.9	1.0	100000	20260520
+k32_r200_08	32	mean	0.8	1.0	200000	20260520
+k8_r100_09	8	mean	0.9	1.0	100000	20260520
+k3_r100_09b	3	sum	0.9	1.0	100000	20260525
