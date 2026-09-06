@@ -438,3 +438,14 @@ k32_r100_09_dec  step -       auc -        rep_w -     score -
 k8_r100_09       step -       auc -        rep_w -     score -
 k3_r100_09b      step 1400    auc 0.9890280961990356 rep_w 1.0   score -
 lanes 4   trainers 2   heads 1   evals 0
+===== 2026-09-06 15:46:29 =====
+gpu 0, 7421 MiB, 100 %
+gpu 1, 10954 MiB, 90 %
+k3_r100_09       step 40000   auc 0.9993153810501099 rep_w 1.0   score 1.3495
+k32_r100_09      step 40000   auc 0.7629179358482361 rep_w 1.0   score -
+k32_r200_08      step -       auc -        rep_w -     score -
+k3_r100_09_dec   step -       auc -        rep_w -     score -
+k32_r100_09_dec  step -       auc -        rep_w -     score -
+k8_r100_09       step -       auc -        rep_w -     score -
+k3_r100_09b      step 3100    auc 0.9953703284263611 rep_w 1.0   score -
+lanes 4   trainers 2   heads 1   evals 0
