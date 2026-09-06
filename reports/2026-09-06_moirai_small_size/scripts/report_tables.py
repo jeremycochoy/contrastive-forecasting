@@ -48,6 +48,9 @@ def scores_table(arms, scores):
             matched = "yes" if ref[1] == HEAD_STEPS else \
                 f"no, {ref[1]:,}-step head"
             ref_text, gap_text = f"{ref[0]:.4f}", f"{gap:+.4f}"
+            spread = S.reference_spread(arm, stop)
+            if spread:
+                ref_text += f" ({spread[0]:.4f} to {spread[1]:.4f})"
         else:
             matched, ref_text, gap_text = "—", "never run", "—"
         rows.append((arm, row.get("k", "?"), row.get("reduce", "?"),
@@ -55,7 +58,8 @@ def scores_table(arms, scores):
                      "yes" if row.get("decay", "-") != "-" else "no",
                      f"{stop:,}", f"{value:.4f}", ref_text, gap_text, matched))
     return table(rows, ["arm", "k", "reduce", "seed", "L_rep decay", "stop",
-                        "11.4M", "1.1M twin", "gap", "head-matched"])
+                        "11.4M", "1.1M twin (parent seed range)", "gap",
+                        "head-matched"])
 
 
 def auc_table(path):

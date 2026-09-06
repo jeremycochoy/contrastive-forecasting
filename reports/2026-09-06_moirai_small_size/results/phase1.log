@@ -12,3 +12,4 @@
 [09-06 15:34:18] [#412 phase1] backbone k3_r100_09 -> 100000 (gpu 0 holds the 7700 MiB it needs)
 [09-06 15:35:57] [#412 relay] waits for pid 364487 (arm k3_r100_09b), then runs: k3_r100_09b k3_r100_09_dec on gpu 1
 [09-06 15:35:57] [#412 relay] k32_r200_08 stays out — PR #413 gates it on the 100,000-step climb
+[09-06 20:12:47] [#412 phase1] backbone k32_r100_09_dec -> 40000 (gpu 0 holds the 11300 MiB it needs)

@@ -100,12 +100,20 @@ REF_1M1 = {
                    200000: (1.3998, 30000, A3)},
     "k3_r100_09b": {40000: (1.3618, 15000, A3), 100000: (1.3010, 30000, A3),
                     200000: (1.3998, 30000, A3)},
-    "k32_r100_09": {40000: (1.1491, 30000, K32)},
+    # SEED-MATCHED. #404 ran this schedule at two backbone seeds, 1.1507 at
+    # 20260520 and 1.1491 at 20260524. This card runs 20260520, so 1.1507 is
+    # the twin and the pair is the reference's own spread.
+    "k32_r100_09": {40000: (1.1507, 30000, K32)},
     "k32_r200_08": {40000: (1.1782, 30000, K32)},
     "k32_r100_09_dec": {40000: (1.2295, 30000, DEC)},
 }
 # The whole measured spread of a 1.1M reference, where the parent ran a repeat.
 REF_1M1_SEEDS = {("k32_r100_09", 40000): (1.1491, 1.1507)}
+
+
+def reference_spread(arm, stop):
+    """(low, high) of the 1.1M reference over the parent's seeds, or None."""
+    return REF_1M1_SEEDS.get((arm, int(stop)))
 # The project best, at 1.1M. A DIFFERENT align target: cell A4 targets the
 # STUDENT. It is the number the card asks an 11.4M model to beat.
 PROJECT_BEST = 1.0651
