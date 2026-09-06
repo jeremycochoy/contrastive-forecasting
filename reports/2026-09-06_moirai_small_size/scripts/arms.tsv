@@ -19,6 +19,15 @@
 #                     target moved to the teacher. That run is
 #                     `arm6_v2_combab_alignS`, and it carries no
 #                     `--train-rollout-reduce`, which is the sum.
+#                     THIS ROW HAS A 1.1M TWIN, and an earlier version of this
+#                     comment said it did not. #373 ran it as cell A3,
+#                     `arm6_v2_combab_alignT_sched`: the same cell, k = 3,
+#                     sum, the same momentum and the same seed 20260520. It
+#                     scored 1.3618 at 40,000 steps under a 15,000-step head,
+#                     1.3010 at 100,000 and 1.3998 at 200,000, both under a
+#                     30,000-step head. So the 100,000-step and 200,000-step
+#                     stops of this row are head-matched size comparisons, and
+#                     the 40,000-step stop is not.
 #   k32_r100_09       2. k = 32, mean. #404's `r100_09`. The best teacher-align
 #                     score at the 40,000-step stop, 1.1491 over two seeds.
 #   k32_r200_08       3. k = 32, mean. #404's `s08`, 1.1782 at 40,000 steps.
