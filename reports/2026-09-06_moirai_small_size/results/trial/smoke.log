@@ -1,6 +1,15 @@
-[09-06 01:50:41] [#412 smoke] arm k3_r100_09 -> 40 steps on gpu 0
-[09-06 01:51:06] [#412 smoke] arm k32_r100_09 -> 40 steps on gpu 0
-[09-06 01:51:46] [#412 smoke] arm k32_r100_09 rc=127
-[09-06 01:51:46] [#412 smoke] arm k32_r200_08 -> 40 steps on gpu 0
-[09-06 01:52:27] [#412 smoke] arm k8_r100_09 -> 40 steps on gpu 0
-[09-06 01:52:55] [#412 smoke] arm k3_r100_09b -> 40 steps on gpu 0
+[09-06 03:14:48] [#412 smoke] arm k3_r100_09 -> 150 steps on gpu 0
+[09-06 03:15:51] [#412 smoke] arm k3_r100_09 peak 6436 MiB of its own, beside 4008 MiB on the card
+[09-06 03:15:51] [#412 smoke] arm k32_r100_09 -> 150 steps on gpu 0
+[09-06 03:24:14] [#412 smoke] arm k32_r100_09 peak 10062 MiB of its own, beside 4008 MiB on the card
+[09-06 03:24:14] [#412 smoke] arm k32_r200_08 -> 150 steps on gpu 0
+[09-06 03:26:20] [#412 smoke] arm k32_r200_08 peak 10062 MiB of its own, beside 4008 MiB on the card
+[09-06 03:26:20] [#412 smoke] arm k3_r100_09_dec -> 150 steps on gpu 0
+[09-06 03:27:11] [#412 smoke] arm k3_r100_09_dec peak 6436 MiB of its own, beside 4008 MiB on the card
+[09-06 03:27:11] [#412 smoke] arm k32_r100_09_dec -> 150 steps on gpu 0
+[09-06 03:29:00] [#412 smoke] arm k32_r100_09_dec peak 10058 MiB of its own, beside 4008 MiB on the card
+[09-06 03:29:00] [#412 smoke] arm k8_r100_09 -> 150 steps on gpu 0
+[09-06 03:30:12] [#412 smoke] arm k8_r100_09 peak 7160 MiB of its own, beside 4008 MiB on the card
+[09-06 03:30:12] [#412 smoke] arm k3_r100_09b -> 150 steps on gpu 0
+[09-06 03:31:16] [#412 smoke] arm k3_r100_09b peak 6472 MiB of its own, beside 4008 MiB on the card
+[09-06 03:31:16] [#412 smoke] smoke done — 0 failure(s); table in /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/trial/smoke.csv

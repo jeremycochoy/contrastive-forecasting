@@ -1,5 +1,5 @@
 #!/bin/bash
-# #412 — one cell, four published configurations, at the size of a small
+# #412 — one cell, six published configurations, at the size of a small
 # foundation model. Sourced, never run.
 #
 # Every score of this project comes from a backbone of 720,668 trainable
@@ -41,7 +41,17 @@
 # On an align-student cell the teacher reaches the loss only through the MoCo
 # keys inside `L_rep` (`src/loss.py`). #409 spent a 12-hour run before it read
 # that line. `run_leg_k.sh` sets `--align-target teacher` for this cell, and
-# `run_arm.sh` reads it back off the trainer's own command line.
+# `run_arm.sh` reads it back off the trainer's own command line. A leg that
+# does not name its objective in its first CF412_CHECK_TIMEOUT seconds stops
+# too: an unchecked leg is not a checked one.
+#
+# ---- The second thing that loses a leg in silence ----------------------------
+#
+# A backbone can lose the contrastive task. #404 saw one at seed 20260521. The
+# two decay arms carry the higher risk, because `L_rep` holds the negatives of
+# this objective and their weight reaches 0.0 at step 2,000. One k = 32 arm
+# costs 32 GPU-hours to 200,000 steps, so `auc_guard.sh` reads the trainer's
+# own `auc` column while the leg runs and stops the arm that lost the task.
 #
 # ---- What this study must not write over -------------------------------------
 #
@@ -80,6 +90,14 @@ CF412_HEAD_STEPS="${CF412_HEAD_STEPS:-30000}"
 CF412_ENC="${CF412_ENC:-student}"
 CF412_SEED_DEFAULT="${CF412_SEED_DEFAULT:-20260520}"
 CF412_ARMS_TSV="${CF412_ARMS_TSV:-$CF412_SCRIPTS/arms.tsv}"
+# The leg runner. A variable so a test can hand `run_arm.sh` a stub and prove
+# the guards fire. The study never sets it.
+CF412_RUNNER="${CF412_RUNNER:-$CF412_PARENT/scripts/run_leg_k.sh}"
+# The `L_rep` decay, as the card states it: weight 1.0 at step 0, 0.0 at the
+# arm's ramp. The ramp is the arm's column, and it is `-` for an arm that
+# carries no decay.
+CF412_REP_W_START="${CF412_REP_W_START:-1.0}"
+CF412_REP_W_END="${CF412_REP_W_END:-0.0}"
 # Moirai-2-Small, from arXiv:2511.11698. The target the shape aims at.
 CF412_TARGET_PARAMS=11400000
 # A 384-wide backbone and its head take more of the card than a 64-wide one,
@@ -96,6 +114,11 @@ CF412_HEAD_VRAM_MIB="${CF412_HEAD_VRAM_MIB:-12000}"
 if [ -n "${CF412_TRIAL:-}" ]; then
   CF412_STOPS="$CF412_TRIAL"
   CF412_HEAD_STEPS=$(( CF412_TRIAL / 2 ))
+  # The AUC gate sleeps between reads, and a 600-second sleep outlives a leg
+  # of a few hundred steps. The WARM-UP does not scale: a run of a few hundred
+  # steps has not learned the task yet, so the watch must give no verdict on
+  # it, and 1,000 steps is what keeps it silent.
+  CF412_AUC_POLL="${CF412_AUC_POLL:-10}"
 fi
 
 # ---- Where the artefacts live ------------------------------------------------
@@ -134,11 +157,11 @@ cf412_arms(){
 CF412_ARMS="$(cf412_arms | tr '\n' ' ')"
 CF412_ARMS="${CF412_ARMS% }"
 
-# One arm's row, as `<arm> <k> <reduce> <tau> <end> <ramp> <seed>`. Prints
-# nothing, and returns non-zero, for an arm the table does not hold.
+# One arm's row, as `<arm> <k> <reduce> <tau> <end> <ramp> <seed> <decay>`.
+# Prints nothing, and returns non-zero, for an arm the table does not hold.
 cf412_arm_row(){  # <arm>
   awk -F'\t' -v a="${1:?arm}" \
-    '!/^#/ && $1 == a { print $1, $2, $3, $4, $5, $6, $7; found = 1 }
+    '!/^#/ && $1 == a { print $1, $2, $3, $4, $5, $6, $7, $8; found = 1 }
      END { exit !found }' "$CF412_ARMS_TSV"
 }
 
@@ -168,9 +191,9 @@ cf412_seed(){  # <arm>
 # must pass no `--ema-tau-end` at all. No arm of this card is fixed today, and
 # the shape stays because a new row can be.
 cf412_ema_args(){  # <arm>
-  local row name k red tau end ramp seed
+  local row name k red tau end ramp seed decay
   row="$(cf412_arm_row "${1:?arm}")" || return 1
-  read -r name k red tau end ramp seed <<<"$row"
+  read -r name k red tau end ramp seed decay <<<"$row"
   if [ "$end" = "-" ]; then
     printf -- '--ema-tau %s\n' "$tau"
   else
@@ -184,6 +207,58 @@ cf412_ema_args(){  # <arm>
 # one string equality, not three.
 cf412_ema_sig(){  # <arm>
   cf412_arm_row "${1:?arm}" | awk '{print $4, $5, $6}'
+}
+
+# ---- The L_rep decay ---------------------------------------------------------
+#
+# Configurations 4 and 5 decay the weight on `L_rep` from 1.0 to 0.0 by step
+# 2,000. `L_rep` carries the negatives of this objective, so at 0.0 nothing
+# pushes the representations apart. #409 built the three trainer flags and
+# measured the decay at 1.1M parameters, where it never won. This card asks the
+# same question at 11.4M, and configuration 5 minus configuration 2 answers it
+# directly.
+
+# The decay ramp of one arm, in steps, or `-` for an arm with no decay. This is
+# a FACT about the arm, so no environment value moves it: the tables and the
+# figures read it.
+cf412_decay_ramp(){  # <arm>
+  local v
+  v="$(cf412_arm_row "${1:?arm}" | awk '{print $8}')" || return 1
+  printf '%s\n' "${v:--}"
+}
+
+# The ramp ONE LEG runs, in steps. A trial scales it by the trial budget, so a
+# 400-step smoke still crosses the whole decay and its `rep_w` column still
+# reaches 0.0. Prints nothing for an arm with no decay.
+cf412_ramp(){  # <arm>
+  local ramp
+  ramp="$(cf412_decay_ramp "${1:?arm}")" || return 1
+  [ "$ramp" = "-" ] && return 0
+  if [ -n "${CF412_TRIAL:-}" ]; then
+    ramp=$(( ramp * CF412_TRIAL / 40000 ))
+    [ "$ramp" -ge 1 ] || ramp=1
+  fi
+  printf '%s\n' "$ramp"
+}
+
+# The trainer flags of one arm's decay, as ONE unit. Empty for an arm with no
+# decay, which is then byte-for-byte the objective of its plain twin.
+cf412_decay_args(){  # <arm>
+  local ramp
+  ramp="$(cf412_ramp "${1:?arm}")" || return 1
+  [ -n "$ramp" ] || return 0
+  printf -- '--rep-loss-weight %s --rep-loss-weight-end %s --rep-loss-weight-ramp-steps %s\n' \
+    "$CF412_REP_W_START" "$CF412_REP_W_END" "$ramp"
+}
+
+# The same decay, in the shape a command line reads back as: `<start> <end>
+# <ramp>`, with `-` for a flag the line does not carry. train.py's own default
+# start is 1.0, so an arm with no decay reads `1.0 - -`.
+cf412_decay_sig(){  # <arm>
+  local ramp
+  ramp="$(cf412_ramp "${1:?arm}")" || return 1
+  [ -n "$ramp" ] || { printf '%s - -\n' "$CF412_REP_W_START"; return 0; }
+  printf '%s %s %s\n' "$CF412_REP_W_START" "$CF412_REP_W_END" "$ramp"
 }
 
 # ---- The shape, on the trainer's command line --------------------------------
@@ -348,6 +423,17 @@ cf412_reduce_of_cmdline(){
   printf '%s\n' "${v:-sum}"
 }
 
+# The decay a command line names, in the shape of `cf412_decay_sig`.
+cf412_decay_of_cmdline(){
+  local line start end ramp
+  line="$(cat)"
+  start="$(printf '%s' "$line" | cf412_last_arg_of_cmdline --rep-loss-weight)"
+  end="$(printf '%s' "$line" | cf412_last_arg_of_cmdline --rep-loss-weight-end)"
+  ramp="$(printf '%s' "$line" \
+    | cf412_last_arg_of_cmdline --rep-loss-weight-ramp-steps)"
+  printf '%s %s %s\n' "${start:-$CF412_REP_W_START}" "${end:--}" "${ramp:--}"
+}
+
 cf412_seed_of_cmdline(){
   local v; v="$(cf412_last_arg_of_cmdline --seed)"
   printf '%s\n' "${v:--}"
@@ -390,6 +476,79 @@ cf412_kill_tree(){  # <pid>
   for child in $(pgrep -P "$pid" 2>/dev/null); do cf412_kill_tree "$child"; done
   kill -TERM "$pid" 2>/dev/null
 }
+
+# ---- The losses CSV of a leg -------------------------------------------------
+
+# The CSVs of one leg, oldest first. A leg re-fired after a crash resumes into
+# the SAME leg directory, and train.py branches its `--run-name` to `<name>_r2`
+# when that directory already holds `<name>_*.pth` (`safe_run_name`). So one
+# arm can hold more than one CSV, and the report reads them all.
+cf412_losses_csvs(){  # <arm> <stop steps>
+  local dir name
+  dir="$(cf412_leg_dir "${1:?arm}" "${2:?stop}")"
+  name="$(cf412_run_name "$1")"
+  ls -tr "$dir/$name"_losses.csv "$dir/$name"_r[0-9]*_losses.csv 2>/dev/null
+}
+
+# The CSV the leg that runs NOW writes to, which is the newest one. The AUC
+# gate reads this one: an older CSV holds the steps of a leg that already
+# stopped, and a verdict on those would stop the wrong run.
+cf412_live_losses_csv(){  # <arm> <stop steps>
+  cf412_losses_csvs "${1:?arm}" "${2:?stop}" | tail -1
+}
+
+# How many DATA rows a losses CSV holds. The header does not count, and a file
+# that is missing or empty holds none.
+cf412_csv_rows(){  # <csv>
+  awk 'END { n = NR - 1; if (n < 0) n = 0; print n }' "${1:?csv}" 2>/dev/null \
+    || printf '0\n'
+}
+
+# ---- The AUC gate ------------------------------------------------------------
+#
+# The card asks for the contrastive AUC of every run, and it names the reading:
+# a rolling median over 500 rows against 0.55, after a 1,000-step warm-up. A
+# run is lost when that median ends under the threshold and does not come back.
+#
+# `scripts/auc_watch.py` of the main checkout is the reader, and #409 wrote it.
+# `auc_guard.sh` runs it against the live CSV while a leg trains and stops the
+# arm that lost the task. A k = 32 arm costs 32 GPU-hours to 200,000 steps, so
+# a lost arm must not climb in silence.
+#
+# A stopped arm is a RESULT, not a failure. It has its whole AUC curve and its
+# loss by term to the step it reached.
+CF412_AUC_WATCH_PY="${CF412_AUC_WATCH_PY:-$CF412_REPO/scripts/auc_watch.py}"
+CF412_AUC_WINDOW="${CF412_AUC_WINDOW:-500}"
+CF412_AUC_THRESHOLD="${CF412_AUC_THRESHOLD:-0.55}"
+# Steps the verdict does not read. The AUC of a fresh run starts near 0.5 and
+# climbs, so a gate with no warm-up stops every arm in its first minute.
+CF412_AUC_WARMUP="${CF412_AUC_WARMUP:-1000}"
+# How often the gate reads the CSV. The trainer flushes every 100 rows.
+CF412_AUC_POLL="${CF412_AUC_POLL:-600}"
+
+# What the gate writes when it stops an arm. The report reads the step out of
+# it, and `phase1.sh` reads its presence.
+cf412_collapse_file(){  # <arm>
+  printf '%s/collapsed_%s.txt\n' "$CF412_RESULTS" "${1:?arm}"
+}
+
+# ---- The smoke ---------------------------------------------------------------
+#
+# The step time and the peak memory the run plan is sized from. A 5-second
+# sampler over a 25-second arm can miss the peak, so the poll is one second and
+# each arm runs long enough that the stream is warm before the timing line the
+# table reads.
+CF412_SMOKE_STEPS="${CF412_SMOKE_STEPS:-150}"
+CF412_SMOKE_POLL="${CF412_SMOKE_POLL:-1}"
+
+# ---- Exit codes --------------------------------------------------------------
+#
+#   2   refused: not an arm, not a stop, no runner, no checkpoint
+#   3   the trainer took an objective this arm does not carry, or it named none
+#   4   the AUC gate stopped this arm
+#   9   the session holds above this stop (`run_leg_k.sh`)
+#   10  another machine claims this cell (`run_leg_k.sh`)
+CF412_RC_COLLAPSED=4
 
 # ---- Guards ------------------------------------------------------------------
 

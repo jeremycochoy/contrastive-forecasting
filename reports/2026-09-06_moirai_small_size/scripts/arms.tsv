@@ -2,7 +2,7 @@
 #
 # Columns: arm, the rollout depth k, the reduction over the k + 1 depth
 # copies, the EMA momentum alpha at step 0, alpha at the end of the ramp, the
-# ramp length, the backbone seed.
+# ramp length, the backbone seed, the L_rep decay ramp.
 #
 # Every arm trains #373's cell `arm6_v2_combab_alignT` at `d_model` 384. The
 # WIDTH is the one thing this card moves, and it is not a column: every arm
@@ -12,46 +12,68 @@
 # reduction and the momentum of a row are its parent's values, and a row that
 # changed one of them would answer a question no parent asked.
 #
-# ---- The four configurations of the card ------------------------------------
+# ---- The six configurations of the card -------------------------------------
 #
-#   k3_r100_09    k = 3, the sum reduction. The cell that holds the project
-#                 best, 1.0651 at 200,000 steps, with the align target moved
-#                 to the teacher. That run is `arm6_v2_combab_alignS`, and it
-#                 carries no `--train-rollout-reduce`, which is the sum.
-#   k32_r100_09   k = 32, mean. #404's `r100_09`. The best teacher-align score
-#                 at the 40,000-step stop, 1.1491 over two seeds.
-#   k32_r200_08   k = 32, mean. #404's `s08`, 1.1782 at 40,000 steps. Its
-#                 momentum still climbs at 200,000 steps, so it has not
-#                 saturated.
-#   k8_r100_09    k = 8, mean. #401 ran this depth under the mean reduction
-#                 against the STUDENT target. The depth sits between the two
-#                 cells above, and at 1.1M parameters k = 3 beats k = 32. That
-#                 order may not hold at 11.4M.
+#   k3_r100_09        1. k = 3, the sum reduction. The cell that holds the
+#                     project best, 1.0651 at 200,000 steps, with the align
+#                     target moved to the teacher. That run is
+#                     `arm6_v2_combab_alignS`, and it carries no
+#                     `--train-rollout-reduce`, which is the sum.
+#   k32_r100_09       2. k = 32, mean. #404's `r100_09`. The best teacher-align
+#                     score at the 40,000-step stop, 1.1491 over two seeds.
+#   k32_r200_08       3. k = 32, mean. #404's `s08`, 1.1782 at 40,000 steps.
+#                     Its momentum still climbs at 200,000 steps, so it has
+#                     not saturated.
+#   k3_r100_09_dec    4. Configuration 1 with the L_rep decay. #409 answered
+#                     this at 1.1M parameters. It is open at 11.4M.
+#   k32_r100_09_dec   5. Configuration 2 with the L_rep decay. #409's best
+#                     decay arm scored 1.2295 at 1.1M.
+#   k8_r100_09        6. k = 8, mean. OPTIONAL. #401 ran this depth under the
+#                     mean reduction against the STUDENT target. The depth
+#                     sits between the two cells above, and at 1.1M parameters
+#                     k = 3 beats k = 32. That order may not hold at 11.4M.
 #
-# ---- What this design can say, and what it cannot ---------------------------
+# ---- Why two decay arms stay in ---------------------------------------------
 #
-# #409 measured a seed band of 0.0471 GM-Relative MASE on one configuration at
-# 40,000 steps. Two arms that land closer than that cannot be ranked.
+# #409 measured the decay in 22 trained runs at 1.1M parameters, and it never
+# won. `L_rep` carries the negatives of the objective. A model with ten times
+# the capacity has more room to collapse without them, or more room to do
+# without them, and #409 cannot answer that.
 #
-# One backbone of this card costs about six times one backbone of its parent,
-# so five seeds of each arm are out of reach. The design therefore answers ONE
-# question with confidence: does the 11.4M model beat the 1.1M model by more
-# than 0.0471? It ranks the four arms against each other ONLY where a gap is
-# wider than that band.
+# The decay column is the whole difference between row 5 and row 2, and
+# between row 4 and row 1. So `5 minus 2` measures the decay alone at the new
+# size. Both twins carry the seed of their plain twin for the same reason.
+#
+# A decay arm can lose the contrastive task. `auc_guard.sh` reads the
+# trainer's own `auc` column while the leg runs and stops the arm that does.
+#
+# ---- The seed band ----------------------------------------------------------
 #
 #   k3_r100_09b   `k3_r100_09` again at backbone seed 20260525. It differs
 #                 from row 1 in the SEED column alone.
 #
-# Row 5 measures this size's OWN band, and it goes on row 1 because row 1 is
-# the arm the headline rests on: it is the teacher twin of the run that holds
-# 1.0651. 20260525 continues the seed count of #404, which used 20260520 thru
-# 20260524. #404 saw seed 20260521 lose the contrastive task, so this card
-# does not use it.
+# #409 measured a seed band of 0.0471 GM-Relative MASE on one configuration at
+# 40,000 steps. Two arms that land closer than that cannot be ranked. This row
+# measures this size's OWN band, and it repeats row 1 because row 1 is the arm
+# the headline rests on: it is the teacher twin of the run that holds 1.0651.
+# 20260525 continues the seed count of #404, which used 20260520 thru 20260524.
+# #404 saw seed 20260521 lose the contrastive task, so this card does not use
+# it.
+#
+# ---- What this design can say, and what it cannot ---------------------------
+#
+# One backbone of this card costs about six times one backbone of its parent,
+# so five seeds of each arm are out of reach. The design answers ONE question
+# with confidence: does the 11.4M model beat the 1.1M model by more than
+# 0.0471? It ranks the arms against each other ONLY where a gap is wider than
+# that band, and it measures the decay pair directly.
 #
 # Add an arm by adding a row. Every script, guard and figure reads this file.
-# arm	k	reduce	tau	end	ramp	seed
-k3_r100_09	3	sum	0.9	1.0	100000	20260520
-k32_r100_09	32	mean	0.9	1.0	100000	20260520
-k32_r200_08	32	mean	0.8	1.0	200000	20260520
-k8_r100_09	8	mean	0.9	1.0	100000	20260520
-k3_r100_09b	3	sum	0.9	1.0	100000	20260525
+# arm	k	reduce	tau	end	ramp	seed	decay
+k3_r100_09	3	sum	0.9	1.0	100000	20260520	-
+k32_r100_09	32	mean	0.9	1.0	100000	20260520	-
+k32_r200_08	32	mean	0.8	1.0	200000	20260520	-
+k3_r100_09_dec	3	sum	0.9	1.0	100000	20260520	2000
+k32_r100_09_dec	32	mean	0.9	1.0	100000	20260520	2000
+k8_r100_09	8	mean	0.9	1.0	100000	20260520	-
+k3_r100_09b	3	sum	0.9	1.0	100000	20260525	-
