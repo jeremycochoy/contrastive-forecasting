@@ -36,6 +36,12 @@ one column that changed.
 
 ![the loss by term](plots/loss_terms.png)
 
+This cell has two loss terms. `L_rep` carries the contrastive negatives, and
+`L_align` pulls the forecast toward the latent. The losses CSV also writes an
+`l_pred` column and leaves every row of it empty. The loss shape is
+`cosine_similarity_batch_rep_only`, which has no prediction term, so the empty
+column is not a logging fault.
+
 ## What this design can say
 
 **One thing changes: the width.** Every arm trains #373's cell
