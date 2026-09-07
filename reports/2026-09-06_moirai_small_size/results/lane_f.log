@@ -11,3 +11,7 @@
 [09-07 06:37:34] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-412/k3_r100_09_lr17/arm6_v2_combab_alignT/leg_40k
 [09-07 06:37:39] [#412] arm k3_r100_09_lr17 arch=384 3 3 k=3 reduce=sum ema='0.9 1.0 100000' decay='1.0 - -' seed=20260520 batch=64 lr=1.67e-4 align=teacher OK — all eight reached the trainer
 [09-07 06:37:39] [#412] arm k3_r100_09_lr17 AUC gate pid 1387490 — window 500, threshold 0.55, warmup 5989
+[09-07 11:42:22] [arm6_v2_combab_alignT] DONE target=40000 (66M) -> /home/jupyter/checkpoints_backup/cf-412/k3_r100_09_lr17/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr17_40k.pth
+[09-07 11:42:22] [#412] arm k3_r100_09_lr17 stop=40000 rc=0
+[09-07 11:42:22] [#412 phase1] head k3_r100_09_lr17 bb40000
+[09-07 11:42:22] [#412] head k3_r100_09_lr17_bb40k_h30k_student on cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr17_40k.pth

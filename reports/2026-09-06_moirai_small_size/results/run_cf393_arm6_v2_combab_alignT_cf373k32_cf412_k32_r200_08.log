@@ -385,3 +385,47 @@ Retrying in 1s [Retry 1/5].
 [  23600] loss=13.6125  ema_loss=13.5771  gap=-0.0540  ema_gap=-0.0547  mixup=56/200  1.2 sps  ETA 3.9h
               R²_rand=-0.0048  R²_naive=-0.5820  U_t=0.0828  U_b=0.0771  AUC=0.5926  Top1=0.0087
   timing: data=10.9ms  fwd=390.2ms  bwd=459.8ms  total=862.1ms
+[  23800] loss=13.6208  ema_loss=13.5773  gap=-0.0517  ema_gap=-0.0537  mixup=65/200  1.2 sps  ETA 3.8h
+              R²_rand=-0.0104  R²_naive=-0.7430  U_t=0.0921  U_b=0.0812  AUC=0.5872  Top1=0.0079
+  timing: data=33.8ms  fwd=366.9ms  bwd=433.4ms  total=835.3ms
+[  24000] loss=13.4922  ema_loss=13.5762  gap=-0.0514  ema_gap=-0.0530  mixup=52/200  1.2 sps  ETA 3.8h
+              R²_rand=0.0536  R²_naive=-0.7013  U_t=0.0917  U_b=0.0953  AUC=0.5638  Top1=0.0038
+  timing: data=9.6ms  fwd=361.0ms  bwd=426.2ms  total=797.9ms
+[  24200] loss=13.5917  ema_loss=13.5750  gap=-0.0485  ema_gap=-0.0508  mixup=58/200  1.2 sps  ETA 3.8h
+              R²_rand=0.0082  R²_naive=-0.9113  U_t=0.0836  U_b=0.0941  AUC=0.5865  Top1=0.0046
+  timing: data=8.2ms  fwd=365.4ms  bwd=435.4ms  total=810.2ms
+[  24400] loss=13.6151  ema_loss=13.5778  gap=-0.0472  ema_gap=-0.0481  mixup=71/200  1.2 sps  ETA 3.7h
+              R²_rand=0.0023  R²_naive=-0.9827  U_t=0.0928  U_b=0.0958  AUC=0.5711  Top1=0.0057
+  timing: data=34.4ms  fwd=353.0ms  bwd=423.3ms  total=811.9ms
+[  24600] loss=13.5349  ema_loss=13.5745  gap=-0.0487  ema_gap=-0.0492  mixup=57/200  1.2 sps  ETA 3.7h
+              R²_rand=0.0316  R²_naive=-0.5636  U_t=0.0805  U_b=0.1028  AUC=0.5726  Top1=0.0049
+  timing: data=8.3ms  fwd=366.5ms  bwd=431.2ms  total=807.2ms
+[  24800] loss=13.5941  ema_loss=13.5766  gap=-0.0495  ema_gap=-0.0507  mixup=59/200  1.2 sps  ETA 3.6h
+              R²_rand=-0.0443  R²_naive=-0.9485  U_t=0.0892  U_b=0.0836  AUC=0.5640  Top1=0.0098
+  timing: data=7.9ms  fwd=362.9ms  bwd=427.1ms  total=799.1ms
+'('Connection broken: IncompleteRead(122066342 bytes read, 23171044 more expected)', IncompleteRead(122066342 bytes read, 23171044 more expected))' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00040.parquet
+Retrying in 1s [Retry 1/5].
+[  25000] loss=13.6131  ema_loss=13.5761  gap=-0.0533  ema_gap=-0.0505  mixup=56/200  1.1 sps  ETA 3.7h
+              R²_rand=-0.0149  R²_naive=-0.4515  U_t=0.0876  U_b=0.0725  AUC=0.5640  Top1=0.0065
+  timing: data=2652.0ms  fwd=363.9ms  bwd=429.9ms  total=3447.0ms
+[  25200] loss=13.6050  ema_loss=13.5798  gap=-0.0484  ema_gap=-0.0494  mixup=62/200  1.1 sps  ETA 3.6h
+              R²_rand=0.0051  R²_naive=-1.2203  U_t=0.0882  U_b=0.0981  AUC=0.5750  Top1=0.0052
+  timing: data=8.5ms  fwd=380.3ms  bwd=450.0ms  total=840.0ms
+[  25400] loss=13.5244  ema_loss=13.5745  gap=-0.0462  ema_gap=-0.0478  mixup=62/200  1.1 sps  ETA 3.6h
+              R²_rand=-0.0010  R²_naive=-1.3695  U_t=0.0874  U_b=0.0967  AUC=0.5749  Top1=0.0057
+  timing: data=9.0ms  fwd=383.8ms  bwd=448.3ms  total=842.4ms
+[  25600] loss=13.6238  ema_loss=13.5794  gap=-0.0468  ema_gap=-0.0454  mixup=58/200  1.1 sps  ETA 3.5h
+              R²_rand=-0.0441  R²_naive=-0.5276  U_t=0.0952  U_b=0.0926  AUC=0.5602  Top1=0.0062
+  timing: data=9.1ms  fwd=387.1ms  bwd=458.2ms  total=855.7ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-412/k32_r200_08/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r200_08_best_gap.pth
+[  25800] loss=13.6226  ema_loss=13.5793  gap=-0.0419  ema_gap=-0.0437  mixup=57/200  1.1 sps  ETA 3.5h
+              R²_rand=-0.0838  R²_naive=-0.4045  U_t=0.0904  U_b=0.0929  AUC=0.5763  Top1=0.0084
+  timing: data=36.2ms  fwd=372.2ms  bwd=440.8ms  total=850.5ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-412/k32_r200_08/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r200_08_best_gap.pth
+[  26000] loss=13.5560  ema_loss=13.5821  gap=-0.0406  ema_gap=-0.0408  mixup=58/200  1.1 sps  ETA 3.4h
+              R²_rand=-0.0019  R²_naive=-0.5714  U_t=0.0885  U_b=0.1035  AUC=0.5673  Top1=0.0041
+  timing: data=8.2ms  fwd=375.2ms  bwd=443.8ms  total=828.5ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-412/k32_r200_08/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r200_08_best_gap.pth
+[  26200] loss=13.5145  ema_loss=13.5751  gap=-0.0435  ema_gap=-0.0425  mixup=63/200  1.1 sps  ETA 3.4h
+              R²_rand=-0.0205  R²_naive=-1.2365  U_t=0.0840  U_b=0.0974  AUC=0.5618  Top1=0.0038
+  timing: data=8.5ms  fwd=379.9ms  bwd=444.5ms  total=834.0ms

@@ -112,13 +112,19 @@ Every row falls from left to right, at every step. The k = 3 arm holds 0.998
 and does not move. The k = 8 arm loses 0.051 over those 6,000 steps and the
 k = 32 arm loses 0.079.
 
+Read the k = 8 and k = 32 pair carefully. They sit 0.003 apart at step 2,000,
+which is nothing, and the gap opens to 0.024 at 5,000 and 0.031 at 8,000. So
+the two depths separate over training rather than at the start, and
+`k8_r100_09` has reached 8,300 steps of its 40,000, so its own stop is open.
+
 The EMA momentum moves the whole curve as well. `k32_r200_08` starts its ramp
 at 0.8 and sits under `k32_r100_09` at every step, by 0.091 at step 2,000 and
 by 0.101 at step 8,000. The two arms share the cell, the depth, the reduction
 and the seed, so the momentum is the one thing between them.
 
-This reading covers k = 32 alone. #373 published no AUC column for cells A3 and
-A4, so the k = 3 arms have no 1.1M anchor.
+The k = 3 arms have no 1.1M AUC anchor, because #373 published no AUC column
+for cells A3 and A4. That limits a SIZE comparison at k = 3. It does not limit
+the reading above, which compares four depths at one width inside this card.
 
 The decay damages the two cells differently, and it shows early. At step 5,000
 the k = 32 decay arm reads 0.746 against 0.937 for its no-decay twin, a gap of
@@ -127,8 +133,9 @@ carry their `L_rep` weight at 0.0 from step 2,000.
 
 `k3_r100_09_dec` then held the task to 40,000 steps. Its floor is 0.980 and it
 ends at 0.997, against its twin's 0.999. That floor is higher than 0.904, which
-is the BEST the k = 32 plain arm reaches after step 10,000. So the decay costs nothing measurable at k = 3 over 38,000 steps at
-weight 0.0, and the same treatment reaches chance at k = 32.
+is the BEST the k = 32 plain arm reaches after step 10,000. So the decay costs
+nothing measurable at k = 3 over 38,000 steps at weight 0.0, and the same
+treatment reaches chance at k = 32.
 
 Two limits hold that reading. It is the AUC axis, and `k3_r100_09_dec` has no
 1.1M twin, because every decay run of #409 used k = 32. It is also a
