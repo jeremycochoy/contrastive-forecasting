@@ -122,3 +122,6 @@
 [09-07 06:03:39] [#412 phase1] head k3_r100_09_lr33 bb40000
 [09-07 06:04:17] [#412 claim] gpu 1  waits on: k3_r100_09_dec:40000 k3_r100_09:200000 k32_r200_08:40000 k8_r100_09:40000
 [09-07 06:04:17] [#412 claim] k3_r100_09_dec at 40000 — claiming its head on gpu 1
+[09-07 06:05:33] [#412 phase1] arms: k3_r100_09_lr17
+[09-07 06:05:33] [#412 phase1] stops: 40000  gpu: 1
+[#412 vram] gpu 1 has 7684 MiB free, backbone k3_r100_09_lr17 needs 7700

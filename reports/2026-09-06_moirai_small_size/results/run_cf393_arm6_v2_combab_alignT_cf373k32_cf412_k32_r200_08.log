@@ -6,3 +6,17 @@ Loss CSV: /home/jupyter/checkpoints_backup/cf-412/k32_r200_08/arm6_v2_combab_ali
 Latent-drift CSV: /home/jupyter/checkpoints_backup/cf-412/k32_r200_08/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r200_08_latent_drift.csv (every 20000 steps, probe_bs=64, probe_seed=20260722)
 Attn-amplitude CSV: /home/jupyter/checkpoints_backup/cf-412/k32_r200_08/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r200_08_attn_amplitude.csv (every 200 steps)
 Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, hf_bs=64, synth_bs=0, cross_bs=0, total_bs=67
+[    200] loss=12.7332  ema_loss=12.9909  gap=-0.1865  ema_gap=-0.2151  mixup=61/200  1.2 sps  ETA 9.1h
+              R²_rand=0.5410  R²_naive=0.2482  U_t=0.0168  U_b=0.0327  AUC=0.9559  Top1=0.1924
+  timing: data=54.7ms  fwd=310.1ms  bwd=351.1ms  total=716.9ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-412/k32_r200_08/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r200_08_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-412/k32_r200_08/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r200_08_best_loss.pth
+[    400] loss=12.7372  ema_loss=12.7509  gap=-0.0880  ema_gap=-0.1300  mixup=46/200  1.2 sps  ETA 8.8h
+              R²_rand=0.5619  R²_naive=0.3200  U_t=0.0210  U_b=0.0329  AUC=0.9671  Top1=0.2928
+  timing: data=7.3ms  fwd=309.1ms  bwd=346.3ms  total=663.5ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-412/k32_r200_08/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r200_08_best_gap.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-412/k32_r200_08/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r200_08_best_loss.pth
+[    600] loss=12.8309  ema_loss=12.7854  gap=-0.0382  ema_gap=-0.0767  mixup=60/200  1.3 sps  ETA 8.7h
+              R²_rand=0.5689  R²_naive=0.3082  U_t=0.0234  U_b=0.0335  AUC=0.9640  Top1=0.2882
+  timing: data=7.0ms  fwd=306.1ms  bwd=346.1ms  total=660.0ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-412/k32_r200_08/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r200_08_best_gap.pth
