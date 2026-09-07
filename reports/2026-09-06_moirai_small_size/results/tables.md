@@ -25,7 +25,7 @@ The band is **0.0568** (this card measured it at 11.4M). Two numbers closer than
 | k3_r100_09_lr33 | held | 0.9913 | 3337 | 0.9980 | 40000 |
 | k3_r100_09_lr56 | held | 0.9936 | 34553 | 0.9956 | 40000 |
 | k3_r100_09b | held | 0.9922 | 1869 | 0.9982 | 40000 |
-| k8_r100_09 | held | 0.6847 | 14106 | 0.6920 | 14300 |
+| k8_r100_09 | held | 0.6847 | 14106 | 0.7316 | 16100 |
 
 ### The contrastive AUC, step by step
 
@@ -73,7 +73,7 @@ Lower is worse. A run at 0.5 has lost the task. The last column is what the same
 | k3_r100_09_lr33 | 40,000 | 40,000 | 12.5972 | 11.7772 | 0.2020 | 1.00 | 0.9400 | 0.9983 |
 | k3_r100_09_lr56 | 40,000 | 40,000 | 12.6520 | 11.6891 | 0.2118 | 1.00 | 0.9400 | 0.9973 |
 | k3_r100_09b | 40,000 | 40,000 | 12.9777 | 11.7567 | 0.2832 | 1.00 | 0.9400 | 0.9984 |
-| k8_r100_09 | 40,000 | 14,300 | 13.5169 | 11.6113 | 1.8195 | 1.00 | 0.9143 | 0.6857 |
+| k8_r100_09 | 40,000 | 16,100 | 13.4286 | 11.6077 | 1.7778 | 1.00 | 0.9161 | 0.7246 |
 
 ### The cost
 
@@ -98,3 +98,4 @@ Lower is worse. A run at 0.5 has lost the task. The last column is what the same
 | k3_r100_09_lr33_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 3.9 |
 | k3_r100_09 | backbone | 200,000 | 13.4 |
 | k3_r100_09_lr17 | backbone | 40,000 | 5.1 |
+| k3_r100_09_bb200k_h30k_student | head | 30,000 | 1.8 |

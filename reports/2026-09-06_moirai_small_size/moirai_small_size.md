@@ -188,10 +188,20 @@ is the BEST the k = 32 plain arm reaches after step 10,000. So the decay costs
 nothing measurable at k = 3 over 38,000 steps at weight 0.0, and the same
 treatment reaches chance at k = 32.
 
-Two limits hold that reading. It is the AUC axis, and `k3_r100_09_dec` has no
-1.1M twin, because every decay run of #409 used k = 32. It is also a
-40,000-step reading: #409 carried its best decay arm to 200,000 steps and the
-gap moved, and this card carries neither decay arm past 40,000.
+THE SCORE AGREES WITH THE AUC. `k3_r100_09_dec` scores 1.3236 against its
+no-decay twin's 1.3495 at the same seed, a gap of 0.0259 in the decay arm's
+favour and 0.5 of a band. So the decay costs nothing at k = 3 on either axis,
+and the pair sits inside the 1.2927 to 1.3495 range of the two 1e-3 seeds.
+
+At k = 32 the same treatment has no score to compare, because the arm lost the
+task at step 18,634 and never reached its stop. That is the decay result of
+this card: nothing measurable on the shallow sum cell, and a lost run on the
+deep mean cell.
+
+Two limits hold it. `k3_r100_09_dec` has no 1.1M twin, because every decay run
+of #409 used k = 32. And it is a 40,000-step reading: #409 carried its best
+decay arm to 200,000 steps and the gap moved, and this card carries neither
+decay arm past 40,000.
 
 ## The loss by term
 
