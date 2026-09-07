@@ -51,7 +51,7 @@ hits="$(ps -eo pid,args --no-headers 2>/dev/null | awk -v arm="$ARM" \
   }' | cut -c1-140)"
 
 if [ -n "$hits" ]; then
-  echo "BUSY: $ARM at $stop"; echo "$hits"; exit 0
+  echo "BUSY: $ARM at $STOP"; echo "$hits"; exit 0
 fi
 echo "FREE: $ARM at $STOP has no head and no evaluation"
 exit 1

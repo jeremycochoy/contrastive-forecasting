@@ -582,3 +582,6 @@ Retrying in 1s [Retry 1/5].
 [  34400] loss=12.7167  ema_loss=12.7869  gap=0.0158  ema_gap=0.0036  mixup=51/200  2.3 sps  ETA 0.7h
               R²_rand=0.8562  R²_naive=0.4534  U_t=0.0062  U_b=0.0258  AUC=0.9932  Top1=0.6792
   timing: data=35.2ms  fwd=175.6ms  bwd=106.0ms  total=317.7ms
+[  34600] loss=12.8969  ema_loss=12.8851  gap=-0.0124  ema_gap=0.0013  mixup=58/200  2.3 sps  ETA 0.7h
+              R²_rand=0.8229  R²_naive=0.4025  U_t=0.0066  U_b=0.0230  AUC=0.9914  Top1=0.5940
+  timing: data=8.7ms  fwd=169.7ms  bwd=104.1ms  total=283.3ms
