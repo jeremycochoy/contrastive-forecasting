@@ -16,6 +16,26 @@
 # never leaves steady state, the k = 32 smoke rows over-size every plan built
 # on them by 3,660 MiB per arm.
 #
+# HOW TO READ THE CURVE ON k8_r100_09. Three outcomes, not two. A k = 8 arm
+# holds more than a k = 3 arm for real reasons, so a flat curve is only
+# evidence of over-statement if it sits near the k = 3 figure. Read it against
+# BOTH 7,160, its own smoke row, and 6,472, the k = 3 steady state.
+#
+#   1. A spike above 7,160, then a fall. The startup peak is real, and every
+#      smoke row is the right number to gate on. Keep every gate.
+#   2. Flat near 7,160. The k = 8 smoke row is CORRECT, there is no
+#      over-statement at k = 8, and the k = 32 gap stays unexplained. Neither
+#      branch wins.
+#   3. Flat near 6,500, well under 7,160. The smoke over-states with depth, so
+#      the k = 32 row is wrong the same way.
+#
+# Outcome 2 is the likeliest and it settles nothing. Do not read it as 3.
+#
+# THE CLEAN EXPERIMENT THIS CARD WILL NOT RUN. The gap lives at k = 32, so the
+# measurement belongs on a k = 32 arm from its first second. No k = 32 arm is
+# due to start again here, and a 9.6-hour leg is far too much to spend on a
+# memory gate. This card infers from k = 8 and says so.
+#
 # HOW IT CATCHES THE WINDOW. It polls for the pid every 0.2 s, not every 20 s,
 # because a 20 s wait can miss the whole window and return a clean
 # steady-state max that proves neither branch. It then samples `nvidia-smi` in
