@@ -110,6 +110,20 @@ def terms_table(path):
 # is where `k32_r100_09_dec` lost the task, and 40,000 is the first stop.
 AUC_MARKS = (2000, 5000, 10000, 16000, 18600, 25000, 40000)
 AUC_ROOT = "/home/jupyter/checkpoints_backup/cf-412"
+# The gate's own window, from `study.sh`. One number, so the table and the
+# verdicts cannot drift apart.
+AUC_WINDOW = 500
+
+
+def rolling_median(series, window):
+    """`[(step, median of the last `window` values)]`, the gate's statistic."""
+    from collections import deque
+    from statistics import median
+    run, out = deque(maxlen=window), []
+    for step, value in series:
+        run.append(value)
+        out.append((step, median(run)))
+    return out
 
 
 def auc_by_step_table(arms, root=AUC_ROOT):
@@ -121,15 +135,22 @@ def auc_by_step_table(arms, root=AUC_ROOT):
     where the depth has already spent the margin. One row per arm over the
     same steps shows both, and a held-or-lost column cannot.
 
-    Each cell is a trailing median over the rows within 400 steps of the mark,
-    so one noisy row does not set it. A dash is a step the arm never reached.
+    THE STATISTIC IS THE GATE'S: a rolling MEDIAN over the last
+    `CF412_AUC_WINDOW` rows, which is 500. `auc_guard.sh` stops a run on it
+    and `auc_verdicts.tsv` reports it, so a cell here and a floor there are
+    the same kind of number. An earlier version of this table took a trailing
+    MEAN over 200 rows and this docstring called it a median, which invited a
+    reader to reconcile two different statistics as one.
+
+    A dash is a step the arm never reached.
     """
     rows = []
     for arm, row in arms.items():
         paths = losses_csvs(root, arm, row["k"])
         if not paths:
             continue
-        series = S.smooth(S.read_run(paths, ["auc"], 5)["auc"], 40)
+        series = rolling_median(S.read_run(paths, ["auc"], 1)["auc"],
+                                AUC_WINDOW)
         if not series:
             continue
         cells = []

@@ -125,3 +125,16 @@
 [09-07 06:05:33] [#412 phase1] arms: k3_r100_09_lr17
 [09-07 06:05:33] [#412 phase1] stops: 40000  gpu: 1
 [#412 vram] gpu 1 has 7684 MiB free, backbone k3_r100_09_lr17 needs 7700
+[#412 vram] gpu 1 has 7684 MiB free, backbone k3_r100_09_lr17 needs 7700
+[#412 vram] gpu 1 has 7684 MiB free, backbone k3_r100_09_lr17 needs 7700
+[#412 vram] gpu 1 has 7684 MiB free, backbone k3_r100_09_lr17 needs 7700
+[09-07 06:36:50] [#412 phase1] head k3_r100_09_lr56 bb40000
+[#412 vram] gpu 1 has 14180 MiB free after 1920s — backbone k3_r100_09_lr17 starts
+[09-07 06:37:34] [#412 phase1] backbone k3_r100_09_lr17 -> 40000 (gpu 1 holds the 7700 MiB it needs)
+[09-07 07:44:18] [#412 claim] gpu 1  waits on: k3_r100_09_dec:40000 k3_r100_09:200000
+[09-07 07:44:18] [#412 claim] gpu 0  waits on: k32_r200_08:40000 k8_r100_09:40000
+[09-07 07:44:18] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 07:45:18] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 07:46:18] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 07:47:18] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 07:48:18] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
