@@ -116,7 +116,14 @@ def terms_table(path):
 # The `verdict` column carries the collapse instead, from `auc_verdicts.tsv`,
 # which is the statement the card asks for: whether a run lost the task, and
 # at which step.
-AUC_MARKS = (2000, 5000, 10000, 16000, 25000, 40000)
+# THE MARKS ARE DENSE BETWEEN 8,000 AND 15,000 ON PURPOSE. Two sessions drew a
+# conclusion from this table and had it overturned by the next two rows, twice.
+# At 8,000 it showed a clean fall with the depth. At 10,000 it showed a
+# crossing that read as "no separation". By 15,000 the shallower arm was 0.076
+# worse, which inverts both readings. A table that stops early does not say
+# "unknown", it says something wrong.
+AUC_MARKS = (2000, 5000, 8000, 10000, 12000, 15000, 18600, 25000, 28000,
+             40000)
 AUC_ROOT = "/home/jupyter/checkpoints_backup/cf-412"
 # The gate's own window, from `study.sh`. One number, so the table and the
 # verdicts cannot drift apart.
