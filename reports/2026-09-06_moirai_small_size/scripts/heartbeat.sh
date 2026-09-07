@@ -21,6 +21,7 @@ while :; do
   bash "$HERE/collect.sh" >>"$CF412_RESULTS/collect.log" 2>&1
   bash "$HERE/make_plots.sh" >>"$CF412_RESULTS/collect.log" 2>&1
   python3 "$HERE/report_tables.py" >>"$CF412_RESULTS/collect.log" 2>&1
+  bash "$HERE/splice_report.sh" >>"$CF412_RESULTS/collect.log" 2>&1
   cp -a "$CF412_RESULTS/." "$MIRROR/" 2>/dev/null
   sleep "$EVERY"
 done

@@ -277,9 +277,8 @@ range of the two 1e-3 seeds.
 On the deep mean cell the same treatment has no score to compare, because that
 arm lost the task at step 18,634 and never reached its stop. The cell
 difference carries the reduction confound above, so it names two columns and
-not the depth. That is the decay result of
-this card: nothing measurable on the shallow sum cell, and a lost run on the
-deep mean cell.
+not the depth. That is the decay result of this card: nothing measurable on
+the shallow sum cell, and a lost run on the deep mean cell.
 
 Two limits hold it. `k3_r100_09_dec` has no 1.1M twin, because every decay run
 of #409 used k = 32. And it is a 40,000-step reading: #409 carried its best
@@ -322,18 +321,20 @@ under-trains a 384-wide encoder biases every 11.4M score in this report the
 same way. Comparisons inside one size survive that bias. The size headline
 does not, and it carries this caveat.
 
-**The learning rate is not proven at this width.** Every arm above trains at
-1e-3, which is the Moirai recipe. This project does not use muP, and the
-trainer builds one AdamW group over all parameters. So a rate that fits
-`d_model` 64 need not fit 384. Three arms sweep the rate on configuration 1,
-at 5.6e-4, 3.3e-4 and 1.67e-4. Each one moves the rate column alone.
+**The learning rate was not proven at this width, and the sweep settled it.**
+Every arm outside the bracket trains at 1e-3, which is the Moirai recipe. This
+project does not use muP, and the trainer builds one AdamW group over all
+parameters, so a rate that fits `d_model` 64 need not fit 384.
 
-D is the best rate arm against BOTH seeds of configuration 1, 1.3495 and
-1.2927, and not against 1.3495 alone. 1.3495 is the worse of the two, so an
-arm that beats it by less than 0.0568 shows a seed draw and not a rate
-effect. A D above 0.0568 on the better seed voids every 1e-3 number of this
-card, and phase 1 repeats at the winning rate. Every arm inside the band, or
-worse, ends the learning-rate explanation at width 384.
+The rule was fixed before any rate arm scored. D is the best rate arm against
+BOTH seeds of configuration 1, 1.3495 and 1.2927, and not against 1.3495
+alone, because 1.3495 is the worse of the two. A D above 0.0568 on the better
+seed voids every 1e-3 number of this card. The bar was therefore 1.2359.
+
+`k3_r100_09_lr56` scored 1.1820 and cleared it by 0.0539. So the rule fired at
+1.95 bands, and every 1e-3 number here is void as a statement about capacity.
+The rule's other half, that phase 1 repeats at the winning rate, is a new run
+plan and this card does not carry it.
 
 **The band is 0.0568, and this card measured it.** `k3_r100_09b` repeats
 `k3_r100_09` at seed 20260525 alone, and it scores 1.2927 against 1.3495 at
@@ -348,11 +349,133 @@ its pair past the stop it measured.
 
 ## The arms
 
-_(from `scripts/arms.tsv`)_
+Ten arms. Every one is a PUBLISHED configuration at the new width, so its depth, reduction, momentum, seed and decay are its parent's values. `scripts/arms.tsv` carries the reasoning for each row.
+
+| arm | k | reduce | EMA start | EMA end | ramp | seed | L_rep decay | lr |
+|---|---|---|---|---|---|---|---|---|
+| k3_r100_09 | 3 | sum | 0.9 | 1.0 | 100000 | 20260520 | - | 1e-3 |
+| k32_r100_09 | 32 | mean | 0.9 | 1.0 | 100000 | 20260520 | - | 1e-3 |
+| k32_r200_08 | 32 | mean | 0.8 | 1.0 | 200000 | 20260520 | - | 1e-3 |
+| k3_r100_09_dec | 3 | sum | 0.9 | 1.0 | 100000 | 20260520 | 2000 | 1e-3 |
+| k32_r100_09_dec | 32 | mean | 0.9 | 1.0 | 100000 | 20260520 | 2000 | 1e-3 |
+| k8_r100_09 | 8 | mean | 0.9 | 1.0 | 100000 | 20260520 | - | 1e-3 |
+| k3_r100_09b | 3 | sum | 0.9 | 1.0 | 100000 | 20260525 | - | 1e-3 |
+| k3_r100_09_lr33 | 3 | sum | 0.9 | 1.0 | 100000 | 20260520 | - | 3.3e-4 |
+| k3_r100_09_lr17 | 3 | sum | 0.9 | 1.0 | 100000 | 20260520 | - | 1.67e-4 |
+| k3_r100_09_lr56 | 3 | sum | 0.9 | 1.0 | 100000 | 20260520 | - | 5.6e-4 |
 
 ## The tables
 
-_(from `results/tables.md`)_
+### The scores
+
+The band is **0.0568** (this card measured it at 11.4M). Two numbers closer than that are not ranked.
+
+| arm | k | reduce | seed | lr | L_rep decay | stop | 11.4M | 1.1M twin (parent seed range) | gap | head-matched |
+|---|---|---|---|---|---|---|---|---|---|---|
+| k3_r100_09_lr56 | 3 | sum | 20260520 | 5.6e-4 | no | 40,000 | 1.1820 | never run | — | — |
+| k3_r100_09_lr33 | 3 | sum | 20260520 | 3.3e-4 | no | 40,000 | 1.2483 | never run | — | — |
+| k3_r100_09b | 3 | sum | 20260525 | 1e-3 | no | 40,000 | 1.2927 | 1.3618 | -0.0691 | no, 15,000-step head |
+| k3_r100_09_dec | 3 | sum | 20260520 | 1e-3 | yes | 40,000 | 1.3236 | never run | — | — |
+| k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 100,000 | 1.3395 | 1.3010 | +0.0385 | yes |
+| k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 40,000 | 1.3495 | 1.3618 | -0.0123 | no, 15,000-step head |
+| k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 200,000 | 1.3910 | 1.3998 | -0.0088 | yes |
+| k32_r100_09 | 32 | mean | 20260520 | 1e-3 | no | 40,000 | 1.4629 | 1.1507 (1.1491 to 1.1507) | +0.3122 | yes |
+
+### The contrastive AUC
+
+| arm | verdict | AUC floor | at step | AUC last | at step |
+|---|---|---|---|---|---|
+| k32_r100_09 | held | 0.6827 | 20872 | 0.7732 | 40000 |
+| k32_r100_09_dec | lost | 0.5014 | 19100 | 0.5014 | 19100 |
+| k32_r200_08 | lost | 0.5347 | 28500 | 0.5347 | 28500 |
+| k3_r100_09 | held | 0.9931 | 1942 | 0.9988 | 40000 |
+| k3_r100_09 | held | 0.9974 | 40001 | 0.9994 | 100000 |
+| k3_r100_09 | held | 0.9992 | 144399 | 0.9995 | 200000 |
+| k3_r100_09_dec | held | 0.9797 | 9690 | 0.9974 | 40000 |
+| k3_r100_09_lr17 | held | 0.9852 | 5991 | 0.9985 | 40000 |
+| k3_r100_09_lr33 | held | 0.9913 | 3337 | 0.9980 | 40000 |
+| k3_r100_09_lr56 | held | 0.9936 | 34553 | 0.9956 | 40000 |
+| k3_r100_09b | held | 0.9922 | 1869 | 0.9982 | 40000 |
+| k8_r100_09 | held | 0.6847 | 14106 | 0.7302 | 40000 |
+
+### The contrastive AUC, step by step
+
+Lower is worse. A run at 0.5 has lost the task. The last column is what the same cell, seed and stop reached at 1.1M parameters.
+
+| arm | k | EMA momentum | L_rep decay | 2,000 | 5,000 | 8,000 | 10,000 | 12,000 | 15,000 | 18,600 | 25,000 | 28,000 | 40,000 | verdict | 1.1M twin at 40,000 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| k3_r100_09 | 3 | 0.9 to 1.0 at 100k | no | 0.993 | 0.998 | 0.998 | 0.998 | 0.998 | 0.998 | 0.998 | 0.999 | 0.999 | 0.999 | held | — |
+| k3_r100_09b | 3 | 0.9 to 1.0 at 100k | no | 0.993 | 0.995 | 0.998 | 0.999 | 0.999 | 0.997 | 0.998 | 0.999 | 0.999 | 0.998 | held | — |
+| k3_r100_09_lr33 | 3 | 0.9 to 1.0 at 100k | no | 0.997 | 0.992 | 0.997 | 0.998 | 0.998 | 0.998 | 0.997 | 0.998 | 0.998 | 0.998 | held | — |
+| k3_r100_09_lr17 | 3 | 0.9 to 1.0 at 100k | no | 0.998 | 0.996 | 0.991 | 0.996 | 0.997 | 0.998 | 0.998 | 0.998 | 0.999 | 0.999 | held | — |
+| k3_r100_09_lr56 | 3 | 0.9 to 1.0 at 100k | no | 0.996 | 0.998 | 0.998 | 0.998 | 0.997 | 0.998 | 0.998 | 0.997 | 0.998 | 0.996 | held | — |
+| k3_r100_09_dec | 3 | 0.9 to 1.0 at 100k | yes | 0.996 | 0.992 | 0.986 | 0.980 | 0.984 | 0.992 | 0.992 | 0.997 | 0.997 | 0.997 | held | — |
+| k8_r100_09 | 8 | 0.9 to 1.0 at 100k | no | 0.971 | 0.961 | 0.920 | 0.881 | 0.812 | 0.717 | 0.769 | 0.769 | 0.772 | 0.730 | held | — |
+| k32_r100_09 | 32 | 0.9 to 1.0 at 100k | no | 0.968 | 0.937 | 0.889 | 0.892 | 0.840 | 0.793 | 0.763 | 0.843 | 0.789 | 0.773 | held | 0.978 (#404) |
+| k32_r200_08 | 32 | 0.8 to 1.0 at 200k | no | 0.877 | 0.814 | 0.788 | 0.749 | 0.739 | 0.751 | 0.796 | 0.568 | 0.555 | — | lost at 28,152 | 0.957 (#404) |
+| k32_r100_09_dec | 32 | 0.9 to 1.0 at 100k | yes | 0.978 | 0.746 | 0.758 | 0.742 | 0.642 | 0.747 | 0.718 | — | — | — | lost at 18,634 | 0.983 (#409) |
+
+**Read this table by row and by column, never on the diagonal.** Two rows are comparable only when they differ in ONE column. These are the pairs, and there are no others:
+
+- `k32_r100_09` against `k32_r100_09_dec`, which moves the L_rep decay
+- `k32_r100_09` against `k32_r200_08`, which moves the EMA momentum
+- `k32_r100_09` against `k8_r100_09`, which moves the rollout depth
+- `k3_r100_09_lr17` against `k3_r100_09_lr33`, which moves the learning rate
+- `k3_r100_09_lr17` against `k3_r100_09_lr56`, which moves the learning rate
+- `k3_r100_09_lr33` against `k3_r100_09_lr56`, which moves the learning rate
+- `k3_r100_09` against `k3_r100_09_dec`, which moves the L_rep decay
+- `k3_r100_09` against `k3_r100_09_lr17`, which moves the learning rate
+- `k3_r100_09` against `k3_r100_09_lr33`, which moves the learning rate
+- `k3_r100_09` against `k3_r100_09_lr56`, which moves the learning rate
+- `k3_r100_09` against `k3_r100_09b`, which moves the seed
+
+### The loss by term
+
+| arm | stop | last step | total loss | L_rep | L_align | L_rep weight | EMA momentum | AUC |
+|---|---|---|---|---|---|---|---|---|
+| k32_r100_09 | 40,000 | 40,000 | 13.4947 | 11.6270 | 1.7583 | 1.00 | 0.9400 | 0.7629 |
+| k32_r100_09_dec | 40,000 | 19,100 | 1.8013 | — | 1.8219 | 0.00 | 0.9191 | 0.5010 |
+| k32_r200_08 | 40,000 | 28,500 | 13.6105 | 11.5968 | 2.0018 | 1.00 | 0.8285 | 0.5254 |
+| k3_r100_09 | 100,000 | 100,000 | 12.3238 | 11.7174 | 0.1472 | 1.00 | 1.0000 | 0.9997 |
+| k3_r100_09 | 200,000 | 200,000 | 12.2424 | 11.7181 | 0.1319 | 1.00 | 1.0000 | 0.9938 |
+| k3_r100_09 | 40,000 | 40,000 | 12.5323 | 11.7822 | 0.1852 | 1.00 | 0.9400 | 0.9993 |
+| k3_r100_09_dec | 40,000 | 40,000 | 1.0579 | — | 0.2487 | 0.00 | 0.9400 | 0.9980 |
+| k3_r100_09_lr17 | 40,000 | 40,000 | 12.8115 | 11.7678 | 0.2532 | 1.00 | 0.9400 | 0.9992 |
+| k3_r100_09_lr33 | 40,000 | 40,000 | 12.5972 | 11.7772 | 0.2020 | 1.00 | 0.9400 | 0.9983 |
+| k3_r100_09_lr56 | 40,000 | 40,000 | 12.6520 | 11.6891 | 0.2118 | 1.00 | 0.9400 | 0.9973 |
+| k3_r100_09b | 40,000 | 40,000 | 12.9777 | 11.7567 | 0.2832 | 1.00 | 0.9400 | 0.9984 |
+| k8_r100_09 | 40,000 | 40,000 | 13.3835 | 11.6129 | 1.7117 | 1.00 | 0.9400 | 0.7563 |
+
+### The cost
+
+| run | stage | steps | hours |
+|---|---|---|---|
+| k3_r100_09 | backbone | 40,000 | 4.6 |
+| k3_r100_09_bb40k_h30k_student | head | 30,000 | 1.9 |
+| k3_r100_09_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 2.8 |
+| k32_r100_09 | backbone | 40,000 | 9.6 |
+| k32_r100_09_bb40k_h30k_student | head | 30,000 | 1.8 |
+| k32_r100_09_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 2.9 |
+| k3_r100_09b_bb40k_h30k_student | head | 30,000 | 1.4 |
+| k3_r100_09_bb100k_h30k_student | head | 30,000 | 1.5 |
+| k3_r100_09b_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 3.1 |
+| k3_r100_09_bb100k_h30k_student | GIFT-Eval, 97 configs | — | 2.9 |
+| k3_r100_09_dec | backbone | 40,000 | 4.2 |
+| k3_r100_09_lr33 | backbone | 40,000 | 4.2 |
+| k3_r100_09_lr56 | backbone | 40,000 | 4.8 |
+| k3_r100_09_lr33_bb40k_h30k_student | head | 30,000 | 1.7 |
+| k3_r100_09_dec_bb40k_h30k_student | head | 30,000 | 1.8 |
+| k3_r100_09_lr56_bb40k_h30k_student | head | 30,000 | 1.7 |
+| k3_r100_09_lr33_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 3.9 |
+| k3_r100_09 | backbone | 200,000 | 13.4 |
+| k3_r100_09_lr17 | backbone | 40,000 | 5.1 |
+| k3_r100_09_bb200k_h30k_student | head | 30,000 | 1.8 |
+| k3_r100_09_dec_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 4.2 |
+| k3_r100_09_lr17_bb40k_h30k_student | head | 30,000 | 1.8 |
+| k3_r100_09_lr56_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 4.2 |
+| k8_r100_09 | backbone | 40,000 | 5.3 |
+| k3_r100_09_bb200k_h30k_student | GIFT-Eval, 97 configs | — | 4.0 |
+| k8_r100_09_bb40k_h30k_student | head | 30,000 | 1.6 |
 
 ## How to repeat it
 

@@ -107,3 +107,4 @@ Lower is worse. A run at 0.5 has lost the task. The last column is what the same
 | k3_r100_09_lr56_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 4.2 |
 | k8_r100_09 | backbone | 40,000 | 5.3 |
 | k3_r100_09_bb200k_h30k_student | GIFT-Eval, 97 configs | — | 4.0 |
+| k8_r100_09_bb40k_h30k_student | head | 30,000 | 1.6 |
