@@ -104,9 +104,24 @@ CF412_REP_W_START="${CF412_REP_W_START:-1.0}"
 CF412_REP_W_END="${CF412_REP_W_END:-0.0}"
 # Moirai-2-Small, from arXiv:2511.11698. The target the shape aims at.
 CF412_TARGET_PARAMS=11400000
-# A 384-wide backbone and its head take more of the card than a 64-wide one,
-# so the head gate waits for more free memory than #373's default.
-CF412_HEAD_VRAM_MIB="${CF412_HEAD_VRAM_MIB:-12000}"
+# The free memory a head waits for, in MiB.
+#
+# MEASURED, not guessed. `train_forecasting_head.py` on a 384-wide backbone
+# holds 6,252 MiB: 94 samples at 60 s across a whole 30,000-step head train,
+# and 20 samples at 30 s inside it, every reading identical. The allocator
+# holds a fixed working set and there is no drift and no spike at a save.
+# `results/head_memory.log` carries both runs.
+#
+# This card set 12,000 with no measurement, against #373's own default of
+# 7,000. That is 5,748 MiB above the true figure, and it costs real time: the
+# `flock` in `head_eval_bb.sh` is taken at line 93 BEFORE the memory wait at
+# line 96, so a head that holds the lock and misses its gate stalls every
+# later head on that card for up to HEAD_LOCK_TIMEOUT, which is a day.
+#
+# 9,000 is the measured peak plus 2,748 MiB, which is more than a third of it
+# again. A gate below the true peak stalls the card. A gate far above it
+# strands a head that would have fit.
+CF412_HEAD_VRAM_MIB="${CF412_HEAD_VRAM_MIB:-9000}"
 
 # ---- Trial mode --------------------------------------------------------------
 # `CF412_TRIAL=<backbone steps>` runs the whole pipeline at a budget that ends
