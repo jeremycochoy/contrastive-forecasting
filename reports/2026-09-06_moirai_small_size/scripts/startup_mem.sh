@@ -9,6 +9,21 @@
 # window is the FIRST ~30 SECONDS of a k = 32 arm, before the trainer prints
 # its first step line.
 #
+# WHAT THE MEASUREMENT FOUND, and what it did not. `k32_r200_08` held 6,402
+# MiB for four hours and then took 10,418, ABOVE its 10,062 smoke row. So the
+# smoke row is not an over-statement and the gate stays. The CAUSE is not
+# known. A commit subject of this card once named the step-20,000 save as the
+# mechanism, and that was too strong: the sampling window was 30 minutes, or
+# 2,160 steps, and step 20,000 is only one of them. Two k = 3 arms cross the
+# same save with no growth, and the latent-drift probe at that step runs the
+# encoder path under no-grad with its cache on CPU, so neither explains a
+# depth-specific jump.
+#
+# THE LESSON IS THE STEADY READING. Three samplers agreed on 6,402: a 60 s
+# poll, a 30 s poll, and a tight loop of 6,356 samples in 150 seconds. All
+# three were right and none measured the thing that mattered, because the arm
+# changed four hours later. A steady reading is not a settled one.
+#
 # WHICH ANSWER MATTERS. The smoke runs 150 steps, so its whole window is
 # startup. If 10,062 is a real startup peak, the smoke row is the RIGHT number
 # to gate on: a starting arm must fit its startup, and a gate sized on steady
