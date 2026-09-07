@@ -635,3 +635,35 @@ Retrying in 1s [Retry 1/5].
 [  38600] loss=1.1743  ema_loss=1.2508  gap=-0.0752  ema_gap=-0.0795  mixup=69/200  2.7 sps  ETA 0.1h
               R²_rand=0.6035  R²_naive=0.0826  U_t=0.0072  U_b=0.0175  AUC=0.9978  Top1=0.8695
   timing: data=9.2ms  fwd=133.8ms  bwd=71.2ms  total=215.0ms
+'('Connection broken: IncompleteRead(19797869 bytes read, 125519146 more expected)', IncompleteRead(19797869 bytes read, 125519146 more expected))' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00062.parquet
+Retrying in 1s [Retry 1/5].
+[  38800] loss=1.0915  ema_loss=1.1820  gap=-0.0749  ema_gap=-0.0746  mixup=62/200  2.6 sps  ETA 0.1h
+              R²_rand=0.6586  R²_naive=0.1177  U_t=0.0067  U_b=0.0173  AUC=0.9976  Top1=0.8738
+  timing: data=2079.6ms  fwd=130.7ms  bwd=67.0ms  total=2278.1ms
+[  39000] loss=1.1642  ema_loss=1.1576  gap=-0.0745  ema_gap=-0.0745  mixup=72/200  2.6 sps  ETA 0.1h
+              R²_rand=0.6325  R²_naive=0.1188  U_t=0.0069  U_b=0.0162  AUC=0.9979  Top1=0.8773
+  timing: data=10.4ms  fwd=134.3ms  bwd=69.4ms  total=214.9ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-412/k3_r100_09_dec/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_dec_best_loss.pth
+[  39200] loss=1.2356  ema_loss=1.1345  gap=-0.0833  ema_gap=-0.0744  mixup=53/200  2.6 sps  ETA 0.1h
+              R²_rand=0.6157  R²_naive=0.1327  U_t=0.0079  U_b=0.0158  AUC=0.9964  Top1=0.8754
+  timing: data=8.1ms  fwd=135.4ms  bwd=69.5ms  total=213.9ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-412/k3_r100_09_dec/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_dec_best_loss.pth
+[  39400] loss=1.0050  ema_loss=1.1293  gap=-0.0706  ema_gap=-0.0760  mixup=72/200  2.7 sps  ETA 0.1h
+              R²_rand=0.6874  R²_naive=0.1048  U_t=0.0067  U_b=0.0201  AUC=0.9973  Top1=0.8619
+  timing: data=34.8ms  fwd=134.7ms  bwd=68.0ms  total=238.3ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-412/k3_r100_09_dec/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_dec_best_loss.pth
+[  39600] loss=1.1568  ema_loss=1.1690  gap=-0.0749  ema_gap=-0.0770  mixup=83/200  2.7 sps  ETA 0.0h
+              R²_rand=0.6840  R²_naive=0.1338  U_t=0.0070  U_b=0.0198  AUC=0.9979  Top1=0.8076
+  timing: data=10.0ms  fwd=127.3ms  bwd=68.6ms  total=206.8ms
+[  39800] loss=1.1454  ema_loss=1.1157  gap=-0.0703  ema_gap=-0.0740  mixup=73/200  2.7 sps  ETA 0.0h
+              R²_rand=0.6441  R²_naive=0.1193  U_t=0.0065  U_b=0.0133  AUC=0.9970  Top1=0.7965
+  timing: data=9.2ms  fwd=134.2ms  bwd=69.3ms  total=213.6ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-412/k3_r100_09_dec/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_dec_best_loss.pth
+[  40000] loss=1.0579  ema_loss=1.1070  gap=-0.0724  ema_gap=-0.0727  mixup=52/200  2.7 sps  ETA 0.0h
+              R²_rand=0.6856  R²_naive=0.1250  U_t=0.0061  U_b=0.0162  AUC=0.9980  Top1=0.8798
+  timing: data=29.3ms  fwd=134.0ms  bwd=69.7ms  total=233.9ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-412/k3_r100_09_dec/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_dec_best_loss.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-412/k3_r100_09_dec/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_dec_40k.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-412/k3_r100_09_dec/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_dec_final.pth
+
+Done in 4.2h. Best gap=-0.0600 at step 1000, Best loss=1.1070 at step 40000

@@ -29,8 +29,6 @@ mkdir -p "$CF412_RESULTS"
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#412 sweep] $*" \
   | tee -a "$CF412_RESULTS/phase1.log"; }
 
-running(){ local pat="$1"; pgrep -f "[${pat:0:1}]${pat:1}" >/dev/null 2>&1; }
-
 tick(){
   local started=0 arm stop bb
   for arm in $CF412_ARMS; do
@@ -39,8 +37,9 @@ tick(){
       [ -n "$bb" ] && [ -f "$bb" ] || continue
       [ -s "$(cf412_score_file "$arm" "$stop")" ] && continue
       [ -n "$(find "$bb" -mmin -"$AGE_MIN" 2>/dev/null)" ] && continue
-      running "head_eval.sh $arm $stop" && continue
-      running "$(basename "$bb")" && continue
+      # The whitelist guard. `pgrep -f` matched a peer session's watcher
+      # shell on 2026-09-07 and skipped a head that never ran.
+      bash "$HERE/head_busy.sh" "$arm" "$stop" >/dev/null 2>&1 && continue
       log "$arm at $stop — no score and no head. Starting one on gpu $BB_GPU."
       BB_GPU="$BB_GPU" nohup bash "$HERE/head_eval.sh" "$arm" "$stop" \
         >>"$CF412_RESULTS/sweep.log" 2>&1 &

@@ -28,7 +28,6 @@ POLL="${CF412_CLAIM_POLL:-60}"
 mkdir -p "$CF412_RESULTS"
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#412 claim] $*" \
   | tee -a "$CF412_RESULTS/phase1.log"; }
-running(){ local pat="$1"; pgrep -f "[${pat:0:1}]${pat:1}" >/dev/null 2>&1; }
 
 for pair in $CLAIM; do
   cf412_require_arm "${pair%%:*}" || exit $?
@@ -49,8 +48,13 @@ while [ -n "$left" ]; do
     fi
     bb="$(cf412_bb_ckpt "$arm" "$stop")"
     if [ -z "$bb" ] || [ ! -f "$bb" ]; then next="$next $pair"; continue; fi
-    if running "head_eval.sh $arm $stop" || running "$(basename "$bb")"; then
-      log "$arm at $stop — a head already runs it"; continue
+    # `head_busy.sh` whitelists the three real processes. The old guard asked
+    # `pgrep -f`, which matched a peer session's watcher shell and dropped a
+    # head that never ran. A busy pair stays in the list, so only a written
+    # score takes it out.
+    if bash "$HERE/head_busy.sh" "$arm" "$stop" >/dev/null 2>&1; then
+      log "$arm at $stop — a head already runs it"
+      next="$next $pair"; continue
     fi
     log "$arm at $stop — claiming its head on gpu $BB_GPU"
     BB_GPU="$BB_GPU" nohup bash "$HERE/head_eval.sh" "$arm" "$stop" \
