@@ -237,6 +237,34 @@ Prose that copies a live number goes stale or goes wrong. Point it at the
 artefact instead: `results/tables.md` rebuilds every heartbeat and
 `results/auc_verdicts.tsv` holds each gate verdict.
 
+## A k = 32 backbone grows past its smoke row mid-leg
+
+`k32_r200_08` held 6,402 MiB for its first four hours and 10,418 MiB after,
+against the 10,062 of its row in `results/trial/smoke.csv`. A k = 3 arm does
+not do this: the 200,000-step climb held 6,492 MiB flat over its whole leg.
+
+THE CAUSE IS NOT KNOWN. Two mechanisms were argued and both fail on the
+evidence:
+
+- The 20,000-step save. Both k = 3 arms cross the same save with no growth.
+- The latent-drift probe at the same step. `LatentDriftProbe` (`train.py`)
+  runs a no-grad, `eval()`-mode forward through `extract_encoder_latents` and
+  caches `h` on the CPU as fp16. It never touches the rollout, so `k` does not
+  enter it, and its own docstring puts it near 10 MB.
+
+The measurement window was 30 minutes wide and holds about 2,000 steps, so
+nothing places the jump at any particular step.
+
+WHAT IT DECIDES. Keep `cf412_leg_vram_mib` at the smoke row for k = 32. Two
+sessions each proposed cutting it toward a live reading of about 6,400, taken
+while the arm had run for hours and looked settled. That gate would have been
+3,660 MiB short of the same arm later in the same leg, and a leg that dies in
+`.to(device)` loses every step since its last save.
+
+A STEADY READING IS NOT A SETTLED ONE. Three samplers agreed on 6,402: a 60 s
+poll, a 30 s poll, and a tight loop that took 6,356 samples in 150 seconds.
+All three were right and none of them measured the thing that mattered.
+
 ## `results/lane_d.log` is not committed
 
 Two sessions opened that file at once, one with `>`, so its text interleaves
