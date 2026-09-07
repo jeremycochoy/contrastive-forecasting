@@ -220,3 +220,12 @@ Retrying in 1s [Retry 1/5].
   timing: data=8.0ms  fwd=180.5ms  bwd=106.3ms  total=295.7ms
   -> Saved /home/jupyter/checkpoints_backup/cf-412/k3_r100_09_lr56/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_best_gap.pth
   -> Saved /home/jupyter/checkpoints_backup/cf-412/k3_r100_09_lr56/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_best_loss.pth
+'('Connection broken: IncompleteRead(94957466 bytes read, 50155649 more expected)', IncompleteRead(94957466 bytes read, 50155649 more expected))' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00019.parquet
+Retrying in 1s [Retry 1/5].
+[  12000] loss=12.6199  ema_loss=12.4809  gap=-0.0237  ema_gap=-0.0153  mixup=66/200  2.1 sps  ETA 3.7h
+              R²_rand=0.8905  R²_naive=0.3710  U_t=0.0054  U_b=0.0342  AUC=0.9975  Top1=0.8223
+  timing: data=2125.4ms  fwd=176.5ms  bwd=102.7ms  total=2405.4ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-412/k3_r100_09_lr56/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_best_gap.pth
+[  12200] loss=12.5206  ema_loss=12.5533  gap=-0.0183  ema_gap=-0.0199  mixup=68/200  2.1 sps  ETA 3.7h
+              R²_rand=0.8897  R²_naive=0.3929  U_t=0.0053  U_b=0.0362  AUC=0.9933  Top1=0.7758
+  timing: data=8.2ms  fwd=176.0ms  bwd=103.0ms  total=288.0ms

@@ -106,6 +106,50 @@ def terms_table(path):
                                 "EMA momentum", "AUC"])
 
 
+# The steps the AUC table reads. 2,000 is where the decay ramp ends, 18,634
+# is where `k32_r100_09_dec` lost the task, and 40,000 is the first stop.
+AUC_MARKS = (2000, 5000, 10000, 16000, 18600, 25000, 40000)
+AUC_ROOT = "/home/jupyter/checkpoints_backup/cf-412"
+
+
+def auc_by_step_table(arms, root=AUC_ROOT):
+    """The contrastive AUC of every run at a fixed set of steps.
+
+    WHY THIS TABLE EXISTS. The verdict table says held or lost, and that hides
+    the thing this card measures. The rollout depth erodes the contrastive
+    task on its own at 11.4M parameters, and the `L_rep` decay is fatal only
+    where the depth has already spent the margin. One row per arm over the
+    same steps shows both, and a held-or-lost column cannot.
+
+    Each cell is a trailing median over the rows within 400 steps of the mark,
+    so one noisy row does not set it. A dash is a step the arm never reached.
+    """
+    rows = []
+    for arm, row in arms.items():
+        paths = losses_csvs(root, arm, row["k"])
+        if not paths:
+            continue
+        series = S.smooth(S.read_run(paths, ["auc"], 5)["auc"], 40)
+        if not series:
+            continue
+        cells = []
+        for mark in AUC_MARKS:
+            near = [(abs(s - mark), v) for s, v in series if abs(s - mark) < 400]
+            cells.append(f"{min(near)[1]:.3f}" if near else "—")
+        rows.append((arm, row["k"],
+                     "yes" if row.get("decay", "-") != "-" else "no", *cells))
+    if not rows:
+        return "_no losses CSV yet._"
+    rows.sort(key=lambda r: (int(r[1]), r[2]))
+    return table(rows, ["arm", "k", "L_rep decay"]
+                 + [f"{m:,}" for m in AUC_MARKS])
+
+
+def losses_csvs(root, arm, k):
+    """Every losses CSV one arm wrote, over every leg."""
+    return S.losses_csvs(root, arm, k)
+
+
 def cost_table(paths):
     """Wall-clock hours of each stage, from the timestamps the lanes wrote.
 
@@ -174,6 +218,9 @@ def main():
         "that are not ranked.",
         scores_table(arms, scores),
         "### The contrastive AUC", auc_table(RESULTS / "auc_verdicts.tsv"),
+        "### The contrastive AUC, step by step",
+        "Lower is worse. A run at 0.5 has lost the task.",
+        auc_by_step_table(arms),
         "### The loss by term", terms_table(RESULTS / "loss_terms.csv"),
         "### The cost", cost_table([RESULTS / "arms.log",
                                     RESULTS / "stops.log"]),
