@@ -38,6 +38,12 @@ done
 # The bracket keeps this script's own command line out of every count, and
 # `pgrep -c` exits 1 on a count of zero, so the status is not read.
 n(){ local c; c="$(pgrep -c -f "$1" 2>/dev/null)"; printf '%s' "${c:-0}"; }
+# A lane runs `scripts/phase1.sh` OR `run_snapshot/phase1.sh`, the frozen copy.
+# A pattern that names `scripts/` alone counts 2 lanes where 3 drive work, and
+# a reader takes the low count for a lane that died. A bare `phase1.sh`
+# over-counts instead: an agent session carries the string in its own command
+# line. So the lane count matches the WHOLE command line, through `pgrep -x`.
+nx(){ local c; c="$(pgrep -c -x -f "$1" 2>/dev/null)"; printf '%s' "${c:-0}"; }
 printf 'lanes %s   trainers %s   heads %s   evals %s\n' \
-  "$(n '[s]cripts/phase1.sh')" "$(n '[f]req-embedding/scripts/train.py')" \
+  "$(nx 'bash [^ ]*phase1\.sh')" "$(n '[f]req-embedding/scripts/train.py')" \
   "$(n '[t]rain_forecasting_head.py')" "$(n '[e]val_gift_eval_official.py')"

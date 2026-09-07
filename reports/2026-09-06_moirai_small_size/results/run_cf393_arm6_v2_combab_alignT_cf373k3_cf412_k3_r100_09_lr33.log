@@ -407,3 +407,47 @@ Retrying in 1s [Retry 1/5].
 [  25000] loss=13.0062  ema_loss=12.8755  gap=-0.0539  ema_gap=-0.0519  mixup=56/200  2.7 sps  ETA 1.6h
               R²_rand=0.8313  R²_naive=0.2863  U_t=0.0060  U_b=0.0341  AUC=0.9972  Top1=0.8225
   timing: data=23.7ms  fwd=170.5ms  bwd=106.0ms  total=301.1ms
+[  25200] loss=13.1493  ema_loss=12.9187  gap=-0.0591  ema_gap=-0.0529  mixup=62/200  2.7 sps  ETA 1.5h
+              R²_rand=0.8107  R²_naive=0.2706  U_t=0.0068  U_b=0.0396  AUC=0.9985  Top1=0.9275
+  timing: data=8.8ms  fwd=175.3ms  bwd=103.0ms  total=287.9ms
+[  25400] loss=12.8421  ema_loss=12.9348  gap=-0.0523  ema_gap=-0.0536  mixup=62/200  2.7 sps  ETA 1.5h
+              R²_rand=0.8601  R²_naive=0.2553  U_t=0.0057  U_b=0.0380  AUC=0.9971  Top1=0.8326
+  timing: data=7.6ms  fwd=179.7ms  bwd=104.2ms  total=292.3ms
+[  25600] loss=13.0394  ema_loss=12.9367  gap=-0.0586  ema_gap=-0.0534  mixup=58/200  2.7 sps  ETA 1.5h
+              R²_rand=0.8286  R²_naive=0.2606  U_t=0.0068  U_b=0.0402  AUC=0.9986  Top1=0.8996
+  timing: data=9.6ms  fwd=174.6ms  bwd=106.1ms  total=291.2ms
+'('Connection broken: IncompleteRead(94367368 bytes read, 50799321 more expected)', IncompleteRead(94367368 bytes read, 50799321 more expected))' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00041.parquet
+Retrying in 1s [Retry 1/5].
+[  25800] loss=13.0819  ema_loss=12.9348  gap=-0.0557  ema_gap=-0.0525  mixup=57/200  2.6 sps  ETA 1.5h
+              R²_rand=0.8209  R²_naive=0.2543  U_t=0.0066  U_b=0.0408  AUC=0.9981  Top1=0.8839
+  timing: data=1937.7ms  fwd=153.4ms  bwd=98.2ms  total=2190.1ms
+[  26000] loss=12.8279  ema_loss=12.9244  gap=-0.0509  ema_gap=-0.0523  mixup=58/200  2.6 sps  ETA 1.5h
+              R²_rand=0.8428  R²_naive=0.2624  U_t=0.0064  U_b=0.0445  AUC=0.9982  Top1=0.8879
+  timing: data=6.2ms  fwd=152.3ms  bwd=97.3ms  total=256.6ms
+[  26200] loss=12.7705  ema_loss=12.8966  gap=-0.0508  ema_gap=-0.0526  mixup=63/200  2.6 sps  ETA 1.5h
+              R²_rand=0.8443  R²_naive=0.2640  U_t=0.0063  U_b=0.0454  AUC=0.9971  Top1=0.8776
+  timing: data=6.4ms  fwd=151.8ms  bwd=96.7ms  total=255.6ms
+[  26400] loss=12.6577  ema_loss=12.8936  gap=-0.0478  ema_gap=-0.0518  mixup=48/200  2.6 sps  ETA 1.5h
+              R²_rand=0.8572  R²_naive=0.2778  U_t=0.0055  U_b=0.0355  AUC=0.9969  Top1=0.8266
+  timing: data=36.1ms  fwd=150.2ms  bwd=96.7ms  total=283.8ms
+[  26600] loss=12.8030  ema_loss=12.9045  gap=-0.0510  ema_gap=-0.0521  mixup=57/200  2.6 sps  ETA 1.4h
+              R²_rand=0.8575  R²_naive=0.2533  U_t=0.0059  U_b=0.0385  AUC=0.9930  Top1=0.8372
+  timing: data=6.2ms  fwd=151.2ms  bwd=96.1ms  total=254.3ms
+[  26800] loss=12.7478  ema_loss=12.9363  gap=-0.0498  ema_gap=-0.0532  mixup=70/200  2.6 sps  ETA 1.4h
+              R²_rand=0.8577  R²_naive=0.2495  U_t=0.0061  U_b=0.0363  AUC=0.9944  Top1=0.6814
+  timing: data=6.2ms  fwd=152.8ms  bwd=96.4ms  total=256.2ms
+[  27000] loss=12.8977  ema_loss=12.9469  gap=-0.0509  ema_gap=-0.0546  mixup=62/200  2.6 sps  ETA 1.4h
+              R²_rand=0.8299  R²_naive=0.2803  U_t=0.0064  U_b=0.0406  AUC=0.9973  Top1=0.8589
+  timing: data=21.5ms  fwd=150.9ms  bwd=96.5ms  total=269.6ms
+[  27200] loss=12.9023  ema_loss=13.0026  gap=-0.0536  ema_gap=-0.0559  mixup=61/200  2.6 sps  ETA 1.4h
+              R²_rand=0.8205  R²_naive=0.2505  U_t=0.0065  U_b=0.0407  AUC=0.9971  Top1=0.8858
+  timing: data=6.4ms  fwd=151.0ms  bwd=98.0ms  total=256.1ms
+[  27400] loss=13.0271  ema_loss=13.0637  gap=-0.0568  ema_gap=-0.0589  mixup=66/200  2.6 sps  ETA 1.3h
+              R²_rand=0.8170  R²_naive=0.2823  U_t=0.0070  U_b=0.0399  AUC=0.9984  Top1=0.9007
+  timing: data=6.0ms  fwd=153.5ms  bwd=96.7ms  total=256.9ms
+[  27600] loss=13.1030  ema_loss=13.1051  gap=-0.0647  ema_gap=-0.0613  mixup=60/200  2.6 sps  ETA 1.3h
+              R²_rand=0.8089  R²_naive=0.2452  U_t=0.0074  U_b=0.0405  AUC=0.9981  Top1=0.9037
+  timing: data=41.6ms  fwd=150.7ms  bwd=97.4ms  total=290.5ms
+[  27800] loss=13.0354  ema_loss=13.1361  gap=-0.0587  ema_gap=-0.0644  mixup=60/200  2.6 sps  ETA 1.3h
+              R²_rand=0.8343  R²_naive=0.2350  U_t=0.0068  U_b=0.0418  AUC=0.9954  Top1=0.8551
+  timing: data=7.1ms  fwd=150.9ms  bwd=96.6ms  total=255.4ms
