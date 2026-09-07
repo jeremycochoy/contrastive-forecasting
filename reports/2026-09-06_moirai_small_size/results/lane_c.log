@@ -18,8 +18,9 @@
 [09-06 22:14:28] [arm6_v2_combab_alignT] START target=200000 gpu=0 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-412/k3_r100_09/arm6_v2_combab_alignT/leg_200k
 [09-06 22:14:33] [#412] arm k3_r100_09 arch=384 3 3 k=3 reduce=sum ema='0.9 1.0 100000' decay='1.0 - -' seed=20260520 batch=64 lr=1e-3 align=teacher OK — all eight reached the trainer
 [09-06 22:14:33] [#412] arm k3_r100_09 AUC gate pid 897530 — window 500, threshold 0.55, warmup 1000
-[09-06 22:15:34] [#412] head k3_r100_09_bb100k_h30k_student on cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_100k.pth
-[09-06 22:57:50] [k3_r100_09_bb100k_h30k_student] head-train start enc=student steps=30000 seed=20260722 gpu=1 bb=cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_100k.pth
+[09-07 11:40:03] [arm6_v2_combab_alignT] DONE target=200000 (66M) -> /home/jupyter/checkpoints_backup/cf-412/k3_r100_09/arm6_v2_combab_alignT/leg_200k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_200k.pth
+[09-07 11:40:03] [#412] arm k3_r100_09 stop=200000 rc=0
+373k3_cf412_k3_r100_09_100k.pth
 [09-07 00:28:18] [k3_r100_09_bb100k_h30k_student] head-train rc=0
 [09-07 00:28:18] [k3_r100_09_bb100k_h30k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
 [09-07 03:23:05] [k3_r100_09_bb100k_h30k_student] eval rc=0

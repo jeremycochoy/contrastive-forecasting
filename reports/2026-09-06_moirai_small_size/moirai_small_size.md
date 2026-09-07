@@ -83,9 +83,17 @@ stopped it there, so it has no head and no score. `k32_r200_08` falls on the
 same path and its leg still runs, so it has no 40,000-step cell yet.
 `results/tables.md` carries its current row and the gate's verdict.
 
-So the width decides whether the run keeps the task, and the decay decides how
-fast it goes. Two momentum schedules carry that reading, not one, and the decay
-arm is its extreme case rather than its evidence. The worst AUC is also the
+The k = 3 arm is the POSITIVE CONTROL at the same width, and it does not merely
+survive. Its AUC floor rises with every leg: 0.993 to 40,000 steps, 0.997 to
+100,000 and 0.999 to 200,000. Same width, same cell, same align target, same
+seed 20260520. The worst reading of its last leg beats the worst reading of its
+first.
+
+So it takes BOTH. At 1.1M this depth held, at 0.978 and 0.957 and 0.983. At
+11.4M this cell at k = 3 improves for 200,000 steps. Neither the width nor the
+depth loses the task alone, and the decay decides only how fast the loss
+arrives. Two momentum schedules carry that reading, not one, and the decay arm
+is its extreme case rather than its evidence. The worst AUC is also the
 worst score: 0.773 and 1.4629, against 0.999 and 1.2927 to 1.3495 on the k = 3
 arms.
 

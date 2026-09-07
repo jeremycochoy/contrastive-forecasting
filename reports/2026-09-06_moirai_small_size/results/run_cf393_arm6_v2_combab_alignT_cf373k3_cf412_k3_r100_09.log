@@ -3228,3 +3228,13 @@ Retrying in 2s [Retry 2/5].
 [ 199600] loss=12.2236  ema_loss=12.2760  gap=-0.0190  ema_gap=-0.0182  mixup=52/200  2.1 sps  ETA 0.1h
               R²_rand=0.9279  R²_naive=0.1638  U_t=0.0036  U_b=0.0526  AUC=0.9990  Top1=0.9197
   timing: data=46.9ms  fwd=210.5ms  bwd=175.2ms  total=433.9ms
+[ 199800] loss=12.3721  ema_loss=12.2734  gap=-0.0204  ema_gap=-0.0185  mixup=68/200  2.1 sps  ETA 0.0h
+              R²_rand=0.9233  R²_naive=0.1457  U_t=0.0035  U_b=0.0569  AUC=0.9994  Top1=0.9658
+  timing: data=14.0ms  fwd=208.2ms  bwd=168.2ms  total=391.6ms
+[ 200000] loss=12.2424  ema_loss=12.2673  gap=-0.0184  ema_gap=-0.0185  mixup=57/200  2.1 sps  ETA 0.0h
+              R²_rand=0.9226  R²_naive=0.1159  U_t=0.0036  U_b=0.0530  AUC=0.9938  Top1=0.8640
+  timing: data=9.3ms  fwd=202.1ms  bwd=162.4ms  total=375.0ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-412/k3_r100_09/arm6_v2_combab_alignT/leg_200k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_200k.pth
+  -> Saved /home/jupyter/checkpoints_backup/cf-412/k3_r100_09/arm6_v2_combab_alignT/leg_200k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_final.pth
+
+Done in 13.4h. Best gap=-0.0180 at step 162400, Best loss=12.2473 at step 161000
