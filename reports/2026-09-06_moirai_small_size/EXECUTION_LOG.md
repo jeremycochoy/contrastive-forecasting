@@ -218,8 +218,24 @@ checking the number.
 - A table quoted a mark near a collapse as a measurement. The number was read
   correctly from the correct file. The mark itself was not a measurement.
 
+A third followed the same day. `watch_status.sh` printed the LAST RAW ROW of
+the `auc` column in its hourly line, which all three sessions read. Numbers
+quoted from it were compared with medians from `results/tables.md` and looked
+close enough to pass.
+
 Both were found by asking what the quantity was, not by re-reading it. A
 number that reconciles is not a number that is understood.
+
+THE AUDIT THIS FORCED. Every AUC in the report was recomputed as a rolling
+median from the losses CSVs. Five values were raw rows in a section that
+declares medians: 0.737, 0.938, 0.993, 0.995 and 0.998, now 0.746, 0.937,
+0.992, 0.998 and 0.999. No reading changed, because all five sit far from any
+threshold. The point is that a number's SOURCE has to be checked even when its
+value is right.
+
+Prose that copies a live number goes stale or goes wrong. Point it at the
+artefact instead: `results/tables.md` rebuilds every heartbeat and
+`results/auc_verdicts.tsv` holds each gate verdict.
 
 ## `results/lane_d.log` is not committed
 
