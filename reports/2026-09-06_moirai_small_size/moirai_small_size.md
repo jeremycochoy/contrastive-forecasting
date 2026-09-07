@@ -61,7 +61,7 @@ that suits width 384 better would move both sides. And no rate changes the
 contrastive AUC: `lr33` holds 0.998 at 40,000 steps where the k = 32 arms read
 0.773 and lower.
 
-## The width breaks the contrastive task on the k = 32 cell
+## The width erodes the contrastive task, and the depth sets how fast
 
 ![the contrastive AUC](plots/auc.png)
 
@@ -96,6 +96,26 @@ arrives. Two momentum schedules carry that reading, not one, and the decay arm
 is its extreme case rather than its evidence. The worst AUC is also the
 worst score: 0.773 and 1.4629, against 0.999 and 1.2927 to 1.3495 on the k = 3
 arms.
+
+### The erosion is a slope, not a cliff at k = 32
+
+`k8_r100_09` puts a third depth between the two cells, and it erodes. So the
+loss of the task is not a property of k = 32. It grows with the rollout depth.
+
+| step | k = 3 | k = 8 | k = 32, EMA 0.9 | k = 32, EMA 0.8 |
+|---|---|---|---|---|
+| 2,000 | 0.993 | 0.971 | 0.968 | 0.877 |
+| 5,000 | 0.998 | 0.961 | 0.937 | 0.814 |
+| 8,000 | 0.998 | 0.920 | 0.889 | 0.788 |
+
+Every row falls from left to right, at every step. The k = 3 arm holds 0.998
+and does not move. The k = 8 arm loses 0.051 over those 6,000 steps and the
+k = 32 arm loses 0.079.
+
+The EMA momentum moves the whole curve as well. `k32_r200_08` starts its ramp
+at 0.8 and sits under `k32_r100_09` at every step, by 0.091 at step 2,000 and
+by 0.101 at step 8,000. The two arms share the cell, the depth, the reduction
+and the seed, so the momentum is the one thing between them.
 
 This reading covers k = 32 alone. #373 published no AUC column for cells A3 and
 A4, so the k = 3 arms have no 1.1M anchor.
