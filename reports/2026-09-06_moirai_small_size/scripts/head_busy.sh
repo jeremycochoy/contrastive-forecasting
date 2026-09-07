@@ -38,15 +38,20 @@ BASE="${BB##*/}"
 
 hits="$(ps -eo pid,args --no-headers 2>/dev/null | awk -v arm="$ARM" \
   -v stop="$STOP" -v base="$BASE" '
-  { line = $0
-    # Field 2 is the executable. A `bash -c` watcher has "-c" there.
-    exe = $2
-    if (exe == "-c") next
-    if (line ~ ("head_eval\\.sh " arm " " stop "( |$)") && exe ~ /bash$/) {
+  # `ps -eo pid,args` gives pid in $1, the executable in $2 and its first
+  # argument in $3. A watcher shell is `/bin/bash -c ...`, so $3 is "-c".
+  # Every rule below also pins $2, because a shell that merely NAMES one of
+  # these scripts in its own command line must not count as one.
+  { line = $0; exe = $2; arg1 = $3
+    if (arg1 == "-c") next
+    if (exe ~ /bash$/ && arg1 ~ /head_eval\.sh$/ \
+        && line ~ ("head_eval\\.sh " arm " " stop "( |$)")) {
       print "driver  " line; next }
-    if (line ~ /train_forecasting_head\.py/ && base != "" && index(line, base)) {
+    if (exe ~ /python/ && line ~ /train_forecasting_head\.py/ \
+        && base != "" && index(line, base)) {
       print "head    " line; next }
-    if (line ~ /eval_gift_eval_official\.py/ && base != "" && index(line, base)) {
+    if (exe ~ /python/ && line ~ /eval_gift_eval_official\.py/ \
+        && base != "" && index(line, base)) {
       print "eval    " line; next }
   }' | cut -c1-140)"
 
