@@ -55,16 +55,16 @@ same path and its leg still runs, so it has no 40,000-step cell yet.
 So the width decides whether the run keeps the task, and the decay decides how
 fast it goes. Two momentum schedules carry that reading, not one, and the decay
 arm is its extreme case rather than its evidence. The worst AUC is also the
-worst score: 0.773 and 1.4629, against 0.998 and 1.2927 to 1.3495 on the k = 3
+worst score: 0.773 and 1.4629, against 0.999 and 1.2927 to 1.3495 on the k = 3
 arms.
 
 This reading covers k = 32 alone. #373 published no AUC column for cells A3 and
 A4, so the k = 3 arms have no 1.1M anchor.
 
 The decay damages the two cells differently, and it shows early. At step 5,000
-the k = 32 decay arm reads 0.737 against 0.938 for its no-decay twin. The k = 3
-decay arm reads 0.993 against 0.995 for its twin. Both carry their `L_rep`
-weight at 0.0 from step 2,000.
+the k = 32 decay arm reads 0.746 against 0.937 for its no-decay twin, a gap of
+0.191. The k = 3 decay arm reads 0.992 against 0.998, a gap of 0.006. Both
+carry their `L_rep` weight at 0.0 from step 2,000.
 
 `k3_r100_09_dec` then held the task to 40,000 steps. Its rolling-median floor
 is 0.9797 and it ends at 0.9974, against its twin's 0.9988. That floor is
