@@ -101,8 +101,16 @@ At k = 32 and 11.4M, two treatments each finish the job by themselves:
 
 THE DECAY IS NOT REQUIRED. `k32_r200_08` carries `L_rep` at weight 1.0 for
 every one of its 28,152 steps and loses the task anyway. A ramp that starts at
-0.8 does it with the full objective in place, and the decay does it 9,518 steps
-sooner at the higher momentum.
+0.8 does it with the full objective in place.
+
+Read the table by column and by row, never on the diagonal. The decay column is
+the pair at 0.9 to 1.0, where the no-decay arm HELD at 0.773 and its decay twin
+lost at 18,634. The momentum column is the no-decay pair, where 0.9 held and
+0.8 lost at 28,152. The two lost arms differ from each other in BOTH the
+momentum and the decay, so the gap between 18,634 and 28,152 measures nothing.
+
+NOT EVERY k = 32 ARM LOSES THE TASK. Two of the three did. `k32_r100_09` ran
+degraded and held, with a floor of 0.683 at step 20,872 that never crossed.
 
 The worst AUC is also the worst score: 0.773 and 1.4629, against 0.999 and
 1.2927 to 1.3495 on the k = 3 arms.
