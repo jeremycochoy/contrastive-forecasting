@@ -72,10 +72,14 @@ does not, and it carries this caveat.
 1e-3, which is the Moirai recipe. This project does not use muP, and the
 trainer builds one AdamW group over all parameters. So a rate that fits
 `d_model` 64 need not fit 384. Three arms sweep the rate on configuration 1,
-at 5.6e-4, 3.3e-4 and 1.67e-4. Each one moves the rate column alone. D is
-1.3495 minus the best of the three. A D above the 0.0471 band voids every
-1e-3 number of this card, and phase 1 repeats at the winning rate. Every arm
-inside the band, or worse, ends the learning-rate explanation at width 384.
+at 5.6e-4, 3.3e-4 and 1.67e-4. Each one moves the rate column alone.
+
+D is the best rate arm against BOTH seeds of configuration 1, 1.3495 and
+1.2927, and not against 1.3495 alone. 1.3495 is the worse of the two, so an
+arm that beats it by less than 0.0568 shows a seed draw and not a rate
+effect. A D above 0.0568 on the better seed voids every 1e-3 number of this
+card, and phase 1 repeats at the winning rate. Every arm inside the band, or
+worse, ends the learning-rate explanation at width 384.
 
 **The band is 0.0568, and this card measured it.** `k3_r100_09b` repeats
 `k3_r100_09` at seed 20260525 alone, and it scores 1.2927 against 1.3495 at
