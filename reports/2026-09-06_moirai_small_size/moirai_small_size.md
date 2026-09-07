@@ -190,11 +190,14 @@ treatment reaches chance at k = 32.
 
 THE SCORE AGREES WITH THE AUC. `k3_r100_09_dec` scores 1.3236 against its
 no-decay twin's 1.3495 at the same seed, a gap of 0.0259 in the decay arm's
-favour and 0.5 of a band. So the decay costs nothing at k = 3 on either axis,
-and the pair sits inside the 1.2927 to 1.3495 range of the two 1e-3 seeds.
+favour and 0.5 of a band. The two arms differ in the `decay` column alone, so
+that subtraction is controlled. The pair also sits inside the 1.2927 to 1.3495
+range of the two 1e-3 seeds.
 
-At k = 32 the same treatment has no score to compare, because the arm lost the
-task at step 18,634 and never reached its stop. That is the decay result of
+On the deep mean cell the same treatment has no score to compare, because that
+arm lost the task at step 18,634 and never reached its stop. The cell
+difference carries the reduction confound above, so it names two columns and
+not the depth. That is the decay result of
 this card: nothing measurable on the shallow sum cell, and a lost run on the
 deep mean cell.
 
