@@ -47,3 +47,7 @@ Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, 
               R²_rand=0.7902  R²_naive=0.2766  U_t=0.0085  U_b=0.0377  AUC=0.9970  Top1=0.8269
   timing: data=7.4ms  fwd=174.0ms  bwd=111.2ms  total=293.6ms
   -> Saved /home/jupyter/checkpoints_backup/cf-412/k3_r100_09_dec/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_dec_best_loss.pth
+[   2000] loss=1.5510  ema_loss=1.9610  gap=-0.0879  ema_gap=-0.0803  mixup=58/200  3.0 sps  ETA 3.6h
+              R²_rand=0.7374  R²_naive=0.2421  U_t=0.0094  U_b=0.0345  AUC=0.9949  Top1=0.8290
+  timing: data=21.7ms  fwd=167.9ms  bwd=107.1ms  total=297.7ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-412/k3_r100_09_dec/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_dec_best_loss.pth

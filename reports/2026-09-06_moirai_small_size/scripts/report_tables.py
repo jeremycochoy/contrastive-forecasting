@@ -166,8 +166,13 @@ def main():
 
     arms = {r["arm"]: r for r in S.read_arms(HERE / "arms.tsv")}
     scores = S.read_scores(RESULTS / "scores.csv")
+    band, band_src = S.effective_band(
+        {a: v for (a, s), v in scores.items() if s == S.STOP})
     text = "\n\n".join([
-        "### The scores", scores_table(arms, scores),
+        "### The scores",
+        f"The band is **{band:.4f}** ({band_src}). Two numbers closer than "
+        "that are not ranked.",
+        scores_table(arms, scores),
         "### The contrastive AUC", auc_table(RESULTS / "auc_verdicts.tsv"),
         "### The loss by term", terms_table(RESULTS / "loss_terms.csv"),
         "### The cost", cost_table([RESULTS / "arms.log",

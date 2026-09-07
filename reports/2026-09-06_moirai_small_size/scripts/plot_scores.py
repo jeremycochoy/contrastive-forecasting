@@ -8,9 +8,10 @@ side by side is how a reader sees the sign of the difference in one look.
 
 WHAT IT DRAWS. One row for each arm that holds an 11.4M score. The 11.4M score
 takes the series color. The 1.1M score its parent published takes the muted
-reference ink, because it is not a run of this card. The seed band of #409,
-0.0471, rides on the 11.4M bar as an error bar: a difference inside it is not
-a rank.
+reference ink, because it is not a run of this card. The seed band rides on
+the 11.4M bar as an error bar, and a difference inside it is not a rank. The
+band is this card's own two seeds of configuration 1 where it measured them,
+else #409's floor, whichever is wider.
 
 Lower is better on this metric, so a bar that reaches further right is worse.
 
@@ -49,6 +50,7 @@ def main():
     if not rows:
         raise SystemExit(f"no arm holds a score at {args.stop} steps")
     rows.sort(key=lambda r: scored[r["arm"]])
+    band, band_src = S.effective_band(scored)
 
     fig, ax = plt.subplots(figsize=(9.0, 0.9 * len(rows) + 2.2))
     fig.patch.set_facecolor(S.SURFACE)
@@ -62,7 +64,7 @@ def main():
         value = scored[arm]
         ax.barh(y + h / 2 + 0.03, value, height=h, color=S.SERIES,
                 edgecolor=S.SURFACE, linewidth=2.0, zorder=3)
-        ax.errorbar(value, y + h / 2 + 0.03, xerr=S.BAND / 2, fmt="none",
+        ax.errorbar(value, y + h / 2 + 0.03, xerr=band / 2, fmt="none",
                     ecolor=S.SURFACE, elinewidth=1.6, capsize=3, zorder=4)
         ax.annotate(f"{value:.4f}", (value, y + h / 2 + 0.03), xytext=(6, 0),
                     textcoords="offset points", va="center", fontsize=9,
@@ -106,7 +108,7 @@ def main():
         handles.append(Patch(facecolor=S.REFERENCE, alpha=0.30, hatch="///",
                              label="a 1.1M score at another head budget"))
     handles.append(Line2D([], [], color=S.MUTED, linewidth=1.6,
-                          label=f"the {S.BAND:.4f} seed band of #409"))
+                          label=f"the {band:.4f} seed band ({band_src})"))
     # Below the figure, never on a bar and never on the axis label.
     fig.legend(handles=handles, frameon=False, fontsize=8, labelcolor=S.INK,
                loc="upper center", ncol=2, bbox_to_anchor=(0.5, 0.0))

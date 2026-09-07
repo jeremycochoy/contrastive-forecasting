@@ -8,8 +8,9 @@ the stops both reached, so a reader sees the size gap AND how it moves.
 
 WHAT IT DRAWS. The 11.4M track takes the series color. Its 1.1M twin takes the
 muted reference ink. A stop where the two head budgets differ carries a hollow
-marker, because that pair is not head-matched. The band of #409, 0.0471, rides
-on each 11.4M point.
+marker, because that pair is not head-matched. The band rides on each 11.4M
+point: this card's own two seeds where it measured them, else #409's floor,
+whichever is wider.
 
 Lower is better, so a line that falls is a model that improves.
 
@@ -56,6 +57,7 @@ def main():
     if not tracks:
         raise SystemExit("no arm holds a score")
 
+    band, _ = S.effective_band(S.read_scores(args.scores, stop=S.STOP))
     fig, ax = plt.subplots(figsize=(8.6, 5.0))
     fig.patch.set_facecolor(S.SURFACE)
     ax.set_facecolor(S.SURFACE)
@@ -72,7 +74,7 @@ def main():
     for arm, track in sorted(tracks.items()):
         colour = S.depth_colour(arms[arm]["k"]) if arm in arms else S.SERIES
         ax.errorbar([s for s, _ in track], [v for _, v in track],
-                    yerr=S.BAND / 2, color=colour, linewidth=2.2, marker="o",
+                    yerr=band / 2, color=colour, linewidth=2.2, marker="o",
                     markersize=8, capsize=3, elinewidth=1.2, zorder=4)
         for s, v in track:
             ax.annotate(f"{v:.4f}", (s, v), xytext=(0, 11),

@@ -111,6 +111,29 @@ REF_1M1 = {
 REF_1M1_SEEDS = {("k32_r100_09", 40000): (1.1491, 1.1507)}
 
 
+# The two seeds of `k3_r100_09` at 11.4M parameters. This card measures its
+# OWN band, and PR #413 takes the wider of that and #409's floor.
+BAND_SEEDS = ("k3_r100_09", "k3_r100_09b")
+
+
+def effective_band(scores):
+    """The band a gap is read against, and where it came from.
+
+    `scores` is `{arm: score}` at ONE stop. Returns (band, source). #409
+    measured 0.0471 over two backbone seeds of one arm at 1.1M parameters.
+    This card repeats configuration 1 at seed 20260525 and measures the band
+    at 11.4M. PR #413 takes whichever is wider, because a band that
+    understates the noise turns noise into a rank.
+    """
+    pair = [scores[a] for a in BAND_SEEDS if a in scores]
+    if len(pair) < 2:
+        return BAND, "#409, two seeds at 1.1M"
+    spread = abs(pair[0] - pair[1])
+    if spread > BAND:
+        return spread, "this card, two seeds at 11.4M"
+    return BAND, "#409, two seeds at 1.1M"
+
+
 def reference_spread(arm, stop):
     """(low, high) of the 1.1M reference over the parent's seeds, or None."""
     return REF_1M1_SEEDS.get((arm, int(stop)))
