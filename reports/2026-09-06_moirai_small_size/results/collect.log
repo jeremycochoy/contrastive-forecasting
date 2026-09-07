@@ -1879,3 +1879,199 @@ wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plot
   warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
 wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/loss_terms.png (10 run(s))
 wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/tables.md (5 scored pair(s))
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/scores.csv (6 scored pair(s))
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/loss_terms.csv (12 stop(s) with a loss row)
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/auc_verdicts.tsv (12 run(s))
+LOST: cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r200_08_losses.csv at step 28152
+LOST: cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r100_09_dec_losses.csv at step 18634
+arm              k   reduce  tau  end  ramp    seed      decay  lr      d_model  params    stop    head_steps  score
+k3_r100_09       3   sum     0.9  1.0  100000  20260520  -      1e-3    384      11431548  40000   30000       1.3495
+k3_r100_09       3   sum     0.9  1.0  100000  20260520  -      1e-3    384      11431548  100000  30000       1.3395
+k32_r100_09      32  mean    0.9  1.0  100000  20260520  -      1e-3    384      11431548  40000   30000       1.4629
+k3_r100_09_dec   3   sum     0.9  1.0  100000  20260520  2000   1e-3    384      11431548  40000   30000       1.3236
+k3_r100_09b      3   sum     0.9  1.0  100000  20260525  -      1e-3    384      11431548  40000   30000       1.2927
+k3_r100_09_lr33  3   sum     0.9  1.0  100000  20260520  -      3.3e-4  384      11431548  40000   30000       1.2483
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/scores.png (5 arm(s))
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/rates.png (3 arm(s))
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/climb.png (1 arm(s), 2 stop(s))
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/auc.png (10 run(s))
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/loss_terms.png (10 run(s))
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/tables.md (6 scored pair(s))
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/scores.csv (6 scored pair(s))
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/loss_terms.csv (12 stop(s) with a loss row)
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/auc_verdicts.tsv (12 run(s))
+LOST: cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r200_08_losses.csv at step 28152
+LOST: cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r100_09_dec_losses.csv at step 18634
+arm              k   reduce  tau  end  ramp    seed      decay  lr      d_model  params    stop    head_steps  score
+k3_r100_09       3   sum     0.9  1.0  100000  20260520  -      1e-3    384      11431548  40000   30000       1.3495
+k3_r100_09       3   sum     0.9  1.0  100000  20260520  -      1e-3    384      11431548  100000  30000       1.3395
+k32_r100_09      32  mean    0.9  1.0  100000  20260520  -      1e-3    384      11431548  40000   30000       1.4629
+k3_r100_09_dec   3   sum     0.9  1.0  100000  20260520  2000   1e-3    384      11431548  40000   30000       1.3236
+k3_r100_09b      3   sum     0.9  1.0  100000  20260525  -      1e-3    384      11431548  40000   30000       1.2927
+k3_r100_09_lr33  3   sum     0.9  1.0  100000  20260520  -      3.3e-4  384      11431548  40000   30000       1.2483
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/scores.png (5 arm(s))
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/rates.png (3 arm(s))
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/climb.png (1 arm(s), 2 stop(s))
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/auc.png (10 run(s))
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/loss_terms.png (10 run(s))
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/tables.md (6 scored pair(s))
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/scores.csv (6 scored pair(s))
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/loss_terms.csv (12 stop(s) with a loss row)
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/auc_verdicts.tsv (12 run(s))
+LOST: cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r200_08_losses.csv at step 28152
+LOST: cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r100_09_dec_losses.csv at step 18634
+arm              k   reduce  tau  end  ramp    seed      decay  lr      d_model  params    stop    head_steps  score
+k3_r100_09       3   sum     0.9  1.0  100000  20260520  -      1e-3    384      11431548  40000   30000       1.3495
+k3_r100_09       3   sum     0.9  1.0  100000  20260520  -      1e-3    384      11431548  100000  30000       1.3395
+k32_r100_09      32  mean    0.9  1.0  100000  20260520  -      1e-3    384      11431548  40000   30000       1.4629
+k3_r100_09_dec   3   sum     0.9  1.0  100000  20260520  2000   1e-3    384      11431548  40000   30000       1.3236
+k3_r100_09b      3   sum     0.9  1.0  100000  20260525  -      1e-3    384      11431548  40000   30000       1.2927
+k3_r100_09_lr33  3   sum     0.9  1.0  100000  20260520  -      3.3e-4  384      11431548  40000   30000       1.2483
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/scores.png (5 arm(s))
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/rates.png (3 arm(s))
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/climb.png (1 arm(s), 2 stop(s))
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/auc.png (10 run(s))
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/loss_terms.png (10 run(s))
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/tables.md (6 scored pair(s))
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/scores.csv (6 scored pair(s))
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/loss_terms.csv (12 stop(s) with a loss row)
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/auc_verdicts.tsv (12 run(s))
+LOST: cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r200_08_losses.csv at step 28152
+LOST: cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r100_09_dec_losses.csv at step 18634
+arm              k   reduce  tau  end  ramp    seed      decay  lr      d_model  params    stop    head_steps  score
+k3_r100_09       3   sum     0.9  1.0  100000  20260520  -      1e-3    384      11431548  40000   30000       1.3495
+k3_r100_09       3   sum     0.9  1.0  100000  20260520  -      1e-3    384      11431548  100000  30000       1.3395
+k32_r100_09      32  mean    0.9  1.0  100000  20260520  -      1e-3    384      11431548  40000   30000       1.4629
+k3_r100_09_dec   3   sum     0.9  1.0  100000  20260520  2000   1e-3    384      11431548  40000   30000       1.3236
+k3_r100_09b      3   sum     0.9  1.0  100000  20260525  -      1e-3    384      11431548  40000   30000       1.2927
+k3_r100_09_lr33  3   sum     0.9  1.0  100000  20260520  -      3.3e-4  384      11431548  40000   30000       1.2483
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/scores.png (5 arm(s))
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/rates.png (3 arm(s))
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/climb.png (1 arm(s), 2 stop(s))
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/auc.png (10 run(s))
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/loss_terms.png (10 run(s))
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/tables.md (6 scored pair(s))
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/scores.csv (6 scored pair(s))
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/loss_terms.csv (12 stop(s) with a loss row)
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/auc_verdicts.tsv (12 run(s))
+LOST: cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r200_08_losses.csv at step 28152
+LOST: cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r100_09_dec_losses.csv at step 18634
+arm              k   reduce  tau  end  ramp    seed      decay  lr      d_model  params    stop    head_steps  score
+k3_r100_09       3   sum     0.9  1.0  100000  20260520  -      1e-3    384      11431548  40000   30000       1.3495
+k3_r100_09       3   sum     0.9  1.0  100000  20260520  -      1e-3    384      11431548  100000  30000       1.3395
+k32_r100_09      32  mean    0.9  1.0  100000  20260520  -      1e-3    384      11431548  40000   30000       1.4629
+k3_r100_09_dec   3   sum     0.9  1.0  100000  20260520  2000   1e-3    384      11431548  40000   30000       1.3236
+k3_r100_09b      3   sum     0.9  1.0  100000  20260525  -      1e-3    384      11431548  40000   30000       1.2927
+k3_r100_09_lr33  3   sum     0.9  1.0  100000  20260520  -      3.3e-4  384      11431548  40000   30000       1.2483
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/scores.png (5 arm(s))
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/rates.png (3 arm(s))
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/climb.png (1 arm(s), 2 stop(s))
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/auc.png (10 run(s))
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/loss_terms.png (10 run(s))
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/tables.md (6 scored pair(s))
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/scores.csv (6 scored pair(s))
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/loss_terms.csv (12 stop(s) with a loss row)
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/auc_verdicts.tsv (12 run(s))
+LOST: cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r200_08_losses.csv at step 28152
+LOST: cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r100_09_dec_losses.csv at step 18634
+arm              k   reduce  tau  end  ramp    seed      decay  lr      d_model  params    stop    head_steps  score
+k3_r100_09       3   sum     0.9  1.0  100000  20260520  -      1e-3    384      11431548  40000   30000       1.3495
+k3_r100_09       3   sum     0.9  1.0  100000  20260520  -      1e-3    384      11431548  100000  30000       1.3395
+k32_r100_09      32  mean    0.9  1.0  100000  20260520  -      1e-3    384      11431548  40000   30000       1.4629
+k3_r100_09_dec   3   sum     0.9  1.0  100000  20260520  2000   1e-3    384      11431548  40000   30000       1.3236
+k3_r100_09b      3   sum     0.9  1.0  100000  20260525  -      1e-3    384      11431548  40000   30000       1.2927
+k3_r100_09_lr33  3   sum     0.9  1.0  100000  20260520  -      3.3e-4  384      11431548  40000   30000       1.2483
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/scores.png (5 arm(s))
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/rates.png (3 arm(s))
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/climb.png (1 arm(s), 2 stop(s))
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/auc.png (10 run(s))
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/loss_terms.png (10 run(s))
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/tables.md (6 scored pair(s))
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/scores.csv (6 scored pair(s))
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/loss_terms.csv (12 stop(s) with a loss row)
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/auc_verdicts.tsv (12 run(s))
+LOST: cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r200_08_losses.csv at step 28152
+LOST: cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r100_09_dec_losses.csv at step 18634
+arm              k   reduce  tau  end  ramp    seed      decay  lr      d_model  params    stop    head_steps  score
+k3_r100_09       3   sum     0.9  1.0  100000  20260520  -      1e-3    384      11431548  40000   30000       1.3495
+k3_r100_09       3   sum     0.9  1.0  100000  20260520  -      1e-3    384      11431548  100000  30000       1.3395
+k32_r100_09      32  mean    0.9  1.0  100000  20260520  -      1e-3    384      11431548  40000   30000       1.4629
+k3_r100_09_dec   3   sum     0.9  1.0  100000  20260520  2000   1e-3    384      11431548  40000   30000       1.3236
+k3_r100_09b      3   sum     0.9  1.0  100000  20260525  -      1e-3    384      11431548  40000   30000       1.2927
+k3_r100_09_lr33  3   sum     0.9  1.0  100000  20260520  -      3.3e-4  384      11431548  40000   30000       1.2483
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/scores.png (5 arm(s))
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/rates.png (3 arm(s))
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/climb.png (1 arm(s), 2 stop(s))
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/auc.png (10 run(s))
+/home/jupyter/.local/lib/python3.10/site-packages/matplotlib/projections/__init__.py:63: UserWarning: Unable to import Axes3D. This may be due to multiple versions of Matplotlib being installed (e.g. as a system package and as a pip package). As a result, the 3D projection is not available.
+  warnings.warn("Unable to import Axes3D. This may be due to multiple versions of "
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/plots/loss_terms.png (10 run(s))
+wrote /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/tables.md (6 scored pair(s))

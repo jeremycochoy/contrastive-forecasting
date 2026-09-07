@@ -32,34 +32,35 @@ The 200,000-step stop answers the card, because the 1.0651 reference is a
 size's rank, and the 40,000-step order of this card stands. The 200,000-step
 leg runs, because 1.0651 is a 200,000-step number.
 
-## The learning rate does not clear the bar, yet
+## 1e-3 does not fit this width, and it voids every 1e-3 number here
 
 ![the rate sweep](plots/rates.png)
 
-`k3_r100_09_lr33` trains configuration 1 at 3.3e-4 and scores 1.2483, the best
-11.4M number on this card. Whether that is a rate effect depends on which 1e-3
-run you subtract, and both are valid runs.
+`k3_r100_09_lr56` trains configuration 1 at 5.6e-4 and scores 1.1820. That is
+the best 11.4M number of this card by a wide margin, and it clears the bar this
+card fixed before the sweep ran.
 
-| comparison | D | against the 0.0568 band |
-|---|---|---|
-| the same seed 20260520, 1.3495 | +0.1012 | 1.8 bands |
-| the other seed 20260525, 1.2927 | +0.0444 | 0.8 bands |
+| rate | score | D against 1.3495, same seed | D against 1.2927, other seed |
+|---|---|---|---|
+| 1e-3, seed 20260520 | 1.3495 | — | — |
+| 1e-3, seed 20260525 | 1.2927 | +0.0568, 1.0 band | — |
+| 3.3e-4 | 1.2483 | +0.1012, 1.8 bands | +0.0444, 0.8 bands |
+| 5.6e-4 | 1.1820 | +0.1675, 2.9 bands | +0.1107, 1.9 bands |
 
-The seed-matched pair is the controlled one: `lr33` differs from the 1.3495 run
-in the rate column alone. But 1e-3 is a RANGE here, 1.2927 to 1.3495, and
-1.2483 sits 0.0444 below its nearest edge. One seed of one rate is not
-separated from that range.
+EVERY READING AGREES, which is why this one is a verdict where `lr33` was not.
+The bar was 1.2359, the better 1e-3 seed less one band, and 1.1820 clears it by
+0.0539. Against its own seed the gap is 2.9 bands, which is a RANK under #409's
+convention and not a threshold. Against the better seed it is 1.9 bands, so the
+result does not turn on which 1e-3 run a reader subtracts.
 
-SO NO 1e-3 NUMBER IS VOID. The rule needed 1.2359 and this arm reached 1.2483,
-short by 0.0124. What would settle it is a SECOND SEED of `lr33`, not a third
-rate: the question is whether 1.2483 is a rate or a draw, and only a repeat
-seed answers that. This card did not run one.
+SO EVERY 1e-3 NUMBER IN THIS REPORT IS TAKEN AT A RATE THAT DOES NOT FIT
+`d_model` 384. That is the card's own rule, fixed in advance: D above the band
+voids the 1e-3 numbers.
 
-Two readings do not depend on it. The size comparison is a within-rate
-comparison, 1e-3 on the 11.4M side and 1e-3 on every 1.1M parent, so a rate
-that suits width 384 better would move both sides. And no rate changes the
-contrastive AUC: `lr33` holds 0.998 at 40,000 steps where the k = 32 arms read
-0.773 and lower.
+The rate also has an interior optimum on this bracket, not a monotone slope.
+5.6e-4 beats 3.3e-4 by 0.0663, which is 1.2 bands, so lowering the rate further
+made the model worse. `k3_r100_09_lr17` at 1.67e-4 is the third point and its
+eval runs now.
 
 ## The width breaks the contrastive task on the deep mean cells
 
