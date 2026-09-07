@@ -31,18 +31,32 @@ The band is **0.0568** (this card measured it at 11.4M). Two numbers closer than
 
 Lower is worse. A run at 0.5 has lost the task. The last column is what the same cell, seed and stop reached at 1.1M parameters.
 
-| arm | k | L_rep decay | 2,000 | 5,000 | 10,000 | 16,000 | 25,000 | 40,000 | verdict | 1.1M twin at 40,000 |
-|---|---|---|---|---|---|---|---|---|---|---|
-| k3_r100_09 | 3 | no | 0.993 | 0.998 | 0.998 | 0.998 | 0.999 | 0.999 | held | — |
-| k3_r100_09b | 3 | no | 0.993 | 0.995 | 0.999 | 0.998 | 0.999 | 0.998 | held | — |
-| k3_r100_09_lr33 | 3 | no | 0.997 | 0.992 | 0.998 | 0.998 | 0.998 | 0.998 | held | — |
-| k3_r100_09_lr17 | 3 | no | 0.998 | 0.996 | 0.996 | 0.998 | 0.998 | 0.999 | held | — |
-| k3_r100_09_lr56 | 3 | no | 0.996 | 0.998 | 0.998 | 0.998 | 0.997 | 0.996 | held | — |
-| k3_r100_09_dec | 3 | yes | 0.996 | 0.992 | 0.980 | 0.994 | 0.997 | 0.997 | held | — |
-| k8_r100_09 | 8 | no | 0.971 | 0.961 | 0.881 | — | — | — | held | — |
-| k32_r100_09 | 32 | no | 0.968 | 0.937 | 0.892 | 0.747 | 0.843 | 0.773 | held | 0.978 (#404) |
-| k32_r200_08 | 32 | no | 0.877 | 0.814 | 0.749 | 0.748 | 0.568 | — | lost at 28,152 | 0.957 (#404) |
-| k32_r100_09_dec | 32 | yes | 0.978 | 0.746 | 0.742 | 0.754 | — | — | lost at 18,634 | 0.983 (#409) |
+| arm | k | EMA momentum | L_rep decay | 2,000 | 5,000 | 10,000 | 16,000 | 25,000 | 40,000 | verdict | 1.1M twin at 40,000 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| k3_r100_09 | 3 | 0.9 to 1.0 at 100k | no | 0.993 | 0.998 | 0.998 | 0.998 | 0.999 | 0.999 | held | — |
+| k3_r100_09b | 3 | 0.9 to 1.0 at 100k | no | 0.993 | 0.995 | 0.999 | 0.998 | 0.999 | 0.998 | held | — |
+| k3_r100_09_lr33 | 3 | 0.9 to 1.0 at 100k | no | 0.997 | 0.992 | 0.998 | 0.998 | 0.998 | 0.998 | held | — |
+| k3_r100_09_lr17 | 3 | 0.9 to 1.0 at 100k | no | 0.998 | 0.996 | 0.996 | 0.998 | 0.998 | 0.999 | held | — |
+| k3_r100_09_lr56 | 3 | 0.9 to 1.0 at 100k | no | 0.996 | 0.998 | 0.998 | 0.998 | 0.997 | 0.996 | held | — |
+| k3_r100_09_dec | 3 | 0.9 to 1.0 at 100k | yes | 0.996 | 0.992 | 0.980 | 0.994 | 0.997 | 0.997 | held | — |
+| k8_r100_09 | 8 | 0.9 to 1.0 at 100k | no | 0.971 | 0.961 | 0.881 | — | — | — | held | — |
+| k32_r100_09 | 32 | 0.9 to 1.0 at 100k | no | 0.968 | 0.937 | 0.892 | 0.747 | 0.843 | 0.773 | held | 0.978 (#404) |
+| k32_r200_08 | 32 | 0.8 to 1.0 at 200k | no | 0.877 | 0.814 | 0.749 | 0.748 | 0.568 | — | lost at 28,152 | 0.957 (#404) |
+| k32_r100_09_dec | 32 | 0.9 to 1.0 at 100k | yes | 0.978 | 0.746 | 0.742 | 0.754 | — | — | lost at 18,634 | 0.983 (#409) |
+
+**Read this table by row and by column, never on the diagonal.** Two rows are comparable only when they differ in ONE column. These are the pairs, and there are no others:
+
+- `k32_r100_09` against `k32_r100_09_dec`, which moves the L_rep decay
+- `k32_r100_09` against `k32_r200_08`, which moves the EMA momentum
+- `k32_r100_09` against `k8_r100_09`, which moves the rollout depth
+- `k3_r100_09_lr17` against `k3_r100_09_lr33`, which moves the learning rate
+- `k3_r100_09_lr17` against `k3_r100_09_lr56`, which moves the learning rate
+- `k3_r100_09_lr33` against `k3_r100_09_lr56`, which moves the learning rate
+- `k3_r100_09` against `k3_r100_09_dec`, which moves the L_rep decay
+- `k3_r100_09` against `k3_r100_09_lr17`, which moves the learning rate
+- `k3_r100_09` against `k3_r100_09_lr33`, which moves the learning rate
+- `k3_r100_09` against `k3_r100_09_lr56`, which moves the learning rate
+- `k3_r100_09` against `k3_r100_09b`, which moves the seed
 
 ### The loss by term
 

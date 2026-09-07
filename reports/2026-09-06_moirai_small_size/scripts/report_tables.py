@@ -134,6 +134,59 @@ def rolling_median(series, window):
     return out
 
 
+# The columns that make two arms a controlled pair. `lr` is in the list
+# because the rate bracket moves it and nothing else.
+PAIR_COLUMNS = ("k", "reduce", "tau", "end", "ramp", "seed", "decay", "lr")
+COLUMN_NAMES = {"k": "the rollout depth", "reduce": "the reduction",
+                "decay": "the L_rep decay", "seed": "the seed",
+                "lr": "the learning rate"}
+
+
+def momentum(row):
+    """One arm's EMA schedule, short enough for a table cell."""
+    if row.get("end", "-") == "-":
+        return f"{row['tau']} fixed"
+    return f"{row['tau']} to {row['end']} at {int(row['ramp']) // 1000}k"
+
+
+def controlled_pairs(arms, drawn):
+    """Every pair of drawn arms that differs in exactly ONE column.
+
+    WHY THIS EXISTS. The table puts four k = 32 rows together, and two of
+    them differ from a third in the decay and two in the momentum. A reader
+    who subtracts any other two is reading a diagonal: a difference that
+    moves two things at once and therefore measures neither. Both sessions
+    working this card made that subtraction once. Naming the pairs the table
+    supports is cheaper than describing them beside it.
+    """
+    out = []
+    names = sorted(drawn)
+    for i, a in enumerate(names):
+        for b in names[i + 1:]:
+            ra, rb = arms.get(a), arms.get(b)
+            if not ra or not rb:
+                continue
+            moved = [c for c in PAIR_COLUMNS if ra.get(c) != rb.get(c)]
+            if len(moved) == 1:
+                col = moved[0]
+                if col in ("tau", "end", "ramp"):
+                    col = "the EMA momentum"
+                else:
+                    col = COLUMN_NAMES.get(col, col)
+                out.append(f"`{a}` against `{b}`, which moves {col}")
+    # The momentum lives in three columns, so two arms on different schedules
+    # differ in more than one of them. Fold those into one comparison.
+    for i, a in enumerate(names):
+        for b in names[i + 1:]:
+            ra, rb = arms.get(a), arms.get(b)
+            if not ra or not rb:
+                continue
+            moved = [c for c in PAIR_COLUMNS if ra.get(c) != rb.get(c)]
+            if len(moved) > 1 and set(moved) <= {"tau", "end", "ramp"}:
+                out.append(f"`{a}` against `{b}`, which moves the EMA momentum")
+    return sorted(set(out))
+
+
 def auc_verdict_map(path):
     """`{arm: 'held' or 'lost at <step>'}` from the gate's own table."""
     out = {}
@@ -187,13 +240,13 @@ def auc_by_step_table(arms, root=AUC_ROOT, verdicts=None):
             cells.append(f"{min(near)[1]:.3f}" if near else "—")
         ref = S.reference_auc(arm)
         ref_text = f"{ref[0]:.3f} ({ref[2]})" if ref else "—"
-        rows.append((arm, row["k"],
+        rows.append((arm, row["k"], momentum(row),
                      "yes" if row.get("decay", "-") != "-" else "no",
                      *cells, verdicts.get(arm, "—"), ref_text))
     if not rows:
         return "_no losses CSV yet._"
-    rows.sort(key=lambda r: (int(r[1]), r[2]))
-    return table(rows, ["arm", "k", "L_rep decay"]
+    rows.sort(key=lambda r: (int(r[1]), r[3]))
+    return table(rows, ["arm", "k", "EMA momentum", "L_rep decay"]
                  + [f"{m:,}" for m in AUC_MARKS]
                  + ["verdict", "1.1M twin at 40,000"])
 
@@ -256,6 +309,18 @@ def cost_table(paths):
     return table(rows, ["run", "stage", "steps", "hours"])
 
 
+def pairs_note(arms):
+    """The only subtractions this table supports, named."""
+    drawn = {a for a in arms if losses_csvs(AUC_ROOT, a, arms[a]["k"])}
+    pairs = controlled_pairs(arms, drawn)
+    if not pairs:
+        return "_no two runs of this card differ in one column alone._"
+    return ("**Read this table by row and by column, never on the diagonal.** "
+            "Two rows are comparable only when they differ in ONE column. "
+            "These are the pairs, and there are no others:\n\n"
+            + "\n".join(f"- {p}" for p in pairs))
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--out", default=str(RESULTS / "tables.md"))
@@ -276,6 +341,7 @@ def main():
         "what the same cell, seed and stop reached at 1.1M parameters.",
         auc_by_step_table(arms,
                           verdicts=auc_verdict_map(RESULTS / "auc_verdicts.tsv")),
+        pairs_note(arms),
         "### The loss by term", terms_table(RESULTS / "loss_terms.csv"),
         "### The cost", cost_table([RESULTS / "arms.log",
                                     RESULTS / "stops.log"]),
