@@ -56,6 +56,13 @@ arm's own cell, and its head budget differs, so it is not head-matched. The
 second row is head-matched but a different cell. The first row is the number
 the project actually wants to beat, and 1.1820 does not beat it.
 
+THE TWO HALVES OF THIS SECTION DO NOT MEET, and that is the card's real
+outcome. The size answer is a 200,000-step answer at 1e-3. The rate answer is a
+40,000-step answer, and 1.0651 is a 200,000-step number. So no comparison at a
+rate that fits width 384 exists at the stop that decides anything. The card set
+out to ask whether the objective is weak or the model is small, and it found
+that the question was put at the wrong learning rate.
+
 
 
 ## A longer stop does not change the size answer
