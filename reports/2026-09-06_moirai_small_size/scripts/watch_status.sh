@@ -18,11 +18,23 @@ for arm in $CF412_ARMS; do
   # the first would report a climb that has not moved for hours.
   csv="$(cf412_furthest_losses_csv "$arm")"
   step="-"; auc="-"; rw="-"
+  # THE AUC IS THE GATE'S STATISTIC: a rolling median over the last
+  # CF412_AUC_WINDOW rows. The last RAW row was here before, and three
+  # sessions read this line and compared it with `auc_verdicts.tsv`, which is
+  # a median. A raw row of this cell swings by 0.2 between neighbours, so the
+  # two never matched and the difference looked like a real disagreement.
   if [ -n "$csv" ] && [ -s "$csv" ]; then
-    read -r step auc rw <<<"$(awk -F',' '
-      NR==1 { for (i=1;i<=NF;i++) c[$i]=i; next }
-      { s=$c["step"]; a=$c["auc"]; w=$c["rep_w"] }
-      END { print s, a, w }' "$csv")"
+    read -r step auc rw <<<"$(tail -n "$CF412_AUC_WINDOW" "$csv" \
+      | awk -F',' -v cols="$(head -1 "$csv")" '
+      BEGIN { n = split(cols, name, ","); for (i = 1; i <= n; i++) c[name[i]] = i }
+      $c["step"] ~ /^[0-9]+$/ {
+        s = $c["step"]; w = $c["rep_w"]
+        if ($c["auc"] + 0 == $c["auc"]) a[++m] = $c["auc"] }
+      END {
+        if (m == 0) { print s, "-", w; exit }
+        for (i = 1; i < m; i++) for (j = i + 1; j <= m; j++)
+          if (a[j] < a[i]) { t = a[i]; a[i] = a[j]; a[j] = t }
+        print s, (m % 2 ? a[(m + 1) / 2] : (a[m / 2] + a[m / 2 + 1]) / 2), w }')"
   fi
   # One score for each stop this arm holds, so a climb shows its whole track.
   score=""
