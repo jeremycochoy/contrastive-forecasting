@@ -1,6 +1,6 @@
 # The same objective at Moirai-2-Small size
 
-**DRAFT — the card still runs. The verdict below covers the arms that landed.
+**The card is complete. Ten arms, ten scores, two arms stopped by the AUC gate.
 `results/tables.md` and `plots/` refresh every 15 minutes.**
 
 Every score of this project comes from a backbone of 1.1M parameters.
@@ -34,8 +34,12 @@ The number the project wants to beat is 1.0651, its own best at 1.1M and
 200,000 steps on the student-align cell. The 11.4M model is 5.7 bands behind
 it. Moirai-2-Small scores 0.728 on the same 97 configs.
 
-On the deep mean cell at 40,000 steps the 11.4M model scores 1.4629 against
-1.1507, worse by 5.5 bands.
+The deep mean cells score worse on both axes. `k32_r100_09` reads 1.4629 and
+`k8_r100_09` 1.4537, which are 0.16 of a band apart and so not ranked against
+each other. Both are about 2.8 bands behind the k = 3 sum arms at the same
+rate, and `k32_r100_09` is 5.5 bands behind its own 1.1M twin at 1.1507.
+`k8_r100_09` has no 1.1M twin, because #401 ran that depth against the student
+target.
 
 EVERY ONE OF THOSE 11.4M NUMBERS IS AT 1e-3. On the same cell and the same
 stop, this card then measured 1.1820 at 5.6e-4, which is 2.9 bands better than
@@ -387,11 +391,13 @@ The band is **0.0568** (this card measured it at 11.4M). Two numbers closer than
 |---|---|---|---|---|---|---|---|---|---|---|
 | k3_r100_09_lr56 | 3 | sum | 20260520 | 5.6e-4 | no | 40,000 | 1.1820 | never run | — | — |
 | k3_r100_09_lr33 | 3 | sum | 20260520 | 3.3e-4 | no | 40,000 | 1.2483 | never run | — | — |
+| k3_r100_09_lr17 | 3 | sum | 20260520 | 1.67e-4 | no | 40,000 | 1.2612 | never run | — | — |
 | k3_r100_09b | 3 | sum | 20260525 | 1e-3 | no | 40,000 | 1.2927 | 1.3618 | -0.0691 | no, 15,000-step head |
 | k3_r100_09_dec | 3 | sum | 20260520 | 1e-3 | yes | 40,000 | 1.3236 | never run | — | — |
 | k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 100,000 | 1.3395 | 1.3010 | +0.0385 | yes |
 | k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 40,000 | 1.3495 | 1.3618 | -0.0123 | no, 15,000-step head |
 | k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 200,000 | 1.3910 | 1.3998 | -0.0088 | yes |
+| k8_r100_09 | 8 | mean | 20260520 | 1e-3 | no | 40,000 | 1.4537 | never run | — | — |
 | k32_r100_09 | 32 | mean | 20260520 | 1e-3 | no | 40,000 | 1.4629 | 1.1507 (1.1491 to 1.1507) | +0.3122 | yes |
 
 ### The contrastive AUC
@@ -399,17 +405,43 @@ The band is **0.0568** (this card measured it at 11.4M). Two numbers closer than
 | arm | verdict | AUC floor | at step | AUC last | at step |
 |---|---|---|---|---|---|
 | k32_r100_09 | held | 0.6827 | 20872 | 0.7732 | 40000 |
+| k32_r100_09 | held | 0.6827 | 20872 | 0.7732 | 40000 |
+| k32_r100_09 | held | 0.6827 | 20872 | 0.7732 | 40000 |
+| k32_r100_09_dec | lost | 0.5014 | 19100 | 0.5014 | 19100 |
+| k32_r100_09_dec | lost | 0.5014 | 19100 | 0.5014 | 19100 |
 | k32_r100_09_dec | lost | 0.5014 | 19100 | 0.5014 | 19100 |
 | k32_r200_08 | lost | 0.5347 | 28500 | 0.5347 | 28500 |
+| k32_r200_08 | lost | 0.5347 | 28500 | 0.5347 | 28500 |
+| k32_r200_08 | lost | 0.5347 | 28500 | 0.5347 | 28500 |
+| k3_r100_09 | held | 0.9931 | 1942 | 0.9988 | 40000 |
+| k3_r100_09 | held | 0.9931 | 1942 | 0.9988 | 40000 |
 | k3_r100_09 | held | 0.9931 | 1942 | 0.9988 | 40000 |
 | k3_r100_09 | held | 0.9974 | 40001 | 0.9994 | 100000 |
+| k3_r100_09 | held | 0.9974 | 40001 | 0.9994 | 100000 |
+| k3_r100_09 | held | 0.9974 | 40001 | 0.9994 | 100000 |
+| k3_r100_09 | held | 0.9992 | 144399 | 0.9995 | 200000 |
+| k3_r100_09 | held | 0.9992 | 144399 | 0.9995 | 200000 |
 | k3_r100_09 | held | 0.9992 | 144399 | 0.9995 | 200000 |
 | k3_r100_09_dec | held | 0.9797 | 9690 | 0.9974 | 40000 |
+| k3_r100_09_dec | held | 0.9797 | 9690 | 0.9974 | 40000 |
+| k3_r100_09_dec | held | 0.9797 | 9690 | 0.9974 | 40000 |
+| k3_r100_09_lr17 | held | 0.9852 | 5991 | 0.9985 | 40000 |
+| k3_r100_09_lr17 | held | 0.9852 | 5991 | 0.9985 | 40000 |
 | k3_r100_09_lr17 | held | 0.9852 | 5991 | 0.9985 | 40000 |
 | k3_r100_09_lr33 | held | 0.9913 | 3337 | 0.9980 | 40000 |
+| k3_r100_09_lr33 | held | 0.9913 | 3337 | 0.9980 | 40000 |
+| k3_r100_09_lr33 | held | 0.9913 | 3337 | 0.9980 | 40000 |
+| k3_r100_09_lr56 | held | 0.9936 | 34553 | 0.9956 | 40000 |
+| k3_r100_09_lr56 | held | 0.9936 | 34553 | 0.9956 | 40000 |
 | k3_r100_09_lr56 | held | 0.9936 | 34553 | 0.9956 | 40000 |
 | k3_r100_09b | held | 0.9922 | 1869 | 0.9982 | 40000 |
+| k3_r100_09b | held | 0.9922 | 1869 | 0.9982 | 40000 |
+| k3_r100_09b | held | 0.9922 | 1869 | 0.9982 | 40000 |
 | k8_r100_09 | held | 0.6847 | 14106 | 0.7302 | 40000 |
+| k8_r100_09 | held | 0.6847 | 14106 | 0.7302 | 40000 |
+| k8_r100_09 | held | 0.6847 | 14106 | 0.7302 | 40000 |
+| run | verdict | floor | floor_step | last | last_step |
+| run | verdict | floor | floor_step | last | last_step |
 
 ### The contrastive AUC, step by step
 
@@ -447,16 +479,25 @@ Lower is worse. A run at 0.5 has lost the task. The last column is what the same
 | arm | stop | last step | total loss | L_rep | L_align | L_rep weight | EMA momentum | AUC |
 |---|---|---|---|---|---|---|---|---|
 | k32_r100_09 | 40,000 | 40,000 | 13.4947 | 11.6270 | 1.7583 | 1.00 | 0.9400 | 0.7629 |
+| k32_r100_09 | 40,000 | 40,000 | 13.4947 | 11.6270 | 1.7583 | 1.00 | 0.9400 | 0.7629 |
 | k32_r100_09_dec | 40,000 | 19,100 | 1.8013 | — | 1.8219 | 0.00 | 0.9191 | 0.5010 |
+| k32_r100_09_dec | 40,000 | 19,100 | 1.8013 | — | 1.8219 | 0.00 | 0.9191 | 0.5010 |
+| k32_r200_08 | 40,000 | 28,500 | 13.6105 | 11.5968 | 2.0018 | 1.00 | 0.8285 | 0.5254 |
 | k32_r200_08 | 40,000 | 28,500 | 13.6105 | 11.5968 | 2.0018 | 1.00 | 0.8285 | 0.5254 |
 | k3_r100_09 | 100,000 | 100,000 | 12.3238 | 11.7174 | 0.1472 | 1.00 | 1.0000 | 0.9997 |
 | k3_r100_09 | 200,000 | 200,000 | 12.2424 | 11.7181 | 0.1319 | 1.00 | 1.0000 | 0.9938 |
 | k3_r100_09 | 40,000 | 40,000 | 12.5323 | 11.7822 | 0.1852 | 1.00 | 0.9400 | 0.9993 |
 | k3_r100_09_dec | 40,000 | 40,000 | 1.0579 | — | 0.2487 | 0.00 | 0.9400 | 0.9980 |
+| k3_r100_09_dec | 40,000 | 40,000 | 1.0579 | — | 0.2487 | 0.00 | 0.9400 | 0.9980 |
+| k3_r100_09_lr17 | 40,000 | 40,000 | 12.8115 | 11.7678 | 0.2532 | 1.00 | 0.9400 | 0.9992 |
 | k3_r100_09_lr17 | 40,000 | 40,000 | 12.8115 | 11.7678 | 0.2532 | 1.00 | 0.9400 | 0.9992 |
 | k3_r100_09_lr33 | 40,000 | 40,000 | 12.5972 | 11.7772 | 0.2020 | 1.00 | 0.9400 | 0.9983 |
+| k3_r100_09_lr33 | 40,000 | 40,000 | 12.5972 | 11.7772 | 0.2020 | 1.00 | 0.9400 | 0.9983 |
+| k3_r100_09_lr56 | 40,000 | 40,000 | 12.6520 | 11.6891 | 0.2118 | 1.00 | 0.9400 | 0.9973 |
 | k3_r100_09_lr56 | 40,000 | 40,000 | 12.6520 | 11.6891 | 0.2118 | 1.00 | 0.9400 | 0.9973 |
 | k3_r100_09b | 40,000 | 40,000 | 12.9777 | 11.7567 | 0.2832 | 1.00 | 0.9400 | 0.9984 |
+| k3_r100_09b | 40,000 | 40,000 | 12.9777 | 11.7567 | 0.2832 | 1.00 | 0.9400 | 0.9984 |
+| k8_r100_09 | 40,000 | 40,000 | 13.3835 | 11.6129 | 1.7117 | 1.00 | 0.9400 | 0.7563 |
 | k8_r100_09 | 40,000 | 40,000 | 13.3835 | 11.6129 | 1.7117 | 1.00 | 0.9400 | 0.7563 |
 
 ### The cost
@@ -489,6 +530,8 @@ Lower is worse. A run at 0.5 has lost the task. The last column is what the same
 | k8_r100_09 | backbone | 40,000 | 5.3 |
 | k3_r100_09_bb200k_h30k_student | GIFT-Eval, 97 configs | — | 4.0 |
 | k8_r100_09_bb40k_h30k_student | head | 30,000 | 1.6 |
+| k3_r100_09_lr17_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 3.9 |
+| k8_r100_09_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 4.0 |
 
 ## How to repeat it
 
