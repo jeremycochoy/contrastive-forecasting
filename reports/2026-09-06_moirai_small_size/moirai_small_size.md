@@ -157,14 +157,16 @@ these rows equally well, and nothing on this card separates them. One k = 3 arm
 under mean, or one k = 32 arm under sum, would settle it. Neither exists at
 either size.
 
-THE ONE CONTROLLED DEPTH PAIR SHOWS NO SEPARATION. `k8_r100_09` and
+THE ONE CONTROLLED DEPTH PAIR RUNS THE WRONG WAY. `k8_r100_09` and
 `k32_r100_09` share the reduction, the momentum, the seed and the rate, so the
-depth is the one column between them. At step 10,000 they read 0.881 and 0.892,
-so the DEEPER arm is the healthier one, and at 10,500 they read 0.863 and
-0.881. They run within 0.011 of each other from step 8,000. So the erosion does
-not scale with k on this evidence, and this report does not say that it does.
+depth is the one column between them. The k = 8 arm sits above to step 8,000,
+crosses at 10,000, and falls further below after it: 0.812 against 0.840 at
+12,000 and 0.717 against 0.793 at 15,000. So the SHALLOWER arm erodes faster
+over that stretch.
 
-`k8_r100_09` has run 10,700 steps of its 40,000, so its column is partial.
+The erosion therefore does not scale with k, and this report claims no ordering
+in k at all. `k8_r100_09` has run 15,300 steps of its 40,000, so its column
+ends there.
 
 The EMA momentum moves the whole curve as well. `k32_r200_08` starts its ramp
 at 0.8 and sits under `k32_r100_09` at every step, by 0.091 at step 2,000 and
