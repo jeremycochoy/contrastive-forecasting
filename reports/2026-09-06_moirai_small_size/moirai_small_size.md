@@ -40,18 +40,22 @@ Every AUC in this report is a rolling median over 500 training rows, which is
 the statistic the guard reads against its 0.55 threshold. A single row is
 noisy, and one row under the threshold is not a lost run.
 
-Both k = 32 arms of this card have an exact 1.1M twin, and both twins held the
+Three k = 32 arms of this card have an exact 1.1M twin, and every twin held the
 task. #404's plain twin ended at AUC 0.978 at 40,000 steps. #409's decay twin,
-`dec_m090r100_ramp2k`, ended at 0.9833 and scored 1.2295. Each twin matches its
-arm on the cell, the momentum, the decay ramp and the seed 20260520.
+`dec_m090r100_ramp2k`, ended at 0.9833 and scored 1.2295. #404's `s08` twin, on
+the other momentum schedule, ended at 0.957. Each twin matches its arm on the
+cell, the momentum, the decay ramp and the seed 20260520.
 
-At 11.4M the plain arm falls from 0.966 at step 2,000 to 0.763 at 40,000. The
-decay arm reaches chance at step 18,634, and the guard stopped it there. That
-arm has no head and no score.
+At 11.4M all three fall. `k32_r100_09` goes from 0.968 at step 2,000 to 0.773
+at 40,000. `k32_r100_09_dec` reaches chance at step 18,634, and the guard
+stopped it there, so it has no head and no score. `k32_r200_08` reads 0.787 at
+step 7,400, and its leg still runs, so it has no 40,000-step cell yet.
 
 So the width decides whether the run keeps the task, and the decay decides how
-fast it goes. The worst AUC is also the worst score: 0.763 and 1.4629, against
-0.998 and 1.2927 to 1.3495 on the k = 3 arms.
+fast it goes. Two momentum schedules carry that reading, not one, and the decay
+arm is its extreme case rather than its evidence. The worst AUC is also the
+worst score: 0.773 and 1.4629, against 0.998 and 1.2927 to 1.3495 on the k = 3
+arms.
 
 This reading covers k = 32 alone. #373 published no AUC column for cells A3 and
 A4, so the k = 3 arms have no 1.1M anchor.
