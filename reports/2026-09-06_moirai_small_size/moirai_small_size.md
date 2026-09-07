@@ -77,10 +77,11 @@ at 5.6e-4, 3.3e-4 and 1.67e-4. Each one moves the rate column alone. D is
 1e-3 number of this card, and phase 1 repeats at the winning rate. Every arm
 inside the band, or worse, ends the learning-rate explanation at width 384.
 
-**The band is 0.0471.** #409 measured that spread over two backbone seeds of
-one configuration at the 40,000-step stop. Two numbers closer than that are
-not ranked. `k3_r100_09b` repeats `k3_r100_09` at seed 20260525 and measures
-this size's own band.
+**The band is 0.0568, and this card measured it.** `k3_r100_09b` repeats
+`k3_r100_09` at seed 20260525 alone, and it scores 1.2927 against 1.3495 at
+the 40,000-step stop. That spread is this size's own seed band. It is wider
+than the 0.0471 #409 measured at 1.1M, so this report ranks on 0.0568. Two
+numbers closer than that are not ranked.
 
 **A decay verdict at 40,000 steps is a 40,000-step verdict.** The two decay
 arms pair with their plain twins at that stop alone. #409 carried its best
