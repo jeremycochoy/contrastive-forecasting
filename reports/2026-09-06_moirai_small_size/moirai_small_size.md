@@ -54,9 +54,19 @@ A4, so the k = 3 arms have no 1.1M anchor.
 
 The decay damages the two cells differently, and it shows early. At step 5,000
 the k = 32 decay arm reads 0.737 against 0.938 for its no-decay twin. The k = 3
-decay arm reads 0.993 against 0.995 for its twin, and it stays flat to step
-17,700. Both decay arms carry their `L_rep` weight at 0.0 from step 2,000. The
-40,000-step stop settles the k = 3 row.
+decay arm reads 0.993 against 0.995 for its twin. Both carry their `L_rep`
+weight at 0.0 from step 2,000.
+
+`k3_r100_09_dec` then held the task to 40,000 steps. Its rolling-median floor
+is 0.9797 and it ends at 0.9974, against its twin's 0.9988. That floor is
+higher than 0.9039, which is the BEST the k = 32 plain arm reaches after step
+10,000. So the decay costs nothing measurable at k = 3 over 38,000 steps at
+weight 0.0, and the same treatment reaches chance at k = 32.
+
+Two limits hold that reading. It is the AUC axis, and `k3_r100_09_dec` has no
+1.1M twin, because every decay run of #409 used k = 32. It is also a
+40,000-step reading: #409 carried its best decay arm to 200,000 steps and the
+gap moved, and this card carries neither decay arm past 40,000.
 
 ## The loss by term
 
