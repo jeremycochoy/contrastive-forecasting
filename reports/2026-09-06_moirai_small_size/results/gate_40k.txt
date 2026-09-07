@@ -1,0 +1,20 @@
+--- the 40,000-step scores (3 arm(s)) ---
+  k3_r100_09b      1.2927
+  k3_r100_09       1.3495
+  k32_r100_09      1.4629
+
+--- the band ---
+  #409 floor              0.0471
+  this size, two seeds    0.0568
+  THE BAND                0.0568
+
+--- the leader ---
+  k3_r100_09b at 1.2927
+
+--- the verdict ---
+  CLIMB  k3_r100_09b      1.2927 <= 1.3495
+  CLIMB  k3_r100_09       climbs ALWAYS — its 1.0651 reference is a 200,000-step number
+  stops  k32_r100_09      1.4629 > 1.3495 — outside the band
+
+Command:
+  STOPS=200000 ARMS="k3_r100_09b k3_r100_09" bash run.sh phase1

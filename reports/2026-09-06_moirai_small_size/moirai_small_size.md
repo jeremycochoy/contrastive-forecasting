@@ -11,9 +11,17 @@ or whether the model is small.
 
 ## The answer
 
-_(filled when the head-matched stops land)_
+Ten times the capacity buys nothing at the stops that landed.
 
 ![the scores](plots/scores.png)
+
+At 100,000 backbone steps, head-matched, the 11.4M model scores 1.3395 and its
+1.1M twin scores 1.3010. The 11.4M model is 0.0385 worse, which is inside this
+size's 0.0568 seed band, so the two are not ranked. On the k = 32 cell at
+40,000 steps the 11.4M model scores 1.4629 against 1.1507, worse by 5.5 bands.
+
+The 200,000-step stop answers the card, because the 1.0651 reference is a
+200,000-step number. That leg runs.
 
 ## The climb
 

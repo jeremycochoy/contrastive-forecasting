@@ -52,7 +52,11 @@ if os.path.exists(verdicts_path):
                 lost.add(row['run'])
 
 def arm_lost(arm):
-    return any(f'_cf412_{arm}_' in run or f'_cf412_{arm}.' in run
+    # The arm token sits between `_cf412_` and `_losses.csv` in the run name.
+    # An open prefix match reads `k32_r100_09_dec` as `k32_r100_09` and stops
+    # an arm that held the task, so the test is anchored at both ends.
+    return any(run.endswith(f'_cf412_{arm}_losses.csv')
+               or f'_cf412_{arm}.' in run
                for run in lost) or os.path.exists(
         os.path.join(os.path.dirname(scores_path), f'collapsed_{arm}.txt'))
 
