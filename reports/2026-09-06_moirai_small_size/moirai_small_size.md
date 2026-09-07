@@ -48,8 +48,9 @@ cell, the momentum, the decay ramp and the seed 20260520.
 
 At 11.4M all three fall. `k32_r100_09` goes from 0.968 at step 2,000 to 0.773
 at 40,000. `k32_r100_09_dec` reaches chance at step 18,634, and the guard
-stopped it there, so it has no head and no score. `k32_r200_08` reads 0.787 at
-step 7,400, and its leg still runs, so it has no 40,000-step cell yet.
+stopped it there, so it has no head and no score. `k32_r200_08` falls on the
+same path and its leg still runs, so it has no 40,000-step cell yet.
+`results/tables.md` carries its current row and the gate's verdict.
 
 So the width decides whether the run keeps the task, and the decay decides how
 fast it goes. Two momentum schedules carry that reading, not one, and the decay
