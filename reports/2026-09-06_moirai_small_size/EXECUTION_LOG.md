@@ -110,14 +110,20 @@ overlap.
 
 ## The two cards carry different work
 
-- gpu 0 carries backbones. `scripts/queue_backbones.sh` holds
-  `k32_r200_08`, then `k8_r100_09`, then `k3_r100_09_lr17`, largest memory
-  need first. A small arm ahead of a large one takes the window and leaves
-  the large one waiting.
-- gpu 1 carries every head. `scripts/head_sweep.sh` is the net.
-  `scripts/head_claim.sh` takes the checkpoints that no lane will claim, the
-  moment they land, because the five-minute age gate of both sweeps protects
-  a lane that no longer exists.
+The two sessions agreed this split by message at 05:30 on 2026-09-07.
+
+- gpu 0 carries the released backbones. `scripts/queue_backbones.sh` holds
+  `k32_r200_08`, then `k8_r100_09`, largest memory need first. A small arm
+  ahead of a large one takes the window and leaves the large one waiting.
+- gpu 1 carries the rate sweep and every head. `scripts/head_sweep.sh` is the
+  net over all arms. `scripts/head_claim.sh` takes the four checkpoints that
+  no lane will claim, the moment they land, because the five-minute age gate
+  of a sweep protects a lane that no longer exists.
+
+`k3_r100_09_lr17` belongs to lane D, pid 1102993, which holds
+`ARMS="k3_r100_09_lr33 k3_r100_09_lr17"` on gpu 1 and reaches lr17 after
+lr33's head and evaluation. The queue on gpu 0 carried it for eight minutes
+and dropped it before it started, so no arm trained twice.
 
 ## `results/lane_d.log` is not committed
 
