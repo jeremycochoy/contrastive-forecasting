@@ -86,29 +86,38 @@ finished, and fell into text that was not there when it began.
 A file that must change while a shell runs it is replaced through `mv`, never
 edited in place. The running shell keeps the old inode.
 
-## Four shells died at about 04:20, cause unknown
+## Three shells stopped at 04:20, on purpose
 
-One session lost four background shells inside one window: its decay-arm lane
-driver, the lane C driver, the sweep loop and a file watcher. Its heartbeat
-survived.
+The newer session stopped three shells at 04:20: the lane C driver (380579),
+the decay lane driver (1103976) and the sweep loop (900144). It killed no
+trainer. All four trainers and both `run_arm.sh` shells stayed alive, and no
+training was lost. An earlier version of this entry read "cause unknown".
 
-The launch method does not explain the cull. The surviving heartbeat used
-`setsid nohup`, and so did two of the four that died. Lane C used `nohup` with
-no `setsid`, and the watcher was a harness background task. No file under
-`scripts/` or `run_snapshot/` changed after 22:16, so an edit under a running
-shell is not the cause either.
+WHY THE TWO DRIVERS STOPPED. `phase1.sh` trains a head on its own card after
+each leg, and both drivers carried `BB_GPU=0`. A head waits for 12,000 MiB.
+`k32_r200_08` waits for 11,300 MiB on the same card, and `k3_r100_09_dec`
+frees only 12,591 MiB when it ends. The head would have taken that window and
+held a 9.6-hour backbone for 1.8 hours. Stopping the driver leaves the trainer
+running and moves the head to the other card.
 
-No training was lost. All four trainers and both `run_arm.sh` shells stayed
-alive. What died was the scoring above them.
+WHY THE SWEEP LOOP STOPPED. `missing_heads.sh` calls `head_eval.sh` and WAITS
+for it, and that call is a 1.7-hour head train plus a 2.9-hour CPU evaluation.
+A sweep that waits therefore starts one arm every 4.6 hours, and the seven
+arms left need 32 hours of that. `scripts/head_sweep.sh` starts each head in
+the background. The `flock` in `head_eval_bb.sh` still serializes the head
+train, and it drops that lock before the evaluation, so the evaluations
+overlap.
 
-Recovery, at 04:48 and 04:51:
+## The two cards carry different work
 
-- The sweep loop restarted from the frozen copy, on gpu 0, period 300 s.
-- A waiter armed on the 200,000-step checkpoint. It starts that head itself,
-  after the same three checks the sweep makes, so the two cannot both start
-  it.
-
-The cause is not known and this log does not guess at one.
+- gpu 0 carries backbones. `scripts/queue_backbones.sh` holds
+  `k32_r200_08`, then `k8_r100_09`, then `k3_r100_09_lr17`, largest memory
+  need first. A small arm ahead of a large one takes the window and leaves
+  the large one waiting.
+- gpu 1 carries every head. `scripts/head_sweep.sh` is the net.
+  `scripts/head_claim.sh` takes the checkpoints that no lane will claim, the
+  moment they land, because the five-minute age gate of both sweeps protects
+  a lane that no longer exists.
 
 ## `results/lane_d.log` is not committed
 
