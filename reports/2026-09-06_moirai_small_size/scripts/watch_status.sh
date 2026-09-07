@@ -49,8 +49,15 @@ npy(){ ps -eo args --no-headers 2>/dev/null \
 # A pattern that names `scripts/` alone counts 2 lanes where 3 drive work, and
 # a reader takes the low count for a lane that died. A bare `phase1.sh`
 # over-counts instead: an agent session carries the string in its own command
-# line. So the lane count matches the WHOLE command line, through `pgrep -x`.
-nx(){ local c; c="$(pgrep -c -x -f "$1" 2>/dev/null)"; printf '%s' "${c:-0}"; }
+# line. So the lane count matches the WHOLE command line.
+#
+# `phase1.sh` pipes its vram wait into `tee`, and that subshell carries the
+# SAME whole command line as its lane. A plain count read 3 lanes where 2 drove
+# work. So a match whose parent also matches is a subshell, and it drops out.
+nlane(){ ps -eo pid,ppid,args --no-headers 2>/dev/null | awk '
+  { a = $0; sub(/^[ ]*[0-9]+[ ]+[0-9]+[ ]+/, "", a)
+    if (a ~ /^bash [^ ]*phase1\.sh$/) m[$1] = $2 }
+  END { n = 0; for (p in m) if (!(m[p] in m)) n++; print n + 0 }'; }
 printf 'lanes %s   trainers %s   heads %s   evals %s\n' \
-  "$(nx 'bash [^ ]*phase1\.sh')" "$(npy 'freq-embedding/scripts/train\.py')" \
+  "$(nlane)" "$(npy 'freq-embedding/scripts/train\.py')" \
   "$(npy 'train_forecasting_head\.py')" "$(npy 'eval_gift_eval_official\.py')"

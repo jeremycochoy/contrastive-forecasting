@@ -146,6 +146,41 @@ The two sessions agreed this split by message at 05:30 on 2026-09-07.
 lr33's head and evaluation. The queue on gpu 0 carried it for eight minutes
 and dropped it before it started, so no arm trained twice.
 
+## `pgrep -f` on a script name is not safe here
+
+`pgrep -f` matches the WHOLE command line of every process on the box. Three
+sessions watch this card, and each one runs shell commands that NAME these
+scripts and these checkpoints. So a watcher shell reads as the work it watches.
+
+It bit four places on 2026-09-07:
+
+- The duplicate-head guard of `missing_heads.sh` and `head_sweep.sh`. At
+  06:02:48 it reported a head for `k3_r100_09_dec` that did not exist, and the
+  claim lane dropped the arm.
+- The `heads` counter of `watch_status.sh`, which read 2 against one head at
+  06:18. The second was a memory sampler naming `train_forecasting_head.py`.
+- The `lanes` counter of the same file, from the other direction: a pattern
+  naming `scripts/` alone missed the frozen copy and read 2 lanes where 3 drove
+  work.
+- The same `lanes` counter after that fix, which read 3 where 2 drove work.
+  `phase1.sh` pipes its vram wait into `tee`, and that subshell carries the
+  same whole command line as its lane.
+
+Three rules came out of it.
+
+- Pin the EXECUTABLE, not the command line. `ps -eo args` puts the binary in
+  `$1`. `scripts/head_busy.sh` does this for a head, its driver and its
+  evaluation.
+- Match a string no watcher carries. `scripts/arm_busy.sh` matches the
+  trainer's `--run-name`, which is unique per arm and appears nowhere else.
+- Drop a match whose parent also matches. That is a subshell, not a second
+  process.
+
+TEST BOTH BRANCHES OF A GUARD. A first version of `head_busy.sh` read `$stop`
+where it held `$STOP`. Under `set -u` the BUSY branch aborted, and an abort
+exits 1, which every caller reads as FREE. A guard against a duplicate head
+that starts one.
+
 ## `results/lane_d.log` is not committed
 
 Two sessions opened that file at once, one with `>`, so its text interleaves
