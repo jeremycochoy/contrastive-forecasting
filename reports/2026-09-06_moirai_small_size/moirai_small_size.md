@@ -27,18 +27,24 @@ The 200,000-step stop answers the card, because the 1.0651 reference is a
 
 ![the climb](plots/climb.png)
 
-## One arm lost the contrastive task
+## The rollout depth erodes the contrastive task at 11.4M
 
 ![the contrastive AUC](plots/auc.png)
 
-`k32_r100_09_dec` is configuration 2 with the `L_rep` decay. Its rolling AUC
-median reached chance at step 18,634 and stayed there, so the guard stopped
-the leg. That arm has no head and no score.
+At 1.1M the k = 32 cell held the task. #404 ran it at the same momentum, the
+same seed 20260520 and the same 40,000-step stop, and it ended at AUC 0.978.
+At 11.4M the same cell ends at 0.763. It falls from 0.966 at step 2,000 to
+0.774 at 16,000 and does not come back. That arm scores 1.4629, the worst on
+this card. The k = 3 cell ends at 0.999 on both seeds.
 
-#409 ran the same decay on the same cell at 1.1M parameters over 22 runs. One
-run lost the task there, and it is the run at the fixed EMA momentum 0.500.
-This arm carries the ramping momentum, which held at 1.1M. The width is the
-one column that changed.
+The `L_rep` decay then acts where the margin is already spent.
+`k32_r100_09_dec` reached chance at step 18,634, so the guard stopped the leg.
+That arm has no head and no score. `k3_r100_09_dec` carries the same decay
+from step 2,000 and reads 0.994 at step 16,000, so it holds so far.
+
+Neither the depth nor the decay loses the task alone at 11.4M. Together they
+do. #409 measured the decay at 1.1M over 22 runs, every one at k = 32, and one
+lost the task, at the fixed EMA momentum 0.500.
 
 ## The loss by term
 
