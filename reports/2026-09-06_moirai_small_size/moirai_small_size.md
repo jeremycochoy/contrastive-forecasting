@@ -29,6 +29,19 @@ shown a misfit at that width. So each comparison above carries the width AND a
 rate misfit on one side of it, and this report does not claim the 11.4M model
 is the worse one.
 
+Against the 1.1M numbers at that stop, 1.1820 lands here:
+
+| 1.1M reference at 40,000 steps | score | against 1.1820 |
+|---|---|---|
+| k = 3, student align, the best of the project | 1.0862 | 1.7 bands worse |
+| k = 32, teacher align, the best of this card's targets | 1.1491 | 0.6 bands, a draw |
+| k = 3, teacher align, this arm's own cell (#373 A3) | 1.3618 | better, but a 15,000-step head |
+
+Read that table with its rows, not its best cell. Only the third row is this
+arm's own cell, and its head budget differs, so it is not head-matched. The
+second row is head-matched but a different cell. The first row is the number
+the project actually wants to beat, and 1.1820 does not beat it.
+
 The 200,000-step stop is the one the card was built for, because the 1.0651
 reference is a 200,000-step number. Its eval runs, and it will carry the same
 caveat.
@@ -98,6 +111,14 @@ survive. Its AUC floor rises with every leg: 0.993 to 40,000 steps, 0.997 to
 100,000 and 0.999 to 200,000. Same width, same cell, same align target, same
 seed 20260520. The worst reading of its last leg beats the worst reading of its
 first.
+
+THE RATE REACHES THIS SECTION TOO, as a limit and not a measurement. Both arms
+that lost the contrastive task ran at 1e-3, and no deep mean arm has run at a
+lower rate at either size. A rate too high for the width is a plausible cause
+of a collapse, so "the width breaks the task" may be "1e-3 breaks it at this
+width". The k = 3 arms at 5.6e-4 and 3.3e-4 both held at 0.998, but that cell
+holds at 1e-3 as well, so they do not separate it. One k = 32 arm at 5.6e-4
+would.
 
 So it takes BOTH the width and a depth above 3. At 1.1M all three k = 32 twins
 held, at 0.978, 0.957 and 0.983. At 11.4M this cell at k = 3 improves for
