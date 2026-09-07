@@ -134,6 +134,32 @@ def effective_band(scores):
     return BAND, "#409, two seeds at 1.1M"
 
 
+# The contrastive AUC the parents published for the SAME cell, seed and
+# 40,000-step stop at 1.1M parameters. `{arm: (last AUC, floor, source)}`.
+#
+# It is the reference the AUC table needs, because the card's k = 32 arms read
+# far under it and its k = 3 arms do not. #373 published no AUC column for
+# cells A3 and A4, so the k = 3 rows have no anchor.
+#
+#   k32_r100_09      #404, `ema_momentum_k32.md`, the 20260520 row of "the
+#                    fourteen runs": AUC at the stop 0.978, score 1.1507.
+#   k32_r200_08      the same table, momentum 0.8 to 1.0 at 200k: 0.957.
+#   k32_r100_09_dec  #409, `rep_weight_decay.md`, run `dec_m090r100_ramp2k`:
+#                    floor 0.9092 at step 3,209, last 0.9833 at 40,000, HELD.
+#                    Same k, same momentum, same 2,000-step decay ramp, same
+#                    seed. It is the exact twin of the arm that collapsed here.
+REF_1M1_AUC = {
+    "k32_r100_09": (0.978, None, "#404"),
+    "k32_r200_08": (0.957, None, "#404"),
+    "k32_r100_09_dec": (0.9833, 0.9092, "#409"),
+}
+
+
+def reference_auc(arm):
+    """(last AUC, floor, source) of the 1.1M twin at 40,000 steps, or None."""
+    return REF_1M1_AUC.get(arm)
+
+
 def reference_spread(arm, stop):
     """(low, high) of the 1.1M reference over the parent's seeds, or None."""
     return REF_1M1_SEEDS.get((arm, int(stop)))

@@ -136,13 +136,17 @@ def auc_by_step_table(arms, root=AUC_ROOT):
         for mark in AUC_MARKS:
             near = [(abs(s - mark), v) for s, v in series if abs(s - mark) < 400]
             cells.append(f"{min(near)[1]:.3f}" if near else "—")
+        ref = S.reference_auc(arm)
+        ref_text = f"{ref[0]:.3f} ({ref[2]})" if ref else "—"
         rows.append((arm, row["k"],
-                     "yes" if row.get("decay", "-") != "-" else "no", *cells))
+                     "yes" if row.get("decay", "-") != "-" else "no",
+                     *cells, ref_text))
     if not rows:
         return "_no losses CSV yet._"
     rows.sort(key=lambda r: (int(r[1]), r[2]))
     return table(rows, ["arm", "k", "L_rep decay"]
-                 + [f"{m:,}" for m in AUC_MARKS])
+                 + [f"{m:,}" for m in AUC_MARKS]
+                 + ["1.1M twin at 40,000"])
 
 
 def losses_csvs(root, arm, k):
@@ -219,7 +223,8 @@ def main():
         scores_table(arms, scores),
         "### The contrastive AUC", auc_table(RESULTS / "auc_verdicts.tsv"),
         "### The contrastive AUC, step by step",
-        "Lower is worse. A run at 0.5 has lost the task.",
+        "Lower is worse. A run at 0.5 has lost the task. The last column is "
+        "what the same cell, seed and stop reached at 1.1M parameters.",
         auc_by_step_table(arms),
         "### The loss by term", terms_table(RESULTS / "loss_terms.csv"),
         "### The cost", cost_table([RESULTS / "arms.log",
