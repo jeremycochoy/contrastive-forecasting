@@ -76,9 +76,10 @@ card fixed before the sweep ran.
 | rate | score | D against 1.3495, same seed | D against 1.2927, other seed |
 |---|---|---|---|
 | 1e-3, seed 20260520 | 1.3495 | — | — |
-| 1e-3, seed 20260525 | 1.2927 | +0.0568, 1.0 band | — |
-| 3.3e-4 | 1.2483 | +0.1012, 1.8 bands | +0.0444, 0.8 bands |
-| 5.6e-4 | 1.1820 | +0.1675, 2.9 bands | +0.1107, 1.9 bands |
+| 1e-3, seed 20260525 | 1.2927 | 1.0 band | — |
+| 5.6e-4 | 1.1820 | 2.9 bands | 1.9 bands |
+| 3.3e-4 | 1.2483 | 1.8 bands | 0.8 bands |
+| 1.67e-4 | 1.2612 | 1.6 bands | 0.6 bands |
 
 EVERY READING AGREES, which is why this one is a verdict where `lr33` was not.
 The bar was 1.2359, the better 1e-3 seed less one band, and 1.1820 clears it by
@@ -90,10 +91,14 @@ SO EVERY 1e-3 NUMBER IN THIS REPORT IS TAKEN AT A RATE THAT DOES NOT FIT
 `d_model` 384. That is the card's own rule, fixed in advance: D above the band
 voids the 1e-3 numbers.
 
-The rate also has an interior optimum on this bracket, not a monotone slope.
-5.6e-4 beats 3.3e-4 by 0.0663, which is 1.2 bands, so lowering the rate further
-made the model worse. `k3_r100_09_lr17` at 1.67e-4 is the third point and its
-eval runs now.
+THE BRACKET HAS AN INTERIOR OPTIMUM AT 5.6e-4, and all three points are in.
+It beats 3.3e-4 by 1.2 bands and 1.67e-4 by 1.4 bands, so lowering the rate
+past it made the model worse, twice. The two lowest rates tie with each other,
+0.2 of a band apart, and both sit inside the band against the better 1e-3 seed.
+
+So only 5.6e-4 clears the bar. A reader should take "1e-3 is too high at this
+width" from this section and NOT "lower is better": the curve turns, and the
+best rate this card found is 1.8 times the lowest one it tried.
 
 ## A longer stop does not change the size answer
 
