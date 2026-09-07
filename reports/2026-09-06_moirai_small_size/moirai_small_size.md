@@ -142,16 +142,32 @@ _(from `results/tables.md`)_
 
 ## How to repeat it
 
+Backbones on one card, heads on the other. A backbone queue trains no head,
+and one sweep starts every head that a checkpoint lacks.
+
 ```bash
 cd reports/2026-09-06_moirai_small_size
-BB_GPU=0 bash run.sh size smoke trial       # the shape, the cost, one arm end to end
-BB_GPU=0 STOPS=40000 ARMS="k32_r100_09 k32_r100_09_dec" bash run.sh phase1
-BB_GPU=1 STOPS=40000 ARMS="k3_r100_09 k3_r100_09b k3_r100_09_dec" bash run.sh phase1
-BB_GPU=0 STOPS="100000 200000" ARMS="k3_r100_09" bash run.sh phase1
-BB_GPU=1 STOPS=40000 ARMS="k3_r100_09_lr33 k3_r100_09_lr56" bash run.sh phase1
-# two arms of one card at a time, heads on the other card
-BB_GPU=0 CF412_QUEUE="k32_r200_08 k8_r100_09 k3_r100_09_lr17" \
+BB_GPU=0 bash run.sh size smoke trial     # the shape, the cost, one arm end to end
+
+# The heads. One per card, so start it before the backbones.
+BB_GPU=1 bash scripts/head_sweep.sh &
+
+# The backbones, two of one card at a time, largest memory need first.
+# A small arm ahead of a large one takes the window the large one needs.
+BB_GPU=0 CF412_QUEUE="k32_r100_09 k32_r100_09_dec" bash scripts/queue_backbones.sh
+BB_GPU=0 CF412_QUEUE="k32_r200_08 k8_r100_09"      bash scripts/queue_backbones.sh
+BB_GPU=1 CF412_QUEUE="k3_r100_09 k3_r100_09b k3_r100_09_dec" \
   bash scripts/queue_backbones.sh
-while :; do BB_GPU=1 bash scripts/missing_heads.sh; sleep 900; done &
-bash run.sh collect && bash scripts/make_plots.sh
+BB_GPU=1 CF412_QUEUE="k3_r100_09_lr56 k3_r100_09_lr33 k3_r100_09_lr17" \
+  bash scripts/queue_backbones.sh
+
+# The climb. `phase1.sh` resumes the furthest checkpoint, so the stops are one
+# continuous run and a stop it never asks for costs nothing later.
+BB_GPU=0 STOPS="100000 200000" ARMS="k3_r100_09" bash run.sh phase1
+
+bash run.sh collect && bash scripts/make_plots.sh && bash scripts/gate.sh
 ```
+
+`scripts/arm_busy.sh <arm>` and `scripts/head_busy.sh <arm> <stop>` answer
+whether an arm or a checkpoint is already running. Ask them before you start
+anything by hand. Nothing under this card stops two trainers on one arm.
