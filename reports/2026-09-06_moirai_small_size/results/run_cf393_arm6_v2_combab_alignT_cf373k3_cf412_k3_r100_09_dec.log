@@ -292,3 +292,9 @@ Retrying in 1s [Retry 1/5].
 [  17400] loss=1.5591  ema_loss=1.5075  gap=-0.0939  ema_gap=-0.0831  mixup=53/200  2.9 sps  ETA 2.2h
               R²_rand=0.6498  R²_naive=0.1578  U_t=0.0136  U_b=0.0404  AUC=0.9953  Top1=0.7867
   timing: data=8.1ms  fwd=135.1ms  bwd=67.6ms  total=211.6ms
+[  17600] loss=1.3997  ema_loss=1.5216  gap=-0.0694  ema_gap=-0.0840  mixup=64/200  2.9 sps  ETA 2.1h
+              R²_rand=0.6864  R²_naive=0.2014  U_t=0.0113  U_b=0.0403  AUC=0.9951  Top1=0.6985
+  timing: data=24.5ms  fwd=132.9ms  bwd=67.9ms  total=226.2ms
+[  17800] loss=1.6176  ema_loss=1.5638  gap=-0.0914  ema_gap=-0.0851  mixup=55/200  2.9 sps  ETA 2.1h
+              R²_rand=0.6434  R²_naive=0.2068  U_t=0.0131  U_b=0.0379  AUC=0.9954  Top1=0.8081
+  timing: data=7.7ms  fwd=129.8ms  bwd=67.6ms  total=205.9ms

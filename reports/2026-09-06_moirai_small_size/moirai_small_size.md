@@ -45,9 +45,13 @@ fast it goes. The worst AUC is also the worst score: 0.763 and 1.4629, against
 0.998 and 1.2927 to 1.3495 on the k = 3 arms.
 
 This reading covers k = 32 alone. #373 published no AUC column for cells A3 and
-A4, so the k = 3 arms have no 1.1M anchor. At 11.4M they show nothing wrong:
-`k3_r100_09_dec` reads 0.994 at step 16,000 with its `L_rep` weight at 0.0
-since step 2,000, so it holds so far.
+A4, so the k = 3 arms have no 1.1M anchor.
+
+The decay damages the two cells differently, and it shows early. At step 5,000
+the k = 32 decay arm reads 0.737 against 0.938 for its no-decay twin. The k = 3
+decay arm reads 0.993 against 0.995 for its twin, and it stays flat to step
+17,700. Both decay arms carry their `L_rep` weight at 0.0 from step 2,000. The
+40,000-step stop settles the k = 3 row.
 
 ## The loss by term
 
