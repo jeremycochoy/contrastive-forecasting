@@ -101,6 +101,39 @@
 # that band, and it measures the decay pair directly.
 #
 # Add an arm by adding a row. Every script, guard and figure reads this file.
+#
+# ---- Pass 2: the three arms the rate verdict opened -------------------------
+#
+# Pass 1 found that 1e-3 does not fit `d_model` 384: `k3_r100_09_lr56` scores
+# 1.1820 against 1.3495 at the same seed, 2.9 bands. The card's own rule voids
+# every 1e-3 number of pass 1. These three arms are the follow-ups PR #413
+# names, and each one moves ONE column of an arm above it.
+#
+#   k32_r100_09_lr56  R2, THE RESCUE TEST. `k32_r100_09` at 5.6e-4. It moves
+#                     the RATE alone. Both k = 32 arms that lost the
+#                     contrastive task ran at 1e-3, and no deep mean arm has
+#                     run lower, so this arm tests whether the rate caused the
+#                     collapses. Its twin scored 1.4629.
+#   k3_r100_09_mean   R3, THE REDUCTION. `k3_r100_09` under `mean`. It moves
+#                     the REDUCTION alone against `k3_r100_09`, and the DEPTH
+#                     alone against `k32_r100_09`. Pass 1 confounded the two:
+#                     every k = 3 arm ran `sum` and every deeper arm ran
+#                     `mean`. This arm is ADDED beside the k = 3 lineage and
+#                     does not move it. Every parent and twin of that lineage
+#                     is `sum`, and a moved lineage orphans every size
+#                     comparison.
+#                     NOTE `sum` gives the f-side terms (k + 1) times their
+#                     k = 0 weight (`src/loss.py:42`), so this arm also moves a
+#                     4x f-side weight, not the geometry alone.
+#   k3_r100_09b_lr56  R4, THE BAND AT THE WINNING RATE. `k3_r100_09_lr56` at
+#                     seed 20260525. It moves the SEED alone, as
+#                     `k3_r100_09b` does against `k3_r100_09` at 1e-3. Pass 1
+#                     measured the band 0.0568 at 1e-3, and this arm measures
+#                     it at 5.6e-4.
+#
+# R1 needs no row. It is `k3_r100_09_lr56` at the 100,000-step and the
+# 200,000-step stop, resumed from its 40,000-step checkpoint.
+#
 # arm	k	reduce	tau	end	ramp	seed	decay	lr
 k3_r100_09	3	sum	0.9	1.0	100000	20260520	-	1e-3
 k32_r100_09	32	mean	0.9	1.0	100000	20260520	-	1e-3
@@ -112,3 +145,6 @@ k3_r100_09b	3	sum	0.9	1.0	100000	20260525	-	1e-3
 k3_r100_09_lr33	3	sum	0.9	1.0	100000	20260520	-	3.3e-4
 k3_r100_09_lr17	3	sum	0.9	1.0	100000	20260520	-	1.67e-4
 k3_r100_09_lr56	3	sum	0.9	1.0	100000	20260520	-	5.6e-4
+k32_r100_09_lr56	32	mean	0.9	1.0	100000	20260520	-	5.6e-4
+k3_r100_09_mean	3	mean	0.9	1.0	100000	20260520	-	1e-3
+k3_r100_09b_lr56	3	sum	0.9	1.0	100000	20260525	-	5.6e-4

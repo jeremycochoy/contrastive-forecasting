@@ -84,8 +84,10 @@ CF412_N_HEADS="${CF412_N_HEADS:-8}"
 # change that, so the value is here and `run_arm.sh` reads it back off the
 # trainer's command line.
 CF412_BATCH_SIZE="${CF412_BATCH_SIZE:-64}"
-# The stops the parent reports use.
-CF412_STOPS="${CF412_STOPS:-40000 100000 200000}"
+# The stops the parent reports use. 665000 is pass 2's full-pass stop: one
+# pass over `small_v1` is 665,182 steps at batch 64, and #405's `a4_full_pass`
+# used the same number. No lane asks for it unless the R5 gate opens.
+CF412_STOPS="${CF412_STOPS:-40000 100000 200000 665000}"
 CF412_HEAD_STEPS="${CF412_HEAD_STEPS:-30000}"
 CF412_ENC="${CF412_ENC:-student}"
 CF412_SEED_DEFAULT="${CF412_SEED_DEFAULT:-20260520}"
