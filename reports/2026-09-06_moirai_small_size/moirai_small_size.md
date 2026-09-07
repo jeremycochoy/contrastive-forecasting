@@ -302,6 +302,30 @@ of #409 used k = 32. And it is a 40,000-step reading: #409 carried its best
 decay arm to 200,000 steps and the gap moved, and this card carries neither
 decay arm past 40,000.
 
+## A healthy AUC says nothing about the score
+
+The contrastive AUC and the GM-Relative MASE agree at the bottom of the card
+and nowhere else.
+
+| arm | AUC | score |
+|---|---|---|
+| the 8 arms that held | 0.996 to 1.000 | 1.1820 to 1.3910 |
+| `k8_r100_09` | 0.730 | 1.4537 |
+| `k32_r100_09` | 0.773 | 1.4629 |
+| the 2 arms that lost | chance | no score |
+
+LOSING THE TASK COSTS SCORE. The two degraded arms are the two worst scores,
+and the two lost arms have none.
+
+HOLDING IT PREDICTS NOTHING. Across the eight arms that held, the AUC spans
+0.004 while their scores span 3.7 bands. The ordering inside that group even
+runs backwards: `k3_r100_09_lr56` has the LOWEST healthy AUC, 0.996, and the
+BEST score, and `k3_r100_09` at 200,000 steps has the highest AUC, 1.000, and
+the worst score of the eight.
+
+So the AUC is a floor and not a ranking. Use it to reject a broken run, never
+to choose between healthy ones.
+
 ## The loss by term
 
 ![the loss by term](plots/loss_terms.png)
