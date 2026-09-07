@@ -181,6 +181,46 @@ where it held `$STOP`. Under `set -u` the BUSY branch aborted, and an abort
 exits 1, which every caller reads as FREE. A guard against a duplicate head
 that starts one.
 
+## A collapse is a band, not a step
+
+`k32_r100_09_dec` lost the contrastive task at step 18,634. That is the
+verdict step, and it is the only step worth quoting. The fall around it takes
+about 1,300 steps, and the rolling median over 500 rows crosses 0.55 more than
+once on the way:
+
+```
+17,313   median 0.5492   first crossing, exactly half the window under 0.55
+18,000   median 0.7508   recovered
+18,600   median 0.7175
+18,634   median 0.5257   the verdict step
+19,100   median 0.5014   the floor
+```
+
+THIS IS WHY THE GUARD RULE IS "under the threshold AND does not come back",
+and not "goes under". A rule of the second kind stops this arm at 17,313,
+1,321 steps before it fails, while it still recovers to 0.75.
+
+It also means NO mark between 17,313 and 18,634 is readable, not only the
+marks beside the crossing. `results/tables.md` carried an 18,600 column,
+chosen because it sat near the collapse, which is the wrong reason. A
+`verdict` column read from `auc_verdicts.tsv` replaced it. Every remaining
+mark sits far from the threshold.
+
+## Ask what a number IS, not only whether it checks out
+
+Two errors on 2026-09-07 had the same shape, and neither was caught by
+checking the number.
+
+- Two AUC tables disagreed in the third decimal. One session explained the gap
+  as a difference of window, 300 rows against 400, and stopped. The real
+  difference was a trailing MEAN against a rolling MEDIAN. The explanation
+  fitted, so it ended the question.
+- A table quoted a mark near a collapse as a measurement. The number was read
+  correctly from the correct file. The mark itself was not a measurement.
+
+Both were found by asking what the quantity was, not by re-reading it. A
+number that reconciles is not a number that is understood.
+
 ## `results/lane_d.log` is not committed
 
 Two sessions opened that file at once, one with `>`, so its text interleaves
