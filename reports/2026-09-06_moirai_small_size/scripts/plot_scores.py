@@ -66,9 +66,10 @@ def main():
                 edgecolor=S.SURFACE, linewidth=2.0, zorder=3)
         ax.errorbar(value, y + h / 2 + 0.03, xerr=band / 2, fmt="none",
                     ecolor=S.SURFACE, elinewidth=1.6, capsize=3, zorder=4)
-        ax.annotate(f"{value:.4f}", (value, y + h / 2 + 0.03), xytext=(6, 0),
-                    textcoords="offset points", va="center", fontsize=9,
-                    color=S.INK)
+        # Past the error bar cap, never on it.
+        ax.annotate(f"{value:.4f}", (value + band / 2, y + h / 2 + 0.03),
+                    xytext=(6, 0), textcoords="offset points", va="center",
+                    fontsize=9, color=S.INK)
         ref = S.reference(arm, args.stop)
         if ref:
             # A hatched bar is a reference whose head budget is not this

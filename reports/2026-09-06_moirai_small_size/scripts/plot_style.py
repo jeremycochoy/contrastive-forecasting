@@ -184,6 +184,8 @@ ARMS_COLUMNS = ("arm", "k", "reduce", "tau", "end", "ramp", "seed", "decay",
                 "lr")
 # The rate every published run of this cell trained at. Two arms bracket it.
 LR_DEFAULT = "1e-3"
+# The backbone seed every arm of this card carries, except the repeat.
+SEED_DEFAULT = "20260520"
 
 
 def read_arms(path):
@@ -238,6 +240,10 @@ def arm_label(row):
     # label that dropped it would name three curves the same.
     if row["lr"] != LR_DEFAULT:
         text += f", lr {row['lr']}"
+    # The repeat differs from configuration 1 in the seed alone, so a label
+    # that dropped it would name two bars the same.
+    if row["seed"] != SEED_DEFAULT:
+        text += f", seed {row['seed']}"
     return text
 
 
