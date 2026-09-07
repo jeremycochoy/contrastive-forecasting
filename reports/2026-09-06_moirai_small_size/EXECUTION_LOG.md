@@ -280,6 +280,34 @@ A STEADY READING IS NOT A SETTLED ONE. Three samplers agreed on 6,402: a 60 s
 poll, a 30 s poll, and a tight loop that took 6,356 samples in 150 seconds.
 All three were right and none of them measured the thing that mattered.
 
+## Derive the comparisons a table supports
+
+The report's central heading read "the width erodes the contrastive task at
+every depth above 3" for several hours. It named the depth. Every arm that
+erodes also runs the `mean` reduction and every arm that holds runs `sum`, so
+the reduction fits the same rows exactly as well.
+
+Neither session saw it by reading the prose. It was found by a list computed
+from `arms.tsv` of every arm pair that differs in exactly ONE column. The pair
+`k3_r100_09` against `k32_r100_09` is absent from that list, because it moves
+two.
+
+The cross-tab has two populated cells of four:
+
+| | `sum` | `mean` |
+|---|---|---|
+| k = 3 | 6 arms | none |
+| k = 8, k = 32 | none | 4 arms |
+
+The confound is inherited and not a defect: each row is a published
+configuration and the parents ran k = 3 under sum and the deeper cells under
+mean.
+
+THE PRACTICE THIS SUGGESTS, beyond this card: derive the comparisons a table
+supports before writing any of them, rather than assuming a pair is controlled
+because it looks like one. It costs a few lines against `arms.tsv` and it is
+the only thing that caught this.
+
 ## `results/lane_d.log` is not committed
 
 Two sessions opened that file at once, one with `>`, so its text interleaves
