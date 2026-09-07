@@ -237,6 +237,20 @@ Prose that copies a live number goes stale or goes wrong. Point it at the
 artefact instead: `results/tables.md` rebuilds every heartbeat and
 `results/auc_verdicts.tsv` holds each gate verdict.
 
+A FIFTH CASE IS NOT A NUMBER AT ALL. One session reported "`head_busy.sh`
+reads FREE" for an arm whose head was already claimed. It had run that check on
+four other arms and written the fifth from habit, not from output. The peer
+re-ran it, got BUSY, and did not start the second head.
+
+That is the most dangerous shape of the five, because both sessions gate a
+duplicate head on that script. A false FREE quoted in a message defeats a guard
+that works. Run the check you quote, and quote its output.
+
+The exchange also tested something no test covered: `head_busy.sh` matches a
+driver launched from `run_snapshot/` as well as from `scripts/`, because its
+driver rule pins the executable to `bash` and the argument to a path ENDING in
+`head_eval.sh`.
+
 ## A k = 32 backbone grows past its smoke row mid-leg
 
 `k32_r200_08` held 6,402 MiB for its first four hours and 10,418 MiB after,
