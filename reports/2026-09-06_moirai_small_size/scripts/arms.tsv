@@ -61,10 +61,12 @@
 #   k3_r100_09b   `k3_r100_09` again at backbone seed 20260525. It differs
 #                 from row 1 in the SEED column alone.
 #
-# #409 measured a seed band of 0.0471 GM-Relative MASE on one configuration at
-# 40,000 steps. Two arms that land closer than that cannot be ranked. This row
-# measures this size's OWN band, and it repeats row 1 because row 1 is the arm
-# the headline rests on: it is the teacher twin of the run that holds 1.0651.
+# THIS ROW MEASURED THE BAND, and the band is 0.0568 GM-Relative MASE:
+# `k3_r100_09` scores 1.3495 and `k3_r100_09b` scores 1.2927 at 40,000 steps.
+# Two arms that land closer than that are not ranked, at every stop of this
+# card. The number replaces #409's 0.0471, which is a 1.1M number. The row
+# repeats row 1 because row 1 is the arm the headline rests on: it is the
+# teacher twin of the run that holds 1.0651.
 # 20260525 continues the seed count of #404, which used 20260520 thru 20260524.
 # #404 saw seed 20260521 lose the contrastive task, so this card does not use
 # it.
@@ -95,7 +97,7 @@
 # One backbone of this card costs about six times one backbone of its parent,
 # so five seeds of each arm are out of reach. The design answers ONE question
 # with confidence: does the 11.4M model beat the 1.1M model by more than
-# 0.0471? It ranks the arms against each other ONLY where a gap is wider than
+# 0.0568? It ranks the arms against each other ONLY where a gap is wider than
 # that band, and it measures the decay pair directly.
 #
 # Add an arm by adding a row. Every script, guard and figure reads this file.

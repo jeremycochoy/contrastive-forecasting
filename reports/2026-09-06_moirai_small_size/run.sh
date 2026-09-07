@@ -100,7 +100,7 @@
 # THE RULE. D = 1.3495 minus the better rate arm, where 1.3495 is
 # `k3_r100_09` at 40,000 steps and 1e-3.
 #
-#   * D above 0.0471, the band: the rate does not fit the width. Every 1e-3
+#   * D above 0.0568, the band: the rate does not fit the width. Every 1e-3
 #     number of this card is void, and phase 1 re-runs at the winning rate.
 #   * Both arms inside the band, or worse: the learning rate does not explain
 #     the 11.4M deficit at width 384.
@@ -111,8 +111,10 @@
 #
 # ---- The gate, then 200,000 steps --------------------------------------------
 #
-# THE BAND is 0.0471 GM-Relative MASE, or the spread of the two `k3_r100_09`
-# seeds, whichever is wider. #409 measured 0.0471 at this stop.
+# THE BAND is 0.0568 GM-Relative MASE, and THIS CARD measured it at 11.4M
+# parameters: `k3_r100_09` 1.3495 against `k3_r100_09b` 1.2927 at 40,000
+# steps, the same cell at two backbone seeds. It replaces #409's 0.0471,
+# which is a 1.1M number, and it holds at every stop of this card.
 #
 #   * THE AUC COMES FIRST. An arm whose rolling AUC median ended under 0.55
 #     lost the contrastive task, and it does not climb. This applies to

@@ -23,9 +23,14 @@ size's 0.0568 seed band, so the two are not ranked. On the k = 32 cell at
 The 200,000-step stop answers the card, because the 1.0651 reference is a
 200,000-step number. That leg runs.
 
-## The climb
+## A longer stop does not rescue this size
 
 ![the climb](plots/climb.png)
+
+`k3_r100_09` scores 1.3495 at 40,000 steps and 1.3395 at 100,000. The gain is
+0.0100 against a seed band of 0.0568. So a later stop does not move this
+size's rank, and the 40,000-step order of this card stands. The 200,000-step
+leg runs, because 1.0651 is a 200,000-step number.
 
 ## The width breaks the contrastive task on the k = 32 cell
 
@@ -130,6 +135,9 @@ BB_GPU=0 STOPS=40000 ARMS="k32_r100_09 k32_r100_09_dec" bash run.sh phase1
 BB_GPU=1 STOPS=40000 ARMS="k3_r100_09 k3_r100_09b k3_r100_09_dec" bash run.sh phase1
 BB_GPU=0 STOPS="100000 200000" ARMS="k3_r100_09" bash run.sh phase1
 BB_GPU=1 STOPS=40000 ARMS="k3_r100_09_lr33 k3_r100_09_lr56" bash run.sh phase1
-BB_GPU=1 STOPS=40000 ARMS="k3_r100_09_lr17" bash run.sh phase1
+# two arms of one card at a time, heads on the other card
+BB_GPU=0 CF412_QUEUE="k32_r200_08 k8_r100_09 k3_r100_09_lr17" \
+  bash scripts/queue_backbones.sh
+while :; do BB_GPU=1 bash scripts/missing_heads.sh; sleep 900; done &
 bash run.sh collect && bash scripts/make_plots.sh
 ```

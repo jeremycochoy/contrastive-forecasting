@@ -7,8 +7,9 @@
 #
 # ---- The rule, in the words of the plan --------------------------------------
 #
-#   * THE BAND is 0.0471 GM-Relative MASE, or the spread of the two
-#     `k3_r100_09` seeds, whichever is wider.
+#   * THE BAND is 0.0568 GM-Relative MASE, and this card measured it at 11.4M
+#     parameters over the two `k3_r100_09` seeds. It replaces #409's 0.0471,
+#     which is a 1.1M number. A wider measured spread replaces it in turn.
 #   * THE AUC COMES FIRST. An arm whose rolling AUC median ended under 0.55
 #     lost the contrastive task, and it does not climb.
 #   * Climb `k3_r100_09` ALWAYS. Its reference, 1.0651, is a 200,000-step
@@ -25,7 +26,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$HERE/study.sh"
 
 STOP="${CF412_GATE_STOP:-40000}"
-BAND_FLOOR="${CF412_BAND_FLOOR:-0.0471}"
+BAND_FLOOR="${CF412_BAND_FLOOR:-0.0568}"
 R200_ALLOWANCE="${CF412_R200_ALLOWANCE:-0.0291}"
 SCORES="$CF412_RESULTS/scores.csv"
 VERDICTS="$CF412_RESULTS/auc_verdicts.tsv"
@@ -74,10 +75,10 @@ seeds = [score[a] for a in ('k3_r100_09', 'k3_r100_09b') if a in score]
 spread = abs(seeds[0] - seeds[1]) if len(seeds) == 2 else 0.0
 band = max(band_floor, spread)
 print(f'\n--- the band ---')
-print(f'  #409 floor              {band_floor:.4f}')
-print(f'  this size, two seeds    {spread:.4f}' if len(seeds) == 2
-      else '  this size, two seeds    not measured')
-print(f'  THE BAND                {band:.4f}')
+print(f'  this card, 11.4M, two seeds of k3_r100_09    {band_floor:.4f}')
+print(f'  the pair on disk now                         {spread:.4f}' if len(seeds) == 2
+      else '  the pair on disk now                         not measured')
+print(f'  THE BAND                                     {band:.4f}')
 
 leader_arm = min(live, key=live.get)
 leader = live[leader_arm]

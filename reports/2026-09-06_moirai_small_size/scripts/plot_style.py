@@ -69,9 +69,15 @@ DEPTH_RAMP = {3: "#8fbce8", 8: "#5b9ade", 32: "#1d5599"}
 
 STOP = 40000
 CELL = "arm6_v2_combab_alignT"
-# The seed band #409 measured on one configuration at the 40,000-step stop.
-# Two arms closer than this cannot be ranked.
-BAND = 0.0471
+# THE SEED BAND, and this card measured it at 11.4M parameters: `k3_r100_09`
+# scores 1.3495 and `k3_r100_09b` scores 1.2927 at the 40,000-step stop. The
+# two runs differ in the backbone seed alone. Two numbers closer than this are
+# not ranked, at every stop of this report.
+#
+# It replaces #409's 0.0471, which is a 1.1M number. A band measured at the
+# width the report ranks at is the one the report uses.
+BAND = 0.0568
+BAND_SOURCE = "this card measured it at 11.4M"
 
 # ---- The 1.1M references ----------------------------------------------------
 #
@@ -111,27 +117,24 @@ REF_1M1 = {
 REF_1M1_SEEDS = {("k32_r100_09", 40000): (1.1491, 1.1507)}
 
 
-# The two seeds of `k3_r100_09` at 11.4M parameters. This card measures its
-# OWN band, and PR #413 takes the wider of that and #409's floor.
+# The two seeds of `k3_r100_09` at 11.4M parameters. They are what `BAND`
+# above measures.
 BAND_SEEDS = ("k3_r100_09", "k3_r100_09b")
 
 
 def effective_band(scores):
     """The band a gap is read against, and where it came from.
 
-    `scores` is `{arm: score}` at ONE stop. Returns (band, source). #409
-    measured 0.0471 over two backbone seeds of one arm at 1.1M parameters.
-    This card repeats configuration 1 at seed 20260525 and measures the band
-    at 11.4M. PR #413 takes whichever is wider, because a band that
-    understates the noise turns noise into a rank.
+    `scores` is `{arm: score}` at ONE stop. `BAND` is this card's own
+    measurement, and it holds at every stop: the two seeds ran at 40,000
+    steps, and no other stop of this card carries a repeat. The pair is read
+    again here, so a re-collected score that widens the spread widens the
+    band with it.
     """
     pair = [scores[a] for a in BAND_SEEDS if a in scores]
-    if len(pair) < 2:
-        return BAND, "#409, two seeds at 1.1M"
-    spread = abs(pair[0] - pair[1])
-    if spread > BAND:
-        return spread, "this card, two seeds at 11.4M"
-    return BAND, "#409, two seeds at 1.1M"
+    if len(pair) == 2:
+        return max(BAND, abs(pair[0] - pair[1])), BAND_SOURCE
+    return BAND, BAND_SOURCE
 
 
 # The contrastive AUC the parents published for the SAME cell, seed and
