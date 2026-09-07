@@ -141,8 +141,15 @@ lost at 18,634. The momentum column is the no-decay pair, where 0.9 held and
 0.8 lost at 28,152. The two lost arms differ from each other in BOTH the
 momentum and the decay, so the gap between 18,634 and 28,152 measures nothing.
 
-NOT EVERY k = 32 ARM LOSES THE TASK. Two of the three did. `k32_r100_09` ran
-degraded and held, with a floor of 0.683 at step 20,872 that never crossed.
+NOT EVERY DEEP MEAN ARM LOSES THE TASK. Two of the four did. The other two ran
+degraded and held: `k32_r100_09` ends at 0.773 and `k8_r100_09` at 0.730, with
+floors of 0.683 and 0.685.
+
+HELD AND LOST ARE CLOSER THAN A VERDICT COLUMN SUGGESTS. `k32_r100_09` fell to
+0.683 at step 20,872, which is 0.133 above the gate, then climbed back to 0.904
+by 35,877 and ended at 0.773. So the arm that held came within a seventh of the
+threshold and recovered. That is why this report prints the whole trace and not
+the verdict alone.
 
 The worst AUC is also the worst score: 0.773 and 1.4629, against 0.999 and
 1.2927 to 1.3495 on the k = 3 arms.
