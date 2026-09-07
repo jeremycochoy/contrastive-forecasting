@@ -1246,3 +1246,17 @@ k3_r100_09_lr33  step 40000   auc 0.998314 rep_w 1.0   score  -
 k3_r100_09_lr17  step 7400    auc 0.991662 rep_w 1.0   score  -
 k3_r100_09_lr56  step 40000   auc 0.997268 rep_w 1.0   score  -
 lanes 2   trainers 3   heads 1   evals 0
+===== 2026-09-07 07:48:52 =====
+gpu 0, 5817 MiB, 93 %
+gpu 1, 8760 MiB, 96 %
+k3_r100_09       step 174900  auc 0.998647 rep_w 1.0   score  40k=1.3495 100k=1.3395
+k32_r100_09      step 40000   auc 0.762917 rep_w 1.0   score  40k=1.4629
+k32_r200_08      step 7600    auc 0.767317 rep_w 1.0   score  -
+k3_r100_09_dec   step 40000   auc 0.998001 rep_w 0.0   score  -
+k32_r100_09_dec  step 19100   auc 0.501032 rep_w 0.0   score  - COLLAPSED
+k8_r100_09       step -       auc -        rep_w -     score  -
+k3_r100_09b      step 40000   auc 0.998401 rep_w 1.0   score  40k=1.2927
+k3_r100_09_lr33  step 40000   auc 0.998314 rep_w 1.0   score  -
+k3_r100_09_lr17  step 10000   auc 0.996340 rep_w 1.0   score  -
+k3_r100_09_lr56  step 40000   auc 0.997268 rep_w 1.0   score  -
+lanes 2   trainers 3   heads 1   evals 4

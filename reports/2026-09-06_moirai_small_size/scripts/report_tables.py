@@ -106,9 +106,17 @@ def terms_table(path):
                                 "EMA momentum", "AUC"])
 
 
-# The steps the AUC table reads. 2,000 is where the decay ramp ends, 18,634
-# is where `k32_r100_09_dec` lost the task, and 40,000 is the first stop.
-AUC_MARKS = (2000, 5000, 10000, 16000, 18600, 25000, 40000)
+# The steps the AUC table reads. 2,000 is where the decay ramp ends and
+# 40,000 is the first stop.
+#
+# THERE IS NO MARK NEAR A COLLAPSE, on purpose. `k32_r100_09_dec` puts its
+# rolling median under 0.55 at step 17,313, back above 0.75 by 18,000, and
+# under for good from 18,634. No single mark inside that 1,300-step band is a
+# readable number, and an earlier version of this table put one at 18,600.
+# The `verdict` column carries the collapse instead, from `auc_verdicts.tsv`,
+# which is the statement the card asks for: whether a run lost the task, and
+# at which step.
+AUC_MARKS = (2000, 5000, 10000, 16000, 25000, 40000)
 AUC_ROOT = "/home/jupyter/checkpoints_backup/cf-412"
 # The gate's own window, from `study.sh`. One number, so the table and the
 # verdicts cannot drift apart.
@@ -126,7 +134,26 @@ def rolling_median(series, window):
     return out
 
 
-def auc_by_step_table(arms, root=AUC_ROOT):
+def auc_verdict_map(path):
+    """`{arm: 'held' or 'lost at <step>'}` from the gate's own table."""
+    out = {}
+    try:
+        with open(path, newline="") as fh:
+            for r in csv.DictReader(fh, delimiter="\t"):
+                v = r.get("verdict", "")
+                if v not in ("held", "lost"):
+                    continue
+                arm = r["run"].split("_cf412_")[-1].replace("_losses.csv", "")
+                text = "held" if v == "held" else f"lost at {int(r['lost_at']):,}"
+                # A later leg of one arm must not overwrite a `lost`.
+                if out.get(arm, "held") == "held":
+                    out[arm] = text
+    except OSError:
+        pass
+    return out
+
+
+def auc_by_step_table(arms, root=AUC_ROOT, verdicts=None):
     """The contrastive AUC of every run at a fixed set of steps.
 
     WHY THIS TABLE EXISTS. The verdict table says held or lost, and that hides
@@ -144,6 +171,7 @@ def auc_by_step_table(arms, root=AUC_ROOT):
 
     A dash is a step the arm never reached.
     """
+    verdicts = verdicts or {}
     rows = []
     for arm, row in arms.items():
         paths = losses_csvs(root, arm, row["k"])
@@ -161,13 +189,13 @@ def auc_by_step_table(arms, root=AUC_ROOT):
         ref_text = f"{ref[0]:.3f} ({ref[2]})" if ref else "—"
         rows.append((arm, row["k"],
                      "yes" if row.get("decay", "-") != "-" else "no",
-                     *cells, ref_text))
+                     *cells, verdicts.get(arm, "—"), ref_text))
     if not rows:
         return "_no losses CSV yet._"
     rows.sort(key=lambda r: (int(r[1]), r[2]))
     return table(rows, ["arm", "k", "L_rep decay"]
                  + [f"{m:,}" for m in AUC_MARKS]
-                 + ["1.1M twin at 40,000"])
+                 + ["verdict", "1.1M twin at 40,000"])
 
 
 def losses_csvs(root, arm, k):
@@ -246,7 +274,8 @@ def main():
         "### The contrastive AUC, step by step",
         "Lower is worse. A run at 0.5 has lost the task. The last column is "
         "what the same cell, seed and stop reached at 1.1M parameters.",
-        auc_by_step_table(arms),
+        auc_by_step_table(arms,
+                          verdicts=auc_verdict_map(RESULTS / "auc_verdicts.tsv")),
         "### The loss by term", terms_table(RESULTS / "loss_terms.csv"),
         "### The cost", cost_table([RESULTS / "arms.log",
                                     RESULTS / "stops.log"]),
