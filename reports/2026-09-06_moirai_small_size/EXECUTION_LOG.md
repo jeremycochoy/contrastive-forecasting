@@ -4,13 +4,24 @@ Operational events of this card. The report holds the science. This file
 holds what happened to the machines, so a later reader can tell a measurement
 from an incident.
 
-## Two agent sessions share one checkout
+## Three agent sessions share one checkout
 
-Two ExperimentRunner sessions drove this card at the same time, on one box
+Three ExperimentRunner sessions drove this card at the same time, on one box
 with two RTX 4090 cards. Other projects held 4 to 6 GB on each card
-throughout. The sessions split the work by lane and agreed the split by
-message. One session drove the rate sweep, the report and the PR comment. The
-other drove the decay arm, the heartbeat and the reference tables.
+throughout. The sessions split the work by lane and agreed each split by
+message.
+
+- One drove the rate sweep, the report and the PR comment.
+- One drove the decay arm, the heartbeat and the reference tables.
+- One joined at about 04:00. It split the two cards by kind of work and wrote
+  `head_sweep.sh`, `head_claim.sh` and `queue_backbones.sh`.
+
+GIT DOES NOT NAME THE AUTHOR OF A COMMIT HERE. Every session commits as
+`jeremycochoy-agent`. Two of the three use the address `jeremy@redstone.ee`
+and the third uses the GitHub noreply address, so the identity separates one
+session from the other two, and those two from each other not at all. A reader
+who infers an author from a commit can get it wrong. One session did, inside
+this card, and named the wrong peer as the author of `bde107f7`.
 
 ## Git authorship cannot separate the three sessions
 
