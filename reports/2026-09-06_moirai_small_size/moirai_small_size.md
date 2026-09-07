@@ -17,10 +17,24 @@ question it was built to answer.
 
 ![the scores](plots/scores.png)
 
-At 100,000 backbone steps, head-matched, the 11.4M model scores 1.3395 and its
-1.1M twin 1.3010. The gap of 0.0385 is inside the 0.0568 band, so the two are
-not ranked. On the deep mean cell at 40,000 steps the 11.4M model scores 1.4629
-against 1.1507, worse by 5.5 bands.
+Configuration 1 at both head-matched stops, against its own 1.1M twin, the same
+cell and the same align target:
+
+| stop | 11.4M | 1.1M twin | gap | bands |
+|---|---|---|---|---|
+| 100,000 | 1.3395 | 1.3010 | +0.0385 | 0.7 |
+| 200,000 | 1.3910 | 1.3998 | -0.0088 | 0.2 |
+
+Neither gap reaches the 0.0568 band, so at neither stop are the two sizes
+ranked. The 200,000-step stop is the one the card was built for, and it is a
+draw.
+
+The number the project wants to beat is 1.0651, its own best at 1.1M and
+200,000 steps on the student-align cell. The 11.4M model is 5.7 bands behind
+it. Moirai-2-Small scores 0.728 on the same 97 configs.
+
+On the deep mean cell at 40,000 steps the 11.4M model scores 1.4629 against
+1.1507, worse by 5.5 bands.
 
 EVERY ONE OF THOSE 11.4M NUMBERS IS AT 1e-3. On the same cell and the same
 stop, this card then measured 1.1820 at 5.6e-4, which is 2.9 bands better than
@@ -42,9 +56,7 @@ arm's own cell, and its head budget differs, so it is not head-matched. The
 second row is head-matched but a different cell. The first row is the number
 the project actually wants to beat, and 1.1820 does not beat it.
 
-The 200,000-step stop is the one the card was built for, because the 1.0651
-reference is a 200,000-step number. Its eval runs, and it will carry the same
-caveat.
+
 
 ## A longer stop does not rescue this size
 

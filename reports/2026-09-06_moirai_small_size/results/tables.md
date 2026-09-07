@@ -10,6 +10,7 @@ The band is **0.0568** (this card measured it at 11.4M). Two numbers closer than
 | k3_r100_09_dec | 3 | sum | 20260520 | 1e-3 | yes | 40,000 | 1.3236 | never run | — | — |
 | k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 100,000 | 1.3395 | 1.3010 | +0.0385 | yes |
 | k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 40,000 | 1.3495 | 1.3618 | -0.0123 | no, 15,000-step head |
+| k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 200,000 | 1.3910 | 1.3998 | -0.0088 | yes |
 | k32_r100_09 | 32 | mean | 20260520 | 1e-3 | no | 40,000 | 1.4629 | 1.1507 (1.1491 to 1.1507) | +0.3122 | yes |
 
 ### The contrastive AUC
@@ -105,3 +106,4 @@ Lower is worse. A run at 0.5 has lost the task. The last column is what the same
 | k3_r100_09_lr17_bb40k_h30k_student | head | 30,000 | 1.8 |
 | k3_r100_09_lr56_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 4.2 |
 | k8_r100_09 | backbone | 40,000 | 5.3 |
+| k3_r100_09_bb200k_h30k_student | GIFT-Eval, 97 configs | — | 4.0 |
