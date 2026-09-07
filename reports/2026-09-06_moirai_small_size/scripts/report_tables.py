@@ -54,12 +54,12 @@ def scores_table(arms, scores):
         else:
             matched, ref_text, gap_text = "—", "never run", "—"
         rows.append((arm, row.get("k", "?"), row.get("reduce", "?"),
-                     row.get("seed", "?"),
+                     row.get("seed", "?"), row.get("lr", "?"),
                      "yes" if row.get("decay", "-") != "-" else "no",
                      f"{stop:,}", f"{value:.4f}", ref_text, gap_text, matched))
-    return table(rows, ["arm", "k", "reduce", "seed", "L_rep decay", "stop",
-                        "11.4M", "1.1M twin (parent seed range)", "gap",
-                        "head-matched"])
+    return table(rows, ["arm", "k", "reduce", "seed", "lr", "L_rep decay",
+                        "stop", "11.4M", "1.1M twin (parent seed range)",
+                        "gap", "head-matched"])
 
 
 def auc_table(path):
