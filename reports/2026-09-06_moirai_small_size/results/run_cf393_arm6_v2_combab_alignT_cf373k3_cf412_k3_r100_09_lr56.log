@@ -397,3 +397,8 @@ Retrying in 1s [Retry 1/5].
 [  23000] loss=12.8119  ema_loss=12.6593  gap=-0.0266  ema_gap=-0.0122  mixup=41/200  2.3 sps  ETA 2.0h
               R²_rand=0.8575  R²_naive=0.3780  U_t=0.0071  U_b=0.0334  AUC=0.9967  Top1=0.7547
   timing: data=6.3ms  fwd=153.5ms  bwd=97.6ms  total=258.1ms
+'('Connection broken: IncompleteRead(61586426 bytes read, 84032942 more expected)', IncompleteRead(61586426 bytes read, 84032942 more expected))' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00037.parquet
+Retrying in 1s [Retry 1/5].
+[  23200] loss=12.8405  ema_loss=12.8105  gap=-0.0241  ema_gap=-0.0180  mixup=59/200  2.1 sps  ETA 2.2h
+              R²_rand=0.8571  R²_naive=0.3721  U_t=0.0070  U_b=0.0348  AUC=0.9919  Top1=0.7512
+  timing: data=4493.7ms  fwd=161.3ms  bwd=103.2ms  total=4759.0ms
