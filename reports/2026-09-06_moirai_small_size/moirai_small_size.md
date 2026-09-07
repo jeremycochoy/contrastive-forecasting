@@ -61,7 +61,7 @@ that suits width 384 better would move both sides. And no rate changes the
 contrastive AUC: `lr33` holds 0.998 at 40,000 steps where the k = 32 arms read
 0.773 and lower.
 
-## The width erodes the contrastive task at every depth above 3
+## The width breaks the contrastive task on the deep mean cells
 
 ![the contrastive AUC](plots/auc.png)
 
@@ -115,10 +115,10 @@ degraded and held, with a floor of 0.683 at step 20,872 that never crossed.
 The worst AUC is also the worst score: 0.773 and 1.4629, against 0.999 and
 1.2927 to 1.3495 on the k = 3 arms.
 
-### Every depth above 3 erodes, and they are not ordered by depth
+### The depth and the reduction are confounded, so neither is named
 
-`k8_r100_09` puts a third depth beside the two cells, and it erodes as well. So
-losing the task is not a property of k = 32.
+`k8_r100_09` puts a third configuration beside the two cells, and it erodes as
+well. So losing the task is not a property of k = 32.
 
 | step | k = 3 | k = 8 | k = 32, EMA 0.9 | k = 32, EMA 0.8 |
 |---|---|---|---|---|
@@ -127,13 +127,33 @@ losing the task is not a property of k = 32.
 | 8,000 | 0.998 | 0.920 | 0.889 | 0.788 |
 | 10,000 | 0.998 | 0.881 | 0.892 | 0.741 |
 
-The k = 3 column holds 0.998 and does not move. Every deeper column falls.
+The k = 3 column holds 0.998 and does not move. Every other column falls.
 
-THE DEEPER ARMS ARE NOT ORDERED BY DEPTH. At step 10,000 the k = 8 arm reads
-0.881 against the k = 32 arm's 0.892, so the DEEPER of the two is the healthier
-one, and at 10,500 they read 0.863 and 0.881. The two run within 0.011 of each
-other from step 8,000 and both sit far under k = 3. So the erosion does not
-scale with k on this evidence, and this report does not say that it does.
+BUT THE DEPTH IS NOT THE ONLY THING THAT CHANGES ACROSS THOSE COLUMNS. Every
+arm that erodes runs the `mean` reduction, and every arm that holds runs `sum`.
+The two columns of `arms.tsv` are perfectly confounded over all ten arms:
+
+| | `sum` | `mean` |
+|---|---|---|
+| k = 3 | 6 arms | none |
+| k = 8, k = 32 | none | 4 arms |
+
+That is inherited and not a defect. Each row of this card is a PUBLISHED
+configuration at the new width, and the parents ran k = 3 under sum and the
+deeper cells under mean. The card replicates configurations, it does not run a
+factorial.
+
+So "the depth erodes the task" and "the mean reduction erodes the task" fit
+these rows equally well, and nothing on this card separates them. One k = 3 arm
+under mean, or one k = 32 arm under sum, would settle it. Neither exists at
+either size.
+
+THE ONE CONTROLLED DEPTH PAIR SHOWS NO SEPARATION. `k8_r100_09` and
+`k32_r100_09` share the reduction, the momentum, the seed and the rate, so the
+depth is the one column between them. At step 10,000 they read 0.881 and 0.892,
+so the DEEPER arm is the healthier one, and at 10,500 they read 0.863 and
+0.881. They run within 0.011 of each other from step 8,000. So the erosion does
+not scale with k on this evidence, and this report does not say that it does.
 
 `k8_r100_09` has run 10,700 steps of its 40,000, so its column is partial.
 
