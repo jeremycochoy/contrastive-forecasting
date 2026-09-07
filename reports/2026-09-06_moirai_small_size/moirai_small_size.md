@@ -11,17 +11,27 @@ or whether the model is small.
 
 ## The answer
 
-Ten times the capacity buys nothing at the stops that landed.
+At the parent's learning rate, ten times the capacity buys nothing. That rate
+is the wrong one for this width, so this card does not answer the capacity
+question it was built to answer.
 
 ![the scores](plots/scores.png)
 
 At 100,000 backbone steps, head-matched, the 11.4M model scores 1.3395 and its
-1.1M twin scores 1.3010. The 11.4M model is 0.0385 worse, which is inside this
-size's 0.0568 seed band, so the two are not ranked. On the k = 32 cell at
-40,000 steps the 11.4M model scores 1.4629 against 1.1507, worse by 5.5 bands.
+1.1M twin 1.3010. The gap of 0.0385 is inside the 0.0568 band, so the two are
+not ranked. On the deep mean cell at 40,000 steps the 11.4M model scores 1.4629
+against 1.1507, worse by 5.5 bands.
 
-The 200,000-step stop answers the card, because the 1.0651 reference is a
-200,000-step number. That leg runs.
+EVERY ONE OF THOSE 11.4M NUMBERS IS AT 1e-3. On the same cell and the same
+stop, this card then measured 1.1820 at 5.6e-4, which is 2.9 bands better than
+the same seed at 1e-3. The 1.1M references are at 1e-3 as well, and no one has
+shown a misfit at that width. So each comparison above carries the width AND a
+rate misfit on one side of it, and this report does not claim the 11.4M model
+is the worse one.
+
+The 200,000-step stop is the one the card was built for, because the 1.0651
+reference is a 200,000-step number. Its eval runs, and it will carry the same
+caveat.
 
 ## A longer stop does not rescue this size
 
