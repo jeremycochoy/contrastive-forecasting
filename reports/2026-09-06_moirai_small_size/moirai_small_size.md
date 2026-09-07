@@ -27,24 +27,27 @@ The 200,000-step stop answers the card, because the 1.0651 reference is a
 
 ![the climb](plots/climb.png)
 
-## The rollout depth erodes the contrastive task at 11.4M
+## The width breaks the contrastive task on the k = 32 cell
 
 ![the contrastive AUC](plots/auc.png)
 
-At 1.1M the k = 32 cell held the task. #404 ran it at the same momentum, the
-same seed 20260520 and the same 40,000-step stop, and it ended at AUC 0.978.
-At 11.4M the same cell ends at 0.763. It falls from 0.966 at step 2,000 to
-0.774 at 16,000 and does not come back. That arm scores 1.4629, the worst on
-this card. The k = 3 cell ends at 0.999 on both seeds.
+Both k = 32 arms of this card have an exact 1.1M twin, and both twins held the
+task. #404's plain twin ended at AUC 0.978 at 40,000 steps. #409's decay twin,
+`dec_m090r100_ramp2k`, ended at 0.9833 and scored 1.2295. Each twin matches its
+arm on the cell, the momentum, the decay ramp and the seed 20260520.
 
-The `L_rep` decay then acts where the margin is already spent.
-`k32_r100_09_dec` reached chance at step 18,634, so the guard stopped the leg.
-That arm has no head and no score. `k3_r100_09_dec` carries the same decay
-from step 2,000 and reads 0.994 at step 16,000, so it holds so far.
+At 11.4M the plain arm falls from 0.966 at step 2,000 to 0.763 at 40,000. The
+decay arm reaches chance at step 18,634, and the guard stopped it there. That
+arm has no head and no score.
 
-Neither the depth nor the decay loses the task alone at 11.4M. Together they
-do. #409 measured the decay at 1.1M over 22 runs, every one at k = 32, and one
-lost the task, at the fixed EMA momentum 0.500.
+So the width decides whether the run keeps the task, and the decay decides how
+fast it goes. The worst AUC is also the worst score: 0.763 and 1.4629, against
+0.998 and 1.2927 to 1.3495 on the k = 3 arms.
+
+This reading covers k = 32 alone. #373 published no AUC column for cells A3 and
+A4, so the k = 3 arms have no 1.1M anchor. At 11.4M they show nothing wrong:
+`k3_r100_09_dec` reads 0.994 at step 16,000 with its `L_rep` weight at 0.0
+since step 2,000, so it holds so far.
 
 ## The loss by term
 
