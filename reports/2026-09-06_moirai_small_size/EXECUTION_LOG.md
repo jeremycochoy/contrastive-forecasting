@@ -33,19 +33,47 @@ syntax error. The three ended three different ways.
 
 So one checkpoint of the three sat unscored. No training was lost.
 
-### The corruption masked a collapse as a failure
+### `phase1.log` is unreliable in both directions
 
 `run_arm.sh` should have exited `CF412_RC_COLLAPSED`, which is 4, and
 `phase1.sh` should have logged "LOST the contrastive task". It exited 2
-instead. Line 65 of `results/phase1.log` reads:
+instead. Two lines of `results/phase1.log` carry that exit code, and they hide
+opposite things.
 
 ```
-[09-07 01:03:05] [#412 phase1] backbone k32_r100_09_dec stop 40000 FAILED rc=2
+line 21  [09-06 22:14:28] backbone k3_r100_09 stop 100000 FAILED rc=2
+line 65  [09-07 01:03:05] backbone k32_r100_09_dec stop 40000 FAILED rc=2
 ```
 
-That line is this card's clearest scientific result, written as an
-infrastructure failure. Do not read `phase1.log` alone for it. The verdict is
-in `results/collapsed_k32_r100_09_dec.txt` and in `results/auc_verdicts.tsv`.
+Line 65 is a real result written as a failure. That leg lost the contrastive
+task at step 18,634, which is this card's clearest finding.
+
+Line 21 is the reverse error. That leg SUCCEEDED. It wrote its 100,000-step
+checkpoint, and that checkpoint scored 1.3395.
+
+So read neither from `phase1.log`. The verdicts are in
+`results/collapsed_<arm>.txt`, `results/auc_verdicts.tsv` and
+`results/scores.csv`.
+
+### The doubled gate line is the fingerprint
+
+The corrupted shells did not simply die. Each one RE-RAN a command it had
+already run. Every one of the three logged its AUC gate line twice, from one
+process (`results/arms.log`):
+
+```
+[09-06 15:15:52] arm k3_r100_09b     AUC gate pid 364747 - ... warmup 1000
+[09-06 21:33:03] arm k3_r100_09b     AUC gate pid 364747 - ... warmup
+[09-06 15:34:23] arm k3_r100_09      AUC gate pid 380882 - ... warmup 1000
+[09-06 22:14:28] arm k3_r100_09      AUC gate pid 380882 - ... warmup
+[09-06 20:12:52] arm k32_r100_09_dec AUC gate pid 663584 - ... warmup 1000
+[09-07 01:03:05] arm k32_r100_09_dec AUC gate pid 663584 - ... warmup
+```
+
+Same pid, same line, hours apart. The second of each pair has an empty warmup,
+because `cf412_auc_warmup` did not exist in the `study.sh` that shell sourced
+when it started. Bash resumed at a stale byte offset, re-entered a block it had
+finished, and fell into text that was not there when it began.
 
 ### Two guards came out of it
 
