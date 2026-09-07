@@ -19,11 +19,35 @@ A shell that is running a script resumes inside the NEW text after an edit,
 and dies on the first syntax error it meets there.
 
 `run_arm.sh` changed at 21:28 and `phase1.sh` at 21:44 on 2026-09-06, under
-lanes started at 15:34, 20:12 and 21:33. All three died with
-`cf412_auc_warmup: command not found`, then a syntax error, AFTER their legs
-finished. Cost: no training, but three checkpoints reached disk with no head.
+three lanes. Each lane died with `cf412_auc_warmup: command not found`, then a
+syntax error. The three ended three different ways.
 
-Two guards came out of it.
+- `k3_r100_09b`, at 21:33:03. Its leg finished and its checkpoint WAS scored.
+  `lane_b_relay.sh` waits on the pid and not on the exit code, so it started a
+  fresh `phase1.sh`. That one found the checkpoint on disk, made the leg a
+  no-op and ran the head. The relay absorbed the failure by accident.
+- `k3_r100_09` at 100,000 steps, at 22:14:28. Its leg finished and its
+  checkpoint sat unscored. A head started by hand at 22:15.
+- `k32_r100_09_dec`, at 01:03:05. Its leg did NOT finish. The AUC gate stopped
+  it at step 18,634, and its `leg_40k` holds no `_40k.pth`.
+
+So one checkpoint of the three sat unscored. No training was lost.
+
+### The corruption masked a collapse as a failure
+
+`run_arm.sh` should have exited `CF412_RC_COLLAPSED`, which is 4, and
+`phase1.sh` should have logged "LOST the contrastive task". It exited 2
+instead. Line 65 of `results/phase1.log` reads:
+
+```
+[09-07 01:03:05] [#412 phase1] backbone k32_r100_09_dec stop 40000 FAILED rc=2
+```
+
+That line is this card's clearest scientific result, written as an
+infrastructure failure. Do not read `phase1.log` alone for it. The verdict is
+in `results/collapsed_k32_r100_09_dec.txt` and in `results/auc_verdicts.tsv`.
+
+### Two guards came out of it
 
 - `run_snapshot/` is a frozen copy of `scripts/`. A lane launched from it
   cannot be edited under itself. It is gitignored, because it is a copy of
@@ -38,9 +62,13 @@ edited in place. The running shell keeps the old inode.
 
 One session lost four background shells inside one window: its decay-arm lane
 driver, the lane C driver, the sweep loop and a file watcher. Its heartbeat
-survived. Every one of the five was launched the same way, so the launch
-method does not separate them. No file under `scripts/` or `run_snapshot/`
-changed after 22:16, so an edit under a running shell is not the cause.
+survived.
+
+The launch method does not explain the cull. The surviving heartbeat used
+`setsid nohup`, and so did two of the four that died. Lane C used `nohup` with
+no `setsid`, and the watcher was a harness background task. No file under
+`scripts/` or `run_snapshot/` changed after 22:16, so an edit under a running
+shell is not the cause either.
 
 No training was lost. All four trainers and both `run_arm.sh` shells stayed
 alive. What died was the scoring above them.
