@@ -240,8 +240,9 @@ artefact instead: `results/tables.md` rebuilds every heartbeat and
 ## A k = 32 backbone grows past its smoke row mid-leg
 
 `k32_r200_08` held 6,402 MiB for its first four hours and 10,418 MiB after,
-against the 10,062 of its row in `results/trial/smoke.csv`. A k = 3 arm does
-not do this: the 200,000-step climb held 6,492 MiB flat over its whole leg.
+against the 10,062 of its row in `results/trial/smoke.csv`. That is 347 samples
+over the seven hours of its leg. A k = 3 arm does not do this: the
+200,000-step climb held 6,492 MiB flat over its whole leg.
 
 THE CAUSE IS NOT KNOWN. Two mechanisms were argued and both fail on the
 evidence:
