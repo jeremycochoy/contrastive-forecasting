@@ -12,6 +12,16 @@ throughout. The sessions split the work by lane and agreed the split by
 message. One session drove the rate sweep, the report and the PR comment. The
 other drove the decay arm, the heartbeat and the reference tables.
 
+## Git authorship cannot separate the three sessions
+
+Every session commits as `jeremycochoy-agent <jeremy@redstone.ee>`, into one
+worktree and one index. So a commit of this card names no session, and a
+reader of the PR cannot tell which one wrote it. One session already read
+another's commit as its own.
+
+Read the commit body, not the author. Each one states what it changed and
+why. This log names the session for the events where it matters.
+
 ## An edit under a running shell killed three lanes
 
 Bash reads a script by byte offset and re-reads the file after each command.
