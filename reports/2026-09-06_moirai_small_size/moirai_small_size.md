@@ -62,10 +62,16 @@ the project actually wants to beat, and 1.1820 does not beat it.
 
 ![the climb](plots/climb.png)
 
-`k3_r100_09` scores 1.3495 at 40,000 steps and 1.3395 at 100,000. The gain is
-0.0100 against a seed band of 0.0568. So a later stop does not move this
-size's rank, and the 40,000-step order of this card stands. The 200,000-step
-leg runs, because 1.0651 is a 200,000-step number.
+`k3_r100_09` scores 1.3495 at 40,000 steps, 1.3395 at 100,000 and 1.3910 at
+200,000. The whole spread over five times the steps is 0.0515, still inside one
+0.0568 band, and the 200,000-step number is the WORST of the three. So a later
+stop does not move this size's rank, and the 40,000-step order of this card
+stands.
+
+THE SIGN OF THE SIZE GAP CHANGES TWICE across those stops: the 11.4M model is
+ahead at 40,000, behind at 100,000, ahead again at 200,000, by 0.22, 0.68 and
+0.15 of a band. A quantity that small and that unstable in sign is noise, and
+reading a winner out of any single stop would be reading the noise.
 
 ## 1e-3 does not fit this width, and it voids every 1e-3 number here
 
