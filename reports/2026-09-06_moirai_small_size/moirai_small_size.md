@@ -11,9 +11,10 @@ or whether the model is small.
 
 ## The answer
 
-At the parent's learning rate, ten times the capacity buys nothing. That rate
-is the wrong one for this width, so this card does not answer the capacity
-question it was built to answer.
+Ten times the capacity buys nothing at the parent's learning rate: at k = 3 the
+two sizes tie at three stops. The largest lever this card found was neither the
+size, nor the stop, nor the rollout depth, nor the `L_rep` decay. It was the
+learning rate, which nobody had varied at this width.
 
 ![the scores](plots/scores.png)
 
@@ -91,14 +92,21 @@ SO EVERY 1e-3 NUMBER IN THIS REPORT IS TAKEN AT A RATE THAT DOES NOT FIT
 `d_model` 384. That is the card's own rule, fixed in advance: D above the band
 voids the 1e-3 numbers.
 
-THE BRACKET HAS AN INTERIOR OPTIMUM AT 5.6e-4, and all three points are in.
-It beats 3.3e-4 by 1.2 bands and 1.67e-4 by 1.4 bands, so lowering the rate
-past it made the model worse, twice. The two lowest rates tie with each other,
-0.2 of a band apart, and both sit inside the band against the better 1e-3 seed.
+THE BEST POINT OF THIS BRACKET IS AN INTERIOR ONE, and all three new rates are
+in. 5.6e-4 beats 3.3e-4 by 1.2 bands and 1.67e-4 by 1.4 bands, so lowering the
+rate past it made the model worse, twice. The two lowest rates tie with each
+other, 0.2 of a band apart, and both sit inside the band against the better
+1e-3 seed. So only 5.6e-4 clears the bar.
 
-So only 5.6e-4 clears the bar. A reader should take "1e-3 is too high at this
-width" from this section and NOT "lower is better": the curve turns, and the
-best rate this card found is 1.8 times the lowest one it tried.
+That is a bracket and not an optimum. 5.6e-4 is the best of four rates on a
+coarse grid, one seed each, and the true minimum sits somewhere between 3.3e-4
+and 1e-3, an interval this card samples once. A later card can start from
+5.6e-4 without re-deriving the bracket, and should not treat it as tuned.
+
+THE WIDTH-SCALED RATE OVER-CORRECTS. `k3_r100_09_lr17` runs at 1.67e-4, which
+is 1e-3 times 64 over 384, the rate a muP-style width rule would pick. It is
+1.4 bands WORSE than 5.6e-4. So scaling the rate by the width ratio is the
+obvious fix and it overshoots.
 
 ## A longer stop does not change the size answer
 
