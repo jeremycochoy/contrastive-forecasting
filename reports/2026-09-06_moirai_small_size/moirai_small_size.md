@@ -166,16 +166,18 @@ well. So losing the task is not a property of k = 32.
 | 8,000 | 0.998 | 0.920 | 0.889 | 0.788 |
 | 10,000 | 0.998 | 0.881 | 0.892 | 0.741 |
 | 12,000 | 0.998 | 0.812 | 0.840 | 0.739 |
-| 15,000 | 0.998 | 0.717 | 0.793 | 0.751 |
+| 15,000 | 0.998 | 0.812 | 0.840 | 0.739 |
+| 28,000 | 0.999 | 0.772 | 0.789 | 0.555 |
+| 40,000 | 0.999 | 0.730 | 0.773 | lost at 28,152 |
 
 The k = 3 column holds 0.998 and does not move. Every other column falls.
 
 THE COLUMNS DO NOT ORDER BY DEPTH. To step 8,000 they fall from left to right.
 After step 10,000 they cross: k = 8 goes under k = 32 at the same momentum,
-0.812 against 0.840 at step 12,000 and 0.717 against 0.793 at 15,000. So a
-deeper rollout does not erode faster, and an earlier version of this report
-said it did. `k8_r100_09` has run 15,100 steps of its 40,000, so its endpoint
-is open.
+0.812 against 0.840 at step 12,000, and it stays under to the stop, 0.730
+against 0.773 at 40,000. So a deeper rollout does not erode faster, and an
+earlier version of this report said it did. Both arms completed their legs, so
+this is the finished reading and not a snapshot.
 
 BUT THE DEPTH IS NOT THE ONLY THING THAT CHANGES ACROSS THOSE COLUMNS. Every
 arm that erodes runs the `mean` reduction, and every arm that holds runs `sum`.
