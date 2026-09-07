@@ -66,3 +66,26 @@
 [09-07 01:16:44] [#412 sweep] k3_r100_09 at 100000 — a driver already runs it
 [09-07 01:16:44] [#412 sweep] k3_r100_09b at 40000 — a driver already runs it
 [09-07 01:16:44] [#412 sweep] swept 0 head(s)
+[09-07 01:31:44] [#412 sweep] k3_r100_09 at 100000 — a driver already runs it
+[09-07 01:31:44] [#412 sweep] k3_r100_09b at 40000 — a driver already runs it
+[09-07 01:31:45] [#412 sweep] swept 0 head(s)
+[09-07 01:46:45] [#412 sweep] k3_r100_09 at 100000 — a driver already runs it
+[09-07 01:46:45] [#412 sweep] k3_r100_09b at 40000 — a driver already runs it
+[09-07 01:46:45] [#412 sweep] swept 0 head(s)
+[09-07 01:50:08] [#412 phase1] arms: k3_r100_09_lr33 k3_r100_09_lr17
+[09-07 01:50:08] [#412 phase1] stops: 40000  gpu: 1
+[09-07 01:50:08] [#412 phase1] backbone k3_r100_09_lr33 -> 40000 (gpu 1 holds the 7700 MiB it needs)
+[09-07 01:50:08] [#412 phase1] head k3_r100_09_lr33 bb40000
+[09-07 01:50:08] [#412 phase1] backbone k3_r100_09_lr17 -> 40000 (gpu 1 holds the 7700 MiB it needs)
+[09-07 01:50:08] [#412 phase1] head k3_r100_09_lr17 bb40000
+[09-07 01:50:08] [#412 phase1] phase1 done — 0 failure(s)
+[09-07 01:51:11] [#412 phase1] arms: k3_r100_09_lr33 k3_r100_09_lr17
+[09-07 01:51:11] [#412 phase1] stops: 40000  gpu: 1
+[09-07 01:51:11] [#412 phase1] backbone k3_r100_09_lr33 -> 40000 (gpu 1 holds the 7700 MiB it needs)
+[09-07 01:51:13] [#412 relay] lane B done rc=143
+[09-07 01:51:35] [#412 phase1] arms: k3_r100_09_lr56
+[09-07 01:51:35] [#412 phase1] stops: 40000  gpu: 1
+[09-07 01:51:35] [#412 phase1] backbone k3_r100_09_lr56 -> 40000 (gpu 1 holds the 7700 MiB it needs)
+[09-07 01:52:01] [#412 phase1] arms: k3_r100_09_dec
+[09-07 01:52:01] [#412 phase1] stops: 40000  gpu: 0
+[09-07 01:52:01] [#412 phase1] backbone k3_r100_09_dec -> 40000 (gpu 0 holds the 7700 MiB it needs)
