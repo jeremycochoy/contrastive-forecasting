@@ -61,6 +61,16 @@ NAME="$(printf 'cf393_%s_cf373k%s_cf412_%s' "$CF412_CELL" "$K" "$ARM")"
 find_pid(){ ps -eo pid,args --no-headers \
   | awk -v n="$NAME" '$2 ~ /python/ && $0 ~ ("--run-name " n "( |$)") {print $1; exit}'; }
 
+# FINE FOR THE FIRST `FINE_S` SECONDS, THEN COARSE TO THE END OF THE LEG.
+# The first version sampled only the first 900 s, and that cannot see what
+# this arm class actually does: `k32_r200_08` held 6,402 MiB for four hours
+# and then took 10,418 at its step-20,000 save, ABOVE its 10,062 smoke row.
+# A tight loop spawns `nvidia-smi` about 42 times a second, which is fine for
+# two minutes and not for six hours, so the rate drops after the startup
+# window.
+FINE_S="${CF412_STARTUP_FINE_S:-120}"
+COARSE_S="${CF412_STARTUP_COARSE_S:-30}"
+
 pid=""
 while [ -z "$pid" ]; do pid="$(find_pid)"; [ -n "$pid" ] || sleep 0.2; done
 t0="$(date +%s)"
@@ -74,9 +84,14 @@ while kill -0 "$pid" 2>/dev/null; do
   if [ -n "$m" ]; then
     printf '%s,%s\n' "$(( now - t0 ))" "$m" >>"$CSV"
     [ -z "$first" ] && first="$m"
-    [ "$m" -gt "$max" ] && max="$m"
+    if [ "$m" -gt "$max" ]; then
+      max="$m"
+      printf '%s %s new max %s MiB at %ss\n' "$(date '+%m-%d %H:%M:%S')" \
+        "$ARM" "$m" "$(( now - t0 ))" >>"$LOG"
+    fi
     n=$(( n + 1 ))
   fi
+  [ $(( now - t0 )) -ge "$FINE_S" ] && sleep "$COARSE_S"
 done
 smoke="$(awk -F',' -v a="$ARM" '$1==a {print $7}' "$CF412_RESULTS/trial/smoke.csv" 2>/dev/null)"
 printf '%s %s startup: first %s MiB, MAX %s MiB over %s samples, smoke row %s\n' \
