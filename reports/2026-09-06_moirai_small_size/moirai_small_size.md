@@ -58,20 +58,34 @@ the project actually wants to beat, and 1.1820 does not beat it.
 
 
 
-## A longer stop does not rescue this size
+## A longer stop does not change the size answer
 
 ![the climb](plots/climb.png)
 
-`k3_r100_09` scores 1.3495 at 40,000 steps, 1.3395 at 100,000 and 1.3910 at
-200,000. The whole spread over five times the steps is 0.0515, still inside one
-0.0568 band, and the 200,000-step number is the WORST of the three. So a later
-stop does not move this size's rank, and the 40,000-step order of this card
-stands.
+`k3_r100_09` is the one arm this card carried to every stop. At each one it
+ties its 1.1M twin.
 
-THE SIGN OF THE SIZE GAP CHANGES TWICE across those stops: the 11.4M model is
-ahead at 40,000, behind at 100,000, ahead again at 200,000, by 0.22, 0.68 and
-0.15 of a band. A quantity that small and that unstable in sign is noise, and
-reading a winner out of any single stop would be reading the noise.
+| backbone steps | 11.4M | 1.1M twin | gap | head-matched |
+|---|---|---|---|---|
+| 40,000 | 1.3495 | 1.3618 | -0.22 bands | no, a 15,000-step 1.1M head |
+| 100,000 | 1.3395 | 1.3010 | +0.68 bands | yes |
+| 200,000 | 1.3910 | 1.3998 | -0.15 bands | yes |
+
+Every gap is inside the 0.0568 band, so no stop ranks the two sizes. The
+200,000-step row is the one the card asks for, because 1.0651 is a
+200,000-step number, and it is head-matched: both sides train a 30,000-step
+head on the same cell at the same backbone seed.
+
+The 11.4M model does not improve with a longer stop either. It reads 1.3495 at
+40,000, 1.3395 at 100,000 and 1.3910 at 200,000. Its best stop is the middle
+one, and the whole climb spans 0.0515, which is inside one band.
+
+TWO THINGS THIS DOES NOT SAY. It does not reach the project's best of 1.0651,
+which sits 5.74 bands below the 200,000-step number and comes from the
+align-student lineage. And every leg of it ran at 1e-3, which the next section
+shows is the wrong rate at this width. So this climb answers "does the capacity
+help at 1e-3", and the answer is no. The capacity question at a rate that fits
+width 384 has no 200,000-step answer on this card.
 
 ## 1e-3 does not fit this width, and it voids every 1e-3 number here
 
