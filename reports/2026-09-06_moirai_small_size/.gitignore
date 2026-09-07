@@ -27,3 +27,8 @@ results/trial/*
 #
 # It is a copy of committed files, so it is not committed again.
 run_snapshot/
+
+# `results/lane_d.log` is not committed. Two sessions opened it at once on
+# 2026-09-07, one with `>`, so its text interleaves at two offsets. Every line
+# it held is also in `results/arms.log` and `results/phase1.log`, which append.
+results/lane_d.log

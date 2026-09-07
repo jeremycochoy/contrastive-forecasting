@@ -19,9 +19,18 @@ _(filled when the head-matched stops land)_
 
 ![the climb](plots/climb.png)
 
-## Every run held the contrastive task
+## One arm lost the contrastive task
 
 ![the contrastive AUC](plots/auc.png)
+
+`k32_r100_09_dec` is configuration 2 with the `L_rep` decay. Its rolling AUC
+median reached chance at step 18,634 and stayed there, so the guard stopped
+the leg. That arm has no head and no score.
+
+#409 ran the same decay on the same cell at 1.1M parameters over 22 runs. One
+run lost the task there, and it is the run at the fixed EMA momentum 0.500.
+This arm carries the ramping momentum, which held at 1.1M. The width is the
+one column that changed.
 
 ## The loss by term
 
@@ -53,14 +62,14 @@ under-trains a 384-wide encoder biases every 11.4M score in this report the
 same way. Comparisons inside one size survive that bias. The size headline
 does not, and it carries this caveat.
 
-**The learning rate is not proven at this width.** Every arm trains at 1e-3,
-which is the Moirai recipe. This project does not use muP, and the trainer
-builds one AdamW group over all parameters. So a rate that fits `d_model` 64
-need not fit 384. Two arms bracket the rate on configuration 1, at 3.3e-4 and
-1.67e-4. D is 1.3495 minus the better of the two. A D above the 0.0471 band
-voids every 1e-3 number of this card, and phase 1 repeats at the winning rate.
-Both arms inside the band, or worse, ends the learning-rate explanation at
-width 384.
+**The learning rate is not proven at this width.** Every arm above trains at
+1e-3, which is the Moirai recipe. This project does not use muP, and the
+trainer builds one AdamW group over all parameters. So a rate that fits
+`d_model` 64 need not fit 384. Three arms sweep the rate on configuration 1,
+at 5.6e-4, 3.3e-4 and 1.67e-4. Each one moves the rate column alone. D is
+1.3495 minus the best of the three. A D above the 0.0471 band voids every
+1e-3 number of this card, and phase 1 repeats at the winning rate. Every arm
+inside the band, or worse, ends the learning-rate explanation at width 384.
 
 **The band is 0.0471.** #409 measured that spread over two backbone seeds of
 one configuration at the 40,000-step stop. Two numbers closer than that are
@@ -88,6 +97,7 @@ BB_GPU=0 bash run.sh size smoke trial       # the shape, the cost, one arm end t
 BB_GPU=0 STOPS=40000 ARMS="k32_r100_09 k32_r100_09_dec" bash run.sh phase1
 BB_GPU=1 STOPS=40000 ARMS="k3_r100_09 k3_r100_09b k3_r100_09_dec" bash run.sh phase1
 BB_GPU=0 STOPS="100000 200000" ARMS="k3_r100_09" bash run.sh phase1
-BB_GPU=1 STOPS=40000 ARMS="k3_r100_09_lr33 k3_r100_09_lr17" bash run.sh phase1
+BB_GPU=1 STOPS=40000 ARMS="k3_r100_09_lr33 k3_r100_09_lr56" bash run.sh phase1
+BB_GPU=1 STOPS=40000 ARMS="k3_r100_09_lr17" bash run.sh phase1
 bash run.sh collect && bash scripts/make_plots.sh
 ```
