@@ -32,7 +32,7 @@ VERDICTS="$CF412_RESULTS/auc_verdicts.tsv"
 [ -s "$SCORES" ] || { echo "ABORT: no scores at $SCORES" >&2; exit 2; }
 
 python3 - "$SCORES" "$VERDICTS" "$STOP" "$BAND_FLOOR" "$R200_ALLOWANCE" <<'PY'
-import csv, os, sys
+import csv, os, re, sys
 
 scores_path, verdicts_path, stop, band_floor, r200_allow = sys.argv[1:6]
 stop = int(stop); band_floor = float(band_floor); r200_allow = float(r200_allow)
@@ -54,10 +54,11 @@ if os.path.exists(verdicts_path):
 def arm_lost(arm):
     # The arm token sits between `_cf412_` and `_losses.csv` in the run name.
     # An open prefix match reads `k32_r100_09_dec` as `k32_r100_09` and stops
-    # an arm that held the task, so the test is anchored at both ends.
-    return any(run.endswith(f'_cf412_{arm}_losses.csv')
-               or f'_cf412_{arm}.' in run
-               for run in lost) or os.path.exists(
+    # an arm that held the task, so the test is anchored at both ends. A
+    # re-fired leg writes `_cf412_<arm>_rN_losses.csv`, which the pattern
+    # takes too. See the `_rN` branch of `auc_guard.sh`.
+    pat = re.compile(rf'_cf412_{re.escape(arm)}(_r\d+)?_losses\.csv$')
+    return any(pat.search(run) for run in lost) or os.path.exists(
         os.path.join(os.path.dirname(scores_path), f'collapsed_{arm}.txt'))
 
 print(f'--- the 40,000-step scores ({len(score)} arm(s)) ---')

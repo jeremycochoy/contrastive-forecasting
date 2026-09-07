@@ -2251,3 +2251,7 @@ Retrying in 1s [Retry 1/5].
 [ 137200] loss=12.3214  ema_loss=12.2991  gap=-0.0187  ema_gap=-0.0199  mixup=67/200  2.0 sps  ETA 8.7h
               R²_rand=0.9187  R²_naive=0.1157  U_t=0.0036  U_b=0.0553  AUC=0.9988  Top1=0.9430
   timing: data=6.7ms  fwd=158.9ms  bwd=124.2ms  total=290.6ms
+[ 137400] loss=12.3497  ema_loss=12.3007  gap=-0.0162  ema_gap=-0.0193  mixup=57/200  2.0 sps  ETA 8.7h
+              R²_rand=0.9253  R²_naive=0.1262  U_t=0.0035  U_b=0.0490  AUC=0.9998  Top1=0.9810
+  timing: data=6.7ms  fwd=155.5ms  bwd=123.7ms  total=286.6ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-412/k3_r100_09/arm6_v2_combab_alignT/leg_200k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_best_gap.pth
