@@ -36,6 +36,10 @@ leg runs, because 1.0651 is a 200,000-step number.
 
 ![the contrastive AUC](plots/auc.png)
 
+Every AUC in this report is a rolling median over 500 training rows, which is
+the statistic the guard reads against its 0.55 threshold. A single row is
+noisy, and one row under the threshold is not a lost run.
+
 Both k = 32 arms of this card have an exact 1.1M twin, and both twins held the
 task. #404's plain twin ended at AUC 0.978 at 40,000 steps. #409's decay twin,
 `dec_m090r100_ramp2k`, ended at 0.9833 and scored 1.2295. Each twin matches its
