@@ -429,3 +429,23 @@ Retrying in 1s [Retry 1/5].
 [  26200] loss=13.5145  ema_loss=13.5751  gap=-0.0435  ema_gap=-0.0425  mixup=63/200  1.1 sps  ETA 3.4h
               R²_rand=-0.0205  R²_naive=-1.2365  U_t=0.0840  U_b=0.0974  AUC=0.5618  Top1=0.0038
   timing: data=8.5ms  fwd=379.9ms  bwd=444.5ms  total=834.0ms
+[  26400] loss=13.5156  ema_loss=13.5812  gap=-0.0418  ema_gap=-0.0431  mixup=48/200  1.1 sps  ETA 3.3h
+              R²_rand=0.0478  R²_naive=-0.7429  U_t=0.0889  U_b=0.0982  AUC=0.5680  Top1=0.0043
+  timing: data=35.7ms  fwd=375.4ms  bwd=443.6ms  total=855.9ms
+[  26600] loss=13.4353  ema_loss=13.5794  gap=-0.0483  ema_gap=-0.0445  mixup=57/200  1.1 sps  ETA 3.3h
+              R²_rand=0.1028  R²_naive=-0.3960  U_t=0.0857  U_b=0.0846  AUC=0.5507  Top1=0.0038
+  timing: data=7.7ms  fwd=366.5ms  bwd=431.2ms  total=806.5ms
+[  26800] loss=13.5591  ema_loss=13.5818  gap=-0.0411  ema_gap=-0.0433  mixup=70/200  1.1 sps  ETA 3.2h
+              R²_rand=0.0285  R²_naive=-0.9710  U_t=0.0853  U_b=0.0850  AUC=0.5647  Top1=0.0073
+  timing: data=8.1ms  fwd=366.8ms  bwd=435.0ms  total=811.0ms
+'('Connection broken: IncompleteRead(64704360 bytes read, 80577551 more expected)', IncompleteRead(64704360 bytes read, 80577551 more expected))' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00043.parquet
+Retrying in 1s [Retry 1/5].
+[  27000] loss=13.5180  ema_loss=13.5790  gap=-0.0429  ema_gap=-0.0440  mixup=62/200  1.1 sps  ETA 3.2h
+              R²_rand=-0.0131  R²_naive=-0.6940  U_t=0.0842  U_b=0.0996  AUC=0.5527  Top1=0.0049
+  timing: data=1135.8ms  fwd=365.8ms  bwd=431.1ms  total=1933.9ms
+[  27200] loss=13.5106  ema_loss=13.5822  gap=-0.0464  ema_gap=-0.0441  mixup=61/200  1.1 sps  ETA 3.1h
+              R²_rand=0.0226  R²_naive=-1.2046  U_t=0.0927  U_b=0.1040  AUC=0.5493  Top1=0.0035
+  timing: data=9.4ms  fwd=369.7ms  bwd=435.6ms  total=816.0ms
+[  27400] loss=13.6169  ema_loss=13.5809  gap=-0.0485  ema_gap=-0.0453  mixup=66/200  1.1 sps  ETA 3.1h
+              R²_rand=-0.0352  R²_naive=-0.3763  U_t=0.0936  U_b=0.0990  AUC=0.5557  Top1=0.0049
+  timing: data=8.0ms  fwd=367.8ms  bwd=436.3ms  total=813.3ms

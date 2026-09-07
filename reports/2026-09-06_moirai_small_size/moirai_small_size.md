@@ -61,7 +61,7 @@ that suits width 384 better would move both sides. And no rate changes the
 contrastive AUC: `lr33` holds 0.998 at 40,000 steps where the k = 32 arms read
 0.773 and lower.
 
-## The width erodes the contrastive task, and the depth sets how fast
+## The width erodes the contrastive task at every depth above 3
 
 ![the contrastive AUC](plots/auc.png)
 
@@ -97,25 +97,27 @@ is its extreme case rather than its evidence. The worst AUC is also the
 worst score: 0.773 and 1.4629, against 0.999 and 1.2927 to 1.3495 on the k = 3
 arms.
 
-### The erosion is a slope, not a cliff at k = 32
+### Every depth above 3 erodes, and they are not ordered by depth
 
-`k8_r100_09` puts a third depth between the two cells, and it erodes. So the
-loss of the task is not a property of k = 32. It grows with the rollout depth.
+`k8_r100_09` puts a third depth beside the two cells, and it erodes as well. So
+losing the task is not a property of k = 32.
 
 | step | k = 3 | k = 8 | k = 32, EMA 0.9 | k = 32, EMA 0.8 |
 |---|---|---|---|---|
 | 2,000 | 0.993 | 0.971 | 0.968 | 0.877 |
 | 5,000 | 0.998 | 0.961 | 0.937 | 0.814 |
 | 8,000 | 0.998 | 0.920 | 0.889 | 0.788 |
+| 10,000 | 0.998 | 0.881 | 0.892 | 0.741 |
 
-Every row falls from left to right, at every step. The k = 3 arm holds 0.998
-and does not move. The k = 8 arm loses 0.051 over those 6,000 steps and the
-k = 32 arm loses 0.079.
+The k = 3 column holds 0.998 and does not move. Every deeper column falls.
 
-Read the k = 8 and k = 32 pair carefully. They sit 0.003 apart at step 2,000,
-which is nothing, and the gap opens to 0.024 at 5,000 and 0.031 at 8,000. So
-the two depths separate over training rather than at the start, and
-`k8_r100_09` has reached 8,300 steps of its 40,000, so its own stop is open.
+THE DEEPER ARMS ARE NOT ORDERED BY DEPTH. At step 10,000 the k = 8 arm reads
+0.881 against the k = 32 arm's 0.892, so the DEEPER of the two is the healthier
+one, and at 10,500 they read 0.863 and 0.881. The two run within 0.011 of each
+other from step 8,000 and both sit far under k = 3. So the erosion does not
+scale with k on this evidence, and this report does not say that it does.
+
+`k8_r100_09` has run 10,700 steps of its 40,000, so its column is partial.
 
 The EMA momentum moves the whole curve as well. `k32_r200_08` starts its ramp
 at 0.8 and sits under `k32_r100_09` at every step, by 0.091 at step 2,000 and
