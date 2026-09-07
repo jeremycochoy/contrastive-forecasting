@@ -77,11 +77,10 @@ task. #404's plain twin ended at AUC 0.978 at 40,000 steps. #409's decay twin,
 the other momentum schedule, ended at 0.957. Each twin matches its arm on the
 cell, the momentum, the decay ramp and the seed 20260520.
 
-At 11.4M all three fall. `k32_r100_09` goes from 0.968 at step 2,000 to 0.773
-at 40,000. `k32_r100_09_dec` reaches chance at step 18,634, and the guard
-stopped it there, so it has no head and no score. `k32_r200_08` falls on the
-same path and its leg still runs, so it has no 40,000-step cell yet.
-`results/tables.md` carries its current row and the gate's verdict.
+At 11.4M all three fall, and TWO of them lose the task outright. `k32_r100_09`
+goes from 0.968 at step 2,000 to 0.773 at 40,000 and holds. `k32_r100_09_dec`
+reaches chance at step 18,634. `k32_r200_08` reaches it at step 28,152. The
+guard stopped both, so neither has a head or a score.
 
 The k = 3 arm is the POSITIVE CONTROL at the same width, and it does not merely
 survive. Its AUC floor rises with every leg: 0.993 to 40,000 steps, 0.997 to
@@ -89,13 +88,24 @@ survive. Its AUC floor rises with every leg: 0.993 to 40,000 steps, 0.997 to
 seed 20260520. The worst reading of its last leg beats the worst reading of its
 first.
 
-So it takes BOTH. At 1.1M this depth held, at 0.978 and 0.957 and 0.983. At
-11.4M this cell at k = 3 improves for 200,000 steps. Neither the width nor the
-depth loses the task alone, and the decay decides only how fast the loss
-arrives. Two momentum schedules carry that reading, not one, and the decay arm
-is its extreme case rather than its evidence. The worst AUC is also the
-worst score: 0.773 and 1.4629, against 0.999 and 1.2927 to 1.3495 on the k = 3
-arms.
+So it takes BOTH the width and a depth above 3. At 1.1M all three k = 32 twins
+held, at 0.978, 0.957 and 0.983. At 11.4M this cell at k = 3 improves for
+200,000 steps. Neither the width nor the depth loses the task alone.
+
+At k = 32 and 11.4M, two treatments each finish the job by themselves:
+
+| EMA momentum | no decay | `L_rep` decay to 0.0 by 2,000 |
+|---|---|---|
+| 0.9 to 1.0 at 100k | held, ends 0.773 | LOST at step 18,634 |
+| 0.8 to 1.0 at 200k | LOST at step 28,152 | not run |
+
+THE DECAY IS NOT REQUIRED. `k32_r200_08` carries `L_rep` at weight 1.0 for
+every one of its 28,152 steps and loses the task anyway. A ramp that starts at
+0.8 does it with the full objective in place, and the decay does it 9,518 steps
+sooner at the higher momentum.
+
+The worst AUC is also the worst score: 0.773 and 1.4629, against 0.999 and
+1.2927 to 1.3495 on the k = 3 arms.
 
 ### Every depth above 3 erodes, and they are not ordered by depth
 

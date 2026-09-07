@@ -449,3 +449,21 @@ Retrying in 1s [Retry 1/5].
 [  27400] loss=13.6169  ema_loss=13.5809  gap=-0.0485  ema_gap=-0.0453  mixup=66/200  1.1 sps  ETA 3.1h
               R²_rand=-0.0352  R²_naive=-0.3763  U_t=0.0936  U_b=0.0990  AUC=0.5557  Top1=0.0049
   timing: data=8.0ms  fwd=367.8ms  bwd=436.3ms  total=813.3ms
+'HTTPSConnectionPool(host='us.aws.cdn.hf.co', port=443): Read timed out.' thrown while requesting GET https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00044.parquet
+Retrying in 1s [Retry 1/5].
+[  27600] loss=13.6149  ema_loss=13.5802  gap=-0.0404  ema_gap=-0.0455  mixup=60/200  1.1 sps  ETA 3.1h
+              R²_rand=0.0036  R²_naive=-0.3862  U_t=0.0917  U_b=0.1042  AUC=0.5622  Top1=0.0068
+  timing: data=2427.9ms  fwd=375.9ms  bwd=450.7ms  total=3255.7ms
+[  27800] loss=13.4743  ema_loss=13.5756  gap=-0.0477  ema_gap=-0.0457  mixup=60/200  1.1 sps  ETA 3.1h
+              R²_rand=0.0147  R²_naive=-0.6147  U_t=0.0861  U_b=0.0970  AUC=0.5521  Top1=0.0049
+  timing: data=8.0ms  fwd=364.5ms  bwd=430.8ms  total=804.5ms
+[  28000] loss=13.6287  ema_loss=13.5743  gap=-0.0409  ema_gap=-0.0436  mixup=53/200  1.1 sps  ETA 3.0h
+              R²_rand=-0.0291  R²_naive=-0.7721  U_t=0.1011  U_b=0.1019  AUC=0.5504  Top1=0.0079
+  timing: data=8.1ms  fwd=356.6ms  bwd=420.2ms  total=786.0ms
+[  28200] loss=13.6091  ema_loss=13.5807  gap=-0.0391  ema_gap=-0.0419  mixup=73/200  1.1 sps  ETA 3.0h
+              R²_rand=-0.0393  R²_naive=-1.1511  U_t=0.0988  U_b=0.1045  AUC=0.5320  Top1=0.0057
+  timing: data=36.9ms  fwd=390.1ms  bwd=480.0ms  total=908.3ms
+[  28400] loss=13.4270  ema_loss=13.5779  gap=-0.0376  ema_gap=-0.0384  mixup=58/200  1.1 sps  ETA 2.9h
+              R²_rand=0.0880  R²_naive=-0.5453  U_t=0.0886  U_b=0.0842  AUC=0.5252  Top1=0.0038
+  timing: data=10.3ms  fwd=457.3ms  bwd=565.0ms  total=1034.0ms
+  -> Saved /home/jupyter/checkpoints_backup/cf-412/k32_r200_08/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r200_08_best_gap.pth

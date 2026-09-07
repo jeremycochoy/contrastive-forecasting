@@ -1512,3 +1512,31 @@ k3_r100_09_lr33  step 40000   auc 0.997974 rep_w 1.0   score  40k=1.2483
 k3_r100_09_lr17  step 40000   auc 0.998509 rep_w 1.0   score  -
 k3_r100_09_lr56  step 40000   auc 0.995592 rep_w 1.0   score  -
 lanes 2   trainers 2   heads 1   evals 8
+===== 2026-09-07 12:47:32 =====
+gpu 0, 9016 MiB, 83 %
+gpu 1, 8752 MiB, 78 %
+k3_r100_09       step 200000  auc 0.999517 rep_w 1.0   score  40k=1.3495 100k=1.3395
+k32_r100_09      step 40000   auc 0.773158 rep_w 1.0   score  40k=1.4629
+k32_r200_08      step 27400   auc 0.561872 rep_w 1.0   score  -
+k3_r100_09_dec   step 40000   auc 0.997382 rep_w 0.0   score  -
+k32_r100_09_dec  step 19100   auc 0.501426 rep_w 0.0   score  - COLLAPSED
+k8_r100_09       step 10700   auc 0.852243 rep_w 1.0   score  -
+k3_r100_09b      step 40000   auc 0.998191 rep_w 1.0   score  40k=1.2927
+k3_r100_09_lr33  step 40000   auc 0.997974 rep_w 1.0   score  40k=1.2483
+k3_r100_09_lr17  step 40000   auc 0.998509 rep_w 1.0   score  -
+k3_r100_09_lr56  step 40000   auc 0.995592 rep_w 1.0   score  -
+lanes 2   trainers 2   heads 1   evals 8
+===== 2026-09-07 13:03:21 =====
+gpu 0, 9016 MiB, 90 %
+gpu 1, 8752 MiB, 95 %
+k3_r100_09       step 200000  auc 0.999517 rep_w 1.0   score  40k=1.3495 100k=1.3395
+k32_r100_09      step 40000   auc 0.773158 rep_w 1.0   score  40k=1.4629
+k32_r200_08      step 27900   auc 0.559536 rep_w 1.0   score  -
+k3_r100_09_dec   step 40000   auc 0.997382 rep_w 0.0   score  -
+k32_r100_09_dec  step 19100   auc 0.501426 rep_w 0.0   score  - COLLAPSED
+k8_r100_09       step 12600   auc 0.817368 rep_w 1.0   score  -
+k3_r100_09b      step 40000   auc 0.998191 rep_w 1.0   score  40k=1.2927
+k3_r100_09_lr33  step 40000   auc 0.997974 rep_w 1.0   score  40k=1.2483
+k3_r100_09_lr17  step 40000   auc 0.998509 rep_w 1.0   score  -
+k3_r100_09_lr56  step 40000   auc 0.995592 rep_w 1.0   score  -
+lanes 2   trainers 2   heads 1   evals 7
