@@ -38,11 +38,13 @@ leg runs, because 1.0651 is a 200,000-step number.
 
 Every AUC in this report is a rolling median over 500 training rows, which is
 the statistic the guard reads against its 0.55 threshold. A single row is
-noisy, and one row under the threshold is not a lost run.
+noisy, and one row under the threshold is not a lost run. An AUC goes to three
+places here and a GM-Relative MASE to four, because the 0.0568 band turns on
+the fourth place and no AUC reading does.
 
 Three k = 32 arms of this card have an exact 1.1M twin, and every twin held the
 task. #404's plain twin ended at AUC 0.978 at 40,000 steps. #409's decay twin,
-`dec_m090r100_ramp2k`, ended at 0.9833 and scored 1.2295. #404's `s08` twin, on
+`dec_m090r100_ramp2k`, ended at 0.983 and scored 1.2295. #404's `s08` twin, on
 the other momentum schedule, ended at 0.957. Each twin matches its arm on the
 cell, the momentum, the decay ramp and the seed 20260520.
 
@@ -66,10 +68,9 @@ the k = 32 decay arm reads 0.746 against 0.937 for its no-decay twin, a gap of
 0.191. The k = 3 decay arm reads 0.992 against 0.998, a gap of 0.006. Both
 carry their `L_rep` weight at 0.0 from step 2,000.
 
-`k3_r100_09_dec` then held the task to 40,000 steps. Its rolling-median floor
-is 0.9797 and it ends at 0.9974, against its twin's 0.9988. That floor is
-higher than 0.9039, which is the BEST the k = 32 plain arm reaches after step
-10,000. So the decay costs nothing measurable at k = 3 over 38,000 steps at
+`k3_r100_09_dec` then held the task to 40,000 steps. Its floor is 0.980 and it
+ends at 0.997, against its twin's 0.999. That floor is higher than 0.904, which
+is the BEST the k = 32 plain arm reaches after step 10,000. So the decay costs nothing measurable at k = 3 over 38,000 steps at
 weight 0.0, and the same treatment reaches chance at k = 32.
 
 Two limits hold that reading. It is the AUC axis, and `k3_r100_09_dec` has no
