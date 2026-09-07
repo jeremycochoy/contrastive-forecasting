@@ -77,9 +77,10 @@ def main():
                     textcoords="offset points", ha="center", fontsize=9,
                     color=S.INK, zorder=4)
 
-    order = sorted(range(len(xs)), key=lambda i: xs[i])
-    ax.plot([xs[i] for i in order], [ys[i] for i in order], color=S.SERIES,
-            linewidth=1.6, alpha=0.55, zorder=2)
+    # NO CONNECTING LINE. Two seeds sit at 1e-3, so a line sorted by rate runs
+    # to one of them and skips the other, which draws a trend between rates
+    # this card did not measure. The points and the shaded pair carry the
+    # reading on their own.
 
     ax.set_xscale("log")
     ax.set_xticks(sorted(set(xs)))
