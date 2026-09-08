@@ -1,9 +1,11 @@
 # At Moirai-2-Small size, the learning rate moves the k = 3 score more than the ten-fold capacity increase
 
 At 11.4M parameters, k = 3 and 40,000 steps, a rate change from the published
-1e-3 to 5.6e-4 gains 1.9 seed bands (1.2927 to 1.1820 GM-Relative MASE). The
-ten-fold capacity increase moves the k = 3 cell at most 0.7 bands and makes
-the k = 32 cell 5.5 bands worse, so the rate claim holds on k = 3 only.
+1e-3 to 5.6e-4 gains 2.9 seed bands (1.3495 to 1.1820 GM-Relative MASE, both
+at seed 20260520). The second 1e-3 seed scores 1.2927, still 1.9 bands behind
+5.6e-4. The ten-fold capacity increase moves the k = 3 cell at most 0.7 bands
+and makes the k = 32 cell 5.5 bands worse, so the rate claim holds on k = 3
+only.
 
 ## Definitions
 
@@ -12,17 +14,8 @@ the k = 32 cell 5.5 bands worse, so the rate claim holds on k = 3 only.
 - **The band**: 0.0568, the spread of this card's two seeds on one cell. Two
   numbers closer than the band are not ranked.
 - **A cell**: one combination of depth, reduction, rate and decay.
-- **A leg**: one continuous training segment of an arm toward one stop.
-- **Head-matched**: both sizes score under a 30,000-step head.
-- **AUC** (area under the curve): a diagnostic probe, not a loss term
-  (`src/metrics.py:361`). It counts how often the forecast beats a lagged
-  latent by cosine similarity, and 0.5 is chance. This report prints the
-  guard's statistic, a rolling median over 500 training rows, except where a
-  value says raw.
-- **Lost**: the guard (median under 0.55 after a 1,000-step warm-up) ended
-  the run early. **Held**: the guard did not end the run.
-- **EMA** (exponential moving average): the teacher is an EMA of the student,
-  and `L_align` pulls the forecast toward its latent.
+
+The other definitions open the tables section.
 
 ## The rate has an interior minimum at 5.6e-4
 
@@ -35,8 +28,8 @@ the two project references.
 
 ![the scores](plots/scores.png)
 
-Every pass-1 score against its 1.1M twin, and each label names the arm's
-reduction.
+Every pass-1 score against its 1.1M twin, and each label gives the arm's
+settings.
 
 ## No stop improves the score at 1e-3
 
@@ -73,7 +66,8 @@ and the inheritance table below shows the confound. The one mean arm at
 
 `u_temporal` and `u_batch` of the two lost arms, 200-row rolling mean, with
 the lost step dashed. The two statistics measure dimension usage of the
-latents across time and across the batch (`src/metrics.py:179`).
+latents across time and across the batch (`src/metrics.py:179` and
+`src/metrics.py:184`).
 
 `L_rep` carries the contrastive negatives. `k32_r200_08` carries it at weight
 1.0 for all 28,500 logged steps, so the decay is not required to lose the
@@ -127,15 +121,28 @@ not project its decay pair past the stop it measured.
 
 ## The tables
 
+- **A leg**: one continuous training segment of an arm toward one stop.
+- **Head-matched**: both sizes score under a 30,000-step head.
+- **AUC** (area under the curve): a diagnostic probe, not a loss term
+  (`src/metrics.py:361`). It counts how often the forecast beats a lagged
+  latent by cosine similarity, and 0.5 is chance. This report prints the
+  guard's statistic, a rolling median over 500 training rows, except where a
+  value says raw.
+- **Lost**: the guard (median under 0.55 after a 1,000-step warm-up) ended
+  the run early. **Held**: the guard did not end the run.
+- **EMA** (exponential moving average): the teacher is an EMA of the student,
+  and `L_align` pulls the forecast toward its latent.
+
 Every 1.1M reference number comes from `scripts/plot_style.py` and
 `scripts/arms.tsv`. The k = 3 twin is cell A3 of the rollout-depth study, at
-the same seed. Its head is 15,000 steps at the 40,000-step stop and 30,000
-steps at the two later stops. The k = 32 twins come from the EMA-momentum
-study (seeds 20260520 and 20260524) and the L_rep-decay study, under a
-30,000-step head. The AUC anchors 0.978, 0.957 and 0.983 come from the same
-two studies. The
-project best, 1.0651, is the 1.1M align-student run at 200,000 steps (align
-student: `L_align` targets the student latent, not the EMA teacher).
+seed 20260520. That seed matches every k = 3 row except `k3_r100_09b`, which
+runs 20260525, so its twin is not seed-matched. The twin's head is 15,000
+steps at the 40,000-step stop and 30,000 steps at the two later stops. The
+k = 32 twins come from the EMA-momentum study (seeds 20260520 and 20260524)
+and the L_rep-decay study, under a 30,000-step head. The AUC anchors 0.978,
+0.957 and 0.983 come from the same two studies. The project best, 1.0651, is
+the 1.1M align-student run at 200,000 steps (align student: `L_align` targets
+the student latent, not the EMA teacher).
 
 ### The references
 
@@ -150,20 +157,22 @@ student: `L_align` targets the student latent, not the EMA teacher).
 Ten scores over eight arms, because one arm scores three stops. Every 1e-3
 row is superseded on the k = 3 cell by 1.1820 at 5.6e-4
 (`results/scores.csv`). The two band columns read against the 1e-3 pair of the
-same cell, in units of 0.0568, and positive is better.
+same cell, in units of 0.0568. The `twin minus 11.4M` column subtracts the
+row's 11.4M score from its 1.1M twin. In all three columns, positive favours
+the 11.4M arm.
 
-| arm | k | reduce | seed | lr | decay | stop | 11.4M | bands vs 1.3495 | bands vs 1.2927 | 1.1M twin | gap | head-matched |
+| arm | k | reduce | seed | lr | decay | stop | 11.4M | bands vs 1.3495 | bands vs 1.2927 | 1.1M twin | twin minus 11.4M | head-matched |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | k3_r100_09_lr56 | 3 | sum | 20260520 | 5.6e-4 | no | 40,000 | 1.1820 | 2.9 | 1.9 | never run | — | — |
 | k3_r100_09_lr33 | 3 | sum | 20260520 | 3.3e-4 | no | 40,000 | 1.2483 | 1.8 | 0.8 | never run | — | — |
 | k3_r100_09_lr17 | 3 | sum | 20260520 | 1.67e-4 | no | 40,000 | 1.2612 | 1.6 | 0.6 | never run | — | — |
-| k3_r100_09b | 3 | sum | 20260525 | 1e-3 | no | 40,000 | 1.2927 | 1.0 | — | 1.3618 | -0.0691 | no, 15,000-step head |
+| k3_r100_09b | 3 | sum | 20260525 | 1e-3 | no | 40,000 | 1.2927 | 1.0 | — | 1.3618 (not seed-matched) | +0.0691 | no, 15,000-step head |
 | k3_r100_09_dec | 3 | sum | 20260520 | 1e-3 | yes | 40,000 | 1.3236 | — | — | never run | — | — |
-| k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 100,000 | 1.3395 | — | — | 1.3010 | +0.0385 | yes |
-| k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 40,000 | 1.3495 | — | — | 1.3618 | -0.0123 | no, 15,000-step head |
-| k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 200,000 | 1.3910 | — | — | 1.3998 | -0.0088 | yes |
+| k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 100,000 | 1.3395 | — | — | 1.3010 | -0.0385 | yes |
+| k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 40,000 | 1.3495 | — | — | 1.3618 | +0.0123 | no, 15,000-step head |
+| k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 200,000 | 1.3910 | — | — | 1.3998 | +0.0088 | yes |
 | k8_r100_09 | 8 | mean | 20260520 | 1e-3 | no | 40,000 | 1.4537 | — | — | never run | — | — |
-| k32_r100_09 | 32 | mean | 20260520 | 1e-3 | no | 40,000 | 1.4629 | — | — | 1.1507 (1.1491 to 1.1507) | +0.3122 | yes |
+| k32_r100_09 | 32 | mean | 20260520 | 1e-3 | no | 40,000 | 1.4629 | — | — | 1.1507 (1.1491 to 1.1507) | -0.3122 | yes |
 
 ### The reduction and the depth are confounded
 

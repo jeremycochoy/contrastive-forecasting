@@ -1,38 +1,19 @@
 ### The scores
 
-The band is **0.0568** (this card measured it at 11.4M). Two numbers closer than that are not ranked.
+The band is **0.0568** (this card measured it at 11.4M). Two numbers closer than that are not ranked. The `twin minus 11.4M` column subtracts the row's 11.4M score from its 1.1M twin, and positive favours the 11.4M arm.
 
-| arm | k | reduce | seed | lr | L_rep decay | stop | 11.4M | 1.1M twin (parent seed range) | gap | head-matched |
+| arm | k | reduce | seed | lr | L_rep decay | stop | 11.4M | 1.1M twin (parent seed range) | twin minus 11.4M | head-matched |
 |---|---|---|---|---|---|---|---|---|---|---|
 | k3_r100_09_lr56 | 3 | sum | 20260520 | 5.6e-4 | no | 40,000 | 1.1820 | never run | — | — |
 | k3_r100_09_lr33 | 3 | sum | 20260520 | 3.3e-4 | no | 40,000 | 1.2483 | never run | — | — |
 | k3_r100_09_lr17 | 3 | sum | 20260520 | 1.67e-4 | no | 40,000 | 1.2612 | never run | — | — |
-| k3_r100_09b | 3 | sum | 20260525 | 1e-3 | no | 40,000 | 1.2927 | 1.3618 | -0.0691 | no, 15,000-step head |
+| k3_r100_09b | 3 | sum | 20260525 | 1e-3 | no | 40,000 | 1.2927 | 1.3618 (not seed-matched) | +0.0691 | no, 15,000-step head |
 | k3_r100_09_dec | 3 | sum | 20260520 | 1e-3 | yes | 40,000 | 1.3236 | never run | — | — |
-| k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 100,000 | 1.3395 | 1.3010 | +0.0385 | yes |
-| k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 40,000 | 1.3495 | 1.3618 | -0.0123 | no, 15,000-step head |
-| k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 200,000 | 1.3910 | 1.3998 | -0.0088 | yes |
+| k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 100,000 | 1.3395 | 1.3010 | -0.0385 | yes |
+| k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 40,000 | 1.3495 | 1.3618 | +0.0123 | no, 15,000-step head |
+| k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 200,000 | 1.3910 | 1.3998 | +0.0088 | yes |
 | k8_r100_09 | 8 | mean | 20260520 | 1e-3 | no | 40,000 | 1.4537 | never run | — | — |
-| k32_r100_09 | 32 | mean | 20260520 | 1e-3 | no | 40,000 | 1.4629 | 1.1507 (1.1491 to 1.1507) | +0.3122 | yes |
-
-### The contrastive AUC
-
-| arm | verdict | AUC floor | at step | AUC last | at step |
-|---|---|---|---|---|---|
-| k32_r100_09 | held | 0.6827 | 20872 | 0.7732 | 40000 |
-| k32_r100_09_dec | lost | 0.5014 | 19100 | 0.5014 | 19100 |
-| k32_r100_09_lr56 | held | 0.9211 | 9372 | 0.9240 | 9800 |
-| k32_r200_08 | lost | 0.5347 | 28500 | 0.5347 | 28500 |
-| k3_r100_09 | held | 0.9931 | 1942 | 0.9988 | 40000 |
-| k3_r100_09 | held | 0.9974 | 40001 | 0.9994 | 100000 |
-| k3_r100_09 | held | 0.9992 | 144399 | 0.9995 | 200000 |
-| k3_r100_09_dec | held | 0.9797 | 9690 | 0.9974 | 40000 |
-| k3_r100_09_lr17 | held | 0.9852 | 5991 | 0.9985 | 40000 |
-| k3_r100_09_lr33 | held | 0.9913 | 3337 | 0.9980 | 40000 |
-| k3_r100_09_lr56 | held | 0.9936 | 34553 | 0.9956 | 40000 |
-| k3_r100_09_lr56 | held | 0.9956 | 40001 | 0.9987 | 66500 |
-| k3_r100_09b | held | 0.9922 | 1869 | 0.9982 | 40000 |
-| k8_r100_09 | held | 0.6847 | 14106 | 0.7302 | 40000 |
+| k32_r100_09 | 32 | mean | 20260520 | 1e-3 | no | 40,000 | 1.4629 | 1.1507 (1.1491 to 1.1507) | -0.3122 | yes |
 
 ### The contrastive AUC, step by step
 
@@ -49,7 +30,7 @@ Lower is worse. A run at 0.5 has lost the task. The last column is what the same
 | k8_r100_09 | 8 | 0.9 to 1.0 at 100k | no | 0.971 | 0.961 | 0.920 | 0.881 | 0.812 | 0.717 | 0.769 | 0.769 | 0.772 | 0.730 | held | — |
 | k32_r100_09 | 32 | 0.9 to 1.0 at 100k | no | 0.968 | 0.937 | 0.889 | 0.892 | 0.840 | 0.793 | 0.763 | 0.843 | 0.789 | 0.773 | held | 0.978 (#404) |
 | k32_r200_08 | 32 | 0.8 to 1.0 at 200k | no | 0.877 | 0.814 | 0.788 | 0.749 | 0.739 | 0.751 | 0.796 | 0.568 | 0.555 | — | lost at 28,152 | 0.957 (#404) |
-| k32_r100_09_lr56 | 32 | 0.9 to 1.0 at 100k | no | 0.973 | 0.964 | 0.932 | 0.924 | — | — | — | — | — | — | held | — |
+| k32_r100_09_lr56 | 32 | 0.9 to 1.0 at 100k | no | 0.973 | 0.964 | 0.932 | 0.925 | — | — | — | — | — | — | held | — |
 | k32_r100_09_dec | 32 | 0.9 to 1.0 at 100k | yes | 0.978 | 0.746 | 0.758 | 0.742 | 0.642 | 0.747 | 0.718 | — | — | — | lost at 18,634 | 0.983 (#409) |
 
 **Read this table by row and by column, never on the diagonal.** Two rows are comparable only when they differ in ONE column. These are the pairs, and there are no others:

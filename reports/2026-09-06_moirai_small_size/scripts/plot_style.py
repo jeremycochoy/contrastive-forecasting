@@ -106,6 +106,8 @@ DEC = "reports/2026-08-22_rep_weight_decay"
 REF_1M1 = {
     "k3_r100_09": {40000: (1.3618, 15000, A3), 100000: (1.3010, 30000, A3),
                    200000: (1.3998, 30000, A3)},
+    # NOT SEED-MATCHED. A3 ran seed 20260520 and this arm runs 20260525, so
+    # its twin gap carries the seed difference too.
     "k3_r100_09b": {40000: (1.3618, 15000, A3), 100000: (1.3010, 30000, A3),
                     200000: (1.3998, 30000, A3)},
     # SEED-MATCHED. #404 ran this schedule at two backbone seeds, 1.1507 at
@@ -117,6 +119,8 @@ REF_1M1 = {
 }
 # The whole measured spread of a 1.1M reference, where the parent ran a repeat.
 REF_1M1_SEEDS = {("k32_r100_09", 40000): (1.1491, 1.1507)}
+# The arms whose twin ran a different backbone seed.
+REF_SEED_MISMATCH = {"k3_r100_09b"}
 
 
 # The two seeds of `k3_r100_09` at 11.4M parameters. They are what `BAND`

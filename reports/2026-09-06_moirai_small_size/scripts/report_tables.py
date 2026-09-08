@@ -9,9 +9,12 @@ It writes four tables:
 
   1. the scores, each 11.4M arm beside its 1.1M twin and the head budget of
      each
-  2. the contrastive AUC verdict of every run
+  2. the contrastive AUC of every run at fixed steps, with the guard's verdict
   3. the training loss by term at each stop
   4. what each arm cost, in backbone steps and in wall-clock hours
+
+The AUC floor-and-last summary table is gone: the report review found it
+redundant beside the step-by-step table, and this script must not put it back.
 
 Usage:  report_tables.py [--out results/tables.md]
 """
@@ -44,13 +47,17 @@ def scores_table(arms, scores):
         row = arms.get(arm, {})
         ref = S.reference(arm, stop)
         if ref:
-            gap = value - ref[0]
+            # Twin minus 11.4M, so positive favours the 11.4M arm, the same
+            # sign the report's band columns carry.
+            gap = ref[0] - value
             matched = "yes" if ref[1] == HEAD_STEPS else \
                 f"no, {ref[1]:,}-step head"
             ref_text, gap_text = f"{ref[0]:.4f}", f"{gap:+.4f}"
             spread = S.reference_spread(arm, stop)
             if spread:
                 ref_text += f" ({spread[0]:.4f} to {spread[1]:.4f})"
+            if arm in S.REF_SEED_MISMATCH:
+                ref_text += " (not seed-matched)"
         else:
             matched, ref_text, gap_text = "—", "never run", "—"
         rows.append((arm, row.get("k", "?"), row.get("reduce", "?"),
@@ -59,27 +66,7 @@ def scores_table(arms, scores):
                      f"{stop:,}", f"{value:.4f}", ref_text, gap_text, matched))
     return table(rows, ["arm", "k", "reduce", "seed", "lr", "L_rep decay",
                         "stop", "11.4M", "1.1M twin (parent seed range)",
-                        "gap", "head-matched"])
-
-
-def auc_table(path):
-    rows = []
-    try:
-        with open(path, newline="") as fh:
-            for r in csv.DictReader(fh, delimiter="\t"):
-                run = r.get("run", "")
-                arm = run.split("_cf412_")[-1].replace("_losses.csv", "")
-                if r.get("verdict") == "error":
-                    continue
-                rows.append((arm, r.get("verdict", "?"), r.get("floor", "-"),
-                             r.get("floor_step", "-"), r.get("last", "-"),
-                             r.get("last_step", "-")))
-    except OSError:
-        return "_no AUC verdict yet._"
-    if not rows:
-        return "_no AUC verdict yet._"
-    return table(sorted(rows), ["arm", "verdict", "AUC floor", "at step",
-                                "AUC last", "at step"])
+                        "twin minus 11.4M", "head-matched"])
 
 
 def terms_table(path):
@@ -340,9 +327,10 @@ def main():
     text = "\n\n".join([
         "### The scores",
         f"The band is **{band:.4f}** ({band_src}). Two numbers closer than "
-        "that are not ranked.",
+        "that are not ranked. The `twin minus 11.4M` column subtracts the "
+        "row's 11.4M score from its 1.1M twin, and positive favours the "
+        "11.4M arm.",
         scores_table(arms, scores),
-        "### The contrastive AUC", auc_table(RESULTS / "auc_verdicts.tsv"),
         "### The contrastive AUC, step by step",
         "Lower is worse. A run at 0.5 has lost the task. The last column is "
         "what the same cell, seed and stop reached at 1.1M parameters.",
