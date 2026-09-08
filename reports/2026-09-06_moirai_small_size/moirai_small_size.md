@@ -71,14 +71,20 @@ and the inheritance table below shows the confound.
 1.4404 at 5.6e-4 against 1.4629 at 1e-3, a gap of 0.35 bands. The two are not
 ranked. The rate gains 2.6 bands on k = 3 and nothing here.
 
-## One lost arm falls to near-zero dimension usage, the other rises
+## The three stopped arms take three different paths
 
-![the dimension usage of the two lost arms](plots/lost_uniformity.png)
+![the dimension usage of the three stopped arms](plots/lost_uniformity.png)
 
-`u_temporal` and `u_batch` of the two lost arms, 200-row rolling mean, with
-the lost step dashed. The two statistics measure dimension usage of the
+`u_temporal` and `u_batch` of the three stopped arms, 200-row rolling mean,
+with the stop step dashed. The two statistics measure dimension usage of the
 latents across time and across the batch (`src/metrics.py:179` and
 `src/metrics.py:184`).
+
+`k32_r100_09_dec` falls to near-zero usage and `k32_r200_08` rises.
+`k3_r100_09_mean` does neither. From step 2,000 to its stop at 26,413 its
+`u_temporal` stays between 0.0296 and 0.0464 and its `u_batch` between 0.0590
+and 0.0799, and both end near the top of that range. So these two statistics
+do not tell you which arm loses the task.
 
 `L_rep` carries the contrastive negatives. `k32_r200_08` carries it at weight
 1.0 for all 28,500 logged steps, so the decay is not required to lose the
