@@ -323,3 +323,25 @@ unscored with no warning. Add an arm, then re-copy `scripts/` to
 
 `head_eval.sh` calls `head_eval_bb.sh` of the 2026-08-08 study, which is
 outside the snapshot.
+
+## Scheduling, moved out of the report by the report review
+
+Backbones train on one GPU and heads on the other. A backbone queue trains no
+head, and one head sweep starts every head that a checkpoint lacks.
+
+`scripts/arm_busy.sh <arm>` and `scripts/head_busy.sh <arm> <stop>` answer
+whether an arm or a checkpoint is already training. Ask them before you start
+anything by hand, because nothing under this card stops two trainers on one
+arm.
+
+The empty `l_pred` column of the losses CSVs is not a logging fault. The loss
+shape `cosine_similarity_batch_rep_only` has no prediction term
+(`src/loss.py:1152`).
+
+## The splice is retired
+
+`splice_report.sh` rewrote the report's arms and tables sections on every
+heartbeat tick while pass 1 ran. The report review of 2026-09-08 fixed those
+sections by hand, so both copies of the script (`scripts/`, `run_snapshot/`)
+now exit 0 and do nothing, and the reviewed plot scripts were re-copied into
+`run_snapshot/`. The heartbeat still watches, collects and mirrors.

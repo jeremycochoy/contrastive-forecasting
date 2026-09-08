@@ -52,8 +52,7 @@ def main():
     ax.axhspan(0.0, THRESHOLD, color=S.LOST, alpha=0.06, zorder=0)
     ax.axhline(THRESHOLD, color=S.LOST, linewidth=1.2, linestyle="--",
                zorder=1)
-    ax.annotate(f"{THRESHOLD}  the gate: a rolling median under this line "
-                "over 500 rows is a lost run",
+    ax.annotate(f"{THRESHOLD}, the gate",
                 (0.005, THRESHOLD), xycoords=("axes fraction", "data"),
                 xytext=(0, -12), textcoords="offset points", fontsize=8,
                 color=S.LOST)

@@ -44,7 +44,7 @@ def main():
 
     arms = {r["arm"]: r for r in S.read_arms(args.arms)}
     scored = S.read_scores(args.scores, stop=args.stop)
-    band, band_src = S.effective_band(scored)
+    band, _ = S.effective_band(scored)
 
     # Every arm of the configuration-1 cell that holds a score: the two 1e-3
     # seeds and the rate arms. Nothing else shares the cell.
@@ -70,9 +70,9 @@ def main():
         # The tick reads the rate as `arms.tsv` writes it, not as `%g` prints
         # a float. `1e-3` and `0.001` are one value and two labels.
         tick[rate] = arms[arm]["lr"]
-        ax.errorbar(rate, value, yerr=band / 2, fmt="o", markersize=8,
-                    color=S.SERIES, ecolor=S.SERIES, elinewidth=1.4,
-                    capsize=4, zorder=3)
+        # No error bar: every rate arm holds one seed, so the only measured
+        # spread is the shaded 1e-3 pair, drawn once.
+        ax.plot(rate, value, "o", markersize=8, color=S.SERIES, zorder=3)
         ax.annotate(f"{value:.4f}", (rate, value), xytext=(0, 13),
                     textcoords="offset points", ha="center", fontsize=9,
                     color=S.INK, zorder=4)
@@ -88,19 +88,16 @@ def main():
     ax.minorticks_off()
     ax.set_xlabel("learning rate, one AdamW group over all parameters")
     ax.set_ylabel("GM-Relative MASE — lower is better")
-    ax.set_title(f"the rate bracket on configuration 1, {args.stop:,} "
-                 "backbone steps at 11.4M", color=S.INK, fontsize=12,
+    ax.set_title(f"GM-Relative MASE against learning rate, k = 3, "
+                 f"{args.stop:,} steps, 11.4M", color=S.INK, fontsize=12,
                  loc="left", pad=12)
     S.tidy(ax)
 
-    handles = [Line2D([], [], color=S.SERIES, marker="o", linewidth=1.6,
-                      label=f"11.4M, k = 3, sum, 30,000-step head"),
-               Line2D([], [], color=S.SERIES, linewidth=1.4,
-                      label=f"the {band:.4f} seed band ({band_src})")]
+    handles = [Line2D([], [], color=S.SERIES, marker="o", linestyle="none",
+                      label="11.4M, k = 3, sum, 30,000-step head")]
     if len(pair) == 2:
-        handles.insert(1, Patch(color=S.MUTED, alpha=0.14,
-                                label=f"the 1e-3 pair, {pair[0]:.4f} to "
-                                      f"{pair[1]:.4f}"))
+        handles.append(Patch(color=S.MUTED, alpha=0.14,
+                             label=f"{band:.4f} seed band, the 1e-3 pair"))
     fig.legend(handles=handles, frameon=False, fontsize=8, labelcolor=S.INK,
                loc="upper center", ncol=2, bbox_to_anchor=(0.5, 0.0))
 

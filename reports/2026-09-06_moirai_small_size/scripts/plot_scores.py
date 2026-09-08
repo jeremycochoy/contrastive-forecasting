@@ -8,10 +8,10 @@ side by side is how a reader sees the sign of the difference in one look.
 
 WHAT IT DRAWS. One row for each arm that holds an 11.4M score. The 11.4M score
 takes the series color. The 1.1M score its parent published takes the muted
-reference ink, because it is not a run of this card. The seed band rides on
-the 11.4M bar as an error bar, and a difference inside it is not a rank. The
-band is this card's own two seeds of configuration 1 where it measured them,
-else #409's floor, whichever is wider.
+reference ink, because it is not a run of this card. The seed band is ONE
+measurement, the two 1e-3 seeds of configuration 1, so it draws ONCE, as a
+shaded span between the two seed scores. An error bar on every marker would
+claim a per-arm variance no single-seed arm measured.
 
 Lower is better on this metric, so a bar that reaches further right is worse.
 
@@ -26,7 +26,6 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
-from matplotlib.lines import Line2D  # noqa: E402
 from matplotlib.patches import Patch  # noqa: E402
 
 import plot_style as S  # noqa: E402
@@ -50,12 +49,18 @@ def main():
     if not rows:
         raise SystemExit(f"no arm holds a score at {args.stop} steps")
     rows.sort(key=lambda r: scored[r["arm"]])
-    band, band_src = S.effective_band(scored)
+    band, _ = S.effective_band(scored)
+    pair = sorted(scored[a] for a in S.BAND_SEEDS if a in scored)
 
     fig, ax = plt.subplots(figsize=(9.0, 0.9 * len(rows) + 2.2))
     fig.patch.set_facecolor(S.SURFACE)
     ax.set_facecolor(S.SURFACE)
     h = 0.34
+
+    # The band, drawn once: the span between the two 1e-3 seeds. The same
+    # encoding as the rates figure.
+    if len(pair) == 2:
+        ax.axvspan(pair[0], pair[1], color=S.MUTED, alpha=0.14, zorder=1)
 
     unmatched = False
     for n, row in enumerate(rows):
@@ -64,10 +69,7 @@ def main():
         value = scored[arm]
         ax.barh(y + h / 2 + 0.03, value, height=h, color=S.SERIES,
                 edgecolor=S.SURFACE, linewidth=2.0, zorder=3)
-        ax.errorbar(value, y + h / 2 + 0.03, xerr=band / 2, fmt="none",
-                    ecolor=S.SURFACE, elinewidth=1.6, capsize=3, zorder=4)
-        # Past the error bar cap, never on it.
-        ax.annotate(f"{value:.4f}", (value + band / 2, y + h / 2 + 0.03),
+        ax.annotate(f"{value:.4f}", (value, y + h / 2 + 0.03),
                     xytext=(6, 0), textcoords="offset points", va="center",
                     fontsize=9, color=S.INK)
         ref = S.reference(arm, args.stop)
@@ -84,11 +86,6 @@ def main():
             ax.annotate(f"{ref[0]:.4f}{note}", (ref[0], y - h / 2 - 0.03),
                         xytext=(6, 0), textcoords="offset points",
                         va="center", fontsize=9, color=S.MUTED)
-        else:
-            ax.annotate("no 1.1M twin — the parent never ran this cell",
-                        (0.0, y - h / 2 - 0.03), xytext=(6, 0),
-                        textcoords="offset points", va="center", fontsize=8,
-                        color=S.MUTED, style="italic")
 
     ax.set_yticks(range(len(rows)))
     ax.set_yticklabels([S.arm_label(r) for r in reversed(rows)], fontsize=9,
@@ -108,8 +105,9 @@ def main():
     if unmatched:
         handles.append(Patch(facecolor=S.REFERENCE, alpha=0.30, hatch="///",
                              label="a 1.1M score at another head budget"))
-    handles.append(Line2D([], [], color=S.MUTED, linewidth=1.6,
-                          label=f"the {band:.4f} seed band ({band_src})"))
+    if len(pair) == 2:
+        handles.append(Patch(color=S.MUTED, alpha=0.14,
+                             label=f"{band:.4f} seed band"))
     # Below the figure, never on a bar and never on the axis label.
     fig.legend(handles=handles, frameon=False, fontsize=8, labelcolor=S.INK,
                loc="upper center", ncol=2, bbox_to_anchor=(0.5, 0.0))

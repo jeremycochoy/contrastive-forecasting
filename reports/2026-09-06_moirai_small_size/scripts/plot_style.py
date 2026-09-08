@@ -64,8 +64,10 @@ SURFACE = "#fcfcfb"
 REFERENCE = MUTED
 # Held arms that the headline does not name, in a curve figure.
 HELD = "#b0b0b0"
-# The rollout depth k, light to dark on the series hue. Depth is a magnitude.
-DEPTH_RAMP = {3: "#8fbce8", 8: "#5b9ade", 32: "#1d5599"}
+# The rollout depth k. The three depths take three hues a color-vision check
+# passes together with the alarm red: two same-family blues for k = 3 and
+# k = 32 blurred into one, and k = 8 is the depth the AUC figure ranks.
+DEPTH_RAMP = {3: "#6ba3dc", 8: "#c98a2d", 32: "#1d5599"}
 
 STOP = 40000
 CELL = "arm6_v2_combab_alignT"
@@ -229,7 +231,9 @@ def read_scores(path, stop=None):
 def arm_label(row):
     """What a reader sees beside a curve or a bar: the depth, then the
     treatment that separates this arm from the others at that depth."""
-    text = f"k = {row['k']}"
+    # The reduction rides every label: the k = 3 arms run `sum` and the
+    # deeper arms run `mean`, and a label without it hides that confound.
+    text = f"k = {row['k']}, {row['reduce']}"
     if row["end"] != "-":
         text += f", {row['tau']} to {row['end']} at {int(row['ramp']) // 1000}k"
     else:

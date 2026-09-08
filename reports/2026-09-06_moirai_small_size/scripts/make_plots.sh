@@ -10,7 +10,8 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$HERE/study.sh"
 mkdir -p "$CF412_PLOTS"
 rc=0
-for fig in plot_scores plot_rates plot_climb plot_auc plot_loss_terms; do
+for fig in plot_scores plot_rates plot_climb plot_auc plot_auc_score \
+           plot_lost_uniformity plot_loss_terms; do
   python3 "$HERE/$fig.py" --out "$CF412_PLOTS/${fig#plot_}.png" || rc=1
 done
 exit $rc
