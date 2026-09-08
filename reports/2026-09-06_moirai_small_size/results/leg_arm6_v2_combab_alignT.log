@@ -33,3 +33,7 @@
 [09-07 11:40:03] [arm6_v2_combab_alignT] DONE target=200000 (66M) -> /home/jupyter/checkpoints_backup/cf-412/k3_r100_09/arm6_v2_combab_alignT/leg_200k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_200k.pth
 [09-07 11:42:22] [arm6_v2_combab_alignT] DONE target=40000 (66M) -> /home/jupyter/checkpoints_backup/cf-412/k3_r100_09_lr17/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr17_40k.pth
 [09-07 16:39:22] [arm6_v2_combab_alignT] DONE target=40000 (66M) -> /home/jupyter/checkpoints_backup/cf-412/k8_r100_09/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k8_cf412_k8_r100_09_40k.pth
+[09-08 00:07:30] [arm6_v2_combab_alignT] RESUME from cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_40k.pth (step 40k)
+[09-08 00:07:30] [arm6_v2_combab_alignT] START target=100000 gpu=0 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-412/k3_r100_09_lr56/arm6_v2_combab_alignT/leg_100k
+[09-08 00:07:36] [arm6_v2_combab_alignT] FRESH start at step 0
+[09-08 00:07:36] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-412/k32_r100_09_lr56/arm6_v2_combab_alignT/leg_40k
