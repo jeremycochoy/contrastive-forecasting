@@ -57,7 +57,10 @@ n(){ local c; c="$(pgrep -c -f "$1" 2>/dev/null)"; printf '%s' "${c:-0}"; }
 # EXECUTABLE is python. `ps -eo args` puts that in $1.
 npy(){ ps -eo args --no-headers 2>/dev/null \
   | awk -v pat="$1" '$1 ~ /python/ && $0 ~ pat { n++ } END { print n+0 }'; }
-# A lane runs `scripts/phase1.sh` OR `run_snapshot/phase1.sh`, the frozen copy.
+# A lane runs `phase1.sh` or `pass2_lane.sh`, from `scripts/` OR from
+# `run_snapshot/`, the frozen copy. Pass 2 and pass 3 drive `pass2_lane.sh`,
+# and a pattern that names `phase1.sh` alone read `lanes 0` against two live
+# lanes for the whole of both passes.
 # A pattern that names `scripts/` alone counts 2 lanes where 3 drive work, and
 # a reader takes the low count for a lane that died. A bare `phase1.sh`
 # over-counts instead: an agent session carries the string in its own command
@@ -68,7 +71,7 @@ npy(){ ps -eo args --no-headers 2>/dev/null \
 # work. So a match whose parent also matches is a subshell, and it drops out.
 nlane(){ ps -eo pid,ppid,args --no-headers 2>/dev/null | awk '
   { a = $0; sub(/^[ ]*[0-9]+[ ]+[0-9]+[ ]+/, "", a)
-    if (a ~ /^bash [^ ]*phase1\.sh$/) m[$1] = $2 }
+    if (a ~ /^bash [^ ]*(phase1|pass2_lane)\.sh$/) m[$1] = $2 }
   END { n = 0; for (p in m) if (!(m[p] in m)) n++; print n + 0 }'; }
 printf 'lanes %s   trainers %s   heads %s   evals %s\n' \
   "$(nlane)" "$(npy 'freq-embedding/scripts/train\.py')" \
