@@ -9,10 +9,14 @@ nothing about `L_align`, and a decay arm's whole treatment is the weight on
 THE TERMS THIS CELL HAS. The cell is `cosine_similarity_batch_rep_only`, so
 `L_pred` DOES NOT EXIST: the trainer writes the column and leaves every cell
 of it blank (`src/loss.py`). The objective is `L_rep` plus `L_align`, and this
-figure draws both, with the live `L_rep` weight under them.
+figure draws both. The live `L_rep` weight is binary (1.0, or 0.0 by step
+2,000 on the two decay arms), so the report states it in the caption and the
+figure draws no panel for it.
 
 Each panel shares one x axis, and each carries one curve for each arm. The
-rollout depth k orders the curves, so it takes one hue light to dark.
+rollout depth k orders the curves, so it takes one hue light to dark. The
+`L_rep` panel keeps the hue legend only: its curves overlay too closely for
+per-curve labels, and the `L_align` panel below names every arm.
 
 Usage:  plot_loss_terms.py [--root <checkpoint root>] [--out plots/loss.png]
 """
@@ -32,45 +36,7 @@ HERE = Path(__file__).resolve().parent
 STUDY = HERE.parent
 ROOT = "/home/jupyter/checkpoints_backup/cf-412"
 PANELS = (("l_rep", "L_rep, the term that carries the negatives"),
-          ("l_align", "L_align, on the EMA teacher"),
-          ("rep_w", "the live weight on L_rep"))
-
-
-def label_margin(ax, items, fontsize=8, pad=1.4):
-    """Name every curve in a column at the panel's right edge.
-
-    A stopped arm ends mid-panel, so a label at its curve END lands on other
-    curves and, on a short panel, on the next panel's title. This column puts
-    every label past the axis, at the curve's last VALUE, and stacks them in
-    pixel space so two labels never overprint.
-    """
-    seen = {}
-    for series, text, colour in items:
-        if series:
-            seen[text] = (series[-1][1], text, colour)
-    ends = list(seen.values())
-    if not ends:
-        return
-    dpi = ax.figure.dpi
-    gap = fontsize * pad * dpi / 72.0
-    rows = sorted(((ax.transData.transform((0, v))[1], t, c)
-                   for v, t, c in ends), key=lambda r: r[0])
-    placed = []
-    for y, _, _ in rows:
-        if placed and y - placed[-1] < gap:
-            y = placed[-1] + gap
-        placed.append(y)
-    box = ax.get_window_extent()
-    over = placed[-1] - box.y1
-    if over > 0:
-        placed = [y - min(over, max(placed[0] - box.y0, 0.0)) for y in placed]
-    inverse = ax.transData.inverted()
-    for (_, text, colour), y in zip(rows, placed):
-        value = inverse.transform((0, y))[1]
-        ax.annotate(text, (1.01, value),
-                    xycoords=("axes fraction", "data"), fontsize=fontsize,
-                    color=colour, va="center", ha="left",
-                    annotation_clip=False)
+          ("l_align", "L_align, on the EMA teacher"))
 
 
 def main():
@@ -99,15 +65,13 @@ def main():
     if not runs:
         raise SystemExit(f"no losses CSV under {args.root}")
 
-    fig, axes = plt.subplots(len(PANELS), 1, figsize=(8.4, 8.4), sharex=True)
+    fig, axes = plt.subplots(len(PANELS), 1, figsize=(8.4, 6.4), sharex=True)
     fig.patch.set_facecolor(S.SURFACE)
     for ax, (column, title) in zip(axes, PANELS):
         ax.set_facecolor(S.SURFACE)
         items = []
         for arm, colour, data, _, _ in runs:
-            series = data.get(column) or []
-            if column != "rep_w":
-                series = S.smooth(series, args.smooth)
+            series = S.smooth(data.get(column) or [], args.smooth)
             if not series:
                 continue
             ax.plot([s for s, _ in series], [v for _, v in series],
@@ -129,18 +93,8 @@ def main():
     fig.tight_layout()
     fig.canvas.draw()
     for ax, (column, _) in zip(axes, PANELS):
-        if column == "rep_w":
-            # The weight is binary, so eleven stacked labels say two things.
-            ax.annotate("no decay: weight 1.0", (1.01, 1.0),
-                        xycoords=("axes fraction", "data"), fontsize=8,
-                        color=S.INK, va="center", ha="left",
-                        annotation_clip=False)
-            ax.annotate("the two decay arms: 0.0 by step 2,000", (1.01, 0.0),
-                        xycoords=("axes fraction", "data"), fontsize=8,
-                        color=S.INK, va="center", ha="left",
-                        annotation_clip=False)
-        else:
-            label_margin(ax, ax._items)
+        if column == "l_align":
+            S.label_margin(ax, ax._items)
 
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(args.out, dpi=160, bbox_inches="tight", facecolor=S.SURFACE)

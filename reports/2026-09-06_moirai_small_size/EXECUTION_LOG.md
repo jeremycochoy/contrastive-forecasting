@@ -345,3 +345,11 @@ heartbeat tick while pass 1 ran. The report review of 2026-09-08 fixed those
 sections by hand, so both copies of the script (`scripts/`, `run_snapshot/`)
 now exit 0 and do nothing, and the reviewed plot scripts were re-copied into
 `run_snapshot/`. The heartbeat still watches, collects and mirrors.
+
+## The climb seed
+
+The pre-registered gate named `k3_r100_09b` for the climb past 40,000 steps.
+The orchestrator overruled it before the seed scores existed, because the
+1.0651 reference is a 200,000-step number on the `k3_r100_09` lineage
+(`results/gate_40k.txt`). So the climb ran seed 20260520, the worse 1e-3
+seed.

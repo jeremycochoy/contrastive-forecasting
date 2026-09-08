@@ -62,6 +62,22 @@ def main():
     if len(pair) == 2:
         ax.axhspan(pair[0], pair[1], color=S.MUTED, alpha=0.14, zorder=1)
 
+    # The two numbers the card measures itself against, so a reader sees how
+    # far the best rate arm sits from each.
+    ax.axhline(S.PROJECT_BEST, color=S.REFERENCE, linewidth=1.2,
+               linestyle="--", zorder=1)
+    ax.annotate(f"{S.PROJECT_BEST:.4f}  the project best "
+                f"({S.PROJECT_BEST_LABEL})",
+                (0.005, S.PROJECT_BEST), xycoords=("axes fraction", "data"),
+                xytext=(0, 4), textcoords="offset points", fontsize=8,
+                color=S.MUTED)
+    ax.axhline(S.MOIRAI_SMALL, color=S.REFERENCE, linewidth=1.2,
+               linestyle="--", zorder=1)
+    ax.annotate(f"{S.MOIRAI_SMALL:.3f}  Moirai-2-Small, the same 97 configs",
+                (0.005, S.MOIRAI_SMALL), xycoords=("axes fraction", "data"),
+                xytext=(0, 4), textcoords="offset points", fontsize=8,
+                color=S.MUTED)
+
     xs, ys, tick = [], [], {}
     for arm in cell:
         rate = float(arms[arm]["lr"])

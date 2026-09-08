@@ -278,6 +278,43 @@ def depth_colour(k):
     return DEPTH_RAMP.get(int(k), SERIES)
 
 
+def label_margin(ax, items, fontsize=8, pad=1.4):
+    """Name every curve in a column at the panel's right edge.
+
+    A curve that ends mid-panel gets a label at its END with `label_right`,
+    and that label lands on other curves. This column puts every label past
+    the axis, at the curve's last VALUE, and stacks them in pixel space so
+    two labels never overprint.
+    """
+    seen = {}
+    for series, text, colour in items:
+        if series:
+            seen[text] = (series[-1][1], text, colour)
+    ends = list(seen.values())
+    if not ends:
+        return
+    dpi = ax.figure.dpi
+    gap = fontsize * pad * dpi / 72.0
+    rows = sorted(((ax.transData.transform((0, v))[1], t, c)
+                   for v, t, c in ends), key=lambda r: r[0])
+    placed = []
+    for y, _, _ in rows:
+        if placed and y - placed[-1] < gap:
+            y = placed[-1] + gap
+        placed.append(y)
+    box = ax.get_window_extent()
+    over = placed[-1] - box.y1
+    if over > 0:
+        placed = [y - min(over, max(placed[0] - box.y0, 0.0)) for y in placed]
+    inverse = ax.transData.inverted()
+    for (_, text, colour), y in zip(rows, placed):
+        value = inverse.transform((0, y))[1]
+        ax.annotate(text, (1.01, value),
+                    xycoords=("axes fraction", "data"), fontsize=fontsize,
+                    color=colour, va="center", ha="left",
+                    annotation_clip=False)
+
+
 def lost(verdicts, paths):
     """True when any leg of this arm lost the contrastive task."""
     names = {Path(p).name for p in paths}

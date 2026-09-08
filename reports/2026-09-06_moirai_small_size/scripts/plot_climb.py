@@ -70,24 +70,27 @@ def main():
                 xytext=(0, 4), textcoords="offset points", fontsize=8,
                 color=S.MUTED)
 
-    items, unmatched = [], False
+    unmatched = False
     for arm, track in sorted(tracks.items()):
         colour = S.depth_colour(arms[arm]["k"]) if arm in arms else S.SERIES
+        # The bar rides the 11.4M track only, because the band is an 11.4M
+        # measurement. The legend entry below names its size and its source.
         ax.errorbar([s for s, _ in track], [v for _, v in track],
                     yerr=band / 2, color=colour, linewidth=2.2, marker="o",
-                    markersize=8, capsize=3, elinewidth=1.2, zorder=4)
+                    markersize=8, capsize=3, elinewidth=1.2, zorder=4,
+                    label=f"{arm}, 11.4M, 30,000-step head")
         for s, v in track:
-            ax.annotate(f"{v:.4f}", (s, v), xytext=(0, 11),
-                        textcoords="offset points", ha="center", fontsize=8,
+            ax.annotate(f"{v:.4f}", (s, v), xytext=(8, -12),
+                        textcoords="offset points", ha="left", fontsize=8,
                         color=S.INK)
-        items.append((track, f"{arm}, 11.4M", colour))
 
         ref = [(s, S.reference(arm, s)) for s, _ in track]
         ref = [(s, r) for s, r in ref if r]
         if not ref:
             continue
         ax.plot([s for s, _ in ref], [r[0] for _, r in ref],
-                color=S.REFERENCE, linewidth=1.8, alpha=0.8, zorder=3)
+                color=S.REFERENCE, linewidth=1.8, alpha=0.8, zorder=3,
+                label=f"{arm}, 1.1M, the parent study")
         for s, r in ref:
             matched = r[1] == HEAD_STEPS
             unmatched = unmatched or not matched
@@ -95,21 +98,19 @@ def main():
                     color=S.REFERENCE if matched else S.SURFACE,
                     markeredgecolor=S.REFERENCE, markeredgewidth=1.6,
                     zorder=4)
-            ax.annotate(f"{r[0]:.4f}", (s, r[0]), xytext=(0, -16),
-                        textcoords="offset points", ha="center", fontsize=8,
+            ax.annotate(f"{r[0]:.4f}", (s, r[0]), xytext=(8, 8),
+                        textcoords="offset points", ha="left", fontsize=8,
                         color=S.MUTED)
-        items.append(([(s, r[0]) for s, r in ref], f"{arm}, 1.1M",
-                      S.REFERENCE))
 
     ax.set_xlabel("backbone steps")
     ax.set_ylabel("GM-Relative MASE — lower is better")
     ax.set_title("the same configuration at both sizes, stop by stop",
                  color=S.INK, fontsize=12, loc="left", pad=12)
     S.tidy(ax)
-    ax.plot([], [], color=S.SERIES, linewidth=2.2, marker="o", markersize=8,
-            label="11.4M, this card, 30,000-step head")
-    ax.plot([], [], color=S.REFERENCE, linewidth=1.8, marker="o",
-            markersize=8, label="1.1M, the parent study")
+    ax.errorbar([float("nan")], [float("nan")], yerr=band / 2, color=S.INK,
+                linewidth=0, elinewidth=1.2, capsize=3,
+                label=f"the bar: ±{band / 2:.4f}, half the two-seed "
+                      f"band, measured at 40,000 steps")
     if unmatched:
         ax.plot([], [], color=S.SURFACE, marker="o", markersize=8,
                 markeredgecolor=S.REFERENCE, markeredgewidth=1.6,
@@ -117,7 +118,6 @@ def main():
                 label="a 1.1M stop whose head budget differs")
     ax.legend(frameon=False, fontsize=8, labelcolor=S.INK, loc="best")
     fig.canvas.draw()
-    S.label_right(ax, items)
 
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(args.out, dpi=160, bbox_inches="tight", facecolor=S.SURFACE)

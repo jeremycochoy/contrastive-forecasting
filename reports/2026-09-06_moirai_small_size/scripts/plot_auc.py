@@ -30,6 +30,9 @@ STUDY = HERE.parent
 ROOT = "/home/jupyter/checkpoints_backup/cf-412"
 THRESHOLD = 0.55
 WARMUP = 1000
+# The legs that still train, and the step their finished stop ends at. The
+# figure draws the part past that step dotted. Empty this when pass 2 lands.
+LIVE = {"k32_r100_09_lr56": 0, "k3_r100_09_lr56": 40000}
 
 
 def main():
@@ -71,8 +74,17 @@ def main():
             continue
         is_lost = S.lost(verdicts, paths)
         colour = S.LOST if is_lost else S.depth_colour(row["k"])
-        ax.plot([s for s, _ in series], [v for _, v in series], color=colour,
-                linewidth=1.8, zorder=3)
+        live_from = LIVE.get(row["arm"])
+        done = series if live_from is None else [
+            (s, v) for s, v in series if s <= live_from]
+        live = [] if live_from is None else [
+            (s, v) for s, v in series if s >= live_from]
+        if done:
+            ax.plot([s for s, _ in done], [v for _, v in done], color=colour,
+                    linewidth=1.8, zorder=3)
+        if live:
+            ax.plot([s for s, _ in live], [v for _, v in live], color=colour,
+                    linewidth=1.8, linestyle=":", zorder=3)
         items.append((series, row["arm"], colour))
         drawn.add(int(row["k"]))
         any_lost = any_lost or is_lost
@@ -91,9 +103,12 @@ def main():
                 label=f"rollout depth k = {k}")
     if any_lost:
         ax.plot([], [], color=S.LOST, linewidth=2.0, label="lost the task")
+    if any(LIVE.get(a) is not None for _, a, _ in items):
+        ax.plot([], [], color=S.INK, linewidth=1.8, linestyle=":",
+                label="a leg that still trains")
     ax.legend(frameon=False, fontsize=8, labelcolor=S.INK, loc="lower right")
     fig.canvas.draw()
-    S.label_right(ax, items)
+    S.label_margin(ax, items)
 
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(args.out, dpi=160, bbox_inches="tight", facecolor=S.SURFACE)

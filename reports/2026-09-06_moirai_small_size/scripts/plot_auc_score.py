@@ -94,7 +94,7 @@ def main():
                 color=S.LOST, clip_on=False, zorder=4,
                 transform=ax.get_xaxis_transform())
     if floor:
-        ax.annotate("stopped by the guard: no score",
+        ax.annotate("lost the task: no score",
                     (min(a for _, a in floor), 0.97),
                     xycoords=("data", "axes fraction"), xytext=(0, -8),
                     textcoords="offset points", fontsize=8, color=S.LOST,
@@ -112,7 +112,7 @@ def main():
                for k in sorted({int(arms[a]["k"]) for a, _ in scored})]
     handles.append(Line2D([], [], color=S.LOST, marker="x", linestyle="none",
                           markersize=9, markeredgewidth=2.2,
-                          label="stopped by the guard"))
+                          label="lost the task"))
     ax.legend(handles=handles, frameon=False, fontsize=8, labelcolor=S.INK,
               loc="lower left")
     fig.canvas.draw()

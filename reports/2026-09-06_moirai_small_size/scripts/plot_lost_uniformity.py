@@ -87,7 +87,7 @@ def main():
         S.tidy(ax)
     for arm, colour, df, fired in runs:
         if fired is not None:
-            axes[0].annotate(f"guard, {fired:,}", (fired, 1.0),
+            axes[0].annotate(f"lost, {fired:,}", (fired, 1.0),
                              xycoords=("data", "axes fraction"), xytext=(3, 2),
                              textcoords="offset points", fontsize=8,
                              color=S.LOST, annotation_clip=False)
@@ -95,7 +95,7 @@ def main():
     for arm, colour, _, _ in runs:
         axes[0].plot([], [], color=colour, linewidth=2.0, label=arm)
     axes[0].plot([], [], color=S.LOST, linewidth=1.0, linestyle="--",
-                 label="the guard fired")
+                 label="lost at this step")
     axes[0].legend(frameon=False, fontsize=8, labelcolor=S.INK,
                    loc="center right")
     fig.tight_layout()

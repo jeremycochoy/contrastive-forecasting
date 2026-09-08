@@ -1,66 +1,64 @@
-# At Moirai-2-Small size, the learning rate moves the score more than the capacity
+# At Moirai-2-Small size, the learning rate moves the k = 3 score more than the ten-fold capacity increase
 
-At 11.4M parameters and 40,000 steps, a rate change from the published 1e-3
-to 5.6e-4 gains 0.1107 GM-Relative MASE against the better 1e-3 seed, 1.9
-seed bands. Next: #414.
+At 11.4M parameters, k = 3 and 40,000 steps, a rate change from the published
+1e-3 to 5.6e-4 gains 1.9 seed bands (1.2927 to 1.1820 GM-Relative MASE). The
+ten-fold capacity increase moves the k = 3 cell at most 0.7 bands and makes
+the k = 32 cell 5.5 bands worse, so the rate claim holds on k = 3 only.
+
+## Definitions
+
+- **GM-Relative MASE**: the geometric mean, over the 97 GIFT-Eval configs, of
+  MASE divided by seasonal-naive MASE. Lower is better.
+- **The band**: 0.0568, the spread of this card's two seeds on one cell. Two
+  numbers closer than the band are not ranked.
+- **A cell**: one combination of depth, reduction, rate and decay.
+- **A leg**: one continuous training segment of an arm toward one stop.
+- **Head-matched**: both sizes score under a 30,000-step head.
+- **AUC** (area under the curve): a diagnostic probe, not a loss term
+  (`src/metrics.py:361`). It counts how often the forecast beats a lagged
+  latent by cosine similarity, and 0.5 is chance. This report prints the
+  guard's statistic, a rolling median over 500 training rows, except where a
+  value says raw.
+- **Lost**: the guard (median under 0.55 after a 1,000-step warm-up) ended
+  the run early. **Held**: the guard did not end the run.
+- **EMA** (exponential moving average): the teacher is an EMA of the student,
+  and `L_align` pulls the forecast toward its latent.
 
 ## The rate has an interior minimum at 5.6e-4
 
 ![the rate bracket](plots/rates.png)
 
-GM-Relative MASE against the rate, k = 3, one seed per point. The metric is
-the geometric mean, over the 97 GIFT-Eval configs, of MASE divided by
-seasonal-naive MASE. Lower is better.
-
-The band on every figure and table is **0.0568**, the spread of this card's
-two seeds on one cell. A cell is one combination of depth, reduction, rate
-and decay. Two numbers closer than the band are not ranked. A rule fixed before
-the sweep scored set the bar at 1.2359, one band under the better 1e-3 seed.
-1.1820 clears it, so every 1e-3 number of this card is void as a capacity
-statement. The width-scaled rate 1.67e-4 (1e-3 times 64 over 384)
-over-corrects by 1.4 bands against 5.6e-4. Two limits: only the k = 3 cell ran
-this sweep, and 5.6e-4 is the best of four coarse points, one seed each. No
-5.6e-4 arm has reached 200,000 steps, the stop of the 1.0651 project best. So
-the size question stays open until pass 2 lands.
+GM-Relative MASE against the rate, k = 3 at 11.4M, one seed per point, with
+the two project references.
 
 ## The scores at 40,000 steps
 
 ![the scores](plots/scores.png)
 
-Every pass-1 score against its 1.1M twin (a twin: the same configuration,
-trained at 1.1M parameters by a parent study). Each label names the arm's
-reduction, because the k = 3 arms inherit `sum` and the deeper arms inherit
-`mean`.
+Every pass-1 score against its 1.1M twin, and each label names the arm's
+reduction.
 
 ## No stop improves the score at 1e-3
 
 ![the climb](plots/climb.png)
 
-`k3_r100_09` at both sizes, three stops, all at 1e-3, the rate 5.6e-4
-supersedes on this cell. A hollow marker is a stop that is not head-matched
-(head-matched: both sizes score under a 30,000-step head).
+`k3_r100_09` at both sizes, three stops, all at 1e-3, with a hollow marker
+where a stop is not head-matched.
 
 The three 11.4M scores span 0.0515, inside the band, so no stop is ranked
-above another. The pre-registered gate named `k3_r100_09b` for this climb.
-The orchestrator overruled it before the seed scores existed, because the
-1.0651 reference is a 200,000-step number on the `k3_r100_09` lineage
-(`results/gate_40k.txt`). So the climb uses seed 20260520, the worse 1e-3
-seed.
+above another. The climb runs seed 20260520, the worse 1e-3 seed. The rate
+5.6e-4 supersedes 1e-3 on this cell.
 
-## The guard stopped two of the four mean arms and no sum arm
+## Two of the four mean arms lost the task, and none of the six sum arms
 
 ![the contrastive AUC](plots/auc.png)
 
-The AUC is a diagnostic probe, not a loss term (`src/metrics.py:361`). It
-counts how often the forecast beats a lagged latent by cosine similarity,
-and 0.5 is chance. Every AUC this report prints is the guard's statistic, a rolling
-median over 500 training rows, except where a value says raw. **Held** means
-the guard (median under 0.55 after a 1,000-step warm-up) never fired on the
-arm. The guard stopped two of the ten pass-1 arms, both mean arms at 1e-3, and
-all six sum arms ended above 0.99. The stop steps this report prints, 18,634
-and 28,152, are the live guard's verdicts (`results/collapsed_*.txt`). The
-offline recomputation in `results/lost_arm_terms.txt` crosses at 17,313 on the
-decay arm.
+The guard's rolling AUC of every run, with the two lost arms in red and the
+live legs dotted.
+
+Both lost arms run `mean` at 1e-3, and all six `sum` arms ended above 0.99.
+The lost steps, 18,634 and 28,152, are the live guard's verdicts
+(`results/auc_verdicts.tsv`).
 
 A k = 3 against k = 32 comparison moves three settings together: the depth,
 the reduction, and the weight of the rollout term. The sum reduction
@@ -69,39 +67,38 @@ This card cannot assign the split to the depth or the rate alone,
 and the inheritance table below shows the confound. The one mean arm at
 5.6e-4, `k32_r100_09_lr56`, still trains and prints no number here.
 
-## One stopped arm falls to near-zero dimension usage, the other rises
+## One lost arm falls to near-zero dimension usage, the other rises
 
-![the dimension usage of the two stopped arms](plots/lost_uniformity.png)
+![the dimension usage of the two lost arms](plots/lost_uniformity.png)
 
-`u_temporal` and `u_batch` of the two stopped arms, 200-row rolling mean, with
-the guard step dashed. The two statistics measure dimension usage of the
-latents across time and across the batch (`src/metrics.py:179`). A fall
-toward zero is a collapse onto few dimensions.
+`u_temporal` and `u_batch` of the two lost arms, 200-row rolling mean, with
+the lost step dashed. The two statistics measure dimension usage of the
+latents across time and across the batch (`src/metrics.py:179`).
 
-`L_rep` carries the contrastive negatives, and `L_align` pulls the forecast
-toward the EMA teacher's latent. `k32_r200_08` carries `L_rep` at weight 1.0
-for all 28,500 logged steps, so the decay is not required to lose the task.
-Dropping `L_rep` does not cause a loss either. `k3_r100_09_dec` runs 38,000
-steps at weight 0.0 and holds a floor of 0.9797. It scores 1.3236, inside its
-cell's seed range.
+`L_rep` carries the contrastive negatives. `k32_r200_08` carries it at weight
+1.0 for all 28,500 logged steps, so the decay is not required to lose the
+task. Dropping `L_rep` does not cause a loss either: `k3_r100_09_dec` runs
+38,000 steps at weight 0.0, holds an AUC floor of 0.9797 and scores 1.3236,
+inside its cell's seed range.
 
-## The AUC does not rank the healthy arms
+## Above 0.99 the AUC stops separating the arms
 
 ![the score against the AUC](plots/auc_score.png)
 
-GM-Relative MASE against the AUC at the stop, one point per scored leg. A
-leg is one continuous training segment of an arm toward one stop. The k = 3
-points run `sum` and the k = 8 and k = 32 points run `mean`. The two stopped
-arms sit on the top axis line, with no score.
+GM-Relative MASE against the AUC at the stop, one point per scored leg, with
+the two lost arms on the top axis line.
 
-`k32_r100_09` is 5.5 bands behind its 1.1M twin at 1.1507, a gap this card
-cannot split between the width and the rate misfit.
+Across the held arms the two axes move together. Inside the k = 3 cluster the
+AUC is flat near 1.0 while the score spans 0.2090. `k32_r100_09` is 5.5 bands
+behind its 1.1M twin at 1.1507, a gap this card cannot split between the
+width and the rate misfit.
 
 ## The loss by term
 
 ![the loss by term](plots/loss_terms.png)
 
-`L_rep`, `L_align` and the live `L_rep` weight, every run of the card.
+`L_rep` and `L_align`, every run of the card. The live `L_rep` weight is 1.0
+on every arm, and 0.0 by step 2,000 on the two decay arms.
 
 ## What this design can say
 
@@ -110,19 +107,23 @@ cannot split between the width and the rate misfit.
 Moirai-2-Small's 11.4M). Each pass-1 arm takes its depth, reduction, momentum,
 seed, decay and rate from a published 1.1M parent (`scripts/arms.tsv`).
 
+**The rate sweep is coarse.** The width-scaled rate 1.67e-4 (1e-3 times 64
+over 384) over-corrects by 1.4 bands against 5.6e-4. Only the k = 3 cell ran
+the sweep, and 5.6e-4 is the best of four coarse points, one seed each. No
+5.6e-4 arm has reached 200,000 steps, the stop of the 1.0651 project best.
+
 **This report applies the band outside the cell that measured it.** 0.0568 is
 a two-seed spread at k = 3, sum, 1e-3, 40,000 steps. No replicate exists at
 other stops or under the mean reduction, so those rankings assume the band
-transfers. R4 below measures the band at 5.6e-4.
+transfers.
 
 **The head budget comes from the 64-wide parents.** A 30,000-step head that
 under-trains a 384-wide encoder biases every 11.4M score the same way.
 Comparisons inside this card survive, and the size headline carries the
 caveat.
 
-**A decay verdict at 40,000 steps is a 40,000-step verdict.** The L_rep-decay
-study carried its best decay arm to 200,000 steps and the gap moved. So this
-card does not project its decay pair past the stop it measured.
+**A decay verdict at 40,000 steps is a 40,000-step verdict.** This card does
+not project its decay pair past the stop it measured.
 
 ## The tables
 
@@ -166,7 +167,8 @@ same cell, in units of 0.0568, and positive is better.
 
 ### The reduction and the depth are confounded
 
-The confound comes by inheritance from the published parents.
+The confound comes by inheritance: the k = 3 arms take `sum` from their
+published parents and the deeper arms take `mean`.
 
 | | sum | mean |
 |---|---|---|
@@ -175,32 +177,16 @@ The confound comes by inheritance from the published parents.
 
 ### The k = 32 treatments
 
-Compare this table by row and by column only, because the two stopped arms
-differ in both the momentum and the decay. Neither schedule completes by
-40,000 steps: the momentum reached 0.8285 (`k32_r200_08`) and 0.9400 (the
-0.9-to-1.0 arms).
+Compare this table by row and by column only, because the two lost arms
+differ in both the momentum and the decay. Neither ramp completes by 40,000
+steps: the momentum reached 0.8285 (`k32_r200_08`, last log at step 28,500),
+0.9191 (`k32_r100_09_dec`, last log at step 19,100) and 0.9400
+(`k32_r100_09` at 40,000), per `results/loss_terms.csv`.
 
 | EMA momentum | no decay | `L_rep` decay to 0.0 by 2,000 |
 |---|---|---|
-| 0.9 to 1.0 at 100k | held, ends 0.773 | guard fired at 18,634 |
-| 0.8 to 1.0 at 200k | guard fired at 28,152 | not run |
-
-### The contrastive AUC
-
-| arm | verdict | AUC floor | at step | AUC last | at step |
-|---|---|---|---|---|---|
-| k32_r100_09 | held | 0.6827 | 20872 | 0.7732 | 40000 |
-| k32_r100_09_dec | lost | 0.5014 | 19100 | 0.5014 | 19100 |
-| k32_r200_08 | lost | 0.5347 | 28500 | 0.5347 | 28500 |
-| k3_r100_09 | held | 0.9931 | 1942 | 0.9988 | 40000 |
-| k3_r100_09 | held | 0.9974 | 40001 | 0.9994 | 100000 |
-| k3_r100_09 | held | 0.9992 | 144399 | 0.9995 | 200000 |
-| k3_r100_09_dec | held | 0.9797 | 9690 | 0.9974 | 40000 |
-| k3_r100_09_lr17 | held | 0.9852 | 5991 | 0.9985 | 40000 |
-| k3_r100_09_lr33 | held | 0.9913 | 3337 | 0.9980 | 40000 |
-| k3_r100_09_lr56 | held | 0.9936 | 34553 | 0.9956 | 40000 |
-| k3_r100_09b | held | 0.9922 | 1869 | 0.9982 | 40000 |
-| k8_r100_09 | held | 0.6847 | 14106 | 0.7302 | 40000 |
+| 0.9 to 1.0 at 100k | held, ends 0.773 | lost at 18,634 |
+| 0.8 to 1.0 at 200k | lost at 28,152 | not run |
 
 ### The contrastive AUC, step by step
 
@@ -240,54 +226,38 @@ and there are no others:
 Two pass-2 legs train now and print no row: `k3_r100_09_lr56` past 40,000
 toward 200,000, and `k32_r100_09_lr56` toward 40,000.
 
-| arm | stop | last step | total loss | L_rep | L_align | L_rep weight | EMA momentum | AUC |
-|---|---|---|---|---|---|---|---|---|
-| k32_r100_09 | 40,000 | 40,000 | 13.4947 | 11.6270 | 1.7583 | 1.00 | 0.9400 | 0.7629 |
-| k32_r100_09_dec | 40,000 | 19,100 | 1.8013 | — | 1.8219 | 0.00 | 0.9191 | 0.5010 |
-| k32_r200_08 | 40,000 | 28,500 | 13.6105 | 11.5968 | 2.0018 | 1.00 | 0.8285 | 0.5254 |
-| k3_r100_09 | 100,000 | 100,000 | 12.3238 | 11.7174 | 0.1472 | 1.00 | 1.0000 | 0.9997 |
-| k3_r100_09 | 200,000 | 200,000 | 12.2424 | 11.7181 | 0.1319 | 1.00 | 1.0000 | 0.9938 |
-| k3_r100_09 | 40,000 | 40,000 | 12.5323 | 11.7822 | 0.1852 | 1.00 | 0.9400 | 0.9993 |
-| k3_r100_09_dec | 40,000 | 40,000 | 1.0579 | — | 0.2487 | 0.00 | 0.9400 | 0.9980 |
-| k3_r100_09_lr17 | 40,000 | 40,000 | 12.8115 | 11.7678 | 0.2532 | 1.00 | 0.9400 | 0.9992 |
-| k3_r100_09_lr33 | 40,000 | 40,000 | 12.5972 | 11.7772 | 0.2020 | 1.00 | 0.9400 | 0.9983 |
-| k3_r100_09_lr56 | 40,000 | 40,000 | 12.6520 | 11.6891 | 0.2118 | 1.00 | 0.9400 | 0.9973 |
-| k3_r100_09b | 40,000 | 40,000 | 12.9777 | 11.7567 | 0.2832 | 1.00 | 0.9400 | 0.9984 |
-| k8_r100_09 | 40,000 | 40,000 | 13.3835 | 11.6129 | 1.7117 | 1.00 | 0.9400 | 0.7563 |
+| arm | stop | last step | total loss | L_rep | L_align | L_rep weight | EMA momentum |
+|---|---|---|---|---|---|---|---|
+| k32_r100_09 | 40,000 | 40,000 | 13.4947 | 11.6270 | 1.7583 | 1.00 | 0.9400 |
+| k32_r100_09_dec | 40,000 | 19,100 | 1.8013 | — | 1.8219 | 0.00 | 0.9191 |
+| k32_r200_08 | 40,000 | 28,500 | 13.6105 | 11.5968 | 2.0018 | 1.00 | 0.8285 |
+| k3_r100_09 | 100,000 | 100,000 | 12.3238 | 11.7174 | 0.1472 | 1.00 | 1.0000 |
+| k3_r100_09 | 200,000 | 200,000 | 12.2424 | 11.7181 | 0.1319 | 1.00 | 1.0000 |
+| k3_r100_09 | 40,000 | 40,000 | 12.5323 | 11.7822 | 0.1852 | 1.00 | 0.9400 |
+| k3_r100_09_dec | 40,000 | 40,000 | 1.0579 | — | 0.2487 | 0.00 | 0.9400 |
+| k3_r100_09_lr17 | 40,000 | 40,000 | 12.8115 | 11.7678 | 0.2532 | 1.00 | 0.9400 |
+| k3_r100_09_lr33 | 40,000 | 40,000 | 12.5972 | 11.7772 | 0.2020 | 1.00 | 0.9400 |
+| k3_r100_09_lr56 | 40,000 | 40,000 | 12.6520 | 11.6891 | 0.2118 | 1.00 | 0.9400 |
+| k3_r100_09b | 40,000 | 40,000 | 12.9777 | 11.7567 | 0.2832 | 1.00 | 0.9400 |
+| k8_r100_09 | 40,000 | 40,000 | 13.3835 | 11.6129 | 1.7117 | 1.00 | 0.9400 |
 
 ### The arms
 
-Thirteen arms over two passes. Each pass-1 row is a published 1.1M
-configuration at the new width, and `scripts/arms.tsv` carries the reasoning
-per row. The scores table above holds each arm's k, reduction, seed, decay
-and rate.
-
-| arm | pass | EMA start | EMA end | ramp |
-|---|---|---|---|---|
-| k3_r100_09 | 1 | 0.9 | 1.0 | 100000 |
-| k32_r100_09 | 1 | 0.9 | 1.0 | 100000 |
-| k32_r200_08 | 1 | 0.8 | 1.0 | 200000 |
-| k3_r100_09_dec | 1 | 0.9 | 1.0 | 100000 |
-| k32_r100_09_dec | 1 | 0.9 | 1.0 | 100000 |
-| k8_r100_09 | 1 | 0.9 | 1.0 | 100000 |
-| k3_r100_09b | 1 | 0.9 | 1.0 | 100000 |
-| k3_r100_09_lr33 | 1 | 0.9 | 1.0 | 100000 |
-| k3_r100_09_lr17 | 1 | 0.9 | 1.0 | 100000 |
-| k3_r100_09_lr56 | 1 | 0.9 | 1.0 | 100000 |
-| k32_r100_09_lr56 | 2 | 0.9 | 1.0 | 100000 |
-| k3_r100_09_mean | 2 | 0.9 | 1.0 | 100000 |
-| k3_r100_09b_lr56 | 2 | 0.9 | 1.0 | 100000 |
+Thirteen arms run over two passes, and `scripts/arms.tsv` carries the
+reasoning per arm. Every arm ramps the EMA momentum from 0.9 to 1.0 over
+100,000 steps, except `k32_r200_08` (0.8 to 1.0 over 200,000). The scores
+table above holds each arm's k, reduction, seed, decay and rate.
 
 ### The pass-2 arms
 
-Their rows land in the tables above when they score (#414).
+Their rows land in the tables above when they score.
 
-| run | arm | legs it holds | it settles |
-|---|---|---|---|
-| R1 | `k3_r100_09_lr56`, resumed from 40,000 | 100,000 then 200,000 | the size question at 200,000 steps |
-| R2 | `k32_r100_09_lr56` | 40,000 | whether the mean cells erode at 5.6e-4 too |
-| R3 | `k3_r100_09_mean` | 40,000 | the depth-against-reduction confound |
-| R4 | `k3_r100_09b_lr56` | 40,000 | the seed band at 5.6e-4 |
+| run | arm | legs it holds |
+|---|---|---|
+| R1 | `k3_r100_09_lr56`, resumed from 40,000 | 100,000 then 200,000 |
+| R2 | `k32_r100_09_lr56` | 40,000 |
+| R3 | `k3_r100_09_mean` | 40,000 |
+| R4 | `k3_r100_09b_lr56` | 40,000 |
 
 ### The cost
 
@@ -334,5 +304,5 @@ BB_GPU=1 CF412_LEGS="k32_r100_09_lr56:40000 k3_r100_09b_lr56:40000 k3_r100_09_me
   bash scripts/pass2_lane.sh
 
 bash run.sh collect && bash scripts/make_plots.sh && bash scripts/gate.sh
-python3 scripts/lost_arm_terms.py   # the loss terms of the two stopped arms
+python3 scripts/lost_arm_terms.py   # the loss terms of the two lost arms
 ```
