@@ -8,8 +8,13 @@ cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_dec_losses.csv	held	-	0.979
 cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r100_09_dec_losses.csv	lost	18634	0.5014	19100	0.5014	19100	at step 18634
 cf393_arm6_v2_combab_alignT_cf373k8_cf412_k8_r100_09_losses.csv	held	-	0.6847	14106	0.7302	40000	held
 cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09b_losses.csv	held	-	0.9922	1869	0.9982	40000	held
+cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_mean_losses.csv	lost	26413	0.5348	26799	0.5355	27400	at step 26413
 cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr33_losses.csv	held	-	0.9913	3337	0.9980	40000	held
 cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr17_losses.csv	held	-	0.9852	5991	0.9985	40000	held
 cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_losses.csv	held	-	0.9936	34553	0.9956	40000	held
-cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_losses.csv	held	-	0.9956	40001	0.9987	66500	held
-cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r100_09_lr56_losses.csv	held	-	0.9211	9372	0.9240	9800	held
+cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_losses.csv	held	-	0.9956	40001	0.9994	100000	held
+cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_losses.csv	held	-	0.9990	100013	0.9994	200000	held
+cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r100_09_lr56_losses.csv	held	-	0.7302	40000	0.7302	40000	held
+cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09b_lr56_losses.csv	held	-	0.9956	4206	0.9989	40000	held
+cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r100_09_sum_losses.csv	error	-	-	-	-	-	/home/jupyter/checkpoints_backup/cf-412/k32_r100_09_sum/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r100_09_sum_losses.csv: no readable `auc` row above step 1786
+cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr45_losses.csv	error	-	-	-	-	-	/home/jupyter/checkpoints_backup/cf-412/k3_r100_09_lr45/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr45_losses.csv: no readable `auc` row above step 2223
