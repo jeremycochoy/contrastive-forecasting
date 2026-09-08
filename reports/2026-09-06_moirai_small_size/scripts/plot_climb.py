@@ -25,6 +25,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
+from matplotlib.lines import Line2D  # noqa: E402
 
 import plot_style as S  # noqa: E402
 
@@ -70,15 +71,27 @@ def main():
                 xytext=(0, 4), textcoords="offset points", fontsize=8,
                 color=S.MUTED)
 
+    # Two arms of the SAME depth take the same depth colour, so the figure
+    # separates them by marker and by dash as well, and each legend entry
+    # names the rate. Without this the two k = 3 tracks read as one line.
+    shapes = ["o", "s", "^", "D"]
+    dashes = ["-", "--", ":", "-."]
+    track_keys = []
     unmatched = False
-    for arm, track in sorted(tracks.items()):
+    for i, (arm, track) in enumerate(sorted(tracks.items())):
         colour = S.depth_colour(arms[arm]["k"]) if arm in arms else S.SERIES
+        rate = arms[arm]["lr"] if arm in arms else "?"
         # The bar rides the 11.4M track only, because the band is an 11.4M
         # measurement. The legend entry below names its size and its source.
         ax.errorbar([s for s, _ in track], [v for _, v in track],
-                    yerr=band / 2, color=colour, linewidth=2.2, marker="o",
+                    yerr=band / 2, color=colour, linewidth=2.2,
+                    marker=shapes[i % len(shapes)],
+                    linestyle=dashes[i % len(dashes)],
                     markersize=8, capsize=3, elinewidth=1.2, zorder=4,
-                    label=f"{arm}, 11.4M, 30,000-step head")
+                    label=f"{arm}, 11.4M, lr {rate}, 30,000-step head")
+        track_keys.append((f"{arm}, 11.4M, lr {rate}, 30,000-step head",
+                           shapes[i % len(shapes)], dashes[i % len(dashes)],
+                           colour))
         for s, v in track:
             ax.annotate(f"{v:.4f}", (s, v), xytext=(8, -12),
                         textcoords="offset points", ha="left", fontsize=8,
@@ -116,7 +129,21 @@ def main():
                 markeredgecolor=S.REFERENCE, markeredgewidth=1.6,
                 linestyle="none",
                 label="a 1.1M stop whose head budget differs")
-    ax.legend(frameon=False, fontsize=8, labelcolor=S.INK, loc="best")
+    # THE LEGEND SITS UNDER THE AXES. "best" put it over the project-best
+    # line, and every corner inside the axes holds a point label or the
+    # 1.0651 rule. `bbox_inches="tight"` keeps it in the saved file.
+    #
+    # The handles are built here, not taken from the artists. An `errorbar`
+    # container gives the legend its bar, not its marker, so two tracks that
+    # differ in marker and dash both drew the same key.
+    handles, labels = ax.get_legend_handles_labels()
+    keyed = dict(zip(labels, handles))
+    for lbl, mk, ls, col in track_keys:
+        keyed[lbl] = Line2D([], [], color=col, marker=mk, linestyle=ls,
+                            linewidth=2.2, markersize=8)
+    ax.legend([keyed[l] for l in labels], labels, frameon=False, fontsize=8,
+              labelcolor=S.INK, loc="upper left", bbox_to_anchor=(0.0, -0.12),
+              ncol=1, borderaxespad=0.0)
     fig.canvas.draw()
 
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)

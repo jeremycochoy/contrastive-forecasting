@@ -32,12 +32,20 @@ STUDY = HERE.parent
 
 
 def read_verdicts(path):
-    """`{(run stem, last step): (last AUC, verdict)}`."""
+    """`{(run stem, last step): (last AUC, verdict)}`.
+
+    A run that started but has not yet cleared the guard's warm-up writes
+    `-` in the `last` and `last_step` columns. Skip those rows: an arm with
+    no AUC yet has no score yet either, so it plots no point.
+    """
     out = {}
     with open(path) as fh:
         for row in csv.DictReader(fh, delimiter="\t"):
-            out[(Path(row["run"]).name, int(row["last_step"]))] = (
-                float(row["last"]), row["verdict"])
+            try:
+                step, auc = int(row["last_step"]), float(row["last"])
+            except ValueError:
+                continue
+            out[(Path(row["run"]).name, step)] = (auc, row["verdict"])
     return out
 
 

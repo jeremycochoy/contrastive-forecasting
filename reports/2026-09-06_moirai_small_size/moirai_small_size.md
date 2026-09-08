@@ -1,18 +1,19 @@
 # At Moirai-2-Small size, the learning rate moves the k = 3 score more than the ten-fold capacity increase
 
-At 11.4M parameters, k = 3 and 40,000 steps, a rate change from the published
-1e-3 to 5.6e-4 gains 2.9 seed bands (1.3495 to 1.1820 GM-Relative MASE, both
-at seed 20260520). The second 1e-3 seed scores 1.2927, still 1.9 bands behind
-5.6e-4. The ten-fold capacity increase moves the k = 3 cell at most 0.7 bands
-and makes the k = 32 cell 5.5 bands worse, so the rate claim holds on k = 3
-only.
+At 11.4M parameters, k = 3 and 40,000 steps, a rate change from 1e-3 to
+5.6e-4 gains 2.6 seed bands. The score falls from 1.3495 to 1.1820
+GM-Relative MASE, both at seed 20260520. The second 1e-3 seed scores 1.2927,
+still 1.7 bands behind 5.6e-4. The ten-fold capacity increase moves the k = 3
+cell at most 0.6 bands. It makes the k = 32 cell 4.8 bands worse. So the rate
+claim holds on k = 3 only. No arm of this card beats the 1.0651 project best,
+and more steps make the best arm worse.
 
 ## Definitions
 
 - **GM-Relative MASE**: the geometric mean, over the 97 GIFT-Eval configs, of
   MASE divided by seasonal-naive MASE. Lower is better.
-- **The band**: 0.0568, the spread of this card's two seeds on one cell. Two
-  numbers closer than the band are not ranked.
+- **The band**: 0.0649, the spread of this card's two seeds at 5.6e-4, the
+  rate it ranks at. Two numbers closer than the band are not ranked.
 - **A cell**: one combination of depth, reduction, rate and decay.
 
 The other definitions open the tables section.
@@ -31,34 +32,44 @@ the two project references.
 Every pass-1 score against its 1.1M twin, and each label gives the arm's
 settings.
 
-## No stop improves the score at 1e-3
+## More steps make the best arm worse, and no stop reaches 1.0651
 
 ![the climb](plots/climb.png)
 
-`k3_r100_09` at both sizes, three stops, all at 1e-3, with a hollow marker
-where a stop is not head-matched.
+`k3_r100_09` at 1e-3 and `k3_r100_09_lr56` at 5.6e-4, both at 11.4M, each
+against its 1.1M twin over three stops. A hollow marker marks a stop that is
+not head-matched.
 
-The three 11.4M scores span 0.0515, inside the band, so no stop is ranked
-above another. The climb runs seed 20260520, the worse 1e-3 seed. The rate
-5.6e-4 supersedes 1e-3 on this cell.
+**This is the size answer.** At 5.6e-4 more steps cost score: 1.1820 at
+40,000 steps, 1.3170 at 100,000 and 1.3189 at 200,000. The first climb costs
+2.1 bands and the second changes nothing. The 200,000-step number sits 3.9
+bands behind the 1.0651 project best. The 40,000-step number sits 1.8 bands
+behind it. So 11.4M at 5.6e-4 does not beat 1.0651 at any stop.
 
-## Two of the four mean arms lost the task, and none of the six sum arms
+At 1e-3 the three scores span 0.0515, inside the band, so no stop is ranked
+above another. Both climbs run seed 20260520.
+
+## Three of the six mean arms lost the task, and none of the seven sum arms
 
 ![the contrastive AUC](plots/auc.png)
 
-The guard's rolling AUC of every run, with the two lost arms in red and the
+The guard's rolling AUC of every run, with the three stopped arms in red and the
 live legs dotted.
 
-Both lost arms run `mean` at 1e-3, and all six `sum` arms ended above 0.99.
-The lost steps, 18,634 and 28,152, are the live guard's verdicts
-(`results/auc_verdicts.tsv`).
+All three lost arms run `mean`, and every `sum` arm held. The lost steps,
+18,634, 26,413 and 28,152, are the live guard's verdicts
+(`results/auc_verdicts.tsv`). The guard stops a run whose rolling AUC median
+falls under 0.55. It ranks nothing.
 
 A k = 3 against k = 32 comparison moves three settings together: the depth,
 the reduction, and the weight of the rollout term. The sum reduction
 multiplies that weight by k + 1, so 4 copies at k = 3 and 33 at k = 32.
 This card cannot assign the split to the depth or the rate alone,
-and the inheritance table below shows the confound. The one mean arm at
-5.6e-4, `k32_r100_09_lr56`, still trains and prints no number here.
+and the inheritance table below shows the confound.
+
+**The rate does not rescue the k = 32 mean cell.** `k32_r100_09_lr56` scores
+1.4404 at 5.6e-4 against 1.4629 at 1e-3, a gap of 0.35 bands. The two are not
+ranked. The rate gains 2.6 bands on k = 3 and nothing here.
 
 ## One lost arm falls to near-zero dimension usage, the other rises
 
@@ -75,17 +86,26 @@ task. Dropping `L_rep` does not cause a loss either: `k3_r100_09_dec` runs
 38,000 steps at weight 0.0, holds an AUC floor of 0.9797 and scores 1.3236,
 inside its cell's seed range.
 
-## Above 0.99 the AUC stops separating the arms
+## The AUC says that a run is alive, and nothing more
 
 ![the score against the AUC](plots/auc_score.png)
 
 GM-Relative MASE against the AUC at the stop, one point per scored leg, with
-the two lost arms on the top axis line.
+the stopped arms on the top axis line.
 
-Across the held arms the two axes move together. Inside the k = 3 cluster the
-AUC is flat near 1.0 while the score spans 0.2090. `k32_r100_09` is 5.5 bands
-behind its 1.1M twin at 1.1507, a gap this card cannot split between the
-width and the rate misfit.
+**A higher AUC does not mean a better score.** Inside each reduction group the
+two move the wrong way. The Pearson correlation of the AUC against the score
+is +0.533 over the seven sum arms. It is +0.954 over the three mean arms.
+Higher is worse. The best arm of the card, `k3_r100_09_lr56` at 1.1820, holds
+the LOWEST AUC of the seven sum arms, 0.9973. The best mean arm,
+`k32_r100_09_lr56` at 1.4404, holds the lowest AUC of its three, 0.7098. The
+statistic is the `auc` column of `results/loss_terms.csv`, the guard's rolling
+median at the stop.
+
+So this report uses the AUC for one thing. The guard stops a run that reached
+chance, because a dead run gives no score. GM-Relative MASE decides every
+rank. `k32_r100_09` is 4.8 bands behind its 1.1M twin at 1.1507, a gap this
+card cannot split between the width and the rate misfit.
 
 ## The loss by term
 
@@ -106,8 +126,8 @@ over 384) over-corrects by 1.4 bands against 5.6e-4. Only the k = 3 cell ran
 the sweep, and 5.6e-4 is the best of four coarse points, one seed each. No
 5.6e-4 arm has reached 200,000 steps, the stop of the 1.0651 project best.
 
-**This report applies the band outside the cell that measured it.** 0.0568 is
-a two-seed spread at k = 3, sum, 1e-3, 40,000 steps. No replicate exists at
+**This report applies the band outside the cell that measured it.** 0.0649 is
+a two-seed spread at k = 3, sum, 5.6e-4, 40,000 steps. No replicate exists at
 other stops or under the mean reduction, so those rankings assume the band
 transfers.
 
@@ -154,25 +174,28 @@ the student latent, not the EMA teacher).
 
 ### The scores
 
-Ten scores over eight arms, because one arm scores three stops. Every 1e-3
-row is superseded on the k = 3 cell by 1.1820 at 5.6e-4
-(`results/scores.csv`). The two band columns read against the 1e-3 pair of the
-same cell, in units of 0.0568. The `twin minus 11.4M` column subtracts the
-row's 11.4M score from its 1.1M twin. In all three columns, positive favours
-the 11.4M arm.
+Fourteen scores over ten arms, because one arm scores three stops
+(`results/scores.csv`). The band column reads each row against 1.1820, the
+best of the card, in units of 0.0649. The `twin minus 11.4M` column subtracts
+the row's 11.4M score from its 1.1M twin, and positive favours the 11.4M
+arm.
 
-| arm | k | reduce | seed | lr | decay | stop | 11.4M | bands vs 1.3495 | bands vs 1.2927 | 1.1M twin | twin minus 11.4M | head-matched |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| k3_r100_09_lr56 | 3 | sum | 20260520 | 5.6e-4 | no | 40,000 | 1.1820 | 2.9 | 1.9 | never run | — | — |
-| k3_r100_09_lr33 | 3 | sum | 20260520 | 3.3e-4 | no | 40,000 | 1.2483 | 1.8 | 0.8 | never run | — | — |
-| k3_r100_09_lr17 | 3 | sum | 20260520 | 1.67e-4 | no | 40,000 | 1.2612 | 1.6 | 0.6 | never run | — | — |
-| k3_r100_09b | 3 | sum | 20260525 | 1e-3 | no | 40,000 | 1.2927 | 1.0 | — | 1.3618 (not seed-matched) | +0.0691 | no, 15,000-step head |
-| k3_r100_09_dec | 3 | sum | 20260520 | 1e-3 | yes | 40,000 | 1.3236 | — | — | never run | — | — |
-| k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 100,000 | 1.3395 | — | — | 1.3010 | -0.0385 | yes |
-| k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 40,000 | 1.3495 | — | — | 1.3618 | +0.0123 | no, 15,000-step head |
-| k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 200,000 | 1.3910 | — | — | 1.3998 | +0.0088 | yes |
-| k8_r100_09 | 8 | mean | 20260520 | 1e-3 | no | 40,000 | 1.4537 | — | — | never run | — | — |
-| k32_r100_09 | 32 | mean | 20260520 | 1e-3 | no | 40,000 | 1.4629 | — | — | 1.1507 (1.1491 to 1.1507) | -0.3122 | yes |
+| arm | k | reduce | seed | lr | decay | stop | 11.4M | bands behind 1.1820 | 1.1M twin | twin minus 11.4M | head-matched |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| k3_r100_09_lr56 | 3 | sum | 20260520 | 5.6e-4 | no | 40,000 | 1.1820 | 0.0 | never run | — | — |
+| k3_r100_09b_lr56 | 3 | sum | 20260525 | 5.6e-4 | no | 40,000 | 1.2469 | 1.0 | never run | — | — |
+| k3_r100_09_lr33 | 3 | sum | 20260520 | 3.3e-4 | no | 40,000 | 1.2483 | 1.0 | never run | — | — |
+| k3_r100_09_lr17 | 3 | sum | 20260520 | 1.67e-4 | no | 40,000 | 1.2612 | 1.2 | never run | — | — |
+| k3_r100_09b | 3 | sum | 20260525 | 1e-3 | no | 40,000 | 1.2927 | 1.7 | 1.3618 (not seed-matched) | +0.0691 | no, 15,000-step head |
+| k3_r100_09_lr56 | 3 | sum | 20260520 | 5.6e-4 | no | 100,000 | 1.3170 | 2.1 | never run | — | — |
+| k3_r100_09_lr56 | 3 | sum | 20260520 | 5.6e-4 | no | 200,000 | 1.3189 | 2.1 | never run | — | — |
+| k3_r100_09_dec | 3 | sum | 20260520 | 1e-3 | yes | 40,000 | 1.3236 | 2.2 | never run | — | — |
+| k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 100,000 | 1.3395 | 2.4 | 1.3010 | -0.0385 | yes |
+| k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 40,000 | 1.3495 | 2.6 | 1.3618 | +0.0123 | no, 15,000-step head |
+| k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 200,000 | 1.3910 | 3.2 | 1.3998 | +0.0088 | yes |
+| k32_r100_09_lr56 | 32 | mean | 20260520 | 5.6e-4 | no | 40,000 | 1.4404 | 4.0 | never run | — | — |
+| k8_r100_09 | 8 | mean | 20260520 | 1e-3 | no | 40,000 | 1.4537 | 4.2 | never run | — | — |
+| k32_r100_09 | 32 | mean | 20260520 | 1e-3 | no | 40,000 | 1.4629 | 4.3 | 1.1507 (1.1491 to 1.1507) | -0.3122 | yes |
 
 ### The reduction and the depth are confounded
 
@@ -181,8 +204,12 @@ published parents and the deeper arms take `mean`.
 
 | | sum | mean |
 |---|---|---|
-| k = 3 | 6 arms | none (a pass-2 arm runs it now) |
-| k = 8, k = 32 | none | 4 arms |
+| k = 3 | 7 arms | 1 arm, and the guard stopped it |
+| k = 8, k = 32 | 1 arm, running | 5 arms |
+
+Pass 2 added `k3_r100_09_mean` to break the confound, and the guard stopped it
+at 26,413 steps, so it holds no score. Pass 3 runs the other diagonal,
+`k32_r100_09_sum`.
 
 ### The k = 32 treatments
 
@@ -232,9 +259,6 @@ and there are no others:
 
 ### The loss by term
 
-Two pass-2 legs train now and print no row: `k3_r100_09_lr56` past 40,000
-toward 200,000, and `k32_r100_09_lr56` toward 40,000.
-
 | arm | stop | last step | total loss | L_rep | L_align | L_rep weight | EMA momentum |
 |---|---|---|---|---|---|---|---|
 | k32_r100_09 | 40,000 | 40,000 | 13.4947 | 11.6270 | 1.7583 | 1.00 | 0.9400 |
@@ -252,21 +276,32 @@ toward 200,000, and `k32_r100_09_lr56` toward 40,000.
 
 ### The arms
 
-Thirteen arms run over two passes, and `scripts/arms.tsv` carries the
+Sixteen arms run over three passes, and `scripts/arms.tsv` carries the
 reasoning per arm. Every arm ramps the EMA momentum from 0.9 to 1.0 over
 100,000 steps, except `k32_r200_08` (0.8 to 1.0 over 200,000). The scores
 table above holds each arm's k, reduction, seed, decay and rate.
 
-### The pass-2 arms
+### The pass-2 arms, and what each settled
 
-Their rows land in the tables above when they score.
+| run | arm | legs | result |
+|---|---|---|---|
+| R1 | `k3_r100_09_lr56`, resumed from 40,000 | 100,000 then 200,000 | 1.3170 and 1.3189. More steps cost 2.1 bands, and neither stop reaches 1.0651. |
+| R2 | `k32_r100_09_lr56` | 40,000 | 1.4404 against 1.4629 at 1e-3, a gap of 0.35 bands. The rate does not move this cell. |
+| R3 | `k3_r100_09_mean` | 40,000 | The guard stopped it at 26,413 steps. No score, so the reduction against depth confound stands. |
+| R4 | `k3_r100_09b_lr56` | 40,000 | 1.2469. It gives the band this report ranks with, 0.0649. |
 
-| run | arm | legs it holds |
+### The pass-3 arms
+
+Three arms train now, and each one takes the 40,000-step stop and a
+30,000-step head. `scripts/gate_pass3.sh` holds the rule: a score under
+1.1171 is progress, a score over 1.2469 is worse, and the numbers between
+are not ranked.
+
+| run | arm | what it settles |
 |---|---|---|
-| R1 | `k3_r100_09_lr56`, resumed from 40,000 | 100,000 then 200,000 |
-| R2 | `k32_r100_09_lr56` | 40,000 |
-| R3 | `k3_r100_09_mean` | 40,000 |
-| R4 | `k3_r100_09b_lr56` | 40,000 |
+| R5 | `k32_r100_09_sum` | The reduction against `k32_r100_09_lr56`, and the depth against `k3_r100_09_lr56`. It is the first k = 32 arm under `sum` at any size. |
+| R6 | `k3_r100_09_lr45` | The rate bracket under 5.6e-4. |
+| R7 | `k3_r100_09_lr70` | The rate bracket over 5.6e-4. |
 
 ### The cost
 
@@ -312,6 +347,12 @@ BB_GPU=0 CF412_LEGS="k3_r100_09_lr56:100000 k3_r100_09_lr56:200000" \
 BB_GPU=1 CF412_LEGS="k32_r100_09_lr56:40000 k3_r100_09b_lr56:40000 k3_r100_09_mean:40000" \
   bash scripts/pass2_lane.sh
 
+# Pass 3, the same lane, one per GPU.
+BB_GPU=1 CF412_LEGS="k32_r100_09_sum:40000" bash scripts/pass2_lane.sh
+BB_GPU=0 CF412_LEGS="k3_r100_09_lr45:40000 k3_r100_09_lr70:40000" \
+  bash scripts/pass2_lane.sh
+
 bash run.sh collect && bash scripts/make_plots.sh && bash scripts/gate.sh
-python3 scripts/lost_arm_terms.py   # the loss terms of the two lost arms
+bash scripts/gate_pass3.sh          # the pass-3 verdict against 1.1820
+python3 scripts/lost_arm_terms.py   # the loss terms of the stopped arms
 ```

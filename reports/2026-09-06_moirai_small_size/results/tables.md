@@ -1,6 +1,6 @@
 ### The scores
 
-The band is **0.0568** (this card measured it at 11.4M). Two numbers closer than that are not ranked. The `twin minus 11.4M` column subtracts the row's 11.4M score from its 1.1M twin, and positive favours the 11.4M arm.
+The band is **0.0649** (this card measured it at 11.4M and 5.6e-4). Two numbers closer than that are not ranked. The `twin minus 11.4M` column subtracts the row's 11.4M score from its 1.1M twin, and positive favours the 11.4M arm.
 
 | arm | k | reduce | seed | lr | L_rep decay | stop | 11.4M | 1.1M twin (parent seed range) | twin minus 11.4M | head-matched |
 |---|---|---|---|---|---|---|---|---|---|---|

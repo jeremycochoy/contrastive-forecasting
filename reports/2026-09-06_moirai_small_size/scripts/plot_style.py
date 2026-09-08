@@ -71,15 +71,16 @@ DEPTH_RAMP = {3: "#6ba3dc", 8: "#c98a2d", 32: "#1d5599"}
 
 STOP = 40000
 CELL = "arm6_v2_combab_alignT"
-# THE SEED BAND, and this card measured it at 11.4M parameters: `k3_r100_09`
-# scores 1.3495 and `k3_r100_09b` scores 1.2927 at the 40,000-step stop. The
-# two runs differ in the backbone seed alone. Two numbers closer than this are
-# not ranked, at every stop of this report.
+# THE SEED BAND, and this card measured it at 11.4M parameters AND at the rate
+# it ranks at: `k3_r100_09_lr56` scores 1.1820 and `k3_r100_09b_lr56` scores
+# 1.2469 at the 40,000-step stop, both at 5.6e-4. The two runs differ in the
+# backbone seed alone. Two numbers closer than this are not ranked.
 #
-# It replaces #409's 0.0471, which is a 1.1M number. A band measured at the
-# width the report ranks at is the one the report uses.
-BAND = 0.0568
-BAND_SOURCE = "this card measured it at 11.4M"
+# It replaces the 0.0568 of pass 1, which is a 1e-3 pair. Pass 1 found that
+# 1e-3 does not fit `d_model` 384, so a band from that rate does not rank the
+# arms this card ends on. It also replaces #409's 0.0471, a 1.1M number.
+BAND = 0.0649
+BAND_SOURCE = "this card measured it at 11.4M and 5.6e-4"
 
 # ---- The 1.1M references ----------------------------------------------------
 #
@@ -123,9 +124,9 @@ REF_1M1_SEEDS = {("k32_r100_09", 40000): (1.1491, 1.1507)}
 REF_SEED_MISMATCH = {"k3_r100_09b"}
 
 
-# The two seeds of `k3_r100_09` at 11.4M parameters. They are what `BAND`
-# above measures.
-BAND_SEEDS = ("k3_r100_09", "k3_r100_09b")
+# The two seeds of `k3_r100_09_lr56` at 11.4M parameters and 5.6e-4. They are
+# what `BAND` above measures.
+BAND_SEEDS = ("k3_r100_09_lr56", "k3_r100_09b_lr56")
 
 
 def effective_band(scores):

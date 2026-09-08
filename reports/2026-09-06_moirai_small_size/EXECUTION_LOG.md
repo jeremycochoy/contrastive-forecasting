@@ -353,3 +353,27 @@ The orchestrator overruled it before the seed scores existed, because the
 1.0651 reference is a 200,000-step number on the `k3_r100_09` lineage
 (`results/gate_40k.txt`). So the climb ran seed 20260520, the worse 1e-3
 seed.
+
+## The contrastive AUC does not rank arms
+
+The orchestrator measured it over the ten arms this card scored at the
+40,000-step stop. Inside each reduction group a HIGHER AUC goes with a WORSE
+GM-Relative MASE. The Pearson correlation is +0.533 over the seven sum arms
+and +0.954 over the three mean arms.
+
+The best arm, `k3_r100_09_lr56` at 1.1820, holds the lowest AUC of the seven
+sum arms, 0.9973. The best mean arm, `k32_r100_09_lr56` at 1.4404, holds the
+lowest AUC of its three, 0.7098.
+
+NAME THE STATISTIC AND ITS FILE. Two sessions computed this and got different
+coefficients from the same data. One read the `auc` column of
+`results/loss_terms.csv`, the guard's rolling median at the stop. The other
+read the `last` column of `results/auc_verdicts.tsv`. The second gives +0.587
+and +0.809, and it makes `k32_r100_09_lr56` tie `k8_r100_09` at 0.7302. The
+sign and the verdict hold under both. The report quotes the first and says so.
+
+WHAT IT DECIDES. The AUC has ONE use in this card: the guard stops a run whose
+rolling median falls under 0.55, because a run at chance gives no score.
+`scripts/gate_pass3.sh` carries the rule and ranks on GM-Relative MASE alone.
+n = 7 and n = 3 are small, so the coefficient is not evidence for anything
+beyond "do not rank on this axis".
