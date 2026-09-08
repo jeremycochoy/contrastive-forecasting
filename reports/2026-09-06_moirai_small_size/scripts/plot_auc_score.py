@@ -4,7 +4,9 @@
 WHY THIS FIGURE EXISTS. A low AUC predicts a bad score, and a high AUC does
 not order the good ones. That claim needs the joint picture: one point per
 scored leg, the guard's AUC at the stop on x, GM-Relative MASE on y, and the
-two stopped arms on the axis floor, at their last AUC, with no score.
+two stopped arms on the top axis line, at their last AUC, with no score.
+The top line is the high-MASE edge, so a stopped arm can not read as a good
+score.
 
 Sources: `results/scores.csv` joined to `results/auc_verdicts.tsv` on the
 run name and the stop.
@@ -88,14 +90,15 @@ def main():
              for (run, step), (auc, verdict) in verdicts.items()
              if verdict == "lost"]
     for (run, step), auc in floor:
-        ax.plot(auc, 0.0, "x", markersize=9, markeredgewidth=2.2,
+        ax.plot(auc, 1.0, "x", markersize=9, markeredgewidth=2.2,
                 color=S.LOST, clip_on=False, zorder=4,
                 transform=ax.get_xaxis_transform())
     if floor:
-        ax.annotate("the two stopped arms: no score",
-                    (min(a for _, a in floor), 0.03),
-                    xycoords=("data", "axes fraction"), xytext=(0, 8),
-                    textcoords="offset points", fontsize=8, color=S.LOST)
+        ax.annotate("stopped by the guard: no score",
+                    (min(a for _, a in floor), 0.97),
+                    xycoords=("data", "axes fraction"), xytext=(0, -8),
+                    textcoords="offset points", fontsize=8, color=S.LOST,
+                    va="top")
 
     ax.set_xlabel("contrastive AUC at the stop, the guard's 500-row median")
     ax.set_ylabel("GM-Relative MASE — lower is better")
@@ -111,7 +114,7 @@ def main():
                           markersize=9, markeredgewidth=2.2,
                           label="stopped by the guard"))
     ax.legend(handles=handles, frameon=False, fontsize=8, labelcolor=S.INK,
-              loc="upper left")
+              loc="lower left")
     fig.canvas.draw()
     stack(ax, labels)
 

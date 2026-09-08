@@ -1,8 +1,8 @@
 # At Moirai-2-Small size, the learning rate moves the score more than the capacity
 
-At 11.4M parameters and 40,000 steps, the published rate 1e-3 is the worst of
-the four rates this card tested. The same configuration at 5.6e-4 gains 0.1675
-GM-Relative MASE, 2.9 seed bands. Next: #414.
+At 11.4M parameters and 40,000 steps, a rate change from the published 1e-3
+to 5.6e-4 gains 0.1107 GM-Relative MASE against the better 1e-3 seed, 1.9
+seed bands. Next: #414.
 
 ## The rate has an interior minimum at 5.6e-4
 
@@ -47,7 +47,7 @@ The orchestrator overruled it before the seed scores existed, because the
 (`results/gate_40k.txt`). So the climb uses seed 20260520, the worse 1e-3
 seed.
 
-## At 1e-3, every mean arm loses AUC and every sum arm keeps it
+## The guard stopped two of the four mean arms and no sum arm
 
 ![the contrastive AUC](plots/auc.png)
 
@@ -66,10 +66,10 @@ A k = 3 against k = 32 comparison moves three settings together: the depth,
 the reduction, and the weight of the rollout term. The sum reduction
 multiplies that weight by k + 1, so 4 copies at k = 3 and 33 at k = 32.
 This card cannot assign the split to the depth or the rate alone,
-and the inheritance table below shows the confound. At 5.6e-4 the one mean arm
-so far, `k32_r100_09_lr56`, holds 0.9546 through its first 5,600 steps.
+and the inheritance table below shows the confound. The one mean arm at
+5.6e-4, `k32_r100_09_lr56`, still trains and prints no number here.
 
-## The two stopped arms move in opposite directions
+## One stopped arm falls to near-zero dimension usage, the other rises
 
 ![the dimension usage of the two stopped arms](plots/lost_uniformity.png)
 
@@ -83,8 +83,7 @@ toward the EMA teacher's latent. `k32_r200_08` carries `L_rep` at weight 1.0
 for all 28,500 logged steps, so the decay is not required to lose the task.
 Dropping `L_rep` does not cause a loss either. `k3_r100_09_dec` runs 38,000
 steps at weight 0.0 and holds a floor of 0.9797. It scores 1.3236, inside its
-cell's seed range. That floor is above 0.9039, the best 500-row median the
-plain k = 32 arm reaches after step 10,000.
+cell's seed range.
 
 ## The AUC does not rank the healthy arms
 
@@ -93,7 +92,7 @@ plain k = 32 arm reaches after step 10,000.
 GM-Relative MASE against the AUC at the stop, one point per scored leg. A
 leg is one continuous training segment of an arm toward one stop. The k = 3
 points run `sum` and the k = 8 and k = 32 points run `mean`. The two stopped
-arms sit on the axis line with no score.
+arms sit on the top axis line, with no score.
 
 `k32_r100_09` is 5.5 bands behind its 1.1M twin at 1.1507, a gap this card
 cannot split between the width and the rate misfit.
@@ -192,7 +191,6 @@ differ in both the momentum and the decay. Neither schedule completes by
 |---|---|---|---|---|---|
 | k32_r100_09 | held | 0.6827 | 20872 | 0.7732 | 40000 |
 | k32_r100_09_dec | lost | 0.5014 | 19100 | 0.5014 | 19100 |
-| k32_r100_09_lr56 | held | 0.9546 | 5600 | 0.9546 | 5600 |
 | k32_r200_08 | lost | 0.5347 | 28500 | 0.5347 | 28500 |
 | k3_r100_09 | held | 0.9931 | 1942 | 0.9988 | 40000 |
 | k3_r100_09 | held | 0.9974 | 40001 | 0.9994 | 100000 |
@@ -201,7 +199,6 @@ differ in both the momentum and the decay. Neither schedule completes by
 | k3_r100_09_lr17 | held | 0.9852 | 5991 | 0.9985 | 40000 |
 | k3_r100_09_lr33 | held | 0.9913 | 3337 | 0.9980 | 40000 |
 | k3_r100_09_lr56 | held | 0.9936 | 34553 | 0.9956 | 40000 |
-| k3_r100_09_lr56 | held | 0.9956 | 40001 | 0.9986 | 56100 |
 | k3_r100_09b | held | 0.9922 | 1869 | 0.9982 | 40000 |
 | k8_r100_09 | held | 0.6847 | 14106 | 0.7302 | 40000 |
 
@@ -221,14 +218,12 @@ what the same cell, seed and stop reached at 1.1M parameters, and where.
 | k8_r100_09 | 8 | 0.9 to 1.0 at 100k | no | 0.971 | 0.961 | 0.920 | 0.881 | 0.812 | 0.717 | 0.769 | 0.769 | 0.772 | 0.730 | held | — | — |
 | k32_r100_09 | 32 | 0.9 to 1.0 at 100k | no | 0.968 | 0.937 | 0.889 | 0.892 | 0.840 | 0.793 | 0.763 | 0.843 | 0.789 | 0.773 | held | 0.978 | the EMA-momentum study |
 | k32_r200_08 | 32 | 0.8 to 1.0 at 200k | no | 0.877 | 0.814 | 0.788 | 0.749 | 0.739 | 0.751 | 0.796 | 0.568 | 0.555 | — | lost at 28,152 | 0.957 | the EMA-momentum study |
-| k32_r100_09_lr56 | 32 | 0.9 to 1.0 at 100k | no | 0.973 | 0.964 | — | — | — | — | — | — | — | — | held | — | — |
 | k32_r100_09_dec | 32 | 0.9 to 1.0 at 100k | yes | 0.978 | 0.746 | 0.758 | 0.742 | 0.642 | 0.747 | 0.718 | — | — | — | lost at 18,634 | 0.983 | the L_rep-decay study |
 
 Compare two rows only when they differ in one column. These are the pairs,
 and there are no others:
 
 - `k32_r100_09` against `k32_r100_09_dec`, which moves the L_rep decay
-- `k32_r100_09` against `k32_r100_09_lr56`, which moves the learning rate
 - `k32_r100_09` against `k32_r200_08`, which moves the EMA momentum
 - `k32_r100_09` against `k8_r100_09`, which moves the rollout depth
 - `k3_r100_09_lr17` against `k3_r100_09_lr33`, which moves the learning rate
@@ -242,14 +237,13 @@ and there are no others:
 
 ### The loss by term
 
-A leg still training prints two last steps: `results/auc_verdicts.tsv` reads
-`k3_r100_09_lr56` at 56,100 and `results/loss_terms.csv` at 56,000.
+Two pass-2 legs train now and print no row: `k3_r100_09_lr56` past 40,000
+toward 200,000, and `k32_r100_09_lr56` toward 40,000.
 
 | arm | stop | last step | total loss | L_rep | L_align | L_rep weight | EMA momentum | AUC |
 |---|---|---|---|---|---|---|---|---|
 | k32_r100_09 | 40,000 | 40,000 | 13.4947 | 11.6270 | 1.7583 | 1.00 | 0.9400 | 0.7629 |
 | k32_r100_09_dec | 40,000 | 19,100 | 1.8013 | — | 1.8219 | 0.00 | 0.9191 | 0.5010 |
-| k32_r100_09_lr56 | 40,000 | 5,600 | 13.2346 | 11.6068 | 1.1272 | 1.00 | 0.9056 | 0.9480 |
 | k32_r200_08 | 40,000 | 28,500 | 13.6105 | 11.5968 | 2.0018 | 1.00 | 0.8285 | 0.5254 |
 | k3_r100_09 | 100,000 | 100,000 | 12.3238 | 11.7174 | 0.1472 | 1.00 | 1.0000 | 0.9997 |
 | k3_r100_09 | 200,000 | 200,000 | 12.2424 | 11.7181 | 0.1319 | 1.00 | 1.0000 | 0.9938 |
@@ -257,7 +251,6 @@ A leg still training prints two last steps: `results/auc_verdicts.tsv` reads
 | k3_r100_09_dec | 40,000 | 40,000 | 1.0579 | — | 0.2487 | 0.00 | 0.9400 | 0.9980 |
 | k3_r100_09_lr17 | 40,000 | 40,000 | 12.8115 | 11.7678 | 0.2532 | 1.00 | 0.9400 | 0.9992 |
 | k3_r100_09_lr33 | 40,000 | 40,000 | 12.5972 | 11.7772 | 0.2020 | 1.00 | 0.9400 | 0.9983 |
-| k3_r100_09_lr56 | 100,000 | 56,000 | 13.0397 | 11.7680 | 0.2933 | 1.00 | 0.9560 | 0.9990 |
 | k3_r100_09_lr56 | 40,000 | 40,000 | 12.6520 | 11.6891 | 0.2118 | 1.00 | 0.9400 | 0.9973 |
 | k3_r100_09b | 40,000 | 40,000 | 12.9777 | 11.7567 | 0.2832 | 1.00 | 0.9400 | 0.9984 |
 | k8_r100_09 | 40,000 | 40,000 | 13.3835 | 11.6129 | 1.7117 | 1.00 | 0.9400 | 0.7563 |
