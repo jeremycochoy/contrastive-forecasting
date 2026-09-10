@@ -62,6 +62,22 @@ START_TIMEOUT="${CF412_START_TIMEOUT:-2400}"
 # How long the whole queue waits for a card. Pass 4 climbs to 200,000 steps,
 # which is above one day at this width.
 QUEUE_TIMEOUT="${CF412_QUEUE_TIMEOUT:-345600}"
+# The room a leg leaves for a NEIGHBOUR THAT GROWS, in MiB.
+#
+# `cf412_leg_vram_mib` reads the free memory one time, at the start of a leg.
+# A neighbour that grows after that start can kill the leg, or the leg can
+# kill the neighbour. The rnd-483 session shares both cards of this box and
+# measured its own worker at 3,212 MiB today and at 6,880 MiB on the largest
+# point of its sample. That is 3,668 MiB of growth under a leg that has
+# already started, so a leg starts only when the card holds that much again.
+#
+# TODAY THIS RULE REFUSES GPU 0 FOR EVERY ARM OF PASS 5. That card holds
+# another user's Jupyter kernel at 11,692 MiB, so it frees to about 9,292 MiB,
+# and the smallest arm of this pass needs 8,400 plus this headroom. The
+# alternative is a leg with 2,132 MiB of slack against a neighbour that grows
+# by 3,668, which makes one of the two jobs fail. One of them is another
+# project's.
+NEIGHBOUR_MIB="${CF412_NEIGHBOUR_MIB:-3700}"
 
 mkdir -p "$CF412_RESULTS"
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#412 $LANE] $*" \
@@ -136,8 +152,15 @@ if [ -n "${CF412_QUEUE_CHECK:-}" ]; then
   echo "holders — pid card:"
   p5_bb_trainers | sed 's/^/  /'
   for card in $CARDS; do
-    printf 'gpu %s  %s MiB free  %s\n' "$card" "$(p5_free_mib "$card")" \
-      "$(p5_card_busy "$card" && echo HELD || echo free)"
+    free="$(p5_free_mib "$card")"
+    fits=""
+    for leg in $QUEUE; do
+      arm="${leg%%:*}"
+      [ "${free:-0}" -ge $(( $(cf412_leg_vram_mib "$arm") + NEIGHBOUR_MIB )) ] \
+        && fits="$fits $arm"
+    done
+    printf 'gpu %s  %s MiB free  %s  fits:%s\n' "$card" "$free" \
+      "$(p5_card_busy "$card" && echo HELD || echo free)" "${fits:- none}"
   done
   exit 0
 fi
@@ -158,11 +181,13 @@ while [ "${#pending[@]}" -gt 0 ]; do
     p5_card_busy "$card" && continue
     free="$(p5_free_mib "$card")"
     [ -n "$free" ] || continue
-    # The first pending leg this card holds the memory for.
+    # The first pending leg this card holds the memory for, with the room a
+    # growing neighbour needs on top of it.
     pick=-1
     for i in "${!pending[@]}"; do
       arm="${pending[$i]%%:*}"
-      [ "$free" -ge "$(cf412_leg_vram_mib "$arm")" ] && { pick="$i"; break; }
+      [ "$free" -ge $(( $(cf412_leg_vram_mib "$arm") + NEIGHBOUR_MIB )) ] \
+        && { pick="$i"; break; }
     done
     [ "$pick" -ge 0 ] || continue
     leg="${pending[$pick]}"; arm="${leg%%:*}"; stop="${leg##*:}"
@@ -177,8 +202,8 @@ while [ "${#pending[@]}" -gt 0 ]; do
       log "$arm at $stop already on disk — the head sweep scores it"
       continue
     fi
-    log "$arm -> $stop steps on gpu $card (${free} MiB free," \
-        "needs $(cf412_leg_vram_mib "$arm"))"
+    log "$arm -> $stop steps on gpu $card (${free} MiB free, needs" \
+        "$(cf412_leg_vram_mib "$arm") plus ${NEIGHBOUR_MIB} for a neighbour)"
     BB_GPU="$card" nohup bash "$HERE/run_arm.sh" "$arm" "$stop" \
       >>"$CF412_RESULTS/${LANE}_${arm}_${stop}.log" 2>&1 &
     pids+=("$!"); names+=("$arm:$stop:$card")

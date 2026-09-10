@@ -462,3 +462,22 @@ pipeline reads it, and that its parent is an 18-hour Jupyter server that looks
 like a person's notebook. No agent closed it. The cost is that the two k = 32
 arms run one after the other on GPU 1 instead of side by side, which is about
 12 hours.
+
+### A leg leaves room for a neighbour that grows
+
+`cf412_leg_vram_mib` reads the free memory ONE TIME, at the start of a leg. A
+neighbour that grows after that start can kill the leg, or the leg can kill
+the neighbour.
+
+The rnd-483 session shares both cards of this box. It measured its own worker
+at 3,212 MiB today and at 6,880 MiB on the largest point of its sample, which
+is 3,668 MiB of growth under a leg that has already started. So
+`pass5_lane.sh` adds 3,700 MiB of headroom to every leg's own need.
+
+The rule refuses GPU 0 for every arm of pass 5. That card frees to about
+9,292 MiB behind the 11,692 MiB kernel, and the smallest arm of this pass
+needs 8,400 plus the headroom. Without the rule that leg would hold 2,132 MiB
+of slack against a neighbour that grows by 3,668, and one of the two jobs
+would fail. One of them belongs to another project.
+
+The cost is that all three arms run on GPU 1, one after the other.
