@@ -501,3 +501,25 @@ none, and that repeats.
 
 The path was tested with a stub runner and a mocked card, so the whole
 placement, wait and re-fire ran in seconds and started no trainer.
+
+### Two notebook kernels took both cards at 19:26
+
+Two `run_notebook_ws.py` runs from a peer session started an ipykernel on EACH
+card, 11,692 MiB each, which is 23.4 GB of the 49 GB of this box. The kernel
+that pass 5 planned around, pid 1613885, is gone. These are its replacements.
+
+After the change one card only can clear the 9,000 MiB head gate:
+
+| card | free | plus the pass-4 leg | clears 9,000 |
+|---|---|---|---|
+| GPU 0 | 2,818 MiB | 9,290 MiB | yes, by 290 |
+| GPU 1 | 542 MiB | 7,014 MiB | no |
+
+So `pass5_sweep_move.sh` moves the head sweep to GPU 0 in the window between
+the pass-4 inline head and the next leg. It waits for that head to appear and
+then to END, because two head trains on one card is what the `flock` prevents.
+
+GPU 1 blocks more than a head. A pass-4 k = 3 leg needs 7,700 MiB and that
+card gives back 7,014, so the 100,000-step and 200,000-step legs of pass 4
+wait as well. No queue of this card routes around it. Both #412 sessions asked
+the owner session, which is idle, and neither touched the process.
