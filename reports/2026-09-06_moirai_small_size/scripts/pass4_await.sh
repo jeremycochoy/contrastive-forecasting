@@ -11,6 +11,10 @@
 #               on to the next stop, and the next stop resumes the arm's
 #               FURTHEST checkpoint. So the skipped stop never gets a
 #               checkpoint, and the card loses the comparison it rests on.
+#   HEADBLOCKED a head is alive but its card is short of CF412_HEAD_VRAM_MIB,
+#               and has been for CF412_HEAD_BLOCK_MIN minutes. Such a head
+#               holds the card's head lock and aborts after 4 hours with no
+#               score, so a reader sees a working head that produces nothing.
 #   NOPROGRESS  no leg advanced a step for CF412_STALL_MIN minutes
 #   TIMEBOX     CF412_MAXWAIT seconds passed, so the session re-arms it
 #
@@ -24,6 +28,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LEGS="${CF412_PASS4_LEGS:-k3_r100_09_lr56_dec:40000 k3_r100_09_lr56_dec:100000 k3_r100_09_lr56_dec:200000 k3_r100_09_lr56_dec10k:40000 k3_r100_09_lr56_dec10k:100000}"
 MAXWAIT="${CF412_MAXWAIT:-14400}"
 STALL_MIN="${CF412_STALL_MIN:-60}"
+BLOCK_MIN="${CF412_HEAD_BLOCK_MIN:-30}"
 EVERY="${CF412_AWAIT_EVERY:-120}"
 LOG="$CF412_RESULTS/pass4_await.log"
 mkdir -p "$CF412_RESULTS"
@@ -49,7 +54,7 @@ busy_of(){  # <arm> <stop>
 }
 say(){ echo "[$(date '+%m-%d %H:%M:%S')] $*" | tee -a "$LOG"; }
 
-t0=$(date +%s); last_hb=$t0; last_move=$t0; prev_sum=-1
+t0=$(date +%s); last_hb=$t0; last_move=$t0; prev_sum=-1; block_since=0
 say "await armed — $N_LEGS legs, maxwait ${MAXWAIT}s, stall ${STALL_MIN}min"
 while :; do
   sleep "$EVERY"
@@ -70,6 +75,27 @@ while :; do
 
   lanes=$(cf412_lanes_running)
   heads=$(cf412_heads_running)
+
+  # A head that waits on memory is not a head that works.
+  blocked=""; working=0
+  for leg in $LEGS; do
+    arm="${leg%%:*}"; stop="${leg##*:}"
+    cf412_head_pid "$arm" "$stop" >/dev/null || continue
+    b="$(cf412_head_blocked "$arm" "$stop")" \
+      && blocked="$blocked $arm@$(( stop / 1000 ))k gpu${b%% *}:${b##* }MiB" \
+      || working=$(( working + 1 ))
+  done
+  if [ -n "$blocked" ]; then
+    [ "$block_since" -eq 0 ] && { block_since=$now
+      say "a head waits on memory —$blocked"; }
+    if [ $(( now - block_since )) -ge $(( BLOCK_MIN * 60 )) ]; then
+      say "HEADBLOCKED for $BLOCK_MIN min —$blocked"
+      say "  it holds the card head lock and aborts after 4 h with no score."
+      echo HEADBLOCKED; exit 6
+    fi
+  else
+    block_since=0
+  fi
 
   # An overtaken leg. The card compares each arm against ITSELF at 40,000
   # steps, so a stop the lane skipped is not a delay, it is a lost comparison.
@@ -101,7 +127,7 @@ while :; do
   done
 
   if [ $(( now - last_move )) -ge $(( STALL_MIN * 60 )) ]; then
-    if [ "$heads" -eq 0 ]; then
+    if [ "$working" -eq 0 ]; then
       say "NOPROGRESS — no step for $STALL_MIN min and no head running —$line"
       echo NOPROGRESS; exit 4
     fi
@@ -110,7 +136,7 @@ while :; do
 
   if [ $(( now - last_hb )) -ge 3600 ]; then
     last_hb=$now
-    say "hourly — resolved $n of $N_LEGS —$line  lanes=$lanes heads=$heads"
+    say "hourly — resolved $n of $N_LEGS —$line  lanes=$lanes heads=$heads working=$working"
   fi
 
   if [ $(( now - t0 )) -ge "$MAXWAIT" ]; then

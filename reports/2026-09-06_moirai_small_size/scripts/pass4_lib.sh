@@ -56,3 +56,32 @@ cf412_lanes_running(){
 cf412_heads_running(){
   cf412_count_real 'head_eval(_bb)?\.sh '
 }
+
+# The card a head driver runs on, or nothing. `head_eval.sh` takes it from the
+# environment, so the process holds it.
+cf412_head_gpu(){  # <pid>
+  tr '\0' '\n' <"/proc/${1:?pid}/environ" 2>/dev/null \
+    | sed -n 's/^BB_GPU=//p' | head -1
+}
+
+# The free memory of one card, in MiB, or nothing.
+cf412_gpu_free(){  # <gpu index>
+  nvidia-smi --id="${1:?gpu}" --query-gpu=memory.free \
+    --format=csv,noheader,nounits 2>/dev/null | tr -d ' '
+}
+
+# A head that is ALIVE but cannot start. `head_eval_bb.sh` takes the card's
+# head lock FIRST and then waits up to HEAD_VRAM_TIMEOUT (4 hours) for
+# CF412_HEAD_VRAM_MIB of free memory. So a blocked head looks exactly like a
+# working head in the process table, and it holds that lock the whole time.
+#
+# Prints "<gpu> <free>" when the head is alive and its card is short. Prints
+# nothing otherwise.
+cf412_head_blocked(){  # <arm> <stop>
+  local pid gpu free need="${CF412_HEAD_VRAM_MIB:-9000}"
+  pid="$(cf412_head_pid "$1" "$2")" || return 1
+  gpu="$(cf412_head_gpu "$pid")"; [ -n "$gpu" ] || return 1
+  free="$(cf412_gpu_free "$gpu")"; [ -n "$free" ] || return 1
+  [ "$free" -lt "$need" ] || return 1
+  echo "$gpu $free"
+}
