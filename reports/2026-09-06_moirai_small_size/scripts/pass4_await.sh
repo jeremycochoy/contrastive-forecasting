@@ -6,6 +6,11 @@
 #
 #   COMPLETE    every leg holds a score, or its arm holds a collapse note
 #   STALLED     a leg has no backbone, no trainer, and no lane
+#   OVERTAKEN   a leg has no backbone, and a HIGHER stop of the same arm
+#               already runs or landed. `phase1.sh` logs a failed leg and goes
+#               on to the next stop, and the next stop resumes the arm's
+#               FURTHEST checkpoint. So the skipped stop never gets a
+#               checkpoint, and the card loses the comparison it rests on.
 #   NOPROGRESS  no leg advanced a step for CF412_STALL_MIN minutes
 #   TIMEBOX     CF412_MAXWAIT seconds passed, so the session re-arms it
 #
@@ -65,6 +70,23 @@ while :; do
 
   lanes=$(cf412_lanes_running)
   heads=$(cf412_heads_running)
+
+  # An overtaken leg. The card compares each arm against ITSELF at 40,000
+  # steps, so a stop the lane skipped is not a delay, it is a lost comparison.
+  for leg in $LEGS; do
+    arm="${leg%%:*}"; stop="${leg##*:}"
+    bb_of "$arm" "$stop" && continue
+    busy_of "$arm" "$stop" && continue
+    for hi in $LEGS; do
+      [ "${hi%%:*}" = "$arm" ] || continue
+      [ "${hi##*:}" -gt "$stop" ] || continue
+      if bb_of "$arm" "${hi##*:}" || busy_of "$arm" "${hi##*:}"; then
+        say "OVERTAKEN — $arm has no backbone at $stop, but ${hi##*:} runs or landed"
+        say "  re-fire it: BB_GPU=<card> bash scripts/run_arm.sh $arm $stop"
+        bash "$HERE/pass4_gate.sh" 2>&1 | tee -a "$LOG"; echo OVERTAKEN; exit 5
+      fi
+    done
+  done
 
   # A stalled leg: not resolved, no backbone, no trainer, and no lane that
   # could still start it.
