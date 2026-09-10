@@ -602,3 +602,30 @@ lane does, which is the test `cf412_count_real` already uses.
 A WATCHER THAT REPORTS NOTHING LOOKS HEALTHY. The first version was tested
 against a live orphan and printed nothing, which is the only reason the trap
 was found.
+
+### One card, because two notebook kernels took the other
+
+At 19:26 two `ipykernel_launcher` processes started, one on each card, holding
+11,694 and 11,692 MiB. They are not stale memory: at 23:45 they ran at 191 and
+206 percent CPU with over 8 hours of CPU time each. They compute, so no
+session may reclaim them.
+
+WHAT THAT LEFT. GPU 1 holds 7,018 MiB free with the kernel and the rnd-483
+neighbour on it. A k = 3 leg needs 7,700 and a head needs 9,000. So GPU 1
+takes NEITHER, and it is short for the leg by 682 MiB.
+
+THE GATE STAYS. The leg's true peak is 6,472 MiB, so it would fit with 546
+MiB spare. That margin is not the card's to spend: the rnd-483 worker on the
+same card grew from 3,172 to 5,490 MiB in one evening, and a leg that takes
+GPU 1 to 546 MiB free can kill that job as well as its own.
+
+WHAT THE CARD DID INSTEAD. At 23:49 it stopped lane 1, which held no trainer
+and only polled GPU 1, and it started the same arm again on GPU 0 with
+`STOPS="100000 200000"`. Lane 2 keeps its own `phase1.sh` and polls the same
+card. Each lane takes GPU 0 when the other frees it, so the two arms
+interleave with no scheduler: a leg runs while the other arm evaluates on the
+CPU. The cost is about 29 hours of wall clock against 16 on two cards.
+
+THE ORDER IS DELIBERATE. Arm `k3_r100_09_lr56_dec` goes first, because it
+carries the 200,000-step stop, which is the question of pass 4. Arm
+`k3_r100_09_lr56_dec10k` stops at 100,000.
