@@ -55,6 +55,10 @@ busy_of(){  # <arm> <stop>
 say(){ echo "[$(date '+%m-%d %H:%M:%S')] $*" | tee -a "$LOG"; }
 
 t0=$(date +%s); last_hb=$t0; last_move=$t0; prev_sum=-1; block_since=0
+# The heads seen with a GPU allocation. A head runs its 97-config eval on the
+# CPU after it drops the card, so it holds no GPU memory for hours while it
+# works. Without this list that eval reads as a blocked head.
+past_gate=""
 say "await armed — $N_LEGS legs, maxwait ${MAXWAIT}s, stall ${STALL_MIN}min"
 while :; do
   sleep "$EVERY"
@@ -81,9 +85,13 @@ while :; do
   for leg in $LEGS; do
     arm="${leg%%:*}"; stop="${leg##*:}"
     cf412_head_pid "$arm" "$stop" >/dev/null || continue
-    b="$(cf412_head_blocked "$arm" "$stop")" \
-      && blocked="$blocked $arm@$(( stop / 1000 ))k gpu${b%% *}:${b##* }MiB" \
-      || working=$(( working + 1 ))
+    key="$arm@$(( stop / 1000 ))k"
+    case " $past_gate " in *" $key "*) working=$(( working + 1 )); continue ;; esac
+    if b="$(cf412_head_blocked "$arm" "$stop")"; then
+      blocked="$blocked $key gpu${b%% *}:${b##* }MiB"
+    else
+      past_gate="$past_gate $key"; working=$(( working + 1 ))
+    fi
   done
   if [ -n "$blocked" ]; then
     [ "$block_since" -eq 0 ] && { block_since=$now

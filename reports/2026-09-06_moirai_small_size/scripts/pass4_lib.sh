@@ -70,16 +70,34 @@ cf412_gpu_free(){  # <gpu index>
     --format=csv,noheader,nounits 2>/dev/null | tr -d ' '
 }
 
-# A head that is ALIVE but cannot start. `head_eval_bb.sh` takes the card's
-# head lock FIRST and then waits up to HEAD_VRAM_TIMEOUT (4 hours) for
+# Every descendant of one pid, that pid first.
+cf412_descendants(){  # <pid>
+  local k
+  echo "${1:?pid}"
+  for k in $(pgrep -P "$1" 2>/dev/null); do cf412_descendants "$k"; done
+}
+
+# A head that is ALIVE but cannot start. `head_eval_bb.sh` takes the card head
+# lock FIRST and then waits up to HEAD_VRAM_TIMEOUT (4 hours) for
 # CF412_HEAD_VRAM_MIB of free memory. So a blocked head looks exactly like a
 # working head in the process table, and it holds that lock the whole time.
 #
-# Prints "<gpu> <free>" when the head is alive and its card is short. Prints
-# nothing otherwise.
+# THE CARD'S FREE MEMORY ALONE DOES NOT ANSWER THIS. A head that clears the
+# gate then allocates about 6,250 MiB itself, which drops the card BACK under
+# the gate. Read by free memory alone, every working head reads as blocked.
+# So the test is the head's own allocation: a head that holds GPU memory is
+# past the gate, whatever the card reports now.
+#
+# Prints "<gpu> <free>" when the head is alive, holds no GPU memory, and its
+# card is short. Prints nothing otherwise.
 cf412_head_blocked(){  # <arm> <stop>
-  local pid gpu free need="${CF412_HEAD_VRAM_MIB:-9000}"
+  local pid gpu free p gpids need="${CF412_HEAD_VRAM_MIB:-9000}"
   pid="$(cf412_head_pid "$1" "$2")" || return 1
+  gpids=" $(nvidia-smi --query-compute-apps=pid --format=csv,noheader 2>/dev/null \
+    | tr -d ' ' | tr '\n' ' ')"
+  for p in $(cf412_descendants "$pid"); do
+    case "$gpids" in *" $p "*) return 1 ;; esac
+  done
   gpu="$(cf412_head_gpu "$pid")"; [ -n "$gpu" ] || return 1
   free="$(cf412_gpu_free "$gpu")"; [ -n "$free" ] || return 1
   [ "$free" -lt "$need" ] || return 1
