@@ -481,3 +481,23 @@ of slack against a neighbour that grows by 3,668, and one of the two jobs
 would fail. One of them belongs to another project.
 
 The cost is that all three arms run on GPU 1, one after the other.
+
+### A dead leg goes back in the queue
+
+A leg of pass 5 is 9 to 13 hours and it shares a card with another project.
+The headroom above makes a death unlikely, not impossible, and a death costs
+the whole arm: the pass rests on each arm's score at the 40,000-step stop, and
+an arm with no 40,000-step checkpoint carries no score.
+
+So `pass5_lane.sh` puts a leg that ends with NO CHECKPOINT back in the queue,
+up to `CF412_ATTEMPTS` times, which is 3. A re-fire is cheap, because
+`run_leg_k.sh` resumes the arm's furthest checkpoint with its optimizer state
+and the trainer saves every 20,000 steps.
+
+TWO EXITS ARE RESULTS AND NEVER RETRY. Exit 4 is the AUC gate, which stopped
+the arm, and the same arm would lose the task again. Exit 3 is a wiring
+defect: the trainer took an objective this arm does not carry, or it named
+none, and that repeats.
+
+The path was tested with a stub runner and a mocked card, so the whole
+placement, wait and re-fire ran in seconds and started no trainer.

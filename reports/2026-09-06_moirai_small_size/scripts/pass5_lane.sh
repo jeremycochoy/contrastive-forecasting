@@ -171,7 +171,33 @@ for leg in $QUEUE; do
 done
 log "cards: $CARDS  queue: $QUEUE"
 
-pending=($QUEUE)
+# ---- A dead leg goes back in the queue ---------------------------------------
+#
+# WHY. A leg of this pass is 9 to 13 hours, and it shares a card with another
+# project whose worker grows by up to 3,668 MiB. The headroom above makes a
+# death unlikely, not impossible, and a death costs the whole arm: the pass
+# rests on each arm's score at the 40,000-step stop, and an arm with no
+# 40,000-step checkpoint carries no score.
+#
+# A RE-FIRE IS CHEAP. `run_leg_k.sh` resumes the arm's furthest checkpoint
+# with its optimizer state, and the trainer saves every 20,000 steps. So a
+# death at step 30,000 costs the 10,000 steps since the last save, not the
+# leg.
+#
+# TWO EXITS ARE RESULTS AND NEVER RETRY.
+#   4  the AUC gate stopped the arm. That is a measurement, and the same arm
+#      would lose the task again.
+#   3  the trainer took an objective this arm does not carry, or it named
+#      none. That is a wiring defect, and it repeats.
+ATTEMPTS="${CF412_ATTEMPTS:-3}"
+
+retry=($QUEUE)
+attempt=1
+gave_up=0
+while [ "${#retry[@]}" -gt 0 ] && [ "$attempt" -le "$ATTEMPTS" ]; do
+[ "$attempt" -gt 1 ] && log "attempt $attempt of $ATTEMPTS for ${retry[*]}"
+pending=(${retry[@]+"${retry[@]}"})
+retry=()
 pids=(); names=()
 waited=0
 while [ "${#pending[@]}" -gt 0 ]; do
@@ -225,18 +251,38 @@ while [ "${#pending[@]}" -gt 0 ]; do
   sleep "$POLL"; waited=$(( waited + POLL ))
 done
 
-failed=0
+# A leg still pending here never found a card inside the queue timeout, which
+# is four days. That is not a case a re-fire helps.
+for leg in ${pending[@]+"${pending[@]}"}; do
+  log "$leg NOT STARTED — no card cleared inside ${QUEUE_TIMEOUT}s"
+  gave_up=$(( gave_up + 1 ))
+done
+pending=()
+
 for i in "${!pids[@]}"; do
   wait "${pids[$i]}"; rc=$?
-  arm="${names[$i]%%:*}"
+  arm="${names[$i]%%:*}"; rest="${names[$i]#*:}"; stop="${rest%%:*}"
+  ckpt="$(cf412_bb_ckpt "$arm" "$stop")"
   if [ "$rc" -eq "$CF412_RC_COLLAPSED" ]; then
-    log "${names[$i]} LOST the contrastive task — see $(cf412_collapse_file "$arm")"
-  elif [ "$rc" -eq 0 ]; then
-    log "${names[$i]} DONE — $(cf412_bb_ckpt "$arm" "${names[$i]#*:}" 2>/dev/null)"
+    log "$arm at $stop LOST the contrastive task — see" \
+        "$(cf412_collapse_file "$arm")"
+  elif [ -n "$ckpt" ]; then
+    log "$arm at $stop DONE — $ckpt"
+  elif [ "$rc" -eq 3 ]; then
+    log "$arm at $stop STOPPED rc=3 — the leg named the wrong objective or" \
+        "none. No re-fire: it repeats. See $(cf412_leg_log "$arm")"
+    gave_up=$(( gave_up + 1 ))
   else
-    log "${names[$i]} FAILED rc=$rc"
-    failed=$(( failed + 1 ))
+    log "$arm at $stop FAILED rc=$rc with no checkpoint — back in the queue"
+    retry+=("$arm:$stop")
   fi
 done
-log "lane done — $failed failure(s)"
-[ "$failed" -eq 0 ] || exit 1
+attempt=$(( attempt + 1 ))
+done
+
+for leg in ${retry[@]+"${retry[@]}"}; do
+  log "$leg GAVE UP after $ATTEMPTS attempt(s)"
+  gave_up=$(( gave_up + 1 ))
+done
+log "lane done — $gave_up arm(s) with no checkpoint"
+[ "$gave_up" -eq 0 ] || exit 1
