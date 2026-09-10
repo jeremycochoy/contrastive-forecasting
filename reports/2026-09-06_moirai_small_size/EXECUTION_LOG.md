@@ -377,3 +377,43 @@ rolling median falls under 0.55, because a run at chance gives no score.
 `scripts/gate_pass3.sh` carries the rule and ranks on GM-Relative MASE alone.
 n = 7 and n = 3 are small, so the coefficient is not evidence for anything
 beyond "do not rank on this axis".
+
+## Pass 4 — the L_rep decay at 5.6e-4, over a long stop
+
+THE GAP THIS PASS FILLS. Every decay arm of this card ran at 1e-3 and stopped
+at 40,000 steps. So the decay was never tested at the rate that fits the
+width, and never at a stop where the degradation appears. The two arms below
+move both together.
+
+| arm | L_rep to zero by | EMA ramp | stops | card |
+|---|---|---|---|---|
+| `k3_r100_09_lr56_dec` | 2,000 | 100,000 | 40k, 100k, 200k | 1 |
+| `k3_r100_09_lr56_dec10k` | 10,000 | 40,000 | 40k, 100k | 0 |
+
+Both are the configuration-1 cell: k = 3, sum, seed 20260520, 5.6e-4. The
+second arm carries a 40,000-step EMA ramp so the ramp COMPLETES inside the
+stop.
+
+THE LAUNCHER IS `phase1.sh`, NOT `pass2_lane.sh`. `phase1.sh` trains the head
+and runs its 97-config GIFT-Eval INLINE after each leg, so each card idles
+about 4.6 hours per stop. That is the cost of a head at each stop, which this
+pass needs. A peer session that gates on a #412 trainer alone sees an idle
+card in that window and starts an arm beside a head. Gate on `phase1.sh` too.
+
+THE PREFIX TRAP. `k3_r100_09_lr56_dec` is a PREFIX of
+`k3_r100_09_lr56_dec10k`, and the two arms are the whole pass. A `pgrep -f`
+on the arm name reads one arm as the other, and the status block then says a
+leg runs when it does not. `pass4_lib.sh` matches on the leg's own
+`--save-dir` instead, which no two legs share.
+
+`pgrep -f` ALSO MATCHES THE AGENT SHELL. An agent session runs each command
+through a wrapper whose own arguments hold the whole command text, so
+`pgrep -fc head_eval` counted 1 with no head on the box. Every wrapper carries
+`shell-snapshots` and no lane does, so `cf412_count_real` drops them.
+
+THE HEAD DOES NOT FIT ON GPU 0 WHILE A BACKBONE RUNS THERE. At the launch
+GPU 0 held an ipykernel at 11,692 MiB, an rnd-483 trainer at 3,212 MiB and a
+#412 backbone at 5,416 MiB, which leaves 3,876 MiB against
+`CF412_HEAD_VRAM_MIB` 9,000. The backbone exits before its own inline head
+starts, which frees 5,416 MiB and clears the gate by 292 MiB. Any head that
+comes from the sweep instead needs GPU 1.
