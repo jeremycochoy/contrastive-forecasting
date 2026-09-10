@@ -29,6 +29,9 @@ LEGS="${CF412_PASS4_LEGS:-k3_r100_09_lr56_dec:40000 k3_r100_09_lr56_dec:100000 k
 MAXWAIT="${CF412_MAXWAIT:-14400}"
 STALL_MIN="${CF412_STALL_MIN:-60}"
 BLOCK_MIN="${CF412_HEAD_BLOCK_MIN:-30}"
+# The blocked heads the session ALREADY knows about, as "<arm>@<N>k". A restart
+# passes them back, so the await returns on a NEW block and not on an old one.
+BLOCK_KNOWN="${CF412_BLOCK_KNOWN:-}"
 EVERY="${CF412_AWAIT_EVERY:-120}"
 LOG="$CF412_RESULTS/pass4_await.log"
 mkdir -p "$CF412_RESULTS"
@@ -97,9 +100,16 @@ while :; do
     [ "$block_since" -eq 0 ] && { block_since=$now
       say "a head waits on memory —$blocked"; }
     if [ $(( now - block_since )) -ge $(( BLOCK_MIN * 60 )) ]; then
-      say "HEADBLOCKED for $BLOCK_MIN min —$blocked"
-      say "  it holds the card head lock and aborts after 4 h with no score."
-      echo HEADBLOCKED; exit 6
+      fresh=""
+      for k in $blocked; do
+        case "$k" in *@*) ;; *) continue ;; esac
+        case " $BLOCK_KNOWN " in *" $k "*) ;; *) fresh="$fresh $k" ;; esac
+      done
+      if [ -n "$fresh" ]; then
+        say "HEADBLOCKED for $BLOCK_MIN min —$fresh"
+        say "  it holds the card head lock and aborts after 4 h with no score."
+        echo HEADBLOCKED; exit 6
+      fi
     fi
   else
     block_since=0
