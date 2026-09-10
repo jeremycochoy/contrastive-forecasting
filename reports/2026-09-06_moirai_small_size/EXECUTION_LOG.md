@@ -417,3 +417,48 @@ GPU 0 held an ipykernel at 11,692 MiB, an rnd-483 trainer at 3,212 MiB and a
 `CF412_HEAD_VRAM_MIB` 9,000. The backbone exits before its own inline head
 starts, which frees 5,416 MiB and clears the gate by 292 MiB. Any head that
 comes from the sweep instead needs GPU 1.
+
+## Pass 5 — the phase-1 re-run at the winning rate
+
+The card pre-registered one rule before the rate sweep ran: a rate distance D
+above the seed band voids every 1e-3 number, and phase 1 runs again at the
+winning rate. D came in at 0.1675, which is three bands, so the rule fired.
+Three of the six configurations never ran again, and pass 5 runs those three
+at 5.6e-4, seed 20260520, to 40,000 steps: `k32_r200_08_lr56`,
+`k32_r100_09_dec_lr56` and `k8_r100_09_lr56`.
+
+ALL THREE MOVE THE REDUCTION TO SUM. The mean arms of this card score 1.4404
+to 1.4629 and two of them lost the task. Every sum arm scored 1.18 to 1.35 and
+none lost the task.
+
+`k32_r200_08_lr56` also moves the EMA ramp from 200,000 steps to 40,000, so
+the ramp completes inside the stop. Its 1e-3 twin lost the task at step 28,152
+with the ramp only at 0.8285.
+
+### The queue gates on the LANE, not on the trainer
+
+Pass 4 runs under `phase1.sh`, which trains a head and runs its 97-config
+evaluation INLINE between two legs of one arm. That window is about 4.6 hours,
+and through it the card holds no backbone trainer. A queue that read the
+trainers alone would start a leg there, and the pass-4 lane would then wait
+for memory that does not come back.
+
+So `pass5_lane.sh` counts a live `phase1.sh` or `pass2_lane.sh` whose `BB_GPU`
+names the card, as well as a python trainer whose `--run-name` carries
+`_cf412_`. `CF412_QUEUE_CHECK=1 bash scripts/pass5_lane.sh` prints what the
+gate reads and starts nothing.
+
+### The queue picks by memory, not by order
+
+The queue takes the first pending arm that FITS the free memory of the card
+that frees. A k = 32 leg needs 11,300 MiB and a k = 8 leg needs 8,400. GPU 0
+holds another user's Jupyter kernel at 11,692 MiB, and with the rnd-483
+trainer beside it that card frees to about 9,300 MiB. So GPU 0 can take the
+k = 8 arm and no k = 32 arm, and a strict first-in-first-out queue would idle
+that card for hours.
+
+The rnd-483 session confirms the kernel is not its own, that nothing of its
+pipeline reads it, and that its parent is an 18-hour Jupyter server that looks
+like a person's notebook. No agent closed it. The cost is that the two k = 32
+arms run one after the other on GPU 1 instead of side by side, which is about
+12 hours.
