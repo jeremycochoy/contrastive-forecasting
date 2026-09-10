@@ -548,3 +548,30 @@ READ THE GATE'S OWN COMMENT BEFORE MEASURING IT. This session built
 runs. The measurement is a third independent replication, on a different arm,
 which is worth something. The hour that found it was not: the answer sat four
 lines above the value the session was questioning.
+
+### Two drivers, one head tag
+
+At 23:33 a second driver started for `k3_r100_09_lr56_dec` at 40,000 steps,
+on GPU 0, while lane 1's own inline driver still held the GPU 1 head lock and
+waited for memory. Both named one output directory:
+`cf-412/k3_r100_09_lr56_dec/eval/k3_r100_09_lr56_dec_bb40k_h30k_student`.
+
+THE `flock` DOES NOT CATCH THIS. It is per CARD
+(`/tmp/cf373_head_gpu<N>.lock`), so a GPU 0 head and a GPU 1 head never
+serialize against each other. `head_busy.sh` does catch it, and the second
+driver did not run under anything that asks.
+
+NOTHING WAS CORRUPTED. The GPU 1 driver had started no python, so only the
+GPU 0 head ever wrote. `cf412_kill_tree 3033796` at 23:42 ended the waiting
+driver, `phase1.sh` logged the head as FAILED, and lane 1 moved on to its
+100,000-step leg. The GPU 1 head lock came free with it.
+
+WHERE IT CAME FROM. Pid 3209265 had no lane in its parent chain. Its
+grandparent was the agent shell that launched both `phase1.sh` lanes, so a
+session started it by hand.
+
+THE RULE THIS CONFIRMS, which this log already carried: ask
+`scripts/arm_busy.sh <arm>` and `scripts/head_busy.sh <arm> <stop>` before you
+start anything by hand. They are the only guards on this card, and a hand-run
+driver asks neither. A duplicate that had started 90 seconds earlier would
+have put two writers on the 40,000-step number that pass 4 rests on.
