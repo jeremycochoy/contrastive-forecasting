@@ -523,3 +523,28 @@ GPU 1 blocks more than a head. A pass-4 k = 3 leg needs 7,700 MiB and that
 card gives back 7,014, so the 100,000-step and 200,000-step legs of pass 4
 wait as well. No queue of this card routes around it. Both #412 sessions asked
 the owner session, which is idle, and neither touched the process.
+
+### The head gate stranded a head, as its own comment predicted
+
+At 21:34 arm `k3_r100_09_lr56_dec` reached 40,000 steps and its inline head
+started on GPU 1, which held 7,018 MiB free against `CF412_HEAD_VRAM_MIB`
+9,000. The head took the card head lock, missed the gate, and waited.
+
+A head of this shape holds 6,252 MiB. So it would have fit, with 766 MiB to
+spare. The comment above `CF412_HEAD_VRAM_MIB` already says this in the last
+line it was written with: "A gate far above it strands a head that would have
+fit."
+
+THE GATE STAYS AT 9,000 ANYWAY. `head_eval_bb.sh` takes its `flock` BEFORE the
+memory wait, so a head that holds the lock and misses its gate stalls every
+later head on that card for up to a day. A gate under the true peak is the
+worse failure. 766 MiB is also thin against this box: the rnd-483 neighbour
+grew from 3,172 to 5,490 MiB in one evening, and `k32_r200_08` held 6,402 MiB
+for four hours and 10,418 MiB later in the SAME leg.
+
+READ THE GATE'S OWN COMMENT BEFORE MEASURING IT. This session built
+`head_vram_sample.sh` and took 46 samples to find 6,252 MiB, a number
+`study.sh:112` already carried from 94 samples and 20 samples on two earlier
+runs. The measurement is a third independent replication, on a different arm,
+which is worth something. The hour that found it was not: the answer sat four
+lines above the value the session was questioning.
