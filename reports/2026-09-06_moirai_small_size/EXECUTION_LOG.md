@@ -575,3 +575,30 @@ THE RULE THIS CONFIRMS, which this log already carried: ask
 start anything by hand. They are the only guards on this card, and a hand-run
 driver asks neither. A duplicate that had started 90 seconds earlier would
 have put two writers on the 40,000-step number that pass 4 rests on.
+
+### A head with no lane above it
+
+`head_busy.sh` and `arm_busy.sh` are the only guards this card has against two
+processes on one arm, and a LANE calls them before it starts anything. A
+process started BY HAND calls neither.
+
+At 23:33 on 2026-09-10 a session started a second head for
+`k3_r100_09_lr56_dec` at 40,000 steps by hand, while a first driver for the
+SAME tag held the GPU 1 flock. The `flock` is per CARD, so a GPU 0 head and a
+GPU 1 head do not serialize, and both name one head checkpoint and one eval
+directory. Nothing was corrupt, because the first driver had started no python
+and its owner killed it at 23:42.
+
+`pass5_orphan_watch.sh` prints one line when a #412 head or trainer appears
+with no lane script above it. It writes into `results/pass5_watch.log`, so a
+session that tails that log needs no second monitor.
+
+THE AGENT SHELL IS NOT A LANE, and this trap made the first version silent. A
+session runs each command through a wrapper whose own arguments hold the WHOLE
+command text, so the wrapper that started the hand-run head carries the string
+`phase1.sh` and read as a lane. Every wrapper carries `shell-snapshots` and no
+lane does, which is the test `cf412_count_real` already uses.
+
+A WATCHER THAT REPORTS NOTHING LOOKS HEALTHY. The first version was tested
+against a live orphan and printed nothing, which is the only reason the trap
+was found.
