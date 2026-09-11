@@ -745,3 +745,26 @@ every dip. The watch is now on the kernel PROCESS 2843685, because its exit
 is the only event that changes the arithmetic. The same holds for any card
 this project shares: size a leg against the sum of the neighbours' PEAKS, and
 wait on a neighbour ending rather than on a number falling.
+
+### The peak rule is easy to write and easy to forget
+
+At 12:44, one hour after this log recorded "size a leg against the sum of the
+neighbours' PEAKS", this card offered a peer session a parallel slot on GPU 1
+and priced that peer's k = 8 leg at its CURRENT 5,424 MiB. Its peak is 7,516.
+
+The peer redid the sum at three peaks:
+
+    6,880 rnd-483 + 7,516 k = 8 + 10,418 k = 32 = 24,814 against 24,564
+
+which is 250 MiB OVER the card, not the 1,842 under that this card offered.
+The peer declined, and was right to.
+
+WHAT MAKES THE RULE HARD TO APPLY. The peak of your OWN job is easy to
+remember, because a gate carries it. The peak of a neighbour is not written
+anywhere: `nvidia-smi` reports what a process holds NOW, and that is the
+number a reader reaches for. Every mistake this card made on memory, over two
+days, came from reading a current size as a settled one.
+
+THE COST WAS NOTHING THIS TIME, because the peer checked. A shared box needs
+two sessions to agree before a card is doubled up, and this is the case that
+shows why.
