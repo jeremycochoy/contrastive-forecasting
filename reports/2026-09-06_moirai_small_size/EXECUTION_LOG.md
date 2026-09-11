@@ -1038,3 +1038,26 @@ A PROPERTY WORTH RECORDING: as the neighbour shrinks, the free memory and the
 reserve rise by the same amount, so the decision does not move. The gate asks
 only whether the leg plus the neighbour's PEAK fit the card, which is the
 question that decides whether both survive.
+
+#### The `pgrep -f` trap caught a THIRD time, in an ad-hoc watch
+
+The log already warns that `pgrep -f` matches the agent shell, and
+`pass5_orphan_watch.sh` was silent against a live orphan for the same reason.
+It happened again on 2026-09-11 at 16:45, in a one-line background watch
+rather than in a committed script:
+
+    until ... pgrep -f "_cf412_k32_r200_08_lr56" ...
+
+The wrapper that RUNS that command carries the pattern in its own arguments,
+so the watch reported "TRAINER IS UP" for an arm that had not started, and the
+card it named was empty. Measured a minute later: `pgrep -f` returned 2 pids,
+both of them this session's own shells, and the safe test returned none.
+
+THE SAFE TEST, and every committed watcher of this card already uses it:
+
+    ps -eo pid,args --no-headers | awk '$2 ~ /python/ && /_cf412_<arm>/ {print $1}'
+
+A TRAINER IS A PYTHON PROCESS. The executable is the discriminator, and no
+shell passes that test. The committed scripts were right and the throwaway
+command was wrong, which is the argument for writing the check once rather
+than typing it each time.
