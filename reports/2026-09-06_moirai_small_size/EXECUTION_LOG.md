@@ -1061,3 +1061,24 @@ A TRAINER IS A PYTHON PROCESS. The executable is the discriminator, and no
 shell passes that test. The committed scripts were right and the throwaway
 command was wrong, which is the argument for writing the check once rather
 than typing it each time.
+
+#### The same hole was inside `arm_busy.sh`, the guard both passes call
+
+The orchestrator session hardened `scripts/arm_busy.sh` (4d445454) to test the
+executable rather than the command line. Measured against the OLD copy, with a
+non-python wrapper carrying the exact `--run-name` string and no trainer
+anywhere:
+
+    old copy  rc 0  BUSY   a false positive
+    new copy  rc 1  FREE   correct
+
+A false BUSY is not harmless for pass 5. The queue keeps an arm PENDING while
+another session trains it, so a permanent false BUSY would hold an arm pending
+for ever and the card would never place it.
+
+THE FROZEN COPY IS A SEPARATE FILE. `pass5_lane.sh` calls `$HERE/arm_busy.sh`,
+and `$HERE` is `run_snapshot/`, so a fix in `scripts/` does not reach the
+running queue. It was installed by writing beside the target and renaming over
+it, because the queue invokes that file every 120 s and a plain copy can be
+read half-written. A running `bash` keeps the old inode and finishes safely,
+and the next invocation gets the new file.
