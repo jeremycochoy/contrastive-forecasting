@@ -78,6 +78,19 @@ QUEUE_TIMEOUT="${CF412_QUEUE_TIMEOUT:-345600}"
 # by 3,668, which makes one of the two jobs fail. One of them is another
 # project's.
 NEIGHBOUR_MIB="${CF412_NEIGHBOUR_MIB:-3700}"
+# The size the rnd-483 worker reaches on its largest point, in MiB. Measured
+# by that session over its own 46-point sample.
+#
+# THE RESERVE IS THE GROWTH THAT IS LEFT, not a fixed number. A neighbour at
+# 3,332 MiB can still take 3,548. A neighbour BETWEEN points holds nothing and
+# can take the whole 6,880, which is the case the fixed number priced wrong:
+# the k = 8 opening of 12:33 came while that worker sat at 744 MiB.
+#
+# It also stops the queue refusing a card it should take. With a head of 6,252
+# MiB on GPU 1 and the worker at 3,332, the card offers 14,980 and the fixed
+# rule wants 15,000. The peak sum is 10,418 + 6,252 + 6,880 = 23,550 of
+# 24,564, so the leg fits with 1,014 to spare and only the arithmetic said no.
+CF412_NEIGHBOUR_PEAK="${CF412_NEIGHBOUR_PEAK:-6880}"
 
 mkdir -p "$CF412_RESULTS"
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#412 $LANE] $*" \
@@ -148,6 +161,29 @@ p5_free_mib(){  # <card>
     --format=csv,noheader,nounits 2>/dev/null | tr -d ' '
 }
 
+# How much room a growing neighbour still needs on this card, in MiB.
+#
+# It reads the neighbour's CURRENT size and subtracts it from its measured
+# peak. A card with no neighbour reserves the whole peak, because the next
+# point can start at any moment.
+p5_neighbour_reserve(){  # <card>
+  local uuid pid u mem used=0 r
+  uuid="$(nvidia-smi --id="${1:?card}" --query-gpu=uuid --format=csv,noheader \
+          2>/dev/null | tr -d ' ')"
+  [ -n "$uuid" ] || { printf '%s\n' "$NEIGHBOUR_MIB"; return 0; }
+  while IFS=, read -r pid u mem; do
+    pid="$(printf '%s' "$pid" | tr -dc '0-9')"
+    [ "$(printf '%s' "$u" | tr -d ' ')" = "$uuid" ] || continue
+    ps -o args= -p "$pid" 2>/dev/null | grep -q 'trainline/train\.py' || continue
+    used=$(( used + $(printf '%s' "$mem" | tr -dc '0-9') ))
+  done <<EOF
+$(nvidia-smi --query-compute-apps=pid,gpu_uuid,used_memory --format=csv,noheader 2>/dev/null)
+EOF
+  r=$(( CF412_NEIGHBOUR_PEAK - used ))
+  [ "$r" -lt 0 ] && r=0
+  printf '%s\n' "$r"
+}
+
 # Wait until this arm's trainer runs on this card. Exit 0 when it does.
 p5_wait_for_trainer(){  # <arm> <card>
   local arm="${1:?arm}" card="${2:?card}" name waited=0
@@ -174,7 +210,8 @@ if [ -n "${CF412_QUEUE_CHECK:-}" ]; then
     fits=""
     for leg in $QUEUE; do
       arm="${leg%%:*}"
-      [ "${free:-0}" -ge $(( $(cf412_leg_vram_mib "$arm") + NEIGHBOUR_MIB )) ] \
+      [ "${free:-0}" -ge \
+        $(( $(cf412_leg_vram_mib "$arm") + $(p5_neighbour_reserve "$card") )) ] \
         && fits="$fits $arm"
     done
     printf 'gpu %s  %s MiB free  %s%s  fits:%s\n' "$card" "$free" \
@@ -221,6 +258,19 @@ retry=()
 pids=(); names=()
 waited=0
 while [ "${#pending[@]}" -gt 0 ]; do
+  # An arm whose checkpoint is on disk is done, WHOEVER trained it. This runs
+  # before the cards are read, so an arm another session finished leaves this
+  # queue at once and the queue can end.
+  for i in "${!pending[@]}"; do
+    arm="${pending[$i]%%:*}"; stop="${pending[$i]##*:}"
+    if [ -n "$(cf412_bb_ckpt "$arm" "$stop")" ]; then
+      log "$arm at $stop is on disk — the head sweep scores it"
+      unset 'pending[i]'
+    fi
+  done
+  pending=(${pending[@]+"${pending[@]}"})
+  [ "${#pending[@]}" -gt 0 ] || break
+
   for card in $CARDS; do
     [ "${#pending[@]}" -gt 0 ] || break
     # One #412 leg for each card. This is what keeps pass 5 behind pass 4.
@@ -232,7 +282,15 @@ while [ "${#pending[@]}" -gt 0 ]; do
     pick=-1
     for i in "${!pending[@]}"; do
       arm="${pending[$i]%%:*}"
-      [ "$free" -ge $(( $(cf412_leg_vram_mib "$arm") + NEIGHBOUR_MIB )) ] \
+      # AN ARM ANOTHER SESSION TRAINS STAYS PENDING. The orchestrator
+      # hand-started `k8_r100_09_lr56` under its own lane at 12:33. Skipping
+      # the arm and DROPPING it would leave nothing to re-fire if that run
+      # died, because this queue only waits on legs it started itself. Held
+      # here instead, the arm returns to this queue the moment that run ends
+      # with no checkpoint, and the prune above removes it when it succeeds.
+      bash "$HERE/arm_busy.sh" "$arm" >/dev/null 2>&1 && continue
+      [ "$free" -ge \
+        $(( $(cf412_leg_vram_mib "$arm") + $(p5_neighbour_reserve "$card") )) ] \
         && { pick="$i"; break; }
     done
     [ "$pick" -ge 0 ] || continue
@@ -249,7 +307,8 @@ while [ "${#pending[@]}" -gt 0 ]; do
       continue
     fi
     log "$arm -> $stop steps on gpu $card (${free} MiB free, needs" \
-        "$(cf412_leg_vram_mib "$arm") plus ${NEIGHBOUR_MIB} for a neighbour)"
+        "$(cf412_leg_vram_mib "$arm") plus $(p5_neighbour_reserve "$card")" \
+        "for a neighbour that grows)"
     BB_GPU="$card" nohup bash "$HERE/run_arm.sh" "$arm" "$stop" \
       >>"$CF412_RESULTS/${LANE}_${arm}_${stop}.log" 2>&1 &
     pids+=("$!"); names+=("$arm:$stop:$card")

@@ -768,3 +768,34 @@ days, came from reading a current size as a settled one.
 THE COST WAS NOTHING THIS TIME, because the peer checked. A shared box needs
 two sessions to agree before a card is doubled up, and this is the case that
 shows why.
+
+### The neighbour reserve is what is LEFT to grow, not a fixed number
+
+`pass5_lane.sh` first reserved a flat 3,700 MiB for the rnd-483 worker, from
+its measured 3,212 and its peak of 6,880. A flat number is wrong in both
+directions.
+
+TOO SMALL when the neighbour is between points. The opening that the
+orchestrator hand-started a k = 8 leg into at 12:33 came while that worker sat
+at 744 MiB, so it could still take 6,136, not 3,700. The card was then 1,552
+MiB over at three peaks.
+
+TOO LARGE when the neighbour is already big. With the k = 8 head holding 6,252
+MiB on GPU 1 and the worker at 3,332, the card offers 14,980 and the flat rule
+wants 15,000. The peak sum is 10,418 + 6,252 + 6,880 = 23,550 of 24,564, so a
+k = 32 leg fits with 1,014 to spare and only the arithmetic said no. That
+20 MiB would have idled the card for the 1.7 hours of a head train.
+
+So `p5_neighbour_reserve` reads the neighbour's CURRENT size on that card and
+reserves `peak - current`, with the whole peak reserved when no neighbour runs
+there.
+
+### An arm another session trains stays PENDING
+
+The queue used to skip a busy arm and DROP it. It waits only on legs it
+started itself, so a hand-started run that died would have left that arm with
+nothing to re-fire it. The arm now stays in the queue while another session
+trains it, and a prune step at the top of each poll removes any arm whose
+checkpoint is on disk, whoever trained it. Tested with a stubbed `arm_busy.sh`
+that always reports BUSY: the arm survived every poll and the queue never
+dropped it.
