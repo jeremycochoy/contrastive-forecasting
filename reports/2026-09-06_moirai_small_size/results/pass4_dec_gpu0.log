@@ -20,3 +20,10 @@
 [09-11 05:47:44] [#412 phase1] head k3_r100_09_lr56_dec bb100000
 [09-11 05:47:44] [#412] head k3_r100_09_lr56_dec_bb100k_h30k_student on cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_dec_100k.pth
 [09-11 05:47:44] [k3_r100_09_lr56_dec_bb100k_h30k_student] head-train start enc=student steps=30000 seed=20260722 gpu=0 bb=cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_dec_100k.pth
+[09-11 07:21:08] [k3_r100_09_lr56_dec_bb100k_h30k_student] head-train rc=0
+[09-11 07:21:08] [k3_r100_09_lr56_dec_bb100k_h30k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[09-11 10:56:18] [k3_r100_09_lr56_dec_bb100k_h30k_student] eval rc=0
+[09-11 10:56:18] [k3_r100_09_lr56_dec_bb100k_h30k_student] DONE — GM-Relative MASE 1.3507
+[09-11 10:56:18] [#412] head k3_r100_09_lr56_dec_bb100k_h30k_student rc=0
+[#412 vram] gpu 0 has 725 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 0 has 7200 MiB free, backbone k3_r100_09_lr56_dec needs 7700
