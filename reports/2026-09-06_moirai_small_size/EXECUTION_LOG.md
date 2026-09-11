@@ -1202,3 +1202,35 @@ would never have advanced. Both readers now take `ls -t ... | head -1`.
 THE BUG HID BEHIND A TRUE POSITIVE. The await returned STALLED at 17:36 and
 it was RIGHT: the leg had died at 17:34 and the re-fire had not yet run. The
 wrong step number in the same block is what led to the reader.
+
+### The first arm of this card that does not degrade
+
+`k3_r100_09_lr56_dec10k` scores 1.2151 at 100,000 steps against 1.1915 at
+40,000. The rise is +0.0236, which is 0.36 of the 0.0649 band. Every other arm
+of this card loses about two bands over the same stops.
+
+    arm                      decay   ema ramp      40k     100k     rise  bands
+    k3_r100_09_lr56              -    100,000   1.1820   1.3170   +0.1350   2.08
+    k3_r100_09_lr56_dec      2,000    100,000   1.2164   1.3507   +0.1343   2.07
+    k3_r100_09_lr56_dec10k  10,000     40,000   1.1915   1.2151   +0.0236   0.36
+
+It also beats the no-decay reference at the 100,000-step stop by 0.1019, which
+is 1.57 bands, and that is the widest gap this card has measured at that stop.
+
+THE DECAY IS NOT THE CAUSE. Rows 1 and 2 differ in the decay column ALONE and
+their rises are +0.1350 and +0.1343, a difference of 0.0007. So removing
+`L_rep` changes neither the level nor the slope.
+
+THE REMAINING DIFFERENCE IS THE EMA RAMP. `dec10k` carries a 40,000-step ramp
+that COMPLETES inside its stop. The other two ramp to momentum 1.0 at 100,000,
+so their teacher is still moving at the 40,000-step read and frozen by the
+100,000-step read.
+
+THIS IS NOT A CONTROLLED RESULT AND THIS LOG DOES NOT CLAIM ONE. `dec10k`
+moves TWO columns against `dec`: the decay ramp and the EMA ramp. The decay is
+excluded by the pair above, which leaves the EMA ramp as the candidate, not as
+the finding. One arm that moves the ramp ALONE would settle it.
+
+THAT ARM IS ALREADY QUEUED. Another session's `k3_r100_09_lr56_fix09` holds
+momentum at 0.9 with NO ramp, against `k3_r100_09_lr56`, everything else
+equal. It runs when this card releases GPU 0.
