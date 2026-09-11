@@ -511,3 +511,64 @@
 [09-08 11:58:19] [#412 sweep] started 1 head(s)
 [09-08 16:58:32] [#412 sweep] k3_r100_09_lr56 at 200000 — no score and no head. Starting one on gpu 0.
 [09-08 16:58:38] [#412 sweep] started 1 head(s)
+[09-09 02:11:35] [#412 sweep] k3_r100_09_lr45 at 40000 — no score and no head. Starting one on gpu 0.
+[09-09 02:11:40] [#412 sweep] started 1 head(s)
+[09-09 07:32:15] [#412 sweep] k3_r100_09_lr70 at 40000 — no score and no head. Starting one on gpu 0.
+[09-09 07:32:20] [#412 sweep] started 1 head(s)
+[09-09 09:02:29] [#412 sweep] k32_r100_09_sum at 40000 — no score and no head. Starting one on gpu 0.
+[09-09 09:02:34] [#412 sweep] started 1 head(s)
+[09-10 18:29:28] [#412 phase1] arms: k3_r100_09_lr56_dec
+[09-10 18:29:28] [#412 phase1] stops: 40000 100000 200000  gpu: 1
+[09-10 18:29:28] [#412 phase1] backbone k3_r100_09_lr56_dec -> 40000 (gpu 1 holds the 7700 MiB it needs)
+[09-10 18:30:18] [#412 phase1] arms: k3_r100_09_lr56_dec10k
+[09-10 18:30:18] [#412 phase1] stops: 40000 100000  gpu: 0
+[09-10 18:30:18] [#412 phase1] backbone k3_r100_09_lr56_dec10k -> 40000 (gpu 0 holds the 7700 MiB it needs)
+[09-10 21:34:14] [#412 phase1] head k3_r100_09_lr56_dec bb40000
+[09-10 21:47:02] [#412 phase1] head k3_r100_09_lr56_dec10k bb40000
+[09-10 23:42:17] [#412 phase1] head k3_r100_09_lr56_dec stop 40000 FAILED
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[09-10 23:49:23] [#412 phase1] backbone k3_r100_09_lr56_dec SKIPPED at 100000 — gpu 1 never had 7700 MiB free
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[09-10 23:49:25] [#412 phase1] arms: k3_r100_09_lr56_dec
+[09-10 23:49:25] [#412 phase1] stops: 100000 200000  gpu: 0
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 0 has 9682 MiB free after 4680s — backbone k3_r100_09_lr56_dec starts
+[09-11 01:07:27] [#412 phase1] backbone k3_r100_09_lr56_dec -> 100000 (gpu 0 holds the 7700 MiB it needs)
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[09-11 05:47:44] [#412 phase1] head k3_r100_09_lr56_dec bb100000
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
