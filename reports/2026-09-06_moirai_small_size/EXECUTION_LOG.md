@@ -1100,3 +1100,28 @@ and the rest were check-mode readers. A real queue is minutes to hours old:
 Two queues would be a genuine fault, because each places arms independently,
 so the count is worth reading rather than ignoring. It is the AGE that
 separates the two cases.
+
+### The decay changes neither the level nor the slope
+
+Pass 4 asked whether the `L_rep` decay makes a longer stop win. It does not,
+and the reason is sharper than a simple no.
+
+    arm                        40k      100k      rise
+    k3_r100_09_lr56         1.1820    1.3170   +0.1350    no decay
+    k3_r100_09_lr56_dec     1.2164    1.3507   +0.1343    decay by step 2,000
+
+The two arms differ in ONE column, the decay. Their 40,000-step scores sit
+0.0344 apart and their 100,000-step scores 0.0337 apart, both inside the
+0.0649 seed band. So the decay does not move the LEVEL at either stop.
+
+THE RISES DIFFER BY 0.0007, which is one percent of the band. So the decay
+does not move the SLOPE either.
+
+WHAT THAT RULES OUT. The card's premise was that `L_rep` does no work after
+step 1,000 and carries a large flat term for the rest of training. Both facts
+hold. But removing that term entirely, by step 2,000, leaves the degradation
+from 40,000 to 100,000 steps unchanged to within one percent of a band. So
+whatever drives the degradation is not `L_rep`, and it is not sensitive to the
+decay schedule.
+
+A peer session reading the same two rows noticed this first.
