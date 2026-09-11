@@ -1,0 +1,17 @@
+#412 pass 4 — the L_rep decay at 5.6e-4, over a long stop
+generated 2026-09-11 03:27:41
+GM-Relative MASE, lower is better. Seed band at 5.6e-4: 0.0649.
+Reference: k3_r100_09_lr56, the same cell with no decay.
+
+ARM                        STOP         SCORE       REF     DELTA NOTE
+k3_r100_09_lr56_dec        40000            -    1.1820         - not scored yet
+k3_r100_09_lr56_dec        100000           -    1.3170         - not scored yet
+k3_r100_09_lr56_dec        200000           -    1.3189         - not scored yet
+k3_r100_09_lr56_dec10k     40000       1.1915    1.1820   +0.0095 inside the band
+k3_r100_09_lr56_dec10k     100000           -    1.3170         - not scored yet
+
+THE QUESTION: does a longer stop beat the 40,000-step stop of the SAME arm?
+
+The AUC enters here for one purpose only: the guard stops a run at 0.55.
+  k3_r100_09_lr56_dec — the guard did not stop it.
+  k3_r100_09_lr56_dec10k — the guard did not stop it.

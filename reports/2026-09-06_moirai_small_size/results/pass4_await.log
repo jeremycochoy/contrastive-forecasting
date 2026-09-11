@@ -1,0 +1,40 @@
+[09-10 18:33:33] await armed — 5 legs, maxwait 14400s, stall 60min
+[09-10 18:45:06] await armed — 5 legs, maxwait 14400s, stall 60min
+[09-10 19:42:49] await armed — 5 legs, maxwait 14400s, stall 60min
+[09-10 20:43:08] hourly — resolved 0 of 5 — dec:40k=29400 dec:100k=0 dec:200k=0 dec10k:40k=26400 dec10k:100k=0  lanes=3 heads=0 working=0
+[09-10 21:35:23] a head waits on memory — k3_r100_09_lr56_dec@40k gpu1:7018MiB
+[09-10 21:43:26] hourly — resolved 0 of 5 — dec:40k=40000 dec:100k=0 dec:200k=0 dec10k:40k=39200 dec10k:100k=0  lanes=3 heads=2 working=0
+[09-10 22:05:33] HEADBLOCKED for 30 min — k3_r100_09_lr56_dec@40k gpu1:7018MiB k3_r100_09_lr56_dec10k@40k gpu0:3038MiB
+[09-10 22:05:33]   it holds the card head lock and aborts after 4 h with no score.
+[09-10 22:06:57] await armed — 5 legs, maxwait 7200s, stall 90min
+[09-10 22:08:57] a head waits on memory — k3_r100_09_lr56_dec@40k gpu1:7018MiB
+[09-10 22:55:13] HEADBLOCKED for 45 min — k3_r100_09_lr56_dec@40k gpu1:7018MiB
+[09-10 22:55:13]   it holds the card head lock and aborts after 4 h with no score.
+[09-10 22:55:56] await armed — 5 legs, maxwait 10800s, stall 90min
+[09-10 22:57:57] a head waits on memory — k3_r100_09_lr56_dec@40k gpu1:7018MiB
+[09-10 23:56:17] hourly — resolved 0 of 5 — dec:40k=40000 dec:100k=0 dec:200k=0 dec10k:40k=40000 dec10k:100k=0  lanes=5 heads=4 working=2
+[09-11 00:56:38] hourly — resolved 0 of 5 — dec:40k=40000 dec:100k=0 dec:200k=0 dec10k:40k=40000 dec10k:100k=0  lanes=5 heads=4 working=2
+[09-11 01:56:58] hourly — resolved 0 of 5 — dec:40k=40000 dec:100k=50100 dec:200k=0 dec10k:40k=40000 dec10k:100k=0  lanes=4 heads=4 working=2
+[09-11 01:56:58] TIMEBOX — 10800s passed, resolved 0 of 5 — dec:40k=40000 dec:100k=50100 dec:200k=0 dec10k:40k=40000 dec10k:100k=0
+#412 pass 4 — the L_rep decay at 5.6e-4, over a long stop
+generated 2026-09-11 01:56:58
+GM-Relative MASE, lower is better. Seed band at 5.6e-4: 0.0649.
+Reference: k3_r100_09_lr56, the same cell with no decay.
+
+ARM                        STOP         SCORE       REF     DELTA NOTE
+k3_r100_09_lr56_dec        40000            -    1.1820         - not scored yet
+k3_r100_09_lr56_dec        100000           -    1.3170         - not scored yet
+k3_r100_09_lr56_dec        200000           -    1.3189         - not scored yet
+k3_r100_09_lr56_dec10k     40000            -    1.1820         - not scored yet
+k3_r100_09_lr56_dec10k     100000           -    1.3170         - not scored yet
+
+THE QUESTION: does a longer stop beat the 40,000-step stop of the SAME arm?
+
+The AUC enters here for one purpose only: the guard stops a run at 0.55.
+  k3_r100_09_lr56_dec — the guard did not stop it.
+  k3_r100_09_lr56_dec10k — the guard did not stop it.
+[09-11 01:57:10] await armed — 5 legs, maxwait 14400s, stall 90min
+[09-11 01:59:10] a head waits on memory — k3_r100_09_lr56_dec10k@40k gpu0:4182MiB
+[09-11 02:45:30] HEADBLOCKED for 45 min — k3_r100_09_lr56_dec10k@40k
+[09-11 02:45:30]   it holds the card head lock and aborts after 4 h with no score.
+[09-11 02:46:18] await armed — 5 legs, maxwait 14400s, stall 120min
