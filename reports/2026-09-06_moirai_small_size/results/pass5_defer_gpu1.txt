@@ -1,0 +1,17 @@
+GPU 1 is claimed by PASS 4, for its `dec10k` arm at the 100,000-step stop.
+
+WHY. Pass 5 queues behind pass 4. GPU 1 gives about 19,074 MiB beside the
+rnd-483 worker when the Jupyter kernel on it ends. A pass-5 k = 32 leg takes
+15,000 MiB with the neighbour headroom and would leave 4,074, which locks out
+the 7,700 MiB leg of pass 4. One card holds one of the two, and pass 4 is
+first.
+
+TO RELEASE IT, delete this file:
+
+    rm results/pass5_defer_gpu1.txt
+
+The pass-5 queue reads this file on every poll, so no message and no restart
+are needed. The claiming session releases it.
+
+Set 2026-09-11 02:35 by the pass-5 session, at the request of the pass-4
+session.

@@ -120,9 +120,27 @@ p5_bb_trainers(){
   done
 }
 
-# Exit 0 when a #412 leg or lane holds this card.
+# A card another pass CLAIMS, by a file rather than by a process.
+#
+# WHY A FILE. Pass 5 queues BEHIND pass 4, and a process gate cannot express
+# that. Pass 4 held GPU 1 through its lane's `BB_GPU` until 02:30 on
+# 2026-09-11, when that lane turned out to be an orphan and its owner killed
+# it. After that no process of pass 4 named GPU 1, so the gate read the card
+# free, and the next opening would have gone to pass 5 instead of to pass 4's
+# `dec10k` arm. The two do not fit together: GPU 1 gives about 19,074 MiB
+# beside the rnd-483 worker, a pass-5 k = 32 leg takes 15,000 with the
+# headroom, and 4,074 locks out a 7,700 MiB leg.
+#
+# WHO RELEASES IT. The claiming session, with `rm`. No message to this session
+# is needed and no restart, because the queue reads the file on every poll.
+p5_card_deferred(){  # <card>
+  [ -f "$CF412_RESULTS/pass5_defer_gpu${1:?card}.txt" ]
+}
+
+# Exit 0 when a #412 leg or lane holds this card, or another pass claims it.
 p5_card_busy(){  # <card>
-  p5_bb_trainers | awk -v g="${1:?card}" '$2 == g { found = 1 } END { exit !found }'
+  p5_card_deferred "${1:?card}" && return 0
+  p5_bb_trainers | awk -v g="$1" '$2 == g { found = 1 } END { exit !found }'
 }
 
 p5_free_mib(){  # <card>
@@ -159,8 +177,10 @@ if [ -n "${CF412_QUEUE_CHECK:-}" ]; then
       [ "${free:-0}" -ge $(( $(cf412_leg_vram_mib "$arm") + NEIGHBOUR_MIB )) ] \
         && fits="$fits $arm"
     done
-    printf 'gpu %s  %s MiB free  %s  fits:%s\n' "$card" "$free" \
-      "$(p5_card_busy "$card" && echo HELD || echo free)" "${fits:- none}"
+    printf 'gpu %s  %s MiB free  %s%s  fits:%s\n' "$card" "$free" \
+      "$(p5_card_busy "$card" && echo HELD || echo free)" \
+      "$(p5_card_deferred "$card" && echo ' (claimed by another pass)')" \
+      "${fits:- none}"
   done
   exit 0
 fi

@@ -677,3 +677,24 @@ orphan writes the same log file as the lane that replaced it.
 
 A PEER'S ODD READING WAS THE ONLY SIGNAL. Nothing this card owns reported it.
 The await watched arms and stops, not lanes, and both arms looked healthy.
+
+### A card is claimed by a file, not by a process
+
+The note above said the wrong gate reading was harmless. It stopped being
+harmless at 02:30, when the pass-4 session found that the lane declaring GPU 1
+was an ORPHAN of a lane it had stopped at 23:49, and killed it. That orphan
+still polled GPU 1 for the same arm its live lane trains on GPU 0, so it would
+have started a SECOND trainer on one arm and one save directory. The odd gate
+reading was the only signal that it existed.
+
+After the kill no process of pass 4 named GPU 1, so the pass-5 gate read the
+card free. The next opening would then have gone to pass 5 instead of to pass
+4, against the rule that pass 5 queues behind it.
+
+So a card is claimed by a FILE. While `results/pass5_defer_gpu<N>.txt` exists,
+`pass5_lane.sh` treats that card as held. The queue reads the file on every
+poll, so the claiming session releases the card with `rm` alone: no message to
+the pass-5 session, and no restart.
+
+A PROCESS GATE CANNOT EXPRESS PRIORITY. It answers "is this card busy now",
+and the rule here is "who is next". Those differ exactly when a card is free.
