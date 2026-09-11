@@ -960,3 +960,27 @@ WHAT IT MEANS FOR A GATE. Use the POST-growth resident figure, which is what
 keep enough free memory on the card for the growth to happen at all. A leg on
 a full card dies at its first probe step. The same leg on an empty card never
 notices.
+
+### CLOSED: one mechanism covers both probe readings
+
+The section above left the `k32_r200_08` jump open, on the grounds that a
+transient does not persist. A peer session closed it, and the key is that
+`nvidia-smi` reports the caching allocator's RESERVED POOL and not live
+tensors:
+
+- The pool's free blocks CAN serve the probe's 4.3 GiB. The pool does not
+  grow and the reading does not move. That is `k8_r100_09_lr56`: 7,160 smoke
+  against 7,140 measured across step 20,000.
+- They CANNOT. The allocator asks the driver, the pool GROWS, and PyTorch
+  never returns it without `empty_cache`, so the new figure PERSISTS. That is
+  `k32_r200_08`: 6,402 to 10,418, a rise of 4,016 against a 4,424 probe.
+
+Which case a leg takes depends on its pool fragmentation and the size of its
+own rollout graph, so `k` alone does not predict it. The growth this log
+carried as "THE CAUSE IS NOT KNOWN" for two days now has one.
+
+THE GATES ARE ALREADY RIGHT. `cf412_leg_vram_mib` gives 11,300 for k = 32 and
+the post-growth figure this card has seen is 10,418, so it covers the grown
+case with 882 MiB to spare. No gate on this card needs a raise. This card's
+own 11,500 for the 200,000-step leg is a local choice for a crowded card, not
+a correction.
