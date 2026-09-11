@@ -90,9 +90,20 @@ cf412_descendants(){  # <pid>
 #
 # Prints "<gpu> <free>" when the head is alive, holds no GPU memory, and its
 # card is short. Prints nothing otherwise.
+cf412_head_started(){  # <arm> <stop>
+  local d
+  d="$(cf412_eval_dir "$1" "$(cf412_tag "$1" "$2" "$CF412_HEAD_STEPS")")"
+  ls "$d"/qhead_* >/dev/null 2>&1
+}
+
 cf412_head_blocked(){  # <arm> <stop>
   local pid gpu free p gpids need="${CF412_HEAD_VRAM_MIB:-9000}"
   pid="$(cf412_head_pid "$1" "$2")" || return 1
+  # A head that already wrote into its eval directory trained, so it is past
+  # the gate. It then drops the card and runs its 97-config eval on the CPU
+  # for about 2.9 hours holding no GPU memory. This test survives a restart of
+  # the await, which an in-memory list of cleared heads does not.
+  cf412_head_started "$1" "$2" && return 1
   gpids=" $(nvidia-smi --query-compute-apps=pid --format=csv,noheader 2>/dev/null \
     | tr -d ' ' | tr '\n' ' ')"
   for p in $(cf412_descendants "$pid"); do
