@@ -1082,3 +1082,21 @@ running queue. It was installed by writing beside the target and renaming over
 it, because the queue invokes that file every 120 s and a plain copy can be
 read half-written. A running `bash` keeps the old inode and finishes safely,
 and the next invocation gets the new file.
+
+#### "queue running: 4" is the watcher counting its own readers
+
+`pass5_watch.sh` counts a queue as any process whose first argument ends in
+`pass5_lane.sh`. `CF412_QUEUE_CHECK=1 bash run_snapshot/pass5_lane.sh` is that
+same script in check mode, so every status read by any session is counted
+while it lives, which is under a second.
+
+So an hourly line reading `queue=4` does NOT mean four queues. Measured at the
+moment it appeared: one process matched with an age above 60 s, pid 496191,
+and the rest were check-mode readers. A real queue is minutes to hours old:
+
+    ps -eo pid,etimes,args --no-headers \
+      | awk '$3 ~ /bash$/ && $4 ~ /pass5_lane\.sh$/ && $2 > 60 {print $1}'
+
+Two queues would be a genuine fault, because each places arms independently,
+so the count is worth reading rather than ignoring. It is the AGE that
+separates the two cases.
