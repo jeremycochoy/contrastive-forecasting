@@ -865,3 +865,36 @@ own earlier legs, and nothing in this card reads the drift CSV anyway.
 
 WHAT IT COST. Nothing. `--save-every 20000` had written the 120,000-step
 checkpoint before the probe ran, so the re-fired leg resumes there.
+
+### The latent-drift probe costs TRANSIENT memory, not resident
+
+A pass-4 leg died at step 120,000 with `torch.OutOfMemoryError: Tried to
+allocate 4.32 GiB` inside `latent_drift_probe.probe`. The probe fires every
+20,000 steps and `CF412_SMOKE_STEPS` is 150, so no smoke of this card has ever
+crossed a probe step. That looked like every gate of the card being too low by
+about 4,400 MiB.
+
+MEASURED ON A LIVE LEG INSTEAD. `k8_r100_09_lr56` crossed step 20,000 on
+2026-09-11 with the probe rows in its latent-drift CSV, so the probe ran.
+`nvidia-smi` read the trainer at 7,140 MiB against a smoke row of 7,160. The
+probe raised the resident figure by NOTHING.
+
+BOTH OBSERVATIONS ARE TRUE. The 4.3 GiB is transient. The probe runs under
+no_grad in eval mode, and between training steps the rollout graph is freed,
+so the caching allocator serves it from blocks it already holds. The leg that
+died had 1,628 MiB free on its card behind a new kernel, so its allocator had
+to ask the driver and the driver had nothing. The leg that survived had 15,444
+free.
+
+WHAT A GATE MUST BUY is enough FREE memory on the card to absorb a 4.3 GiB
+transient at a probe step, not 4,400 MiB more resident. A uniform raise costs
+real placements: at +5,000 a k = 32 arm of this pass would demand 20,000 MiB
+free and stop fitting cards it fits safely today.
+
+THIS ALSO CLOSES THE OPEN QUESTION ABOVE. The log records `k32_r200_08` at
+6,402 MiB for four hours and 10,418 MiB later in the same leg, cause unknown,
+and it ruled the probe out on a docstring that claims about 10 MB. The
+docstring is wrong: the probe runs a full GRU forward at probe_bs 64. The jump
+is 4,016 and the probe allocates about 4,424. So 10,418 is the pool AFTER it
+absorbed one probe, and any figure that adds the probe to 10,418 counts it
+twice.
