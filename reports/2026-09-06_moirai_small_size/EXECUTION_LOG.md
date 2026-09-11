@@ -698,3 +698,23 @@ the pass-5 session, and no restart.
 
 A PROCESS GATE CANNOT EXPRESS PRIORITY. It answers "is this card busy now",
 and the rule here is "who is next". Those differ exactly when a card is free.
+
+### Pass 4 must release GPU 1 when it is done
+
+A peer session's pass-5 queue defers GPU 1 to this pass through one file:
+
+    results/pass5_defer_gpu1.txt
+
+That queue reads it on every poll. DELETE IT when pass 4 no longer wants
+GPU 1, which is when `k3_r100_09_lr56_dec10k` holds its 100,000-step
+checkpoint, or when the pass ends for any other reason. The card returns to
+pass 5 within two minutes, with no restart at either end.
+
+A FILE AND NOT A PROCESS, ON PURPOSE. A process gate answers "is this card
+busy now". The rule between the two passes is "who is next". Those differ
+exactly when a card is free, which is the only moment that matters. The last
+pass-4 process naming GPU 1 was the orphan above, and killing it would have
+handed the next opening to pass 5.
+
+IF THIS PASS ENDS WITHOUT DELETING THE FILE, pass 5 waits for days on a card
+nobody wants.
