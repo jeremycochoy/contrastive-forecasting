@@ -935,3 +935,28 @@ THE PRACTICE. A number measured once, under one condition, explains less than
 it looks like it does. This card had the OOM traceback and a 4.32 GiB figure
 and wrote a rule for every gate on the project. One reading of a live leg on
 the other card refuted it in a minute.
+
+#### Why the jump persists, which closes the question
+
+A transient does not persist, and the `k32_r200_08` jump from 6,402 to 10,418
+MiB did. Both facts hold under one mechanism, and it is the caching allocator.
+
+`nvidia-smi` reports the RESERVED POOL, not the live tensors. So at a probe
+step there are two cases:
+
+- The pool's free blocks can serve the 4.3 GiB. The pool does not grow and
+  `nvidia-smi` does not move. `k8_r100_09_lr56` crossed step 20,000 and went
+  from a 7,160 smoke row to 7,140 measured, a change of -20 MiB.
+- They cannot. The allocator asks the driver, the pool GROWS, and PyTorch
+  never returns pool memory to the driver without `empty_cache`. So the new
+  figure persists for the rest of the leg. `k32_r200_08` grew 4,016 MiB
+  against a probe that allocates about 4,424.
+
+WHICH CASE A LEG TAKES depends on how fragmented its pool is and how large its
+own rollout graph is, so it is not predictable from k alone.
+
+WHAT IT MEANS FOR A GATE. Use the POST-growth resident figure, which is what
+`cf412_leg_vram_mib` already carries for k = 32 at 10,100 plus margin, and
+keep enough free memory on the card for the growth to happen at all. A leg on
+a full card dies at its first probe step. The same leg on an empty card never
+notices.
