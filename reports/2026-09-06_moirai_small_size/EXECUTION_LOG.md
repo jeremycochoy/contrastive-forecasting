@@ -1005,3 +1005,36 @@ session has to be awake at the moment that matters.
 
 THE COST IS PRICED AND ACCEPTED: if only one card is free then, the third
 pass-5 arm waits about 4 hours.
+
+### A lane holds a card only while it still has a LEG
+
+The lane gate counted every live `phase1.sh` whose `BB_GPU` named the card.
+That is right while the lane has a leg to run, and wrong after its last one:
+`phase1.sh` trains a head and runs a 97-config evaluation after the leg, which
+is 4.6 hours during which the lane will never ask for the card again.
+
+On 2026-09-11 that would have idled GPU 1, with 14,978 MiB free, for the whole
+head and evaluation of `k8_r100_09_lr56`.
+
+`p5_lane_has_leg_left` reads the lane's own ARMS and STOPS out of its
+environment and asks whether every pair already has a checkpoint. Checked
+against the four live lanes it released the two whose legs were done and held
+GPU 0 for the unfinished 200,000-step leg. A lane that names neither variable
+runs the whole card and counts, so the conservative answer is the default.
+
+### The gate is invariant to the neighbour's current size, and that is right
+
+With the k = 8 head resident on GPU 1 the gate refused a k = 32 leg by 232
+MiB. The refusal is correct, and not the near-miss it looks like.
+
+    10,418 leg + 6,252 head + 6,880 worker at peak = 23,550 of 24,564
+
+That leaves 1,014 MiB. A k = 32 leg crosses drift-probe steps at 20,000 and
+40,000, and a probe may have to GROW the pool by about 4 GB when its free
+blocks cannot serve the transient. Starting into 1,014 MiB is the setup that
+killed a pass-4 leg at step 120,000.
+
+A PROPERTY WORTH RECORDING: as the neighbour shrinks, the free memory and the
+reserve rise by the same amount, so the decision does not move. The gate asks
+only whether the leg plus the neighbour's PEAK fit the card, which is the
+question that decides whether both survive.

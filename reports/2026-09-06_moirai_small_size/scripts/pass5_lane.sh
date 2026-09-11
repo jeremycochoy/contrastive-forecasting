@@ -124,11 +124,41 @@ p5_gpu_of_pid(){  # <pid>
 # would then wait for memory that does not come back. The match is on the
 # FIRST argument of the process, so a shell that merely names the script does
 # not count.
+# A LANE HOLDS A CARD ONLY WHILE IT STILL HAS A LEG TO RUN THERE.
+#
+# `phase1.sh` carries ARMS and STOPS in its own environment. A lane whose
+# every (arm, stop) already has a checkpoint has no leg left: it is training a
+# head or running an evaluation, and it EXITS rather than ask for the card
+# again. Counting such a lane idles a card for the 4.6 hours of a head and an
+# evaluation. On 2026-09-11 that was GPU 1 with 14,978 MiB free, against a
+# k = 32 leg that needs 14,848 and fits beside the head at every peak.
+#
+# A lane that names NEITHER variable runs the whole card, so it counts. The
+# conservative answer is the default.
+p5_lane_has_leg_left(){  # <pid>
+  local env arms stops a s
+  env="$(tr '\0' '\n' <"/proc/${1:?pid}/environ" 2>/dev/null)"
+  arms="$(printf '%s' "$env" | sed -n 's/^ARMS=//p' | head -1)"
+  stops="$(printf '%s' "$env" | sed -n 's/^STOPS=//p' | head -1)"
+  [ -n "$arms" ] && [ -n "$stops" ] || return 0
+  for a in $arms; do
+    for s in $stops; do
+      [ -n "$(cf412_bb_ckpt "$a" "$s")" ] || return 0
+    done
+  done
+  return 1
+}
+
 p5_bb_trainers(){
-  local pid
+  local pid args
   for pid in $(ps -eo pid,args --no-headers 2>/dev/null \
                  | awk '($2 ~ /python/ && /--run-name cf393_.*_cf412_/) ||
                         ($3 ~ /(phase1|pass2_lane)\.sh$/) { print $1 }'); do
+    args="$(ps -o args= -p "$pid" 2>/dev/null)"
+    case "$args" in
+      *phase1.sh*|*pass2_lane.sh*)
+        p5_lane_has_leg_left "$pid" || continue ;;
+    esac
     printf '%s %s\n' "$pid" "$(p5_gpu_of_pid "$pid")"
   done
 }
