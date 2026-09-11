@@ -1165,3 +1165,40 @@ TWO RULES THAT FOLLOW.
 - Cross-check a process claim against the artefacts before believing it. An
   arm with no losses CSV and no checkpoint has not trained, whatever the
   process table says. That check is what settled this one in seconds.
+
+### Three ways the 200,000-step leg was lost, and what fixed each
+
+That leg is the last number of pass 4. It died twice and restarted three
+times on 2026-09-11.
+
+1. OOM AT A PROBE STEP, 14:33, step 120,000. GPU 0 held 1,628 MiB free behind
+   a kernel that landed at 12:38, and the probe needed a 4.3 GiB transient.
+   Fixed by raising this leg's gate to 11,500 through
+   `CF412_VRAM_MARGIN_MIB=5000`, which leaves 5,028 MiB free above its 6,472
+   resident.
+
+2. A PATTERN KILL, 17:34, step 123,500. The leg and its lane died with NO
+   traceback, 25 seconds before another session's lane logged its start. The
+   re-fire supervisor restarted it at 17:36 and it lost 200 steps. A
+   `pkill -f phase1.sh` matches EVERY lane of this card. Kill by pid.
+
+3. THE NEXT PROBE WOULD HAVE GONE THE SAME WAY. With that session's arm also
+   on GPU 0, the peaks read 6,880 rnd-483 + 6,472 that arm + 6,472 this leg,
+   leaving 4,383 free against a 4,424 probe. 41 MiB short, 85 minutes out.
+   The leg restarted at 17:39 with
+   `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`, which the OOM message
+   itself recommends. That is an environment value: no script, no trainer flag
+   and no protocol changed. It reduces fragmentation, so it improves the odds,
+   and it cannot create memory that is not there.
+
+### A stale losses CSV read as a stalled leg
+
+`cf412_leg_step` took `ls *_losses.csv | head -1`. A re-fired leg writes
+`_r2_losses.csv`, `_r3_losses.csv` beside the first one, and `head -1` takes
+the FIRST alphabetically, which is the DEAD one. So the status block reported
+step 120,000 while the leg ran at 123,400, and the await's no-progress clock
+would never have advanced. Both readers now take `ls -t ... | head -1`.
+
+THE BUG HID BEHIND A TRUE POSITIVE. The await returned STALLED at 17:36 and
+it was RIGHT: the leg had died at 17:34 and the re-fire had not yet run. The
+wrong step number in the same block is what led to the reader.

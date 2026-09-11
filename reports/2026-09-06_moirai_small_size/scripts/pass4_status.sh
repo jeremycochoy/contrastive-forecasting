@@ -20,7 +20,7 @@ LEGS="${CF412_PASS4_LEGS:-k3_r100_09_lr56_dec:40000 k3_r100_09_lr56_dec:100000 k
 # its own `leg_<N>k` directory, so this reads the leg, not the arm.
 cf412_leg_step(){  # <arm> <stop>
   local f
-  f="$(ls "$(cf412_leg_dir "$1" "$2")"/*_losses.csv 2>/dev/null | head -1)"
+  f="$(ls -t "$(cf412_leg_dir "$1" "$2")"/*_losses.csv 2>/dev/null | head -1)"
   [ -n "$f" ] || { echo 0; return 0; }
   tail -1 "$f" | cut -d, -f1 | grep -E '^[0-9]+$' || echo 0
 }
@@ -29,7 +29,7 @@ cf412_leg_step(){  # <arm> <stop>
 # axis. It says one thing only: did the run keep the contrastive task?
 cf412_leg_auc(){  # <arm> <stop>
   local f
-  f="$(ls "$(cf412_leg_dir "$1" "$2")"/*_losses.csv 2>/dev/null | head -1)"
+  f="$(ls -t "$(cf412_leg_dir "$1" "$2")"/*_losses.csv 2>/dev/null | head -1)"
   [ -n "$f" ] || { echo "-"; return 0; }
   python3 - "$f" <<'PY' 2>/dev/null || echo "-"
 import csv, sys

@@ -40,7 +40,7 @@ N_LEGS=0; for l in $LEGS; do N_LEGS=$(( N_LEGS + 1 )); done
 
 step_of(){  # <arm> <stop>
   local f
-  f="$(ls "$(cf412_leg_dir "$1" "$2")"/*_losses.csv 2>/dev/null | head -1)"
+  f="$(ls -t "$(cf412_leg_dir "$1" "$2")"/*_losses.csv 2>/dev/null | head -1)"
   [ -n "$f" ] || { echo 0; return 0; }
   tail -1 "$f" | cut -d, -f1 | grep -E '^[0-9]+$' || echo 0
 }
