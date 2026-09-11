@@ -1,0 +1,13 @@
+[09-11 12:33:34] [#412 phase1] arms: k8_r100_09_lr56
+[09-11 12:33:34] [#412 phase1] stops: 40000  gpu: 1
+[09-11 12:33:34] [#412 phase1] backbone k8_r100_09_lr56 -> 40000 (gpu 1 holds the 8400 MiB it needs)
+[09-11 12:33:34] [#412] arm k8_r100_09_lr56 arch='--d-model 384 --n-heads 8 --num-layers 3 --num-encoder-layers 3' k=8 reduce=sum ema='--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000' decay='none' seed=20260520 lr=5.6e-4 -> 40000 steps on gpu 1
+[09-11 12:33:34] [arm6_v2_combab_alignT] FRESH start at step 0
+[09-11 12:33:34] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-412/k8_r100_09_lr56/arm6_v2_combab_alignT/leg_40k
+[09-11 12:33:39] [#412] arm k8_r100_09_lr56 arch=384 3 3 k=8 reduce=sum ema='0.9 1.0 100000' decay='1.0 - -' seed=20260520 batch=64 lr=5.6e-4 align=teacher OK — all eight reached the trainer
+[09-11 12:33:39] [#412] arm k8_r100_09_lr56 AUC gate pid 118281 — window 500, threshold 0.55, warmup 1786
+[09-11 16:42:14] [arm6_v2_combab_alignT] DONE target=40000 (66M) -> /home/jupyter/checkpoints_backup/cf-412/k8_r100_09_lr56/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k8_cf412_k8_r100_09_lr56_40k.pth
+[09-11 16:42:14] [#412] arm k8_r100_09_lr56 stop=40000 rc=0
+[09-11 16:42:14] [#412 phase1] head k8_r100_09_lr56 bb40000
+[09-11 16:42:14] [#412] head k8_r100_09_lr56_bb40k_h30k_student on cf393_arm6_v2_combab_alignT_cf373k8_cf412_k8_r100_09_lr56_40k.pth
+[09-11 16:42:14] [k8_r100_09_lr56_bb40k_h30k_student] head-train start enc=student steps=30000 seed=20260722 gpu=1 bb=cf393_arm6_v2_combab_alignT_cf373k8_cf412_k8_r100_09_lr56_40k.pth

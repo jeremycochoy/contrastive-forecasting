@@ -1125,3 +1125,19 @@ whatever drives the degradation is not `L_rep`, and it is not sensitive to the
 decay schedule.
 
 A peer session reading the same two rows noticed this first.
+
+### The card handover was disarmed before it fired
+
+Pass 5 owed the orchestrator session one card for the momentum test, and
+`pass5_defer_after_first_k32.sh` was armed to write the claim when
+`k32_r200_08_lr56` started. That session then took GPU 0 instead and released
+the handoff.
+
+THE ARMED SCRIPT WOULD HAVE COST PASS 5 ITS OWN CARD. It writes the claim at
+the START of the k = 32 leg, which is what removes the race with the queue. So
+once the obligation ended, an armed script was no longer a promise but a
+self-inflicted block: it would have claimed GPU 1 for a run that was already
+elsewhere, and pass 5's third arm would have waited behind nothing.
+
+It was disarmed before the leg started, so no file was ever written.
+`results/pass5_defer.log` carries the line.
