@@ -39,14 +39,25 @@ lane_of(){  # <pid>
   for i in 1 2 3 4 5 6 7 8; do
     case "$p" in ''|0|1) return 1 ;; esac
     args="$(ps -o args= -p "$p" 2>/dev/null)"
-    case "$args" in
-      *shell-snapshots*) ;;
-      *)
-        if printf '%s' "$args" | grep -qE "$LANES"; then
-          printf '%s' "$args" | cut -c1-50
-          return 0
-        fi ;;
-    esac
+    # A LANE IS A PROCESS WHOSE FIRST ARGUMENT IS THE LANE SCRIPT. Testing
+    # the whole command line instead needs a second test to exclude wrappers,
+    # and `shell-snapshots` is a heuristic for THIS box rather than a
+    # discriminator: a wrapper started another way carries no such marker and
+    # would read as a lane, which makes this watcher silent.
+    #
+    # An agent wrapper's first argument is `-c`. A lane's is the script. So
+    # the position answers it with no heuristic at all, which is the same
+    # shape as testing that a trainer's executable is python.
+    # `exit 0` inside a rule jumps to END, whose own `exit` overrides it. So
+    # the match sets a flag and END alone decides, which is the idiom the
+    # other scripts of this card use.
+    if printf '%s' "$args" | awk -v pat="$LANES" '
+         { n = split($0, f, " ")
+           if (n >= 2 && f[2] ~ ("(" pat ")$")) found = 1 }
+         END { exit !found }'; then
+      printf '%s' "$args" | cut -c1-50
+      return 0
+    fi
     p="$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' ')"
   done
   return 1
