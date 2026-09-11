@@ -1262,3 +1262,30 @@ WHAT IT DOES NOT SUPPORT. One eval for each arm, one seed for each arm. The
 calibrated against real noise, but "depth is not monotonic" is a claim about
 a shape and three single-seed points constrain a shape weakly. The defensible
 statement is the pair list above.
+
+#### The pool-growth prediction, confirmed live on a k = 32 leg
+
+The mechanism above said a probe either fits the allocator's free blocks or
+forces the pool to grow, and that which case a leg takes is not predictable
+from k alone. `k32_r200_08_lr56` crossed step 20,000 on 2026-09-11 and gave
+the second case, measured:
+
+| leg | before the probe | after it | change |
+|---|---|---|---|
+| `k8_r100_09_lr56` | 7,160 smoke row | 7,140 | -20 MiB |
+| `k32_r200_08_lr56` | 6,362 | 10,078 | +3,716 MiB |
+
+The latent-drift CSV holds the step-20,000 rows, so the probe ran in both. The
+k = 32 growth matches the +4,016 that this card recorded for `k32_r200_08` two
+days ago and carried as cause unknown.
+
+ONE NUMBER STILL DOES NOT ADD UP, and it is worth naming rather than
+smoothing. The k = 32 SMOKE row reads 10,062 MiB, but the live leg held only
+6,362 before its first probe. A 150-step smoke never reaches step 20,000, so
+the smoke cannot have measured a drift probe. The smoke samples at 1 s and a
+leg's steady state is a median, so the likeliest reading is that the smoke
+captured a different transient peak. The practical consequence is benign: the
+smoke row happens to sit 16 MiB under the post-probe resident of 10,078, so
+`cf412_leg_vram_mib` covers the real peak for k = 32. It covers it by
+coincidence rather than by construction, and a future arm should not rely on
+that holding.
