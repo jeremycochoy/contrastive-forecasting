@@ -139,8 +139,9 @@ while :; do
     done_of "$arm" "$stop" && continue
     bb_of "$arm" "$stop" && continue
     busy_of "$arm" "$stop" && continue
-    [ "$lanes" -gt 0 ] && continue
-    say "STALLED — $arm at $stop has no backbone, no trainer, no lane"
+    cf412_lane_for_arm "$arm" >/dev/null && continue
+    say "STALLED — $arm at $stop has no backbone, no trainer, and no lane of its own"
+    say "  re-fire it: BB_GPU=<card> bash scripts/run_arm.sh $arm $stop"
     bash "$HERE/pass4_gate.sh" 2>&1 | tee -a "$LOG"; echo STALLED; exit 3
   done
 

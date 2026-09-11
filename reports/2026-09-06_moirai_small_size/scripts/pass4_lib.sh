@@ -114,3 +114,23 @@ cf412_head_blocked(){  # <arm> <stop>
   [ "$free" -lt "$need" ] || return 1
   echo "$gpu $free"
 }
+
+# The lane that can still start a leg of ONE arm, or nothing.
+#
+# `cf412_lanes_running` counts every lane on the box, which is the wrong test
+# for "will this leg ever start". A lane carries its arms in its environment,
+# and each pass-4 arm has its OWN lane. So an arm whose lane exited is stuck
+# even while the other arm's lane runs.
+#
+# THIS IS THE LAST-STOP CASE. `phase1.sh` logs a failed leg and goes to the
+# next stop. At an arm's LAST stop there is no next one, so the lane exits and
+# nothing retries the leg.
+cf412_lane_for_arm(){  # <arm>
+  local pid arms
+  for pid in $(pgrep -f '(phase1|pass2_lane)\.sh' 2>/dev/null); do
+    grep -qa 'shell-snapshots' "/proc/$pid/cmdline" 2>/dev/null && continue
+    arms="$(tr '\0' '\n' <"/proc/$pid/environ" 2>/dev/null | sed -n 's/^ARMS=//p')"
+    case " $arms " in *" $1 "*) echo "$pid"; return 0 ;; esac
+  done
+  return 1
+}
