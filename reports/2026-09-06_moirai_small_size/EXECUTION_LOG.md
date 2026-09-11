@@ -629,3 +629,26 @@ CPU. The cost is about 29 hours of wall clock against 16 on two cards.
 THE ORDER IS DELIBERATE. Arm `k3_r100_09_lr56_dec` goes first, because it
 carries the 200,000-step stop, which is the question of pass 4. Arm
 `k3_r100_09_lr56_dec10k` stops at 100,000.
+
+### A lane's declared card is not always the card it uses
+
+At 23:49 the pass-4 session moved its lane 1 from GPU 1 to GPU 0 by hand. The
+lane process keeps the `BB_GPU` it was started with, so a live lane now
+declares GPU 1 while its trainer runs on GPU 0. `pass5_lane.sh` reads the
+declared value, so it holds GPU 1 for a lane that is not on it.
+
+THIS IS NOT A DEFECT TO FIX HERE. Pass 5 queues BEHIND pass 4, and the pass-4
+session states that it wants GPU 1 for its `dec10k` arm as soon as that card
+reaches 7,700 MiB free. Deferring to a live pass-4 lane is the instruction, so
+the conservative read gives the correct behaviour by the rule that matters.
+
+WHAT IT WOULD COST IF PASS 4 STOPPED WITHOUT EXITING. A lane that hangs in a
+memory wait holds its declared card against pass 5 until `CF412_QUEUE_TIMEOUT`,
+which is four days. A lane that EXITS holds nothing, so the ordinary end of
+pass 4 releases both cards with no action. The two sessions coordinate by
+message for the case in between.
+
+ARITHMETIC FOR THE OPENING. If the kernel on GPU 1 ends, that card holds about
+19,074 MiB beside the rnd-483 worker. Pass 4's `dec10k` leg needs 7,700 and a
+pass-5 k = 32 leg needs 15,000 with the neighbour headroom. The two do not fit
+together, so the card goes to pass 4 first.
