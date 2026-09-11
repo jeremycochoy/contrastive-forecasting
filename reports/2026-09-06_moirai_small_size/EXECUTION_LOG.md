@@ -718,3 +718,30 @@ handed the next opening to pass 5.
 
 IF THIS PASS ENDS WITHOUT DELETING THE FILE, pass 5 waits for days on a card
 nobody wants.
+
+### A free-memory threshold is the wrong watch on a shared card
+
+At 06:54 GPU 1 read 9,600 MiB free, over the 7,700 MiB a k = 3 leg needs.
+The card did not take it, and the reason generalises.
+
+THE READING WAS A DIP. The rnd-483 worker on that card had restarted three
+minutes before and sat at 2,908 MiB, its small size. Its measured peak is
+6,880 MiB.
+
+THE ARITHMETIC THAT DECIDES, at the NEIGHBOUR'S PEAK and not at its current
+size:
+
+    24,564 total - 11,692 kernel - 6,880 worker = 5,992 MiB for this card
+    a k = 3 leg holds 6,472    DOES NOT FIT
+    a head holds 6,252         DOES NOT FIT
+
+So GPU 1 was never short by 682 MiB, which is what the gate reported. It is
+short at the neighbour's peak whatever the instantaneous reading says, and a
+leg started in the dip takes the box over its limit when the neighbour grows
+back. That kills the neighbour's job as well as this card's.
+
+WATCH THE PROCESS, NOT THE NUMBER. A threshold on `memory.free` fires on
+every dip. The watch is now on the kernel PROCESS 2843685, because its exit
+is the only event that changes the arithmetic. The same holds for any card
+this project shares: size a leg against the sum of the neighbours' PEAKS, and
+wait on a neighbour ending rather than on a number falling.
