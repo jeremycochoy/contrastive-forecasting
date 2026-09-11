@@ -1234,3 +1234,31 @@ the finding. One arm that moves the ramp ALONE would settle it.
 THAT ARM IS ALREADY QUEUED. Another session's `k3_r100_09_lr56_fix09` holds
 momentum at 0.9 with NO ramp, against `k3_r100_09_lr56`, everything else
 equal. It runs when this card releases GPU 0.
+
+## Pass 5, first result: `k8_r100_09_lr56` scores 1.2750
+
+THE CARD'S QUESTION FOR CONFIGURATION 6 IS ANSWERED. Its 1e-3 twin ran the
+mean and scored 1.4537. At 5.6e-4 under the sum it scores 1.2750, better by
+0.1787, which is 2.75 seed bands. The AUC guard did not stop it and its final
+AUC was 0.9979.
+
+THE DEPTH LADDER IS NOW THREE POINTS ON ONE AXIS. `arm_diff.py` confirms each
+pair differs in k alone, at 5.6e-4, sum, seed 20260520, ramp 100,000:
+
+| k | score | against k = 3 |
+|---|---|---|
+| 3 | 1.1820 | — |
+| 8 | 1.2750 | +0.0930, 1.43 bands, RANKED |
+| 32 | 1.2161 | +0.0341, 0.53 bands, not ranked |
+
+k = 8 against k = 32 is -0.0589, which is 0.91 bands and not ranked.
+
+SO THE ONLY RANKED PAIR IS k = 3 OVER k = 8, and the middle point is the worst
+of the three. A ladder of the two ends alone would have read as one flat
+unranked gap of 0.53 bands and would have hidden this.
+
+WHAT IT DOES NOT SUPPORT. One eval for each arm, one seed for each arm. The
+0.0649 band is this card's own seed band at 5.6e-4, so the pairs are
+calibrated against real noise, but "depth is not monotonic" is a claim about
+a shape and three single-seed points constrain a shape weakly. The defensible
+statement is the pair list above.

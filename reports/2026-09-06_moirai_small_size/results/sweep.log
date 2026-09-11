@@ -58,3 +58,24 @@
 [09-08 22:08:06] [k3_r100_09_lr56_bb200k_h30k_student] eval rc=0
 [09-08 22:08:06] [k3_r100_09_lr56_bb200k_h30k_student] DONE — GM-Relative MASE 1.3189
 [09-08 22:08:06] [#412] head k3_r100_09_lr56_bb200k_h30k_student rc=0
+[09-09 02:11:35] [#412] head k3_r100_09_lr45_bb40k_h30k_student on cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr45_40k.pth
+[09-09 02:11:35] [k3_r100_09_lr45_bb40k_h30k_student] head-train start enc=student steps=30000 seed=20260722 gpu=0 bb=cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr45_40k.pth
+[09-09 03:49:17] [k3_r100_09_lr45_bb40k_h30k_student] head-train rc=0
+[09-09 03:49:17] [k3_r100_09_lr45_bb40k_h30k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[09-09 07:32:15] [#412] head k3_r100_09_lr70_bb40k_h30k_student on cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr70_40k.pth
+[09-09 07:32:15] [k3_r100_09_lr70_bb40k_h30k_student] head-train start enc=student steps=30000 seed=20260722 gpu=0 bb=cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr70_40k.pth
+[09-09 08:48:52] [k3_r100_09_lr45_bb40k_h30k_student] eval rc=0
+[09-09 08:48:52] [k3_r100_09_lr45_bb40k_h30k_student] DONE — GM-Relative MASE 1.2912
+[09-09 08:48:52] [#412] head k3_r100_09_lr45_bb40k_h30k_student rc=0
+[09-09 09:02:29] [#412] head k32_r100_09_sum_bb40k_h30k_student on cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r100_09_sum_40k.pth
+[09-09 09:15:43] [k3_r100_09_lr70_bb40k_h30k_student] head-train rc=0
+[09-09 09:15:43] [k3_r100_09_lr70_bb40k_h30k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[09-09 09:15:43] [k32_r100_09_sum_bb40k_h30k_student] head-train start enc=student steps=30000 seed=20260722 gpu=0 bb=cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r100_09_sum_40k.pth
+[09-09 10:55:10] [k32_r100_09_sum_bb40k_h30k_student] head-train rc=0
+[09-09 10:55:10] [k32_r100_09_sum_bb40k_h30k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[09-09 13:15:30] [k3_r100_09_lr70_bb40k_h30k_student] eval rc=0
+[09-09 13:15:30] [k3_r100_09_lr70_bb40k_h30k_student] DONE — GM-Relative MASE 1.2192
+[09-09 13:15:30] [#412] head k3_r100_09_lr70_bb40k_h30k_student rc=0
+[09-09 14:59:49] [k32_r100_09_sum_bb40k_h30k_student] eval rc=0
+[09-09 14:59:49] [k32_r100_09_sum_bb40k_h30k_student] DONE — GM-Relative MASE 1.2161
+[09-09 14:59:49] [#412] head k32_r100_09_sum_bb40k_h30k_student rc=0
