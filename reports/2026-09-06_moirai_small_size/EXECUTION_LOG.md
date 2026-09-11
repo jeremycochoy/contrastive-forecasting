@@ -1141,3 +1141,27 @@ elsewhere, and pass 5's third arm would have waited behind nothing.
 
 It was disarmed before the leg started, so no file was ever written.
 `results/pass5_defer.log` carries the line.
+
+### A test fixture that impersonates a trainer will fool the live watchers
+
+To test the hardened `arm_busy.sh` in its POSITIVE direction, a fake trainer
+was started on 2026-09-11 at about 17:05:
+
+    python3 -c "import time; time.sleep(25)" --run-name cf393_..._cf412_k32_r200_08_lr56
+
+It is a python process carrying a real run-name, which is exactly what every
+guard and watcher of this card is built to detect, and they are right to
+detect it. A live milestone watch reported `k32_r200_08_lr56 trainer 557058`
+at 17:17 for an arm that had not started. The card printed an empty GPU
+because the fixture set no CUDA_VISIBLE_DEVICES, which is the tell.
+
+THE FIXTURE WAS CORRECT AND THE DAMAGE WAS REAL. A positive test needs a
+process that passes the discriminator, so the fixture had to look like a
+trainer. The fault is that it used a LIVE arm name on a box where watchers run.
+
+TWO RULES THAT FOLLOW.
+- Name a fixture after an arm that does not exist, for example
+  `_cf412_ZZ_fixture`, and assert on that name.
+- Cross-check a process claim against the artefacts before believing it. An
+  arm with no losses CSV and no checkpoint has not trained, whatever the
+  process table says. That check is what settled this one in seconds.
