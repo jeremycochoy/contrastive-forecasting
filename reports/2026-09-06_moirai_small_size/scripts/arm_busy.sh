@@ -31,8 +31,17 @@ K="$(cf412_depth "$ARM")" || exit 2
 NAME="$(printf 'cf393_%s_cf373k%s_cf412_%s' "$CF412_CELL" "$K" "$ARM")"
 
 # `--run-name <name>` followed by a space or the end of the command line.
-hit="$(pgrep -a -f -- "--run-name ${NAME}( |\$)" 2>/dev/null \
-       | grep -v arm_busy | head -3)"
+#
+# A TRAINER IS A PYTHON PROCESS, and the executable is the discriminator. Any
+# wrapper that RUNS a command carries the arm name in its own arguments, so a
+# match on the command line alone reports a trainer that does not exist. That
+# trap has now cost this card three times: a `pkill -f` that killed nothing, a
+# wait loop that matched itself, and an ad-hoc watch that reported an arm up
+# before it started. Excluding this script by name does not cover a caller's
+# wrapper, so test the executable instead.
+hit="$(ps -eo pid,args --no-headers 2>/dev/null \
+       | awk -v n="$NAME" '$2 ~ /python/ && index($0, "--run-name " n) {print}' \
+       | head -3)"
 if [ -n "$hit" ]; then
   echo "BUSY: a trainer already runs $ARM"
   echo "$hit" | cut -c1-120
