@@ -898,3 +898,40 @@ docstring is wrong: the probe runs a full GRU forward at probe_bs 64. The jump
 is 4,016 and the probe allocates about 4,424. So 10,418 is the pool AFTER it
 absorbed one probe, and any figure that adds the probe to 10,418 counts it
 twice.
+
+### CORRECTION: the probe is a TRANSIENT, and the gates are not all too low
+
+The section above says "EVERY VRAM GATE ON THIS CARD IS TOO LOW". That is
+WRONG in its mechanism, and this section replaces it.
+
+THE MEASUREMENT THAT REFUTES IT. A peer session read a k = 8 leg that had
+just crossed step 20,000, with both probe rows in its drift CSV. That leg sits
+at 7,140 MiB against a 7,160 MiB smoke row. So a probe step does NOT raise a
+leg's RESIDENT memory. This card's own legs agree: `leg_40k` crossed 6 probe
+steps and `leg_100k` crossed 10, and both finished.
+
+WHAT THE 4.32 GiB IS. A transient. The probe runs under `no_grad` in `eval`
+mode between training steps, when the rollout graph is freed, so the caching
+allocator usually serves it from blocks it already holds and never asks the
+driver. It asks the driver only when the pool cannot cover it, and then the
+card must have the memory free.
+
+WHY THIS LEG DIED AND THE OTHERS DID NOT. Free memory on the card, nothing
+else. GPU 0 held 1,628 MiB free behind a kernel that landed at 12:38. The
+peer's leg crossed its probe with 15,444 MiB free on GPU 1.
+
+THE RULE, STATED CORRECTLY. `cf412_leg_vram_mib` measures the RESIDENT need.
+At a probe step a leg ALSO needs about 4.3 GiB free on the card. The 1,200 MiB
+margin does not cover that, so a leg on a full card dies at the first probe
+step and runs fine on an empty one. Raising THIS leg's gate to 11,500 works
+because 11,500 minus its 6,472 resident leaves 5,028 free for the transient.
+It is not a uniform correction every gate needs.
+
+WHAT STAYS OPEN. This does NOT explain `k32_r200_08` going 6,402 to 10,418
+inside one leg, because that jump PERSISTED and a transient does not. The
+cause of that one is still not known.
+
+THE PRACTICE. A number measured once, under one condition, explains less than
+it looks like it does. This card had the OOM traceback and a 4.32 GiB figure
+and wrote a rule for every gate on the project. One reading of a live leg on
+the other card refuted it in a minute.
