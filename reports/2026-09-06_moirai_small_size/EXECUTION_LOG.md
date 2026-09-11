@@ -830,3 +830,38 @@ the mean and lost the task at step 28,152, so this arm asks whether the
 configuration holds the task and carries a score under the sum at 5.6e-4. Its
 momentum reaches exactly 1.0000 at the 40,000-step stop, and the report states
 that beside its score.
+
+### The VRAM gates of this card omit the latent-drift probe
+
+At 14:33 the 200,000-step leg of `k3_r100_09_lr56_dec` died at step 120,000:
+
+    torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 4.32 GiB.
+      train.py:2303  latent_drift_probe.probe(model, step)
+      train.py:1251  h = self.extract_h(model)
+      encoders.py:112  _, hidden = self.gru(fl)
+
+THE GATE CANNOT SEE THIS. `cf412_leg_vram_mib` returns 6,500 for k = 3, from
+`results/trial/smoke.csv`. The smoke runs `CF412_SMOKE_STEPS` 150 steps. The
+probe fires every 20,000 steps. So NO smoke of this card has ever crossed a
+probe step, and NO gate on this card includes the probe's 4.32 GiB.
+
+A k = 3 leg therefore needs about 10,900 MiB at a probe step and 6,472 MiB
+between them, and only the second number is written down anywhere.
+
+THIS IS A CANDIDATE FOR THE OPEN QUESTION IN THIS LOG. An earlier section
+records `k32_r200_08` holding 6,402 MiB for four hours and 10,418 MiB later in
+the SAME leg, with "THE CAUSE IS NOT KNOWN", and it argues the probe away on
+the grounds that its docstring puts it near 10 MB and that `k` does not enter
+it. The docstring is wrong: the probe runs a full GRU forward over
+`probe_bs=64`, and the measured allocation is 4.32 GiB. The growth that
+section could not explain is 4,016 MiB.
+
+THE CARD DID NOT LOWER THE GATE, IT RAISED IT. The 200,000-step leg runs again
+with `CF412_VRAM_MARGIN_MIB=5000`, so its gate is 11,500 rather than 7,700. No
+script changed and the trainer command line is byte-for-byte what the 40,000
+and 100,000-step legs ran. `--latent-drift-probe-batch-size` would have cut
+the spike, but it would also make this leg's objective line differ from its
+own earlier legs, and nothing in this card reads the drift CSV anyway.
+
+WHAT IT COST. Nothing. `--save-every 20000` had written the 120,000-step
+checkpoint before the probe ran, so the re-fired leg resumes there.
