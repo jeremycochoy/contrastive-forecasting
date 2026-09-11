@@ -652,3 +652,28 @@ ARITHMETIC FOR THE OPENING. If the kernel on GPU 1 ends, that card holds about
 19,074 MiB beside the rnd-483 worker. Pass 4's `dec10k` leg needs 7,700 and a
 pass-5 k = 32 leg needs 15,000 with the neighbour headroom. The two do not fit
 together, so the card goes to pass 4 first.
+
+### `cf412_kill_tree` on a lane leaves an orphan that keeps running
+
+At 23:49 the card stopped lane 1 with `cf412_kill_tree 2752684` and started a
+replacement two seconds later. At 02:15 a peer session's card gate reported a
+pass-4 lane declaring GPU 1, which no lane should have declared.
+
+IT WAS AN ORPHAN OF THE KILLED LANE. Pid 3234582, parent init, started at
+23:49:23, carrying `ARMS=k3_r100_09_lr56_dec STOPS="40000 100000 200000"
+BB_GPU=1`. `phase1.sh` forks a subshell for its `| tee` pipeline, that
+subshell survived the kill, carried the loop forward, and re-parented to init.
+
+WHAT IT WOULD HAVE COST. It still polled GPU 1 for the SAME arm the
+replacement lane trains on GPU 0. The moment GPU 1 reached 7,700 MiB it would
+have started a second trainer on `k3_r100_09_lr56_dec` at 100,000 steps,
+writing the save directory of pid 3353588. Nothing on this card stops two
+trainers on one arm.
+
+AFTER KILLING A LANE, LOOK FOR ITS ORPHAN. `pgrep -f phase1.sh` and read
+`/proc/<pid>/environ` for `ARMS`, `STOPS` and `BB_GPU`. A lane with parent 1
+that you did not start is an orphan. The process table is the only record: the
+orphan writes the same log file as the lane that replaced it.
+
+A PEER'S ODD READING WAS THE ONLY SIGNAL. Nothing this card owns reported it.
+The await watched arms and stops, not lanes, and both arms looked healthy.
