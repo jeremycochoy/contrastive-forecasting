@@ -984,3 +984,24 @@ the post-growth figure this card has seen is 10,418, so it covers the grown
 case with 882 MiB to spare. No gate on this card needs a raise. This card's
 own 11,500 for the 200,000-step leg is a local choice for a crowded card, not
 a correction.
+
+### Handing a card back, without a race and without a session awake
+
+Pass 5 owes the orchestrator session one card for one 40,000-step run of
+`k3_r100_09_lr56_fix09`, in exchange for the card that session handed to pass
+5. That arm differs from `k3_r100_09_lr56` in the EMA schedule alone, so it is
+the single-axis momentum test that no pass-5 arm can be.
+
+THE OBVIOUS IMPLEMENTATION RACES. Wait for `k32_r200_08_lr56` to land its
+checkpoint, then write `results/pass5_defer_gpu<N>.txt`. But the queue polls
+every 120 s and a checkpoint appears at the END of a leg, so the queue can
+place the next arm on that card before the file lands. Nothing locks between
+them.
+
+`pass5_defer_after_first_k32.sh` writes the file when the leg STARTS instead.
+The card is held by that leg while it runs, so an early file changes nothing,
+and the moment the leg ends the file is already in place. No race, and no
+session has to be awake at the moment that matters.
+
+THE COST IS PRICED AND ACCEPTED: if only one card is free then, the third
+pass-5 arm waits about 4 hours.
