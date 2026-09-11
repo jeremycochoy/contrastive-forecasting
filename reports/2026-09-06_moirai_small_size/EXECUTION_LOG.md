@@ -799,3 +799,34 @@ trains it, and a prune step at the top of each poll removes any arm whose
 checkpoint is on disk, whoever trained it. Tested with a stubbed `arm_busy.sh`
 that always reports BUSY: the arm survived every poll and the queue never
 dropped it.
+
+### What each pass-5 arm can carry, computed and not asserted
+
+`scripts/arm_diff.py` reads `arms.tsv` and prints the settings that separate
+two arms. Run against the pass-5 arms it gives this, and the report states no
+comparison that this tool has not passed:
+
+| pair | axis | verdict |
+|---|---|---|
+| `k8_r100_09_lr56` against `k3_r100_09_lr56` | k, 3 to 8 | SINGLE AXIS |
+| `k32_r100_09_dec_lr56` against `k32_r100_09_sum` | the `L_rep` decay | SINGLE AXIS |
+| `k32_r200_08_lr56` against `k3_r100_09_lr56` | k, tau and the ramp | CONFOUNDED |
+
+SO PASS 5 CLOSES THE DEPTH LADDER. With the reduction, the rate, the seed and
+the momentum schedule all held fixed, `k8_r100_09_lr56` is the middle point
+between `k3_r100_09_lr56` at 1.1820 and `k32_r100_09_sum` at 1.2161. Those two
+already differ in k alone and sit 0.0341 apart, which is inside the 0.0649
+band, so depth does not separate them. The k = 8 point tests whether that holds
+across the middle.
+
+AND IT GIVES THE DECAY A CLEAN TEST AT k = 32. `k32_r100_09_dec_lr56` against
+`k32_r100_09_sum` moves the decay alone. Pass 4 measured the same axis at
+k = 3 and found it neutral, +0.0344 at 40,000 steps and +0.0337 at 100,000.
+
+`k32_r200_08_lr56` CARRIES NO CLEAN PAIR. Its nearest sibling
+`k32_r100_09_sum` differs in the start momentum AND the ramp length. It
+answers the card's question in the qualitative form only: its 1e-3 twin ran
+the mean and lost the task at step 28,152, so this arm asks whether the
+configuration holds the task and carries a score under the sum at 5.6e-4. Its
+momentum reaches exactly 1.0000 at the 40,000-step stop, and the report states
+that beside its score.
