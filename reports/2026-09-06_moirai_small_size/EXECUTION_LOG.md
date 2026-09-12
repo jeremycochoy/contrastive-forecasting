@@ -1481,3 +1481,38 @@ momentum.
 
 WHAT IT DOES NOT TOUCH. This is not a depth pair, so the ladder is unchanged:
 1.1820 at k = 3, 1.2750 at k = 8, 1.2161 at k = 32.
+
+### What pass 5 does and does not add to the reduction claim
+
+THE COUNTS MOVED. The report says "three of the six mean arms lost the task,
+and none of the seven sum arms". With pass 5 and the momentum arms the card
+now holds:
+
+  sum    17 arms trained, 0 lost the task
+  mean    6 arms trained, 3 lost the task
+
+So the mean half is unchanged and the sum half goes from seven to seventeen.
+
+THE TEMPTING PAIRING IS CONFOUNDED, and it is tempting because it looks like
+the cleanest thing on the card. Two mean arms that LOST the task have pass-5
+twins that HELD it:
+
+  k32_r200_08      mean, 1e-3   LOST at step 28,152
+  k32_r200_08_lr56 sum,  5.6e-4 held, 1.2318      3 parameters differ
+  k32_r100_09_dec      mean, 1e-3   LOST at step 18,634
+  k32_r100_09_dec_lr56 sum,  5.6e-4 held          2 parameters differ
+
+Each pair moves the RATE as well as the reduction, so neither shows that the
+sum is what saved the arm. The rate alone could have.
+
+THE CLEAN REDUCTION PAIR IS OLDER AND IT IS NOT MINE. `k32_r100_09_lr56`
+against `k32_r100_09_sum` moves `reduce` ALONE at 5.6e-4, and BOTH arms held
+the task: 1.4404 for the mean against 1.2161 for the sum, a gap of 0.2243
+which is 3.46 bands.
+
+SO THE HONEST STATEMENT. At 5.6e-4 and k = 32 the reduction moves the SCORE by
+3.5 bands with both arms alive. Losing the task is associated with the mean,
+but every arm that lost it ran at 1e-3, so this card cannot separate the
+reduction from the rate for the LOSS. Pass 5 adds three sum arms that held,
+including two at k = 32, which strengthens the association without closing
+that gap.
