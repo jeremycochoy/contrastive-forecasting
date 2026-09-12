@@ -1425,3 +1425,31 @@ SO THE CHECK BEFORE KILLING A SWEEP IS `pgrep -P <sweep>`. A lone `sleep` is a
 sweep between ticks and is free to kill. A driver in that list is a running
 head or evaluation, and it survives, but a session should know it is there
 rather than discover it afterwards.
+
+#### The same awk idiom error, twice, in my own code
+
+`p5_wait_for_trainer` in `pass5_lane.sh` carried the identical fault that
+`pass5_orphan_watch.sh` carried:
+
+    { ... if (match) exit 0 }   END { exit 1 }
+
+`exit 0` inside a rule jumps to END, whose own `exit 1` overrides it, so the
+function ALWAYS reported failure. Every arm of pass 5 logged "no trainer on
+gpu N after 2400s" for a trainer that was running, and the queue then waited
+the full 2400 s after each start before reading the next card.
+
+THE COST THIS RUN WAS SMALL AND THE LIE WAS NOT. No card was free during those
+waits, so no arm started later than it could have. But three log lines assert
+something false about a healthy run, and a later reader would have taken them
+as evidence of a placement problem.
+
+HOW IT WAS FOUND: a log line contradicted an observed fact. The queue said no
+trainer existed for `k32_r100_09_dec_lr56`, and that arm reached 40,000 steps.
+Neither `bash -n` nor either direction of a process test would have caught it,
+because the function is wrong only in its EXIT CODE and right in everything
+else.
+
+WRITING THE SAME BUG TWICE IS THE POINT. The first fix did not generalise
+because it was applied to one file rather than to the idiom. Both copies now
+use a flag and `END { exit !found }`, which is what the rest of this card
+already used.

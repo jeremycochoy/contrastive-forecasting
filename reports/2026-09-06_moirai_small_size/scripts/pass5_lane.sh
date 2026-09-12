@@ -219,8 +219,14 @@ p5_wait_for_trainer(){  # <arm> <card>
   local arm="${1:?arm}" card="${2:?card}" name waited=0
   name="$(cf412_run_name "$arm")"
   while [ "$waited" -lt "$START_TIMEOUT" ]; do
+    # `exit 0` inside a rule jumps to END, and END's own `exit` overrides it,
+    # so the rule-exit form ALWAYS returned failure. Every arm of pass 5 then
+    # logged "no trainer after 2400s" for a trainer that was running, and the
+    # queue waited the full timeout after each start before reading the next
+    # card. The match sets a flag and END alone decides.
     if ps -eo pid,args --no-headers 2>/dev/null \
-         | awk -v n="--run-name $name " '$2 ~ /python/ && index($0 " ", n) { exit 0 } END { exit 1 }'
+         | awk -v n="--run-name $name " \
+             '$2 ~ /python/ && index($0 " ", n) { found = 1 } END { exit !found }'
     then
       p5_card_busy "$card" && return 0
     fi
