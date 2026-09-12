@@ -1317,3 +1317,30 @@ at step 20,000, which needs about 3,716 MiB of pool growth on a k = 32 leg:
 
 So the sweep moved to GPU 1, which now holds no #412 leg. A card that fits a
 head TODAY is not the same as a card that fits a head AND a leg's next probe.
+
+#### The head placement was safe, and the reason given for it was wrong
+
+The head of `k32_r200_08_lr56` went to GPU 1 because a head on GPU 0 was said
+to leave 2,506 MiB against a probe asking 4,424, which would kill the third
+arm. The third arm has now crossed that probe and the numbers are measured:
+
+  GPU 0 free before the probe          11,506
+  pool growth the probe actually took   3,996  (11,506 -> 7,510)
+  resident size of a head                6,252
+  free had the head been there           5,254, which is 1,258 ABOVE the need
+
+SO THE LEG WOULD HAVE SURVIVED. The placement was still the safer of two
+options, but the reason stated for it was wrong, and a wrong reason that
+happens to give the right answer is worth correcting because it will be reused.
+
+THE ERROR IS SPECIFIC: the head's GATE is 9,000 MiB and its RESIDENT size is
+6,252. Subtracting the gate from free memory double-counts the 2,748 MiB of
+padding that the gate exists to provide. A gate answers "may this start", a
+resident figure answers "what will remain". Both #412 sessions made this
+substitution in the same hour.
+
+THE PROBE FIGURE ALSO FIRMS UP. Three k = 32 legs have now crossed a probe and
+grown their pools by 4,016, 3,716 and 3,996 MiB, against the 4,424 GiB
+allocation named in the traceback. So the growth is consistently a few hundred
+MiB UNDER the requested allocation, because part of it is served from blocks
+the pool already holds.
