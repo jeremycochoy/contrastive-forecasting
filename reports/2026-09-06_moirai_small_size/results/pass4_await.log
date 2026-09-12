@@ -1,0 +1,211 @@
+[09-10 18:33:33] await armed — 5 legs, maxwait 14400s, stall 60min
+[09-10 18:45:06] await armed — 5 legs, maxwait 14400s, stall 60min
+[09-10 19:42:49] await armed — 5 legs, maxwait 14400s, stall 60min
+[09-10 20:43:08] hourly — resolved 0 of 5 — dec:40k=29400 dec:100k=0 dec:200k=0 dec10k:40k=26400 dec10k:100k=0  lanes=3 heads=0 working=0
+[09-10 21:35:23] a head waits on memory — k3_r100_09_lr56_dec@40k gpu1:7018MiB
+[09-10 21:43:26] hourly — resolved 0 of 5 — dec:40k=40000 dec:100k=0 dec:200k=0 dec10k:40k=39200 dec10k:100k=0  lanes=3 heads=2 working=0
+[09-10 22:05:33] HEADBLOCKED for 30 min — k3_r100_09_lr56_dec@40k gpu1:7018MiB k3_r100_09_lr56_dec10k@40k gpu0:3038MiB
+[09-10 22:05:33]   it holds the card head lock and aborts after 4 h with no score.
+[09-10 22:06:57] await armed — 5 legs, maxwait 7200s, stall 90min
+[09-10 22:08:57] a head waits on memory — k3_r100_09_lr56_dec@40k gpu1:7018MiB
+[09-10 22:55:13] HEADBLOCKED for 45 min — k3_r100_09_lr56_dec@40k gpu1:7018MiB
+[09-10 22:55:13]   it holds the card head lock and aborts after 4 h with no score.
+[09-10 22:55:56] await armed — 5 legs, maxwait 10800s, stall 90min
+[09-10 22:57:57] a head waits on memory — k3_r100_09_lr56_dec@40k gpu1:7018MiB
+[09-10 23:56:17] hourly — resolved 0 of 5 — dec:40k=40000 dec:100k=0 dec:200k=0 dec10k:40k=40000 dec10k:100k=0  lanes=5 heads=4 working=2
+[09-11 00:56:38] hourly — resolved 0 of 5 — dec:40k=40000 dec:100k=0 dec:200k=0 dec10k:40k=40000 dec10k:100k=0  lanes=5 heads=4 working=2
+[09-11 01:56:58] hourly — resolved 0 of 5 — dec:40k=40000 dec:100k=50100 dec:200k=0 dec10k:40k=40000 dec10k:100k=0  lanes=4 heads=4 working=2
+[09-11 01:56:58] TIMEBOX — 10800s passed, resolved 0 of 5 — dec:40k=40000 dec:100k=50100 dec:200k=0 dec10k:40k=40000 dec10k:100k=0
+#412 pass 4 — the L_rep decay at 5.6e-4, over a long stop
+generated 2026-09-11 01:56:58
+GM-Relative MASE, lower is better. Seed band at 5.6e-4: 0.0649.
+Reference: k3_r100_09_lr56, the same cell with no decay.
+
+ARM                        STOP         SCORE       REF     DELTA NOTE
+k3_r100_09_lr56_dec        40000            -    1.1820         - not scored yet
+k3_r100_09_lr56_dec        100000           -    1.3170         - not scored yet
+k3_r100_09_lr56_dec        200000           -    1.3189         - not scored yet
+k3_r100_09_lr56_dec10k     40000            -    1.1820         - not scored yet
+k3_r100_09_lr56_dec10k     100000           -    1.3170         - not scored yet
+
+THE QUESTION: does a longer stop beat the 40,000-step stop of the SAME arm?
+
+The AUC enters here for one purpose only: the guard stops a run at 0.55.
+  k3_r100_09_lr56_dec — the guard did not stop it.
+  k3_r100_09_lr56_dec10k — the guard did not stop it.
+[09-11 01:57:10] await armed — 5 legs, maxwait 14400s, stall 90min
+[09-11 01:59:10] a head waits on memory — k3_r100_09_lr56_dec10k@40k gpu0:4182MiB
+[09-11 02:45:30] HEADBLOCKED for 45 min — k3_r100_09_lr56_dec10k@40k
+[09-11 02:45:30]   it holds the card head lock and aborts after 4 h with no score.
+[09-11 02:46:18] await armed — 5 legs, maxwait 14400s, stall 120min
+[09-11 03:46:35] hourly — resolved 1 of 5 — dec:40k=40000 dec:100k=73100 dec:200k=0 dec10k:40k=40000 dec10k:100k=0  lanes=4 heads=2 working=1
+[09-11 04:46:51] hourly — resolved 1 of 5 — dec:40k=40000 dec:100k=86200 dec:200k=0 dec10k:40k=40000 dec10k:100k=0  lanes=4 heads=2 working=1
+[09-11 05:47:04] hourly — resolved 2 of 5 — dec:40k=40000 dec:100k=99800 dec:200k=0 dec10k:40k=40000 dec10k:100k=0  lanes=4 heads=0 working=0
+[09-11 06:47:16] hourly — resolved 2 of 5 — dec:40k=40000 dec:100k=100000 dec:200k=0 dec10k:40k=40000 dec10k:100k=0  lanes=4 heads=2 working=1
+[09-11 06:47:16] TIMEBOX — 14400s passed, resolved 2 of 5 — dec:40k=40000 dec:100k=100000 dec:200k=0 dec10k:40k=40000 dec10k:100k=0
+#412 pass 4 — the L_rep decay at 5.6e-4, over a long stop
+generated 2026-09-11 06:47:16
+GM-Relative MASE, lower is better. Seed band at 5.6e-4: 0.0649.
+Reference: k3_r100_09_lr56, the same cell with no decay.
+
+ARM                        STOP         SCORE       REF     DELTA NOTE
+k3_r100_09_lr56_dec        40000       1.2164    1.1820   +0.0344 inside the band
+k3_r100_09_lr56_dec        100000           -    1.3170         - not scored yet
+k3_r100_09_lr56_dec        200000           -    1.3189         - not scored yet
+k3_r100_09_lr56_dec10k     40000       1.1915    1.1820   +0.0095 inside the band
+k3_r100_09_lr56_dec10k     100000           -    1.3170         - not scored yet
+
+THE QUESTION: does a longer stop beat the 40,000-step stop of the SAME arm?
+
+The AUC enters here for one purpose only: the guard stops a run at 0.55.
+  k3_r100_09_lr56_dec — the guard did not stop it.
+  k3_r100_09_lr56_dec10k — the guard did not stop it.
+[09-11 06:47:24] await armed — 5 legs, maxwait 14400s, stall 120min
+[09-11 07:47:36] hourly — resolved 2 of 5 — dec:40k=40000 dec:100k=100000 dec:200k=0 dec10k:40k=40000 dec10k:100k=45900  lanes=3 heads=2 working=1
+[09-11 08:47:49] hourly — resolved 2 of 5 — dec:40k=40000 dec:100k=100000 dec:200k=0 dec10k:40k=40000 dec10k:100k=60700  lanes=3 heads=2 working=1
+[09-11 09:48:01] hourly — resolved 2 of 5 — dec:40k=40000 dec:100k=100000 dec:200k=0 dec10k:40k=40000 dec10k:100k=78300  lanes=3 heads=2 working=1
+[09-11 10:48:12] hourly — resolved 2 of 5 — dec:40k=40000 dec:100k=100000 dec:200k=0 dec10k:40k=40000 dec10k:100k=95700  lanes=3 heads=2 working=1
+[09-11 10:48:12] TIMEBOX — 14400s passed, resolved 2 of 5 — dec:40k=40000 dec:100k=100000 dec:200k=0 dec10k:40k=40000 dec10k:100k=95700
+#412 pass 4 — the L_rep decay at 5.6e-4, over a long stop
+generated 2026-09-11 10:48:12
+GM-Relative MASE, lower is better. Seed band at 5.6e-4: 0.0649.
+Reference: k3_r100_09_lr56, the same cell with no decay.
+
+ARM                        STOP         SCORE       REF     DELTA NOTE
+k3_r100_09_lr56_dec        40000       1.2164    1.1820   +0.0344 inside the band
+k3_r100_09_lr56_dec        100000           -    1.3170         - not scored yet
+k3_r100_09_lr56_dec        200000           -    1.3189         - not scored yet
+k3_r100_09_lr56_dec10k     40000       1.1915    1.1820   +0.0095 inside the band
+k3_r100_09_lr56_dec10k     100000           -    1.3170         - not scored yet
+
+THE QUESTION: does a longer stop beat the 40,000-step stop of the SAME arm?
+
+The AUC enters here for one purpose only: the guard stops a run at 0.55.
+  k3_r100_09_lr56_dec — the guard did not stop it.
+  k3_r100_09_lr56_dec10k — the guard did not stop it.
+[09-11 10:48:27] await armed — 5 legs, maxwait 14400s, stall 120min
+[09-11 11:06:30] a head waits on memory — k3_r100_09_lr56_dec10k@100k gpu0:7200MiB
+[09-11 11:48:39] hourly — resolved 3 of 5 — dec:40k=40000 dec:100k=100000 dec:200k=0 dec10k:40k=40000 dec10k:100k=100000  lanes=4 heads=2 working=0
+[09-11 11:52:40] HEADBLOCKED for 45 min — k3_r100_09_lr56_dec10k@100k
+[09-11 11:52:40]   it holds the card head lock and aborts after 4 h with no score.
+[09-11 11:54:15] await armed — 5 legs, maxwait 14400s, stall 150min
+[09-11 11:56:15] a head waits on memory — k3_r100_09_lr56_dec10k@100k gpu0:7200MiB
+[09-11 12:54:27] hourly — resolved 3 of 5 — dec:40k=40000 dec:100k=100000 dec:200k=102800 dec10k:40k=40000 dec10k:100k=100000  lanes=4 heads=2 working=1
+[09-11 13:54:35] hourly — resolved 3 of 5 — dec:40k=40000 dec:100k=100000 dec:200k=113200 dec10k:40k=40000 dec10k:100k=100000  lanes=4 heads=2 working=1
+[09-11 14:34:41] STALLED — k3_r100_09_lr56_dec at 200000 has no backbone, no trainer, and no lane of its own
+[09-11 14:34:41]   re-fire it: BB_GPU=<card> bash scripts/run_arm.sh k3_r100_09_lr56_dec 200000
+#412 pass 4 — the L_rep decay at 5.6e-4, over a long stop
+generated 2026-09-11 14:34:41
+GM-Relative MASE, lower is better. Seed band at 5.6e-4: 0.0649.
+Reference: k3_r100_09_lr56, the same cell with no decay.
+
+ARM                        STOP         SCORE       REF     DELTA NOTE
+k3_r100_09_lr56_dec        40000       1.2164    1.1820   +0.0344 inside the band
+k3_r100_09_lr56_dec        100000      1.3507    1.3170   +0.0337 inside the band
+k3_r100_09_lr56_dec        200000           -    1.3189         - not scored yet
+k3_r100_09_lr56_dec10k     40000       1.1915    1.1820   +0.0095 inside the band
+k3_r100_09_lr56_dec10k     100000           -    1.3170         - not scored yet
+
+THE QUESTION: does a longer stop beat the 40,000-step stop of the SAME arm?
+  k3_r100_09_lr56_dec           100k 1.3507 against 1.2164 at 40k  (+0.1343)  no — it gets worse, as every other arm does
+
+The AUC enters here for one purpose only: the guard stops a run at 0.55.
+  k3_r100_09_lr56_dec — the guard did not stop it.
+  k3_r100_09_lr56_dec10k — the guard did not stop it.
+[09-11 14:37:30] await armed — 5 legs, maxwait 14400s, stall 180min
+[09-11 15:37:41] hourly — resolved 3 of 5 — dec:40k=40000 dec:100k=100000 dec:200k=120000 dec10k:40k=40000 dec10k:100k=100000  lanes=5 heads=2 working=1
+[09-11 16:37:53] hourly — resolved 3 of 5 — dec:40k=40000 dec:100k=100000 dec:200k=120000 dec10k:40k=40000 dec10k:100k=100000  lanes=5 heads=2 working=1
+[09-11 17:36:04] STALLED — k3_r100_09_lr56_dec at 200000 has no backbone, no trainer, and no lane of its own
+[09-11 17:36:04]   re-fire it: BB_GPU=<card> bash scripts/run_arm.sh k3_r100_09_lr56_dec 200000
+#412 pass 4 — the L_rep decay at 5.6e-4, over a long stop
+generated 2026-09-11 17:36:04
+GM-Relative MASE, lower is better. Seed band at 5.6e-4: 0.0649.
+Reference: k3_r100_09_lr56, the same cell with no decay.
+
+ARM                        STOP         SCORE       REF     DELTA NOTE
+k3_r100_09_lr56_dec        40000       1.2164    1.1820   +0.0344 inside the band
+k3_r100_09_lr56_dec        100000      1.3507    1.3170   +0.0337 inside the band
+k3_r100_09_lr56_dec        200000           -    1.3189         - not scored yet
+k3_r100_09_lr56_dec10k     40000       1.1915    1.1820   +0.0095 inside the band
+k3_r100_09_lr56_dec10k     100000           -    1.3170         - not scored yet
+
+THE QUESTION: does a longer stop beat the 40,000-step stop of the SAME arm?
+  k3_r100_09_lr56_dec           100k 1.3507 against 1.2164 at 40k  (+0.1343)  no — it gets worse, as every other arm does
+
+The AUC enters here for one purpose only: the guard stops a run at 0.55.
+  k3_r100_09_lr56_dec — the guard did not stop it.
+  k3_r100_09_lr56_dec10k — the guard did not stop it.
+[09-11 17:39:54] await armed — 5 legs, maxwait 14400s, stall 180min
+[09-11 18:40:03] hourly — resolved 4 of 5 — dec:40k=40000 dec:100k=100000 dec:200k=134900 dec10k:40k=40000 dec10k:100k=100000  lanes=3 heads=2 working=0
+[09-11 19:40:12] hourly — resolved 4 of 5 — dec:40k=40000 dec:100k=100000 dec:200k=149600 dec10k:40k=40000 dec10k:100k=100000  lanes=3 heads=2 working=0
+[09-11 20:40:21] hourly — resolved 4 of 5 — dec:40k=40000 dec:100k=100000 dec:200k=164300 dec10k:40k=40000 dec10k:100k=100000  lanes=3 heads=2 working=0
+[09-11 21:40:29] hourly — resolved 4 of 5 — dec:40k=40000 dec:100k=100000 dec:200k=180900 dec10k:40k=40000 dec10k:100k=100000  lanes=3 heads=2 working=0
+[09-11 21:40:29] TIMEBOX — 14400s passed, resolved 4 of 5 — dec:40k=40000 dec:100k=100000 dec:200k=180900 dec10k:40k=40000 dec10k:100k=100000
+#412 pass 4 — the L_rep decay at 5.6e-4, over a long stop
+generated 2026-09-11 21:40:29
+GM-Relative MASE, lower is better. Seed band at 5.6e-4: 0.0649.
+Reference: k3_r100_09_lr56, the same cell with no decay.
+
+ARM                        STOP         SCORE       REF     DELTA NOTE
+k3_r100_09_lr56_dec        40000       1.2164    1.1820   +0.0344 inside the band
+k3_r100_09_lr56_dec        100000      1.3507    1.3170   +0.0337 inside the band
+k3_r100_09_lr56_dec        200000           -    1.3189         - not scored yet
+k3_r100_09_lr56_dec10k     40000       1.1915    1.1820   +0.0095 inside the band
+k3_r100_09_lr56_dec10k     100000      1.2151    1.3170   -0.1019 beats the reference
+
+THE QUESTION: does a longer stop beat the 40,000-step stop of the SAME arm?
+  k3_r100_09_lr56_dec           100k 1.3507 against 1.2164 at 40k  (+0.1343)  no — it gets worse, as every other arm does
+  k3_r100_09_lr56_dec10k        100k 1.2151 against 1.1915 at 40k  (+0.0236)  no verdict — the two land inside the band
+
+The AUC enters here for one purpose only: the guard stops a run at 0.55.
+  k3_r100_09_lr56_dec — the guard did not stop it.
+  k3_r100_09_lr56_dec10k — the guard did not stop it.
+[09-11 21:40:49] await armed — 5 legs, maxwait 14400s, stall 180min
+[09-11 22:40:56] hourly — resolved 4 of 5 — dec:40k=40000 dec:100k=100000 dec:200k=198600 dec10k:40k=40000 dec10k:100k=100000  lanes=2 heads=0 working=0
+[09-11 23:41:03] hourly — resolved 4 of 5 — dec:40k=40000 dec:100k=100000 dec:200k=200000 dec10k:40k=40000 dec10k:100k=100000  lanes=2 heads=2 working=1
+[09-12 00:41:10] hourly — resolved 4 of 5 — dec:40k=40000 dec:100k=100000 dec:200k=200000 dec10k:40k=40000 dec10k:100k=100000  lanes=2 heads=2 working=1
+[09-12 01:41:18] hourly — resolved 4 of 5 — dec:40k=40000 dec:100k=100000 dec:200k=200000 dec10k:40k=40000 dec10k:100k=100000  lanes=2 heads=2 working=1
+[09-12 01:41:18] TIMEBOX — 14400s passed, resolved 4 of 5 — dec:40k=40000 dec:100k=100000 dec:200k=200000 dec10k:40k=40000 dec10k:100k=100000
+#412 pass 4 — the L_rep decay at 5.6e-4, over a long stop
+generated 2026-09-12 01:41:18
+GM-Relative MASE, lower is better. Seed band at 5.6e-4: 0.0649.
+Reference: k3_r100_09_lr56, the same cell with no decay.
+
+ARM                        STOP         SCORE       REF     DELTA NOTE
+k3_r100_09_lr56_dec        40000       1.2164    1.1820   +0.0344 inside the band
+k3_r100_09_lr56_dec        100000      1.3507    1.3170   +0.0337 inside the band
+k3_r100_09_lr56_dec        200000           -    1.3189         - not scored yet
+k3_r100_09_lr56_dec10k     40000       1.1915    1.1820   +0.0095 inside the band
+k3_r100_09_lr56_dec10k     100000      1.2151    1.3170   -0.1019 beats the reference
+
+THE QUESTION: does a longer stop beat the 40,000-step stop of the SAME arm?
+  k3_r100_09_lr56_dec           100k 1.3507 against 1.2164 at 40k  (+0.1343)  no — it gets worse, as every other arm does
+  k3_r100_09_lr56_dec10k        100k 1.2151 against 1.1915 at 40k  (+0.0236)  no verdict — the two land inside the band
+
+The AUC enters here for one purpose only: the guard stops a run at 0.55.
+  k3_r100_09_lr56_dec — the guard did not stop it.
+  k3_r100_09_lr56_dec10k — the guard did not stop it.
+[09-12 01:41:32] await armed — 5 legs, maxwait 10800s, stall 240min
+[09-12 02:41:40] hourly — resolved 4 of 5 — dec:40k=40000 dec:100k=100000 dec:200k=200000 dec10k:40k=40000 dec10k:100k=100000  lanes=2 heads=4 working=1
+[09-12 03:41:48] hourly — resolved 4 of 5 — dec:40k=40000 dec:100k=100000 dec:200k=200000 dec10k:40k=40000 dec10k:100k=100000  lanes=2 heads=4 working=1
+[09-12 03:43:48] every leg is resolved
+#412 pass 4 — the L_rep decay at 5.6e-4, over a long stop
+generated 2026-09-12 03:43:48
+GM-Relative MASE, lower is better. Seed band at 5.6e-4: 0.0649.
+Reference: k3_r100_09_lr56, the same cell with no decay.
+
+ARM                        STOP         SCORE       REF     DELTA NOTE
+k3_r100_09_lr56_dec        40000       1.2164    1.1820   +0.0344 inside the band
+k3_r100_09_lr56_dec        100000      1.3507    1.3170   +0.0337 inside the band
+k3_r100_09_lr56_dec        200000      1.2979    1.3189   -0.0210 inside the band
+k3_r100_09_lr56_dec10k     40000       1.1915    1.1820   +0.0095 inside the band
+k3_r100_09_lr56_dec10k     100000      1.2151    1.3170   -0.1019 beats the reference
+
+THE QUESTION: does a longer stop beat the 40,000-step stop of the SAME arm?
+  k3_r100_09_lr56_dec           100k 1.3507 against 1.2164 at 40k  (+0.1343)  no — it gets worse, as every other arm does
+  k3_r100_09_lr56_dec           200k 1.2979 against 1.2164 at 40k  (+0.0815)  no — it gets worse, as every other arm does
+  k3_r100_09_lr56_dec10k        100k 1.2151 against 1.1915 at 40k  (+0.0236)  no verdict — the two land inside the band
+
+The AUC enters here for one purpose only: the guard stops a run at 0.55.
+  k3_r100_09_lr56_dec — the guard did not stop it.
+  k3_r100_09_lr56_dec10k — the guard did not stop it.

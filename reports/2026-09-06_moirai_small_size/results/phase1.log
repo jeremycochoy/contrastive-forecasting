@@ -1,0 +1,654 @@
+[09-06 05:54:50] [#412 phase1] arms: k32_r100_09 k32_r100_09_dec
+[09-06 05:54:50] [#412 phase1] stops: 40000  gpu: 0
+[09-06 05:54:50] [#412 phase1] backbone k32_r100_09 -> 40000 (gpu 0 holds the 11300 MiB it needs)
+[09-06 05:55:07] [#412 phase1] arms: k3_r100_09 k3_r100_09b k3_r100_09_dec k32_r200_08
+[09-06 05:55:07] [#412 phase1] stops: 40000  gpu: 1
+[09-06 05:55:07] [#412 phase1] backbone k3_r100_09 -> 40000 (gpu 1 holds the 7700 MiB it needs)
+[09-06 10:31:19] [#412 phase1] head k3_r100_09 bb40000
+[09-06 15:15:47] [#412 phase1] backbone k3_r100_09b -> 40000 (gpu 1 holds the 7700 MiB it needs)
+[09-06 15:33:27] [#412 phase1] head k32_r100_09 bb40000
+[09-06 15:34:18] [#412 phase1] arms: k3_r100_09
+[09-06 15:34:18] [#412 phase1] stops: 100000 200000  gpu: 0
+[09-06 15:34:18] [#412 phase1] backbone k3_r100_09 -> 100000 (gpu 0 holds the 7700 MiB it needs)
+[09-06 15:35:57] [#412 relay] waits for pid 364487 (arm k3_r100_09b), then runs: k3_r100_09b k3_r100_09_dec on gpu 1
+[09-06 15:35:57] [#412 relay] k32_r200_08 stays out — PR #413 gates it on the 100,000-step climb
+[09-06 20:12:47] [#412 phase1] backbone k32_r100_09_dec -> 40000 (gpu 0 holds the 11300 MiB it needs)
+[09-06 21:33:07] [#412 relay] pid 364487 ended — arm k3_r100_09b holds cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09b_40k.pth
+[09-06 21:33:07] [#412 phase1] arms: k3_r100_09b k3_r100_09_dec
+[09-06 21:33:07] [#412 phase1] stops: 40000  gpu: 1
+[09-06 21:33:07] [#412 phase1] backbone k3_r100_09b -> 40000 (gpu 1 holds the 7700 MiB it needs)
+[09-06 21:33:12] [#412 phase1] head k3_r100_09b bb40000
+[09-06 22:14:28] [#412 phase1] backbone k3_r100_09 stop 100000 FAILED rc=2
+[09-06 22:14:28] [#412 phase1] backbone k3_r100_09 -> 200000 (gpu 0 holds the 7700 MiB it needs)
+[09-06 22:16:12] [#412 sweep] k3_r100_09 at 100000 — a driver already runs it
+[09-06 22:16:12] [#412 sweep] k3_r100_09b at 40000 — a driver already runs it
+[09-06 22:16:12] [#412 sweep] swept 0 head(s)
+[09-06 22:16:35] [#412 sweep] k3_r100_09 at 100000 — its checkpoint is under 5 minute(s) old. Its lane has first claim.
+[09-06 22:16:35] [#412 sweep] k3_r100_09b at 40000 — a driver already runs it
+[09-06 22:16:35] [#412 sweep] swept 0 head(s)
+[09-06 22:16:40] [#412 sweep] k3_r100_09 at 100000 — its checkpoint is under 5 minute(s) old. Its lane has first claim.
+[09-06 22:16:40] [#412 sweep] k3_r100_09b at 40000 — a driver already runs it
+[09-06 22:16:40] [#412 sweep] swept 0 head(s)
+[09-06 22:31:40] [#412 sweep] k3_r100_09 at 100000 — a driver already runs it
+[09-06 22:31:40] [#412 sweep] k3_r100_09b at 40000 — a driver already runs it
+[09-06 22:31:40] [#412 sweep] swept 0 head(s)
+[09-06 22:46:40] [#412 sweep] k3_r100_09 at 100000 — a driver already runs it
+[09-06 22:46:40] [#412 sweep] k3_r100_09b at 40000 — a driver already runs it
+[09-06 22:46:41] [#412 sweep] swept 0 head(s)
+[09-06 23:01:41] [#412 sweep] k3_r100_09 at 100000 — a driver already runs it
+[09-06 23:01:41] [#412 sweep] k3_r100_09b at 40000 — a driver already runs it
+[09-06 23:01:41] [#412 sweep] swept 0 head(s)
+[09-06 23:16:41] [#412 sweep] k3_r100_09 at 100000 — a driver already runs it
+[09-06 23:16:41] [#412 sweep] k3_r100_09b at 40000 — a driver already runs it
+[09-06 23:16:41] [#412 sweep] swept 0 head(s)
+[09-06 23:31:41] [#412 sweep] k3_r100_09 at 100000 — a driver already runs it
+[09-06 23:31:42] [#412 sweep] k3_r100_09b at 40000 — a driver already runs it
+[09-06 23:31:42] [#412 sweep] swept 0 head(s)
+[09-06 23:46:42] [#412 sweep] k3_r100_09 at 100000 — a driver already runs it
+[09-06 23:46:42] [#412 sweep] k3_r100_09b at 40000 — a driver already runs it
+[09-06 23:46:42] [#412 sweep] swept 0 head(s)
+[09-07 00:01:42] [#412 sweep] k3_r100_09 at 100000 — a driver already runs it
+[09-07 00:01:42] [#412 sweep] k3_r100_09b at 40000 — a driver already runs it
+[09-07 00:01:42] [#412 sweep] swept 0 head(s)
+[09-07 00:16:42] [#412 sweep] k3_r100_09 at 100000 — a driver already runs it
+[09-07 00:16:42] [#412 sweep] k3_r100_09b at 40000 — a driver already runs it
+[09-07 00:16:43] [#412 sweep] swept 0 head(s)
+[09-07 00:31:43] [#412 sweep] k3_r100_09 at 100000 — a driver already runs it
+[09-07 00:31:43] [#412 sweep] k3_r100_09b at 40000 — a driver already runs it
+[09-07 00:31:43] [#412 sweep] swept 0 head(s)
+[09-07 00:46:43] [#412 sweep] k3_r100_09 at 100000 — a driver already runs it
+[09-07 00:46:43] [#412 sweep] k3_r100_09b at 40000 — a driver already runs it
+[09-07 00:46:43] [#412 sweep] swept 0 head(s)
+[09-07 01:01:43] [#412 sweep] k3_r100_09 at 100000 — a driver already runs it
+[09-07 01:01:44] [#412 sweep] k3_r100_09b at 40000 — a driver already runs it
+[09-07 01:01:44] [#412 sweep] swept 0 head(s)
+[09-07 01:03:05] [#412 phase1] backbone k32_r100_09_dec stop 40000 FAILED rc=2
+[09-07 01:16:44] [#412 sweep] k3_r100_09 at 100000 — a driver already runs it
+[09-07 01:16:44] [#412 sweep] k3_r100_09b at 40000 — a driver already runs it
+[09-07 01:16:44] [#412 sweep] swept 0 head(s)
+[09-07 01:31:44] [#412 sweep] k3_r100_09 at 100000 — a driver already runs it
+[09-07 01:31:44] [#412 sweep] k3_r100_09b at 40000 — a driver already runs it
+[09-07 01:31:45] [#412 sweep] swept 0 head(s)
+[09-07 01:46:45] [#412 sweep] k3_r100_09 at 100000 — a driver already runs it
+[09-07 01:46:45] [#412 sweep] k3_r100_09b at 40000 — a driver already runs it
+[09-07 01:46:45] [#412 sweep] swept 0 head(s)
+[09-07 01:50:08] [#412 phase1] arms: k3_r100_09_lr33 k3_r100_09_lr17
+[09-07 01:50:08] [#412 phase1] stops: 40000  gpu: 1
+[09-07 01:50:08] [#412 phase1] backbone k3_r100_09_lr33 -> 40000 (gpu 1 holds the 7700 MiB it needs)
+[09-07 01:50:08] [#412 phase1] head k3_r100_09_lr33 bb40000
+[09-07 01:50:08] [#412 phase1] backbone k3_r100_09_lr17 -> 40000 (gpu 1 holds the 7700 MiB it needs)
+[09-07 01:50:08] [#412 phase1] head k3_r100_09_lr17 bb40000
+[09-07 01:50:08] [#412 phase1] phase1 done — 0 failure(s)
+[09-07 01:51:11] [#412 phase1] arms: k3_r100_09_lr33 k3_r100_09_lr17
+[09-07 01:51:11] [#412 phase1] stops: 40000  gpu: 1
+[09-07 01:51:11] [#412 phase1] backbone k3_r100_09_lr33 -> 40000 (gpu 1 holds the 7700 MiB it needs)
+[09-07 01:51:13] [#412 relay] lane B done rc=143
+[09-07 01:51:35] [#412 phase1] arms: k3_r100_09_lr56
+[09-07 01:51:35] [#412 phase1] stops: 40000  gpu: 1
+[09-07 01:51:35] [#412 phase1] backbone k3_r100_09_lr56 -> 40000 (gpu 1 holds the 7700 MiB it needs)
+[09-07 01:52:01] [#412 phase1] arms: k3_r100_09_dec
+[09-07 01:52:01] [#412 phase1] stops: 40000  gpu: 0
+[09-07 01:52:01] [#412 phase1] backbone k3_r100_09_dec -> 40000 (gpu 0 holds the 7700 MiB it needs)
+[09-07 02:01:45] [#412 sweep] k3_r100_09 at 100000 — a driver already runs it
+[09-07 02:01:45] [#412 sweep] k3_r100_09b at 40000 — a driver already runs it
+[09-07 02:01:45] [#412 sweep] swept 0 head(s)
+[09-07 02:16:45] [#412 sweep] k3_r100_09 at 100000 — a driver already runs it
+[09-07 02:16:45] [#412 sweep] swept 0 head(s)
+[09-07 02:31:45] [#412 sweep] k3_r100_09 at 100000 — a driver already runs it
+[09-07 02:31:46] [#412 sweep] swept 0 head(s)
+[09-07 02:46:46] [#412 sweep] k3_r100_09 at 100000 — a driver already runs it
+[09-07 02:46:46] [#412 sweep] swept 0 head(s)
+[09-07 03:01:46] [#412 sweep] k3_r100_09 at 100000 — a driver already runs it
+[09-07 03:01:46] [#412 sweep] swept 0 head(s)
+[09-07 03:16:46] [#412 sweep] k3_r100_09 at 100000 — a driver already runs it
+[09-07 03:16:46] [#412 sweep] swept 0 head(s)
+[09-07 03:31:46] [#412 sweep] swept 0 head(s)
+[09-07 03:46:47] [#412 sweep] swept 0 head(s)
+[09-07 04:01:47] [#412 sweep] swept 0 head(s)
+[09-07 04:16:47] [#412 sweep] swept 0 head(s)
+[09-07 04:48:01] [#412 sweep] swept 0 head(s)
+[09-07 04:48:07] [#412 sweep] swept 0 head(s)
+[09-07 04:51:04] [#412 sweep] swept 0 head(s)
+[09-07 04:56:04] [#412 sweep] swept 0 head(s)
+[09-07 05:01:04] [#412 sweep] swept 0 head(s)
+[09-07 05:06:04] [#412 sweep] swept 0 head(s)
+[09-07 05:11:05] [#412 sweep] swept 0 head(s)
+[09-07 05:16:05] [#412 sweep] swept 0 head(s)
+[09-07 05:21:05] [#412 sweep] swept 0 head(s)
+[09-07 05:26:05] [#412 sweep] swept 0 head(s)
+[09-07 05:27:53] [#412 claim] gpu 1  waits on: k3_r100_09_dec:40000 k3_r100_09:200000 k32_r200_08:40000 k8_r100_09:40000 k3_r100_09_lr17:40000
+[09-07 05:30:47] [#412 claim] gpu 1  waits on: k3_r100_09_dec:40000 k3_r100_09:200000 k32_r200_08:40000 k8_r100_09:40000
+[09-07 06:02:48] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 06:03:39] [#412 phase1] head k3_r100_09_lr33 bb40000
+[09-07 06:04:17] [#412 claim] gpu 1  waits on: k3_r100_09_dec:40000 k3_r100_09:200000 k32_r200_08:40000 k8_r100_09:40000
+[09-07 06:04:17] [#412 claim] k3_r100_09_dec at 40000 — claiming its head on gpu 1
+[09-07 06:05:33] [#412 phase1] arms: k3_r100_09_lr17
+[09-07 06:05:33] [#412 phase1] stops: 40000  gpu: 1
+[#412 vram] gpu 1 has 7684 MiB free, backbone k3_r100_09_lr17 needs 7700
+[#412 vram] gpu 1 has 7684 MiB free, backbone k3_r100_09_lr17 needs 7700
+[#412 vram] gpu 1 has 7684 MiB free, backbone k3_r100_09_lr17 needs 7700
+[#412 vram] gpu 1 has 7684 MiB free, backbone k3_r100_09_lr17 needs 7700
+[09-07 06:36:50] [#412 phase1] head k3_r100_09_lr56 bb40000
+[#412 vram] gpu 1 has 14180 MiB free after 1920s — backbone k3_r100_09_lr17 starts
+[09-07 06:37:34] [#412 phase1] backbone k3_r100_09_lr17 -> 40000 (gpu 1 holds the 7700 MiB it needs)
+[09-07 07:44:18] [#412 claim] gpu 1  waits on: k3_r100_09_dec:40000 k3_r100_09:200000
+[09-07 07:44:18] [#412 claim] gpu 0  waits on: k32_r200_08:40000 k8_r100_09:40000
+[09-07 07:44:18] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 07:45:18] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 07:46:18] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 07:47:18] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 07:48:18] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 07:49:18] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 07:50:18] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 07:51:19] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 07:52:19] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 07:53:19] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 07:54:19] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 07:55:19] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 07:56:19] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 07:57:19] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 07:58:19] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 07:59:19] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:00:19] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:01:19] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:02:19] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:03:19] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:04:19] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:05:19] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:06:19] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:07:20] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:08:20] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:09:20] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:10:20] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:11:20] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:12:20] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:13:20] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:14:20] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:15:20] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:16:20] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:17:20] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:18:20] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:19:20] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:20:20] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:21:20] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:22:20] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:23:21] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:24:21] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:25:21] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:26:21] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:27:21] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:28:21] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:29:21] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:30:21] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:31:21] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:32:21] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:33:21] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:34:21] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:35:21] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:36:21] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:37:21] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:38:21] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:39:22] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:40:22] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:41:22] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:42:22] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:43:22] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:44:22] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:45:22] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:46:22] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:47:22] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:48:22] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:49:22] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:50:22] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:51:22] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:52:22] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:53:22] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:54:22] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:55:23] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:56:23] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:57:23] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:58:23] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 08:59:23] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:00:23] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:01:23] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:02:23] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:03:23] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:04:23] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:05:23] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:06:23] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:07:23] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:08:23] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:09:23] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:10:23] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:11:23] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:12:24] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:13:24] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:14:24] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:15:24] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:16:24] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:17:24] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:18:24] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:19:24] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:20:24] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:21:24] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:22:24] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:23:24] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:24:24] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:25:24] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:26:24] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:27:24] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:28:25] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:29:25] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:30:25] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:31:25] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:32:25] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:33:25] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:34:25] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:35:25] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:36:25] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:37:25] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:38:25] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:39:25] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:40:25] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:41:25] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:42:25] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:43:26] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:44:26] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:45:26] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:46:26] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:47:26] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:48:26] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:49:26] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:50:26] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:51:26] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:52:26] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:53:26] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:54:26] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:55:26] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:56:26] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:57:27] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:58:27] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 09:59:27] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:00:27] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:01:27] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:02:27] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:03:27] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:04:27] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:05:27] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:06:27] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:07:27] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:08:27] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:09:27] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:10:27] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:11:28] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:12:28] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:13:28] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:14:28] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:15:28] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:16:28] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:17:28] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:18:28] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:19:28] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:20:28] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:21:28] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:22:28] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:23:28] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:24:28] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:25:29] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:26:29] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:27:29] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:28:29] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:29:29] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:30:29] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:31:29] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:32:29] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:33:29] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:34:29] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:35:29] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:36:29] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:37:29] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:38:29] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:39:30] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:40:30] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:41:30] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:42:30] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:43:30] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:44:30] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:45:30] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:46:30] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:47:30] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:48:30] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:49:30] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:50:30] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:51:30] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:52:30] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:53:30] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:54:31] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:55:31] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:56:31] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:57:31] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:58:31] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 10:59:31] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:00:31] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:01:31] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:02:31] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:03:31] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:04:31] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:05:31] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:06:31] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:07:31] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:08:31] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:09:32] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:10:32] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:11:32] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:12:32] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:13:32] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:14:32] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:15:32] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:16:32] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:17:32] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:18:32] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:19:32] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:20:32] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:21:32] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:22:32] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:23:32] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:24:33] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:25:33] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:26:33] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:27:33] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:28:33] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:29:33] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:30:33] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:31:33] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:32:33] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:33:33] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:34:33] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:35:33] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:36:33] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:37:34] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:38:34] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:39:34] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:40:34] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:40:34] [#412 claim] k3_r100_09 at 200000 — claiming its head on gpu 1
+[09-07 11:41:39] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:42:22] [#412 phase1] head k3_r100_09_lr17 bb40000
+[09-07 11:42:39] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:43:39] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:44:39] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:45:39] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:46:39] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:47:39] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:48:39] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:49:39] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:50:39] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:51:39] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:52:39] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:53:40] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:54:40] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:55:40] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:56:40] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:57:40] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:58:40] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 11:59:40] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:00:40] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:01:40] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:02:40] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:03:40] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:04:40] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:05:40] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:06:40] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:07:40] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:08:40] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:09:41] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:10:41] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:11:41] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:12:41] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:13:41] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:14:41] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:15:41] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:16:41] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:17:41] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:18:41] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:19:41] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:20:41] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:21:41] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:22:41] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:23:41] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:24:42] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:25:42] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:26:42] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:27:42] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:28:42] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:29:42] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:30:42] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:31:42] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:32:42] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:33:42] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:34:42] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:35:42] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:36:42] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:37:42] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:38:42] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:39:42] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:40:43] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:41:43] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:42:43] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:43:43] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:44:43] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:45:43] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:46:43] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:47:43] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:48:43] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:49:43] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:50:43] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:51:43] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:52:43] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:53:43] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:54:43] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:55:43] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:56:44] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:57:44] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:58:44] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 12:59:44] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:00:44] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:01:44] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:02:44] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:03:44] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:04:44] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:05:44] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:06:44] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:07:44] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:08:45] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:09:45] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:10:45] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:11:45] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:12:45] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:13:25] [#412 claim] k32_r200_08 at 40000 dropped — it lost the contrastive task
+[09-07 13:13:45] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:14:45] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:15:45] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:16:45] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:17:45] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:18:45] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:19:45] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:20:46] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:21:46] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:22:46] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:23:46] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:24:46] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:25:46] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:26:46] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:27:46] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:28:46] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:29:46] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:30:46] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:31:46] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:32:47] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:33:47] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:34:47] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:35:47] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:36:47] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:37:47] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:38:47] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:39:47] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:40:47] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:41:47] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:42:47] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:43:47] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:44:47] [#412 claim] k3_r100_09_dec at 40000 — a head already runs it
+[09-07 13:45:47] [#412 claim] k3_r100_09_dec at 40000 already scored
+[09-07 13:45:47] [#412 claim] every claimed head started
+[09-07 15:27:36] [#412 phase1] phase1 done — 0 failure(s)
+[09-07 16:39:27] [#412 claim] k8_r100_09 at 40000 — claiming its head on gpu 0
+[09-07 16:39:32] [#412 claim] every claimed head started
+[09-07 19:09:42] [#412 phase1] phase1 done — 0 failure(s)
+[09-08 05:47:49] [#412 sweep] k3_r100_09_lr56 at 100000 — no score and no head. Starting one on gpu 0.
+[09-08 05:47:54] [#412 sweep] started 1 head(s)
+[09-08 07:57:58] [#412 sweep] k32_r100_09_lr56 at 40000 — no score and no head. Starting one on gpu 0.
+[09-08 07:58:04] [#412 sweep] started 1 head(s)
+[09-08 11:58:14] [#412 sweep] k3_r100_09b_lr56 at 40000 — no score and no head. Starting one on gpu 0.
+[09-08 11:58:19] [#412 sweep] started 1 head(s)
+[09-08 16:58:32] [#412 sweep] k3_r100_09_lr56 at 200000 — no score and no head. Starting one on gpu 0.
+[09-08 16:58:38] [#412 sweep] started 1 head(s)
+[09-09 02:11:35] [#412 sweep] k3_r100_09_lr45 at 40000 — no score and no head. Starting one on gpu 0.
+[09-09 02:11:40] [#412 sweep] started 1 head(s)
+[09-09 07:32:15] [#412 sweep] k3_r100_09_lr70 at 40000 — no score and no head. Starting one on gpu 0.
+[09-09 07:32:20] [#412 sweep] started 1 head(s)
+[09-09 09:02:29] [#412 sweep] k32_r100_09_sum at 40000 — no score and no head. Starting one on gpu 0.
+[09-09 09:02:34] [#412 sweep] started 1 head(s)
+[09-10 18:29:28] [#412 phase1] arms: k3_r100_09_lr56_dec
+[09-10 18:29:28] [#412 phase1] stops: 40000 100000 200000  gpu: 1
+[09-10 18:29:28] [#412 phase1] backbone k3_r100_09_lr56_dec -> 40000 (gpu 1 holds the 7700 MiB it needs)
+[09-10 18:30:18] [#412 phase1] arms: k3_r100_09_lr56_dec10k
+[09-10 18:30:18] [#412 phase1] stops: 40000 100000  gpu: 0
+[09-10 18:30:18] [#412 phase1] backbone k3_r100_09_lr56_dec10k -> 40000 (gpu 0 holds the 7700 MiB it needs)
+[09-10 21:34:14] [#412 phase1] head k3_r100_09_lr56_dec bb40000
+[09-10 21:47:02] [#412 phase1] head k3_r100_09_lr56_dec10k bb40000
+[09-10 23:42:17] [#412 phase1] head k3_r100_09_lr56_dec stop 40000 FAILED
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[09-10 23:49:23] [#412 phase1] backbone k3_r100_09_lr56_dec SKIPPED at 100000 — gpu 1 never had 7700 MiB free
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[09-10 23:49:25] [#412 phase1] arms: k3_r100_09_lr56_dec
+[09-10 23:49:25] [#412 phase1] stops: 100000 200000  gpu: 0
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 0 has 9682 MiB free after 4680s — backbone k3_r100_09_lr56_dec starts
+[09-11 01:07:27] [#412 phase1] backbone k3_r100_09_lr56_dec -> 100000 (gpu 0 holds the 7700 MiB it needs)
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[09-11 05:47:44] [#412 phase1] head k3_r100_09_lr56_dec bb100000
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 9682 MiB free after 14100s — backbone k3_r100_09_lr56_dec10k starts
+[09-11 07:21:39] [#412 phase1] backbone k3_r100_09_lr56_dec10k -> 100000 (gpu 0 holds the 7700 MiB it needs)
+[#412 vram] gpu 0 has 725 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[09-11 11:05:05] [#412 phase1] head k3_r100_09_lr56_dec10k bb100000
+[#412 vram] gpu 0 has 7200 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 0 has 7200 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 0 has 7200 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 0 has 7200 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 0 has 7200 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 0 has 7200 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 0 has 7200 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 0 has 7200 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 0 has 7200 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[09-11 12:33:34] [#412 phase1] arms: k8_r100_09_lr56
+[09-11 12:33:34] [#412 phase1] stops: 40000  gpu: 1
+[09-11 12:33:34] [#412 phase1] backbone k8_r100_09_lr56 -> 40000 (gpu 1 holds the 8400 MiB it needs)
+[#412 vram] gpu 0 has 7200 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 0 has 13464 MiB free after 6120s — backbone k3_r100_09_lr56_dec starts
+[09-11 12:38:20] [#412 phase1] backbone k3_r100_09_lr56_dec -> 200000 (gpu 0 holds the 7700 MiB it needs)
+[09-11 14:33:14] [#412 phase1] backbone k3_r100_09_lr56_dec stop 200000 FAILED rc=1
+[09-11 14:33:14] [#412 phase1] phase1 done — 1 failure(s)
+[09-11 14:35:16] [#412 phase1] arms: k3_r100_09_lr56_dec
+[09-11 14:35:16] [#412 phase1] stops:  200000  gpu: 0
+[#412 vram] gpu 0 has 1628 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[09-11 14:36:01] [#412 phase1] backbone k3_r100_09_lr56_dec SKIPPED at 200000 — gpu 0 never had 7700 MiB free
+[09-11 14:36:01] [#412 phase1] phase1 done — 1 failure(s)
+[09-11 14:36:20] [#412 phase1] arms: k3_r100_09_lr56_dec
+[09-11 14:36:20] [#412 phase1] stops: 200000  gpu: 0
+[#412 vram] gpu 0 has 1628 MiB free, backbone k3_r100_09_lr56_dec needs 11500
+[#412 vram] gpu 0 has 7884 MiB free, backbone k3_r100_09_lr56_dec needs 11500
+[#412 vram] gpu 0 has 7884 MiB free, backbone k3_r100_09_lr56_dec needs 11500
+[#412 vram] gpu 0 has 7884 MiB free, backbone k3_r100_09_lr56_dec needs 11500
+[#412 vram] gpu 0 has 7884 MiB free, backbone k3_r100_09_lr56_dec needs 11500
+[#412 vram] gpu 0 has 7884 MiB free, backbone k3_r100_09_lr56_dec needs 11500
+[#412 vram] gpu 0 has 7884 MiB free, backbone k3_r100_09_lr56_dec needs 11500
+[#412 vram] gpu 0 has 7884 MiB free, backbone k3_r100_09_lr56_dec needs 11500
+[#412 vram] gpu 0 has 7884 MiB free, backbone k3_r100_09_lr56_dec needs 11500
+[#412 vram] gpu 0 has 7884 MiB free, backbone k3_r100_09_lr56_dec needs 11500
+[#412 vram] gpu 0 has 7884 MiB free, backbone k3_r100_09_lr56_dec needs 11500
+[#412 vram] gpu 0 has 7884 MiB free, backbone k3_r100_09_lr56_dec needs 11500
+[#412 vram] gpu 0 has 7884 MiB free, backbone k3_r100_09_lr56_dec needs 11500
+[09-11 16:42:14] [#412 phase1] head k8_r100_09_lr56 bb40000
+[#412 vram] gpu 0 has 7884 MiB free, backbone k3_r100_09_lr56_dec needs 11500
+[#412 vram] gpu 0 has 7884 MiB free, backbone k3_r100_09_lr56_dec needs 11500
+[#412 vram] gpu 0 has 7884 MiB free, backbone k3_r100_09_lr56_dec needs 11500
+[#412 vram] gpu 0 has 7884 MiB free, backbone k3_r100_09_lr56_dec needs 11500
+[#412 vram] gpu 0 has 19719 MiB free after 9780s — backbone k3_r100_09_lr56_dec starts
+[09-11 17:19:24] [#412 phase1] backbone k3_r100_09_lr56_dec -> 200000 (gpu 0 holds the 11500 MiB it needs)
+[09-11 17:34:42] [#412 phase1] arms: k3_r100_09_lr56_fix09
+[09-11 17:34:42] [#412 phase1] stops: 40000 100000  gpu: 0
+[09-11 17:34:42] [#412 phase1] backbone k3_r100_09_lr56_fix09 -> 40000 (gpu 0 holds the 7700 MiB it needs)
+[09-11 17:36:29] [#412 phase1] arms: k3_r100_09_lr56_dec
+[09-11 17:36:29] [#412 phase1] stops:  200000  gpu: 0
+[09-11 17:36:29] [#412 phase1] backbone k3_r100_09_lr56_dec -> 200000 (gpu 0 holds the 11500 MiB it needs)
+[09-11 17:39:03] [#412 phase1] arms: k3_r100_09_lr56_dec
+[09-11 17:39:03] [#412 phase1] stops: 200000  gpu: 0
+[09-11 17:39:03] [#412 phase1] backbone k3_r100_09_lr56_dec -> 200000 (gpu 0 holds the 11500 MiB it needs)
+[09-11 18:14:39] [#412 phase1] phase1 done — 0 failure(s)
+[09-11 21:46:06] [#412 phase1] phase1 done — 0 failure(s)
+[09-11 22:45:23] [#412 phase1] head k3_r100_09_lr56_dec bb200000
+[09-12 02:28:58] [#412 sweep] k32_r200_08_lr56 at 40000 — no score and no head. Starting one on gpu 1.
+[09-12 02:29:03] [#412 sweep] started 1 head(s)
+[09-12 03:42:24] [#412 phase1] phase1 done — 0 failure(s)
+[09-12 07:33:53] [#412 phase1] arms: k3_r100_09_lr56_fix099_dec10k
+[09-12 07:33:53] [#412 phase1] stops: 40000 100000  gpu: 0
+[09-12 07:33:53] [#412 phase1] backbone k3_r100_09_lr56_fix099_dec10k -> 40000 (gpu 0 holds the 7700 MiB it needs)
+[09-12 07:35:30] [#412 sweep] k32_r100_09_dec_lr56 at 40000 — no score and no head. Starting one on gpu 0.
+[09-12 07:35:35] [#412 sweep] started 1 head(s)
+[09-12 10:32:52] [#412 phase1] head k3_r100_09_lr56_fix099_dec10k bb40000
+[09-12 13:35:00] [#412 phase1] arms: k3_r100_09_lr56_fix099_dec10k
+[09-12 13:35:00] [#412 phase1] stops: 100000  gpu: 0
+[09-12 13:35:00] [#412 phase1] backbone k3_r100_09_lr56_fix099_dec10k -> 100000 (gpu 0 holds the 7700 MiB it needs)
