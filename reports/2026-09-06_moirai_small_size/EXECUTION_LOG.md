@@ -1408,3 +1408,20 @@ THIS IS THE FOURTH TIME on this card that a comparison needed checking before
 it was written. The difference here is that neither tool is wrong: the axis
 count depends on whether a schedule is one thing or two, and only the QUESTION
 settles that. A tool can count columns. It cannot choose the question.
+
+#### Restarting the sweep does not kill the eval it started
+
+The sweep was moved between cards three times during pass 5, and on the last
+move it held a running child: `head_eval.sh` for `k32_r200_08_lr56`, whose
+97-config evaluation had run for 2h43.
+
+IT SURVIVED, and the mechanism is worth stating rather than trusting. The
+sweep starts each driver with `nohup ... &`, so a SIGTERM to the sweep does
+not reach it, and the driver re-parents to init and keeps its own children.
+Checked after the restart: pid 1376753 alive with ppid 1, its four shard
+workers alive, and an eval worker still burning CPU.
+
+SO THE CHECK BEFORE KILLING A SWEEP IS `pgrep -P <sweep>`. A lone `sleep` is a
+sweep between ticks and is free to kill. A driver in that list is a running
+head or evaluation, and it survives, but a session should know it is there
+rather than discover it afterwards.
