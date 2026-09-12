@@ -16,7 +16,20 @@ COLS = ["arm", "k", "reduce", "tau", "end", "ramp", "seed", "decay", "lr"]
 # `end == "-"` as a constant momentum and ignores `ramp`, so the trainer sees
 # either `--ema-tau T` or `--ema-tau T --ema-tau-end E --ema-tau-ramp-steps R`.
 # Counting the columns calls that pair two axes. It is one.
-AXES = {"end": "ema_schedule", "ramp": "ema_schedule"}
+# Two levels. PARAM is the thing a comparison can isolate. OBJECT is the
+# thing several parameters belong to.
+#
+# `end` and `ramp` are ONE parameter, because `cf412_ema_args` reads
+# `end == "-"` as a constant momentum and drops `ramp`: together they encode
+# whether a ramp exists and how long it is. `tau` is a separate parameter of
+# the same object, the momentum the schedule starts from.
+#
+# A pair differing in one PARAM is single axis. A pair differing in several
+# params of ONE object still answers "does that object matter" cleanly, and
+# answers nothing about which part. A column count alone cannot tell those
+# apart, and a tool cannot choose the question a report is asking.
+PARAM = {"end": "ema_ramp_spec", "ramp": "ema_ramp_spec"}
+OBJECT = {"ema_ramp_spec": "ema_schedule", "tau": "ema_schedule"}
 TSV = pathlib.Path(__file__).with_name("arms.tsv")
 
 
@@ -31,21 +44,33 @@ def load():
 
 
 def differ(a, b):
-    """The EXPERIMENTAL settings that separate two arms, not the columns."""
+    """The PARAMETERS that separate two arms, not the columns."""
     seen, out = set(), []
     for c in COLS[1:]:
         if a[c] == b[c]:
             continue
-        axis = AXES.get(c, c)
-        if axis in seen:
+        prm = PARAM.get(c, c)
+        if prm in seen:
             continue
-        seen.add(axis)
-        out.append(axis)
+        seen.add(prm)
+        out.append(prm)
     return out
 
 
-def cols_of(axis):
-    return [c for c in COLS[1:] if AXES.get(c, c) == axis]
+def cols_of(param):
+    return [c for c in COLS[1:] if PARAM.get(c, c) == param]
+
+
+def verdict(params):
+    if not params:
+        return "identical"
+    if len(params) == 1:
+        return "SINGLE AXIS"
+    objs = {OBJECT.get(p, p) for p in params}
+    if len(objs) == 1:
+        o = objs.pop()
+        return f"ONE OBJECT, {len(params)} PARAMETERS: {o} — clean for \"does {o} matter\", not for which part"
+    return "CONFOUNDED"
 
 
 def main():
@@ -67,8 +92,7 @@ def main():
         for c in cols_of(axis):
             if ra[c] != rb[c]:
                 print(f"{axis:13s} {c:6s} {ra[c]:>8s} -> {rb[c]:>8s}")
-    print(f"{len(d)} setting(s) differ — "
-          f"{'SINGLE AXIS' if len(d) == 1 else 'CONFOUNDED' if d else 'identical'}")
+    print(f"{len(d)} parameter(s) differ — {verdict(d)}")
     return 0
 
 
