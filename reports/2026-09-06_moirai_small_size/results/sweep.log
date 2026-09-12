@@ -79,3 +79,12 @@
 [09-09 14:59:49] [k32_r100_09_sum_bb40k_h30k_student] eval rc=0
 [09-09 14:59:49] [k32_r100_09_sum_bb40k_h30k_student] DONE — GM-Relative MASE 1.2161
 [09-09 14:59:49] [#412] head k32_r100_09_sum_bb40k_h30k_student rc=0
+[09-12 02:28:58] [#412] head k32_r200_08_lr56_bb40k_h30k_student on cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r200_08_lr56_40k.pth
+[09-12 02:28:58] [k32_r200_08_lr56_bb40k_h30k_student] head-train start enc=student steps=30000 seed=20260722 gpu=1 bb=cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r200_08_lr56_40k.pth
+[09-12 03:52:42] [k32_r200_08_lr56_bb40k_h30k_student] head-train rc=0
+[09-12 03:52:42] [k32_r200_08_lr56_bb40k_h30k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[09-12 07:35:30] [#412] head k32_r100_09_dec_lr56_bb40k_h30k_student on cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r100_09_dec_lr56_40k.pth
+[09-12 07:35:30] [k32_r100_09_dec_lr56_bb40k_h30k_student] head-train start enc=student steps=30000 seed=20260722 gpu=0 bb=cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r100_09_dec_lr56_40k.pth
+[09-12 07:40:28] [k32_r200_08_lr56_bb40k_h30k_student] eval rc=0
+[09-12 07:40:28] [k32_r200_08_lr56_bb40k_h30k_student] DONE — GM-Relative MASE 1.2318
+[09-12 07:40:28] [#412] head k32_r200_08_lr56_bb40k_h30k_student rc=0

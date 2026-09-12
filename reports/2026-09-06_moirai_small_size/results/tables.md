@@ -16,6 +16,7 @@ The band is **0.0649** (this card measured it at 11.4M and 5.6e-4). Two numbers 
 | k8_r100_09_lr56 | 8 | sum | 20260520 | 5.6e-4 | no | 40,000 | 1.2750 | never run | — | — |
 | k3_r100_09_lr45 | 3 | sum | 20260520 | 4.5e-4 | no | 40,000 | 1.2912 | never run | — | — |
 | k3_r100_09b | 3 | sum | 20260525 | 1e-3 | no | 40,000 | 1.2927 | 1.3618 (not seed-matched) | +0.0691 | no, 15,000-step head |
+| k3_r100_09_lr56_dec | 3 | sum | 20260520 | 5.6e-4 | yes | 200,000 | 1.2979 | never run | — | — |
 | k3_r100_09_lr56 | 3 | sum | 20260520 | 5.6e-4 | no | 100,000 | 1.3170 | never run | — | — |
 | k3_r100_09_lr56 | 3 | sum | 20260520 | 5.6e-4 | no | 200,000 | 1.3189 | never run | — | — |
 | k3_r100_09_dec | 3 | sum | 20260520 | 1e-3 | yes | 40,000 | 1.3236 | never run | — | — |
@@ -53,7 +54,7 @@ Lower is worse. A run at 0.5 has lost the task. The last column is what the same
 | k32_r100_09_sum | 32 | 0.9 to 1.0 at 100k | no | 0.987 | 0.976 | 0.983 | 0.982 | 0.982 | 0.984 | 0.987 | 0.993 | 0.988 | 0.992 | held | — |
 | k32_r200_08_lr56 | 32 | 0.8 to 1.0 at 40k | no | 0.967 | 0.966 | 0.964 | 0.977 | 0.977 | 0.980 | 0.980 | 0.986 | 0.985 | 0.994 | held | — |
 | k32_r100_09_dec | 32 | 0.9 to 1.0 at 100k | yes | 0.978 | 0.746 | 0.758 | 0.742 | 0.642 | 0.747 | 0.718 | — | — | — | lost at 18,634 | 0.983 (#409) |
-| k32_r100_09_dec_lr56 | 32 | 0.9 to 1.0 at 100k | yes | 0.982 | 0.950 | 0.961 | 0.968 | 0.967 | 0.968 | 0.975 | — | — | — | held | — |
+| k32_r100_09_dec_lr56 | 32 | 0.9 to 1.0 at 100k | yes | 0.982 | 0.950 | 0.961 | 0.968 | 0.967 | 0.968 | 0.975 | 0.977 | 0.976 | 0.986 | held | — |
 
 **Read this table by row and by column, never on the diagonal.** Two rows are comparable only when they differ in ONE column. These are the pairs, and there are no others:
 
@@ -99,7 +100,7 @@ Lower is worse. A run at 0.5 has lost the task. The last column is what the same
 |---|---|---|---|---|---|---|---|---|
 | k32_r100_09 | 40,000 | 40,000 | 13.4947 | 11.6270 | 1.7583 | 1.00 | 0.9400 | 0.7629 |
 | k32_r100_09_dec | 40,000 | 19,100 | 1.8013 | — | 1.8219 | 0.00 | 0.9191 | 0.5010 |
-| k32_r100_09_dec_lr56 | 40,000 | 19,600 | 20.8066 | — | 0.4593 | 0.00 | 0.9196 | 0.9777 |
+| k32_r100_09_dec_lr56 | 40,000 | 40,000 | 14.9763 | — | 0.3265 | 0.00 | 0.9400 | 0.9890 |
 | k32_r100_09_lr56 | 40,000 | 40,000 | 13.5159 | 11.6087 | 1.7892 | 1.00 | 0.9400 | 0.7098 |
 | k32_r100_09_sum | 40,000 | 40,000 | 27.6120 | 11.8387 | 0.3350 | 1.00 | 0.9400 | 0.9932 |
 | k32_r200_08 | 40,000 | 28,500 | 13.6105 | 11.5968 | 2.0018 | 1.00 | 0.8285 | 0.5254 |
@@ -198,3 +199,7 @@ Lower is worse. A run at 0.5 has lost the task. The last column is what the same
 | k3_r100_09_lr56_dec | backbone | 200,000 | 5.1 |
 | k3_r100_09_lr56_dec_bb200k_h30k_student | head | 30,000 | 1.2 |
 | k32_r200_08_lr56 | backbone | 40,000 | 8.1 |
+| k3_r100_09_lr56_dec_bb200k_h30k_student | GIFT-Eval, 97 configs | — | 3.7 |
+| k32_r200_08_lr56_bb40k_h30k_student | head | 30,000 | 1.4 |
+| k3_r100_09_lr56_fix09_dec10k_bb40k_h30k_student | head | 30,000 | 1.1 |
+| k32_r100_09_dec_lr56 | backbone | 40,000 | 7.4 |

@@ -1453,3 +1453,31 @@ WRITING THE SAME BUG TWICE IS THE POINT. The first fix did not generalise
 because it was applied to one file rather than to the idiom. Both copies now
 use a flag and `END { exit !found }`, which is what the rest of this card
 already used.
+
+## Pass 5, second result: `k32_r200_08_lr56` scores 1.2318
+
+THE CARD'S QUESTION FOR CONFIGURATION 3 IS ANSWERED, and the answer is that
+the configuration carries a score at all. Its 1e-3 twin ran the mean with a
+200,000-step ramp and LOST the contrastive task at step 28,152, so it has no
+score. Under the sum at 5.6e-4, with the ramp matched to the stop, this arm
+holds the task to 40,000 at AUC 0.9935 and scores 1.2318.
+
+THE MOMENTUM SCHEDULE DOES NOT MOVE THE SCORE at this stop. Against
+`k32_r100_09_sum`, which `arm_diff.py` calls one object with two parameters:
+
+  0.9 to 1.0 over 100,000 steps   1.2161
+  0.8 to 1.0 over  40,000 steps   1.2318
+  difference +0.0157, which is 0.24 bands, NOT RANKED
+
+The pair isolates the schedule as a whole and neither of its parts.
+
+IT IS ALSO EVIDENCE AGAINST A LARGE FREEZE EFFECT AT 40,000 STEPS. This arm
+reaches momentum exactly 1.0000 at its stop and `k32_r100_09_sum` sits at
+0.9400, so the freeze had its maximum chance here and the two scores are 0.24
+bands apart. That is the reading pre-registered before the number landed: a
+score near 1.2161 argues against the effect at this stop, and a score well
+below would have left the cause open between the freeze and the lower start
+momentum.
+
+WHAT IT DOES NOT TOUCH. This is not a depth pair, so the ladder is unchanged:
+1.1820 at k = 3, 1.2750 at k = 8, 1.2161 at k = 32.
