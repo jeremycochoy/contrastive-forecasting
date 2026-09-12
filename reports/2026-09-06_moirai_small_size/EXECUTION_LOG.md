@@ -1289,3 +1289,31 @@ smoke row happens to sit 16 MiB under the post-probe resident of 10,078, so
 `cf412_leg_vram_mib` covers the real peak for k = 32. It covers it by
 coincidence rather than by construction, and a future arm should not rely on
 that holding.
+
+## Pass 5, second backbone: `k32_r200_08_lr56` holds the task to 40,000 steps
+
+Final step 40,000, AUC 0.9935, `ema_tau` exactly 1.0000, `r2_naive` 0.2053,
+and the guard did not stop it.
+
+THE CARD'S QUESTION FOR CONFIGURATION 3, in its qualitative form, is answered.
+Its 1e-3 twin ran the mean with a 200,000-step ramp and LOST the contrastive
+task at step 28,152 with the momentum only at 0.8285. Under the sum at 5.6e-4,
+with the ramp matched to the stop, this arm passed step 28,152 at AUC 0.985
+and reached 40,000 at 0.9935.
+
+THE MOMENTUM REACHED EXACTLY 1.0000 AT THE STOP, which is what the card asked
+for and what makes this arm the orchestrator session's freeze datum. It trains
+no step against a frozen teacher, because the ramp ends as the run ends.
+
+### The head went to the other card, and the reason is the probe
+
+The sweep sat on GPU 0, which reported 11,506 MiB free, so it would have
+started this head there. My third arm is on GPU 0 and reaches its drift probe
+at step 20,000, which needs about 3,716 MiB of pool growth on a k = 32 leg:
+
+  gpu0  dec arm after its probe 10,078 + head 6,252 + neighbours 6,124
+        = 22,454 of 24,564, leaving 2,110 against a 3,716 need
+  gpu1  head 6,252 + neighbours 5,888 = 12,140, leaving 12,424
+
+So the sweep moved to GPU 1, which now holds no #412 leg. A card that fits a
+head TODAY is not the same as a card that fits a head AND a leg's next probe.
