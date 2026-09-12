@@ -1344,3 +1344,40 @@ grown their pools by 4,016, 3,716 and 3,996 MiB, against the 4,424 GiB
 allocation named in the traceback. So the growth is consistently a few hundred
 MiB UNDER the requested allocation, because part of it is served from blocks
 the pool already holds.
+
+### Pass 4, complete: five stops, five scores
+
+    arm                      decay   ema ramp      40k     100k     200k
+    k3_r100_09_lr56              -    100,000   1.1820   1.3170   1.3189
+    k3_r100_09_lr56_dec      2,000    100,000   1.2164   1.3507   1.2979
+    k3_r100_09_lr56_dec10k  10,000     40,000   1.1915   1.2151        -
+
+NO ARM BEATS ITS OWN 40,000-STEP STOP. That was the card's question and the
+answer is no, at every stop, for both arms:
+
+    dec     100,000 against its 40,000   +0.1343   +2.07 bands
+    dec     200,000 against its 40,000   +0.0815   +1.26 bands
+    dec10k  100,000 against its 40,000   +0.0236   +0.36 bands
+
+ONE ARM HOLDS, WHICH IS NEW. `dec10k` lands 0.36 of a band above its own
+40,000-step score, so the two stops are not separated. Every other arm of this
+card loses one to two bands. It also beats the no-decay reference at the
+100,000-step stop by 1.57 bands.
+
+THE DECAY IS NOT WHAT DOES IT. `dec` and its no-decay twin differ in the decay
+column ALONE, and their rises to 100,000 steps are +0.1343 and +0.1350. The
+`L_rep` term can be removed entirely by step 2,000 and the curve does not move.
+
+`dec` AT 200,000 STEPS RECOVERS PART OF ITS DIP, 1.3507 to 1.2979. Its
+no-decay twin does not, 1.3170 to 1.3189. Both 200,000-step scores sit inside
+the band of each other, so this card does not rank them.
+
+THE GUARD STOPPED NOTHING. The AUC held above 0.99 at every stop of both arms.
+
+WHAT IS LEFT OPEN. `dec10k` moves TWO columns against `dec`, the decay ramp
+and the EMA ramp. The decay is excluded above, which leaves the EMA ramp as
+the candidate: `dec10k` completes its ramp at 40,000 steps, inside its own
+stop, while the other two reach momentum 1.0 only at 100,000. Another session
+runs `k3_r100_09_lr56_fix09` and `k3_r100_09_lr56_fix09_dec10k` on a rented
+A100 to move the momentum alone, each to 100,000 steps with a 40,000-step
+save, so each gives both stops from one leg.

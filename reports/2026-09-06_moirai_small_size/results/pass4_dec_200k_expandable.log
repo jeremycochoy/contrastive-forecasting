@@ -1,0 +1,19 @@
+[09-11 17:39:03] [#412 phase1] arms: k3_r100_09_lr56_dec
+[09-11 17:39:03] [#412 phase1] stops: 200000  gpu: 0
+[09-11 17:39:03] [#412 phase1] backbone k3_r100_09_lr56_dec -> 200000 (gpu 0 holds the 11500 MiB it needs)
+[09-11 17:39:03] [#412] arm k3_r100_09_lr56_dec arch='--d-model 384 --n-heads 8 --num-layers 3 --num-encoder-layers 3' k=3 reduce=sum ema='--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 2000' seed=20260520 lr=5.6e-4 -> 200000 steps on gpu 0
+[09-11 17:39:03] [arm6_v2_combab_alignT] RESUME from cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_dec_120k.pth (step 120k)
+[09-11 17:39:03] [arm6_v2_combab_alignT] START target=200000 gpu=0 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-412/k3_r100_09_lr56_dec/arm6_v2_combab_alignT/leg_200k
+[09-11 17:39:08] [#412] arm k3_r100_09_lr56_dec arch=384 3 3 k=3 reduce=sum ema='0.9 1.0 100000' decay='1.0 0.0 2000' seed=20260520 batch=64 lr=5.6e-4 align=teacher OK — all eight reached the trainer
+[09-11 17:39:08] [#412] arm k3_r100_09_lr56_dec AUC gate pid 595355 — window 500, threshold 0.55, warmup 1786
+[09-11 22:45:23] [arm6_v2_combab_alignT] DONE target=200000 (66M) -> /home/jupyter/checkpoints_backup/cf-412/k3_r100_09_lr56_dec/arm6_v2_combab_alignT/leg_200k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_dec_r4_200k.pth
+[09-11 22:45:23] [#412] arm k3_r100_09_lr56_dec stop=200000 rc=0
+[09-11 22:45:23] [#412 phase1] head k3_r100_09_lr56_dec bb200000
+[09-11 22:45:23] [#412] head k3_r100_09_lr56_dec_bb200k_h30k_student on cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_dec_r4_200k.pth
+[09-11 22:45:23] [k3_r100_09_lr56_dec_bb200k_h30k_student] head-train start enc=student steps=30000 seed=20260722 gpu=0 bb=cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_dec_r4_200k.pth
+[09-11 23:59:58] [k3_r100_09_lr56_dec_bb200k_h30k_student] head-train rc=0
+[09-11 23:59:58] [k3_r100_09_lr56_dec_bb200k_h30k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[09-12 03:42:24] [k3_r100_09_lr56_dec_bb200k_h30k_student] eval rc=0
+[09-12 03:42:24] [k3_r100_09_lr56_dec_bb200k_h30k_student] DONE — GM-Relative MASE 1.2979
+[09-12 03:42:24] [#412] head k3_r100_09_lr56_dec_bb200k_h30k_student rc=0
+[09-12 03:42:24] [#412 phase1] phase1 done — 0 failure(s)
