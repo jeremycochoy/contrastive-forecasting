@@ -5,15 +5,23 @@ The band is **0.0649** (this card measured it at 11.4M and 5.6e-4). Two numbers 
 | arm | k | reduce | seed | lr | L_rep decay | stop | 11.4M | 1.1M twin (parent seed range) | twin minus 11.4M | head-matched |
 |---|---|---|---|---|---|---|---|---|---|---|
 | k3_r100_09_lr56 | 3 | sum | 20260520 | 5.6e-4 | no | 40,000 | 1.1820 | never run | — | — |
+| k3_r100_09_lr56_dec10k | 3 | sum | 20260520 | 5.6e-4 | yes | 40,000 | 1.1915 | never run | — | — |
+| k3_r100_09_lr56_dec10k | 3 | sum | 20260520 | 5.6e-4 | yes | 100,000 | 1.2151 | never run | — | — |
+| k32_r100_09_sum | 32 | sum | 20260520 | 5.6e-4 | no | 40,000 | 1.2161 | never run | — | — |
+| k3_r100_09_lr56_dec | 3 | sum | 20260520 | 5.6e-4 | yes | 40,000 | 1.2164 | never run | — | — |
+| k3_r100_09_lr70 | 3 | sum | 20260520 | 7e-4 | no | 40,000 | 1.2192 | never run | — | — |
 | k3_r100_09b_lr56 | 3 | sum | 20260525 | 5.6e-4 | no | 40,000 | 1.2469 | never run | — | — |
 | k3_r100_09_lr33 | 3 | sum | 20260520 | 3.3e-4 | no | 40,000 | 1.2483 | never run | — | — |
 | k3_r100_09_lr17 | 3 | sum | 20260520 | 1.67e-4 | no | 40,000 | 1.2612 | never run | — | — |
+| k8_r100_09_lr56 | 8 | sum | 20260520 | 5.6e-4 | no | 40,000 | 1.2750 | never run | — | — |
+| k3_r100_09_lr45 | 3 | sum | 20260520 | 4.5e-4 | no | 40,000 | 1.2912 | never run | — | — |
 | k3_r100_09b | 3 | sum | 20260525 | 1e-3 | no | 40,000 | 1.2927 | 1.3618 (not seed-matched) | +0.0691 | no, 15,000-step head |
 | k3_r100_09_lr56 | 3 | sum | 20260520 | 5.6e-4 | no | 100,000 | 1.3170 | never run | — | — |
 | k3_r100_09_lr56 | 3 | sum | 20260520 | 5.6e-4 | no | 200,000 | 1.3189 | never run | — | — |
 | k3_r100_09_dec | 3 | sum | 20260520 | 1e-3 | yes | 40,000 | 1.3236 | never run | — | — |
 | k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 100,000 | 1.3395 | 1.3010 | -0.0385 | yes |
 | k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 40,000 | 1.3495 | 1.3618 | +0.0123 | no, 15,000-step head |
+| k3_r100_09_lr56_dec | 3 | sum | 20260520 | 5.6e-4 | yes | 100,000 | 1.3507 | never run | — | — |
 | k3_r100_09 | 3 | sum | 20260520 | 1e-3 | no | 200,000 | 1.3910 | 1.3998 | +0.0088 | yes |
 | k32_r100_09_lr56 | 32 | mean | 20260520 | 5.6e-4 | no | 40,000 | 1.4404 | never run | — | — |
 | k8_r100_09 | 8 | mean | 20260520 | 1e-3 | no | 40,000 | 1.4537 | never run | — | — |
@@ -32,37 +40,55 @@ Lower is worse. A run at 0.5 has lost the task. The last column is what the same
 | k3_r100_09_lr56 | 3 | 0.9 to 1.0 at 100k | no | 0.996 | 0.998 | 0.998 | 0.998 | 0.997 | 0.998 | 0.998 | 0.997 | 0.998 | 0.996 | held | — |
 | k3_r100_09_mean | 3 | 0.9 to 1.0 at 100k | no | 0.976 | 0.976 | 0.853 | 0.863 | 0.682 | 0.828 | 0.807 | 0.632 | — | — | lost at 26,413 | — |
 | k3_r100_09b_lr56 | 3 | 0.9 to 1.0 at 100k | no | 0.997 | 0.998 | 0.998 | 0.997 | 0.999 | 0.999 | 0.999 | 0.999 | 0.999 | 0.999 | held | — |
-| k3_r100_09_lr45 | 3 | 0.9 to 1.0 at 100k | no | — | — | — | — | — | — | — | — | — | — | — | — |
+| k3_r100_09_lr45 | 3 | 0.9 to 1.0 at 100k | no | 0.995 | 0.992 | 0.998 | 0.998 | 0.997 | 0.997 | 0.997 | 0.998 | 0.999 | 0.998 | held | — |
+| k3_r100_09_lr70 | 3 | 0.9 to 1.0 at 100k | no | 0.996 | 0.994 | 0.996 | 0.995 | 0.995 | 0.997 | 0.998 | 0.999 | 0.999 | 0.998 | held | — |
 | k3_r100_09_dec | 3 | 0.9 to 1.0 at 100k | yes | 0.996 | 0.992 | 0.986 | 0.980 | 0.984 | 0.992 | 0.992 | 0.997 | 0.997 | 0.997 | held | — |
+| k3_r100_09_lr56_dec | 3 | 0.9 to 1.0 at 100k | yes | 0.997 | 0.988 | 0.987 | 0.987 | 0.992 | 0.995 | 0.995 | 0.995 | 0.997 | 0.996 | held | — |
+| k3_r100_09_lr56_dec10k | 3 | 0.9 to 1.0 at 40k | yes | 0.997 | 0.993 | 0.996 | 0.997 | 0.995 | 0.996 | 0.997 | 0.997 | 0.996 | 0.996 | held | — |
 | k8_r100_09 | 8 | 0.9 to 1.0 at 100k | no | 0.971 | 0.961 | 0.920 | 0.881 | 0.812 | 0.717 | 0.769 | 0.769 | 0.772 | 0.730 | held | — |
+| k8_r100_09_lr56 | 8 | 0.9 to 1.0 at 100k | no | 0.996 | 0.997 | 0.999 | 0.998 | 0.998 | 0.998 | 0.998 | 0.998 | 0.998 | 0.998 | held | — |
 | k32_r100_09 | 32 | 0.9 to 1.0 at 100k | no | 0.968 | 0.937 | 0.889 | 0.892 | 0.840 | 0.793 | 0.763 | 0.843 | 0.789 | 0.773 | held | 0.978 (#404) |
 | k32_r200_08 | 32 | 0.8 to 1.0 at 200k | no | 0.877 | 0.814 | 0.788 | 0.749 | 0.739 | 0.751 | 0.796 | 0.568 | 0.555 | — | lost at 28,152 | 0.957 (#404) |
 | k32_r100_09_lr56 | 32 | 0.9 to 1.0 at 100k | no | 0.973 | 0.964 | 0.932 | 0.925 | 0.945 | 0.936 | 0.934 | 0.929 | 0.887 | 0.730 | held | — |
-| k32_r100_09_sum | 32 | 0.9 to 1.0 at 100k | no | — | — | — | — | — | — | — | — | — | — | — | — |
+| k32_r100_09_sum | 32 | 0.9 to 1.0 at 100k | no | 0.987 | 0.976 | 0.983 | 0.982 | 0.982 | 0.984 | 0.987 | 0.993 | 0.988 | 0.992 | held | — |
+| k32_r200_08_lr56 | 32 | 0.8 to 1.0 at 40k | no | 0.967 | 0.966 | 0.964 | 0.977 | 0.977 | 0.980 | 0.980 | 0.986 | 0.985 | 0.994 | held | — |
 | k32_r100_09_dec | 32 | 0.9 to 1.0 at 100k | yes | 0.978 | 0.746 | 0.758 | 0.742 | 0.642 | 0.747 | 0.718 | — | — | — | lost at 18,634 | 0.983 (#409) |
+| k32_r100_09_dec_lr56 | 32 | 0.9 to 1.0 at 100k | yes | 0.982 | 0.950 | 0.961 | 0.968 | 0.967 | 0.968 | 0.975 | — | — | — | held | — |
 
 **Read this table by row and by column, never on the diagonal.** Two rows are comparable only when they differ in ONE column. These are the pairs, and there are no others:
 
+- `k32_r100_09_dec_lr56` against `k32_r100_09_sum`, which moves the L_rep decay
+- `k32_r100_09_dec_lr56` against `k3_r100_09_lr56_dec`, which moves the rollout depth
 - `k32_r100_09_lr56` against `k32_r100_09_sum`, which moves the reduction
+- `k32_r100_09_sum` against `k32_r200_08_lr56`, which moves the EMA momentum
 - `k32_r100_09_sum` against `k3_r100_09_lr56`, which moves the rollout depth
+- `k32_r100_09_sum` against `k8_r100_09_lr56`, which moves the rollout depth
 - `k32_r100_09` against `k32_r100_09_dec`, which moves the L_rep decay
 - `k32_r100_09` against `k32_r100_09_lr56`, which moves the learning rate
 - `k32_r100_09` against `k32_r200_08`, which moves the EMA momentum
 - `k32_r100_09` against `k3_r100_09_mean`, which moves the rollout depth
 - `k32_r100_09` against `k8_r100_09`, which moves the rollout depth
+- `k3_r100_09_dec` against `k3_r100_09_lr56_dec`, which moves the learning rate
 - `k3_r100_09_lr17` against `k3_r100_09_lr33`, which moves the learning rate
 - `k3_r100_09_lr17` against `k3_r100_09_lr45`, which moves the learning rate
 - `k3_r100_09_lr17` against `k3_r100_09_lr56`, which moves the learning rate
+- `k3_r100_09_lr17` against `k3_r100_09_lr70`, which moves the learning rate
 - `k3_r100_09_lr33` against `k3_r100_09_lr45`, which moves the learning rate
 - `k3_r100_09_lr33` against `k3_r100_09_lr56`, which moves the learning rate
+- `k3_r100_09_lr33` against `k3_r100_09_lr70`, which moves the learning rate
 - `k3_r100_09_lr45` against `k3_r100_09_lr56`, which moves the learning rate
+- `k3_r100_09_lr45` against `k3_r100_09_lr70`, which moves the learning rate
+- `k3_r100_09_lr56` against `k3_r100_09_lr56_dec`, which moves the L_rep decay
+- `k3_r100_09_lr56` against `k3_r100_09_lr70`, which moves the learning rate
 - `k3_r100_09_lr56` against `k3_r100_09b_lr56`, which moves the seed
+- `k3_r100_09_lr56` against `k8_r100_09_lr56`, which moves the rollout depth
 - `k3_r100_09_mean` against `k8_r100_09`, which moves the rollout depth
 - `k3_r100_09` against `k3_r100_09_dec`, which moves the L_rep decay
 - `k3_r100_09` against `k3_r100_09_lr17`, which moves the learning rate
 - `k3_r100_09` against `k3_r100_09_lr33`, which moves the learning rate
 - `k3_r100_09` against `k3_r100_09_lr45`, which moves the learning rate
 - `k3_r100_09` against `k3_r100_09_lr56`, which moves the learning rate
+- `k3_r100_09` against `k3_r100_09_lr70`, which moves the learning rate
 - `k3_r100_09` against `k3_r100_09_mean`, which moves the reduction
 - `k3_r100_09` against `k3_r100_09b`, which moves the seed
 - `k3_r100_09b` against `k3_r100_09b_lr56`, which moves the learning rate
@@ -73,21 +99,32 @@ Lower is worse. A run at 0.5 has lost the task. The last column is what the same
 |---|---|---|---|---|---|---|---|---|
 | k32_r100_09 | 40,000 | 40,000 | 13.4947 | 11.6270 | 1.7583 | 1.00 | 0.9400 | 0.7629 |
 | k32_r100_09_dec | 40,000 | 19,100 | 1.8013 | — | 1.8219 | 0.00 | 0.9191 | 0.5010 |
+| k32_r100_09_dec_lr56 | 40,000 | 19,600 | 20.8066 | — | 0.4593 | 0.00 | 0.9196 | 0.9777 |
 | k32_r100_09_lr56 | 40,000 | 40,000 | 13.5159 | 11.6087 | 1.7892 | 1.00 | 0.9400 | 0.7098 |
+| k32_r100_09_sum | 40,000 | 40,000 | 27.6120 | 11.8387 | 0.3350 | 1.00 | 0.9400 | 0.9932 |
 | k32_r200_08 | 40,000 | 28,500 | 13.6105 | 11.5968 | 2.0018 | 1.00 | 0.8285 | 0.5254 |
+| k32_r200_08_lr56 | 40,000 | 40,000 | 24.6597 | 11.8196 | 0.2954 | 1.00 | 1.0000 | 0.9935 |
 | k3_r100_09 | 100,000 | 100,000 | 12.3238 | 11.7174 | 0.1472 | 1.00 | 1.0000 | 0.9997 |
 | k3_r100_09 | 200,000 | 200,000 | 12.2424 | 11.7181 | 0.1319 | 1.00 | 1.0000 | 0.9938 |
 | k3_r100_09 | 40,000 | 40,000 | 12.5323 | 11.7822 | 0.1852 | 1.00 | 0.9400 | 0.9993 |
 | k3_r100_09_dec | 40,000 | 40,000 | 1.0579 | — | 0.2487 | 0.00 | 0.9400 | 0.9980 |
 | k3_r100_09_lr17 | 40,000 | 40,000 | 12.8115 | 11.7678 | 0.2532 | 1.00 | 0.9400 | 0.9992 |
 | k3_r100_09_lr33 | 40,000 | 40,000 | 12.5972 | 11.7772 | 0.2020 | 1.00 | 0.9400 | 0.9983 |
+| k3_r100_09_lr45 | 40,000 | 40,000 | 12.8130 | 11.7994 | 0.2446 | 1.00 | 0.9400 | 0.9967 |
 | k3_r100_09_lr56 | 100,000 | 100,000 | 12.5741 | 11.7491 | 0.1995 | 1.00 | 1.0000 | 0.9995 |
 | k3_r100_09_lr56 | 200,000 | 200,000 | 12.5101 | 11.7601 | 0.1870 | 1.00 | 1.0000 | 0.9945 |
 | k3_r100_09_lr56 | 40,000 | 40,000 | 12.6520 | 11.6891 | 0.2118 | 1.00 | 0.9400 | 0.9973 |
+| k3_r100_09_lr56_dec | 100,000 | 100,000 | 0.9728 | — | 0.2392 | 0.00 | 1.0000 | 0.9993 |
+| k3_r100_09_lr56_dec | 200,000 | 200,000 | 0.8432 | — | 0.2075 | 0.00 | 1.0000 | 0.9983 |
+| k3_r100_09_lr56_dec | 40,000 | 40,000 | 1.6989 | — | 0.3899 | 0.00 | 0.9400 | 0.9982 |
+| k3_r100_09_lr56_dec10k | 100,000 | 100,000 | 1.8009 | — | 0.3780 | 0.00 | 1.0000 | 0.9929 |
+| k3_r100_09_lr56_dec10k | 40,000 | 40,000 | 1.3797 | — | 0.2992 | 0.00 | 1.0000 | 0.9970 |
+| k3_r100_09_lr70 | 40,000 | 40,000 | 12.2204 | 11.7041 | 0.1231 | 1.00 | 0.9400 | 0.9986 |
 | k3_r100_09_mean | 40,000 | 27,400 | 13.5760 | 11.5998 | 1.9446 | 1.00 | 0.9274 | 0.5278 |
 | k3_r100_09b | 40,000 | 40,000 | 12.9777 | 11.7567 | 0.2832 | 1.00 | 0.9400 | 0.9984 |
 | k3_r100_09b_lr56 | 40,000 | 40,000 | 12.7730 | 11.7634 | 0.2463 | 1.00 | 0.9400 | 0.9990 |
 | k8_r100_09 | 40,000 | 40,000 | 13.3835 | 11.6129 | 1.7117 | 1.00 | 0.9400 | 0.7563 |
+| k8_r100_09_lr56 | 40,000 | 40,000 | 14.7787 | 11.8087 | 0.3126 | 1.00 | 0.9400 | 0.9981 |
 
 ### The cost
 
@@ -133,3 +170,31 @@ Lower is worse. A run at 0.5 has lost the task. The last column is what the same
 | k3_r100_09b_lr56_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 3.6 |
 | k3_r100_09_lr56_bb200k_h30k_student | head | 30,000 | 1.6 |
 | k3_r100_09_lr56_bb200k_h30k_student | GIFT-Eval, 97 configs | — | 3.5 |
+| k3_r100_09_lr45 | backbone | 40,000 | 3.9 |
+| k3_r100_09_lr45_bb40k_h30k_student | head | 30,000 | 1.6 |
+| k3_r100_09_lr70 | backbone | 40,000 | 5.4 |
+| k3_r100_09_lr45_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 5.0 |
+| k32_r100_09_sum | backbone | 40,000 | 10.7 |
+| k3_r100_09_lr70_bb40k_h30k_student | head | 30,000 | 1.7 |
+| k32_r100_09_sum_bb40k_h30k_student | head | 30,000 | 1.7 |
+| k3_r100_09_lr70_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 4.0 |
+| k32_r100_09_sum_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 4.1 |
+| k3_r100_09_lr56_dec | backbone | 40,000 | 3.1 |
+| k3_r100_09_lr56_dec10k | backbone | 40,000 | 3.3 |
+| k3_r100_09_lr56_dec10k_bb40k_h30k_student | head | 30,000 | 1.7 |
+| k3_r100_09_lr56_dec_bb40k_h30k_student | head | 30,000 | 1.6 |
+| k3_r100_09_lr56_dec10k_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 3.9 |
+| k3_r100_09_lr56_dec_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 3.9 |
+| k3_r100_09_lr56_dec | backbone | 100,000 | 4.7 |
+| k3_r100_09_lr56_dec_bb100k_h30k_student | head | 30,000 | 1.6 |
+| k3_r100_09_lr56_dec_bb100k_h30k_student | GIFT-Eval, 97 configs | — | 3.6 |
+| k3_r100_09_lr56_dec10k | backbone | 100,000 | 3.7 |
+| k3_r100_09_lr56_dec | backbone | 200,000 | 1.9 |
+| k3_r100_09_lr56_dec10k_bb100k_h30k_student | head | 30,000 | 2.0 |
+| k8_r100_09_lr56 | backbone | 40,000 | 4.1 |
+| k8_r100_09_lr56_bb40k_h30k_student | head | 30,000 | 1.5 |
+| k3_r100_09_lr56_dec10k_bb100k_h30k_student | GIFT-Eval, 97 configs | — | 3.6 |
+| k8_r100_09_lr56_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 3.6 |
+| k3_r100_09_lr56_dec | backbone | 200,000 | 5.1 |
+| k3_r100_09_lr56_dec_bb200k_h30k_student | head | 30,000 | 1.2 |
+| k32_r200_08_lr56 | backbone | 40,000 | 8.1 |

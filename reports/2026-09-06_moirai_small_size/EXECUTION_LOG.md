@@ -1381,3 +1381,30 @@ stop, while the other two reach momentum 1.0 only at 100,000. Another session
 runs `k3_r100_09_lr56_fix09` and `k3_r100_09_lr56_fix09_dec10k` on a rented
 A100 to move the momentum alone, each to 100,000 steps with a 40,000-step
 save, so each gives both stops from one leg.
+
+### Two generators of this card disagree about one pair
+
+`arm_diff.py` and `report_tables.py` classify `k32_r100_09_sum` against
+`k32_r200_08_lr56` differently, and the report inherits whichever it quotes:
+
+  arm_diff.py      tau 0.9 -> 0.8 AND ramp 100,000 -> 40,000, CONFOUNDED
+  tables.md l.63   "moves the EMA momentum", one axis
+
+BOTH ARE DEFENSIBLE AND THEY ANSWER DIFFERENT QUESTIONS. The two rows differ
+in two PARAMETERS, and those parameters are two parts of ONE object, the EMA
+momentum schedule. So:
+
+- "does the momentum SCHEDULE matter?"  the pair is clean.
+- "does the START momentum matter?"     confounded.
+- "does the RAMP LENGTH matter?"        confounded.
+
+WHAT THE REPORT WILL SAY. `k32_r200_08_lr56` against `k32_r100_09_sum` moves
+the EMA momentum schedule as a whole, its start and its ramp together, and it
+isolates neither part. That is the comparison the card intends, because
+configuration 3 differs from configuration 2 by its momentum, and it is the
+strongest claim the rows support.
+
+THIS IS THE FOURTH TIME on this card that a comparison needed checking before
+it was written. The difference here is that neither tool is wrong: the axis
+count depends on whether a schedule is one thing or two, and only the QUESTION
+settles that. A tool can count columns. It cannot choose the question.
