@@ -129,3 +129,6 @@
 [09-12 07:33:58] [#412] arm k3_r100_09_lr56_fix099_dec10k arch=384 3 3 k=3 reduce=sum ema='0.99 - -' decay='1.0 0.0 10000' seed=20260520 batch=64 lr=5.6e-4 align=teacher OK — all eight reached the trainer
 [09-12 07:33:58] [#412] arm k3_r100_09_lr56_fix099_dec10k AUC gate pid 1798817 — window 500, threshold 0.55, warmup 1786
 [09-12 10:32:52] [#412] arm k3_r100_09_lr56_fix099_dec10k stop=40000 rc=0
+[09-12 13:35:00] [#412] arm k3_r100_09_lr56_fix099_dec10k arch='--d-model 384 --n-heads 8 --num-layers 3 --num-encoder-layers 3' k=3 reduce=sum ema='--ema-tau 0.99' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000' seed=20260520 lr=5.6e-4 -> 100000 steps on gpu 0
+[09-12 13:35:05] [#412] arm k3_r100_09_lr56_fix099_dec10k arch=384 3 3 k=3 reduce=sum ema='0.99 - -' decay='1.0 0.0 10000' seed=20260520 batch=64 lr=5.6e-4 align=teacher OK — all eight reached the trainer
+[09-12 13:35:05] [#412] arm k3_r100_09_lr56_fix099_dec10k AUC gate pid 2256413 — window 500, threshold 0.55, warmup 1786
