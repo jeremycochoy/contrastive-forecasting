@@ -1,1 +1,29 @@
 [watch] armed — lanes running: 2|
+[hourly] k32_r100_09_sum step=4800 auc=0.9759 k3_r100_09_lr45 step=10400 auc=0.9978 k3_r100_09_lr70 step=- auc=- lanes=2
+[hourly] k32_r100_09_sum step=8100 auc=0.9844 k3_r100_09_lr45 step=21200 auc=0.9975 k3_r100_09_lr70 step=- auc=- lanes=2
+[hourly] k32_r100_09_sum step=12600 auc=0.9802 k3_r100_09_lr45 step=31600 auc=0.9976 k3_r100_09_lr70 step=- auc=- lanes=2
+[event] backbone k3_r100_09_lr45 at 40000 is on disk
+[event] head k3_r100_09_lr45 started
+[hourly] k32_r100_09_sum step=16800 auc=0.9890 k3_r100_09_lr45 step=40000 auc=0.9977 k3_r100_09_lr70 step=step auc=- lanes=2
+[hourly] k32_r100_09_sum step=21200 auc=0.9936 k3_r100_09_lr45 step=40000 auc=0.9977 k3_r100_09_lr70 step=8600 auc=0.9928 lanes=2
+[hourly] k32_r100_09_sum step=24900 auc=0.9931 k3_r100_09_lr45 step=40000 auc=0.9977 k3_r100_09_lr70 step=15500 auc=0.9971 lanes=2
+[hourly] k32_r100_09_sum step=28100 auc=0.9885 k3_r100_09_lr45 step=40000 auc=0.9977 k3_r100_09_lr70 step=23600 auc=0.9976 lanes=2
+[hourly] k32_r100_09_sum step=31100 auc=0.9921 k3_r100_09_lr45 step=40000 auc=0.9977 k3_r100_09_lr70 step=31600 auc=0.9986 lanes=2
+[hourly] k32_r100_09_sum step=34400 auc=0.9876 k3_r100_09_lr45 step=40000 auc=0.9977 k3_r100_09_lr70 step=38600 auc=0.9989 lanes=2
+[event] backbone k3_r100_09_lr70 at 40000 is on disk
+[event] lanes running: 1
+[event] head k3_r100_09_lr70 started
+[hourly] k32_r100_09_sum step=37700 auc=0.9933 k3_r100_09_lr45 step=40000 auc=0.9977 k3_r100_09_lr70 step=40000 auc=0.9984 lanes=1
+[event] SCORE k3_r100_09_lr45 = 1.2912
+[event] backbone k32_r100_09_sum at 40000 is on disk
+[event] lanes running: 0
+[event] head k32_r100_09_sum started
+[hourly] k32_r100_09_sum step=40000 auc=0.9918 k3_r100_09_lr45 step=40000 auc=0.9977 k3_r100_09_lr70 step=40000 auc=0.9984 lanes=0
+[hourly] k32_r100_09_sum step=40000 auc=0.9918 k3_r100_09_lr45 step=40000 auc=0.9977 k3_r100_09_lr70 step=40000 auc=0.9984 lanes=0
+[hourly] k32_r100_09_sum step=40000 auc=0.9918 k3_r100_09_lr45 step=40000 auc=0.9977 k3_r100_09_lr70 step=40000 auc=0.9984 lanes=0
+[hourly] k32_r100_09_sum step=40000 auc=0.9918 k3_r100_09_lr45 step=40000 auc=0.9977 k3_r100_09_lr70 step=40000 auc=0.9984 lanes=0
+[event] SCORE k3_r100_09_lr70 = 1.2192
+[hourly] k32_r100_09_sum step=40000 auc=0.9918 k3_r100_09_lr45 step=40000 auc=0.9977 k3_r100_09_lr70 step=40000 auc=0.9984 lanes=0
+[hourly] k32_r100_09_sum step=40000 auc=0.9918 k3_r100_09_lr45 step=40000 auc=0.9977 k3_r100_09_lr70 step=40000 auc=0.9984 lanes=0
+[event] SCORE k32_r100_09_sum = 1.2161
+[watch] pass 3 complete — every arm has a score or a collapse note

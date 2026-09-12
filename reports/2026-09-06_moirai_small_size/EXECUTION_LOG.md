@@ -1516,3 +1516,42 @@ but every arm that lost it ran at 1e-3, so this card cannot separate the
 reduction from the rate for the LOSS. Pass 5 adds three sum arms that held,
 including two at k = 32, which strengthens the association without closing
 that gap.
+
+## Pass 5 is complete: the three re-runs at 5.6e-4
+
+| arm | configuration | score | against 1.1820 | task |
+|---|---|---|---|---|
+| `k32_r100_09_dec_lr56` | 5 | 1.2111 | +0.0291, 0.45 bands, not ranked | held |
+| `k32_r200_08_lr56` | 3 | 1.2318 | +0.0498, 0.77 bands, not ranked | held |
+| `k8_r100_09_lr56` | 6 | 1.2750 | +0.0930, 1.43 bands, RANKED WORSE | held |
+
+THE PRE-REGISTERED RULE IS DISCHARGED. D came in at 0.1675, three seed bands,
+which voided every 1e-3 number and required phase 1 to run again at the
+winning rate. The three configurations that had never done so now have scores
+at 5.6e-4 under the sum.
+
+NO CONFIGURATION BEATS THE k = 3 REFERENCE. The best of the three,
+configuration 5 at 1.2111, sits 0.45 bands above 1.1820 and is not ranked
+against it. So at the winning rate configuration 1 remains the best arm of the
+card, and nothing displaces it.
+
+TWO CONFIGURATIONS NOW HAVE A SCORE WHERE THEY HAD NONE. Configuration 3's
+1e-3 twin lost the contrastive task at step 28,152 and configuration 5's at
+step 18,634, so neither carried a number at all. Under the sum at 5.6e-4 both
+held the task to 40,000 steps, at AUC 0.9935 and 0.9857, and both scored. A
+configuration that could not be measured is now measured.
+
+THE DECAY IS NEUTRAL AT k = 32, which is the question this card left open.
+`k32_r100_09_dec_lr56` against `k32_r100_09_sum` moves the `L_rep` decay ALONE:
+
+  no decay                     1.2161
+  decay to zero by step 2,000  1.2111
+  -0.0050, which is 0.08 bands, NOT RANKED
+
+Pass 4 measured the same axis at k = 3 and found +0.0344 at the 40,000-step
+stop and +0.0337 at 100,000, both inside the band. So the decay changes
+nothing at either depth, and #409's negative result at 1.1M parameters
+reproduces at 11.4M.
+
+THE GUARD STOPPED NO ARM OF THIS PASS. Final AUC 0.9979, 0.9935 and 0.9857.
+The AUC ranks nothing here and is reported only for that.

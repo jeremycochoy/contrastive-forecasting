@@ -48,3 +48,21 @@
 [09-11 16:43:30] [#412 pass5] cards: 0 1  queue: k32_r200_08_lr56:40000 k32_r100_09_dec_lr56:40000 k8_r100_09_lr56:40000
 [09-11 16:43:30] [#412 pass5] k8_r100_09_lr56 at 40000 is on disk — the head sweep scores it
 [09-11 17:13:41] [#412 pass5] waits for a card — pending k32_r200_08_lr56:40000 k32_r100_09_dec_lr56:40000
+[09-11 17:43:51] [#412 pass5] waits for a card — pending k32_r200_08_lr56:40000 k32_r100_09_dec_lr56:40000
+[09-11 18:14:00] [#412 pass5] k32_r200_08_lr56 -> 40000 steps on gpu 1 (20871 MiB free, needs 11300 plus 3548 for a neighbour that grows)
+[09-11 18:54:04] [#412 pass5] k32_r200_08_lr56 WARNING — no trainer on gpu 1 after 2400s. See /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/pass5_k32_r200_08_lr56_40000.log
+[09-11 19:24:08] [#412 pass5] waits for a card — pending k32_r100_09_dec_lr56:40000
+[09-11 19:54:13] [#412 pass5] waits for a card — pending k32_r100_09_dec_lr56:40000
+[09-11 20:24:18] [#412 pass5] waits for a card — pending k32_r100_09_dec_lr56:40000
+[09-11 20:54:23] [#412 pass5] waits for a card — pending k32_r100_09_dec_lr56:40000
+[09-11 21:24:28] [#412 pass5] waits for a card — pending k32_r100_09_dec_lr56:40000
+[09-11 21:54:32] [#412 pass5] waits for a card — pending k32_r100_09_dec_lr56:40000
+[09-11 22:24:35] [#412 pass5] waits for a card — pending k32_r100_09_dec_lr56:40000
+[09-11 22:54:39] [#412 pass5] waits for a card — pending k32_r100_09_dec_lr56:40000
+[09-11 23:24:44] [#412 pass5] waits for a card — pending k32_r100_09_dec_lr56:40000
+[09-11 23:54:49] [#412 pass5] waits for a card — pending k32_r100_09_dec_lr56:40000
+[09-12 00:00:50] [#412 pass5] k32_r100_09_dec_lr56 -> 40000 steps on gpu 0 (18076 MiB free, needs 11300 plus 756 for a neighbour that grows)
+[09-12 00:40:54] [#412 pass5] k32_r100_09_dec_lr56 WARNING — no trainer on gpu 0 after 2400s. See /tmp/contrastive-forecasting-412/reports/2026-09-06_moirai_small_size/results/pass5_k32_r100_09_dec_lr56_40000.log
+[09-12 02:17:44] [#412 pass5] k32_r200_08_lr56 at 40000 DONE — /home/jupyter/checkpoints_backup/cf-412/k32_r200_08_lr56/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r200_08_lr56_40k.pth
+[09-12 07:24:19] [#412 pass5] k32_r100_09_dec_lr56 at 40000 DONE — /home/jupyter/checkpoints_backup/cf-412/k32_r100_09_dec_lr56/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k32_cf412_k32_r100_09_dec_lr56_40k.pth
+[09-12 07:24:19] [#412 pass5] lane done — 0 arm(s) with no checkpoint

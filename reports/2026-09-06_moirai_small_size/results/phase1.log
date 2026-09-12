@@ -643,3 +643,9 @@
 [09-12 02:28:58] [#412 sweep] k32_r200_08_lr56 at 40000 — no score and no head. Starting one on gpu 1.
 [09-12 02:29:03] [#412 sweep] started 1 head(s)
 [09-12 03:42:24] [#412 phase1] phase1 done — 0 failure(s)
+[09-12 07:33:53] [#412 phase1] arms: k3_r100_09_lr56_fix099_dec10k
+[09-12 07:33:53] [#412 phase1] stops: 40000 100000  gpu: 0
+[09-12 07:33:53] [#412 phase1] backbone k3_r100_09_lr56_fix099_dec10k -> 40000 (gpu 0 holds the 7700 MiB it needs)
+[09-12 07:35:30] [#412 sweep] k32_r100_09_dec_lr56 at 40000 — no score and no head. Starting one on gpu 0.
+[09-12 07:35:35] [#412 sweep] started 1 head(s)
+[09-12 10:32:52] [#412 phase1] head k3_r100_09_lr56_fix099_dec10k bb40000

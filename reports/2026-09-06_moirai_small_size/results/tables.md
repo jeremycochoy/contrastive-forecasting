@@ -10,6 +10,7 @@ The band is **0.0649** (this card measured it at 11.4M and 5.6e-4). Two numbers 
 | k32_r100_09_sum | 32 | sum | 20260520 | 5.6e-4 | no | 40,000 | 1.2161 | never run | — | — |
 | k3_r100_09_lr56_dec | 3 | sum | 20260520 | 5.6e-4 | yes | 40,000 | 1.2164 | never run | — | — |
 | k3_r100_09_lr70 | 3 | sum | 20260520 | 7e-4 | no | 40,000 | 1.2192 | never run | — | — |
+| k32_r200_08_lr56 | 32 | sum | 20260520 | 5.6e-4 | no | 40,000 | 1.2318 | never run | — | — |
 | k3_r100_09b_lr56 | 3 | sum | 20260525 | 5.6e-4 | no | 40,000 | 1.2469 | never run | — | — |
 | k3_r100_09_lr33 | 3 | sum | 20260520 | 3.3e-4 | no | 40,000 | 1.2483 | never run | — | — |
 | k3_r100_09_lr17 | 3 | sum | 20260520 | 1.67e-4 | no | 40,000 | 1.2612 | never run | — | — |
@@ -203,3 +204,13 @@ Lower is worse. A run at 0.5 has lost the task. The last column is what the same
 | k32_r200_08_lr56_bb40k_h30k_student | head | 30,000 | 1.4 |
 | k3_r100_09_lr56_fix09_dec10k_bb40k_h30k_student | head | 30,000 | 1.1 |
 | k32_r100_09_dec_lr56 | backbone | 40,000 | 7.4 |
+| k32_r200_08_lr56_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 3.8 |
+| k3_r100_09_lr56_fix09_bb40k_h30k_student | head | 30,000 | 1.4 |
+| k32_r100_09_dec_lr56_bb40k_h30k_student | head | 30,000 | 1.6 |
+| k3_r100_09_lr56_fix09_dec10k_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 3.9 |
+| k3_r100_09_lr56_fix099_dec10k | backbone | 40,000 | 3.0 |
+| k3_r100_09_lr56_fix09_dec10k_bb100k_h30k_student | head | 30,000 | 1.4 |
+| k3_r100_09_lr56_fix099_dec10k_bb40k_h30k_student | head | 30,000 | 1.3 |
+| k3_r100_09_lr56_fix09_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 4.1 |
+| k3_r100_09_lr56_fix099_bb40k_h30k_student | head | 30,000 | 1.5 |
+| k3_r100_09_lr56_fix099_bb100k_h30k_student | head | 30,000 | 1.4 |
