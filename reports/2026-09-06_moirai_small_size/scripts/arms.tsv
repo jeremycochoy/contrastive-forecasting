@@ -160,3 +160,28 @@ k3_r100_09_lr56_fix09	3	sum	0.9	-	-	20260520	-	5.6e-4
 k3_r100_09_lr56_fix099	3	sum	0.99	-	-	20260520	-	5.6e-4
 k3_r100_09_lr56_fix09_dec10k	3	sum	0.9	-	-	20260520	10000	5.6e-4
 k3_r100_09_lr56_fix099_dec10k	3	sum	0.99	-	-	20260520	10000	5.6e-4
+#
+# ---- Pass 6: the two levers the user named -----------------------------------
+#
+# Both rows move ONE existing column. Neither adds a flag.
+#
+#   k3_r100_09_lr56_fix09_dec0
+#                     `L_rep` OFF. The decay ramp is 1 step, so the weight is
+#                     0.0 from step 2 to the end. No run of this project has
+#                     trained without `L_rep`: #409's shortest ramp is 1,000
+#                     steps. It moves the DECAY RAMP alone against
+#                     `k3_r100_09_lr56_fix09_dec10k`, whose drift is the
+#                     smallest of the card, +0.0455 over 140,000 steps.
+#                     THE AUC GUARD MUST BE OFF for this arm. `L_rep` carries
+#                     the negatives the AUC probe reads, so the probe falls by
+#                     construction and the guard would stop a healthy run.
+#   k3_r100_09_lr56_ramp665k_dec10k
+#                     The EMA momentum climbs 0.9 to 1.0 over 665,000 steps,
+#                     which is one pass over the data. Every ramped arm of this
+#                     card reaches 1.0 at 100,000 steps or sooner, so its
+#                     teacher is frozen over 85 percent of the data. It moves
+#                     the EMA SCHEDULE alone against
+#                     `k3_r100_09_lr56_fix09_dec10k`.
+#
+k3_r100_09_lr56_fix09_dec0	3	sum	0.9	-	-	20260520	1	5.6e-4
+k3_r100_09_lr56_ramp665k_dec10k	3	sum	0.9	1.0	665000	20260520	10000	5.6e-4
