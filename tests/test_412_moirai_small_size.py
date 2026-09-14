@@ -200,7 +200,11 @@ def test_the_repeat_seed_moves_the_seed_column_alone():
 
 
 def test_the_stops_are_the_stops_the_parent_reports_use():
-    assert study("echo $CF412_STOPS").split() == ["40000", "100000", "200000"]
+    # The three parent-report stops LEAD the list. Later passes append their
+    # own stops (300k, 400k, 665k), and an exact match would fail on growth
+    # while saying nothing about the property this guards.
+    assert study("echo $CF412_STOPS").split()[:3] == ["40000", "100000",
+                                                      "200000"]
     assert study("printf '%s' $CF412_HEAD_STEPS") == "30000"
 
 
@@ -353,8 +357,11 @@ LR_DEFAULT = 1e-3
 
 def test_the_card_has_its_six_configurations_the_repeat_and_the_bracket():
     arms = study("printf '%s\\n' $CF412_ARMS").split()
-    assert arms == ([CONFIGS[n] for n in (1, 2, 3, 4, 5, 6)]
-                    + [REPEAT_SEED_ARM] + RATE_ARMS)
+    # The card's own arms LEAD the table, in its order. Pass 2 onward appends
+    # follow-ups, so this checks the prefix and not the whole list.
+    expected = ([CONFIGS[n] for n in (1, 2, 3, 4, 5, 6)]
+                + [REPEAT_SEED_ARM] + RATE_ARMS)
+    assert arms[:len(expected)] == expected
 
 
 @pytest.mark.parametrize("config,k,reduce,ema,decay", [
@@ -764,8 +771,10 @@ def test_the_cost_table_gives_every_reading_of_its_file():
 
 # 1e-3 times 64 / 384, the width ratio of this card.
 LR_WIDTH_RATIO = LR_DEFAULT * 64 / CHOSEN_D_MODEL
+# #414 appended `align_w`. Every arm of #412 carries `-`, which keeps the
+# 1.0 that `run_leg_k.sh` hardcodes.
 ARMS_COLUMNS = ["arm", "k", "reduce", "tau", "end", "ramp", "seed", "decay",
-                "lr"]
+                "lr", "align_w"]
 
 
 def arms_rows():

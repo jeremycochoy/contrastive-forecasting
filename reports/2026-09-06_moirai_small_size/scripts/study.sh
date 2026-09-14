@@ -189,7 +189,9 @@ CF412_ARMS="${CF412_ARMS% }"
 # hold.
 cf412_arm_row(){  # <arm>
   awk -F'\t' -v a="${1:?arm}" \
-    '!/^#/ && $1 == a { print $1, $2, $3, $4, $5, $6, $7, $8, $9; found = 1 }
+    '!/^#/ && $1 == a {
+       print $1, $2, $3, $4, $5, $6, $7, $8, $9,
+             ($10 == "" ? "-" : $10); found = 1 }
      END { exit !found }' "$CF412_ARMS_TSV"
 }
 
@@ -226,6 +228,16 @@ cf412_lr(){  # <arm>
                *) printf '%s\n' "$v" ;; esac
 }
 
+# The weight of L_align. `-` keeps the 1.0 that `run_leg_k.sh` hardcodes, and
+# the arm then passes no flag. A repeated flag later on the command line
+# changes the value, which is how the card already overrides the rate.
+cf412_align_args(){  # <arm>
+  local w
+  w="$(cf412_arm_row "${1:?arm}" | awk '{print $10}')"
+  case "$w" in ''|-) return 0 ;; esac
+  printf -- '--align-loss-weight %s\n' "$w"
+}
+
 # The trainer flags of one arm's EMA momentum, as ONE unit.
 #
 # They REPLACE `run_leg_k.sh`'s schedule rather than append to it. A repeated
@@ -233,9 +245,9 @@ cf412_lr(){  # <arm>
 # must pass no `--ema-tau-end` at all. No arm of this card is fixed today, and
 # the shape stays because a new row can be.
 cf412_ema_args(){  # <arm>
-  local row name k red tau end ramp seed decay lr
+  local row name k red tau end ramp seed decay lr align_w
   row="$(cf412_arm_row "${1:?arm}")" || return 1
-  read -r name k red tau end ramp seed decay lr <<<"$row"
+  read -r name k red tau end ramp seed decay lr align_w <<<"$row"
   if [ "$end" = "-" ]; then
     printf -- '--ema-tau %s\n' "$tau"
   else
