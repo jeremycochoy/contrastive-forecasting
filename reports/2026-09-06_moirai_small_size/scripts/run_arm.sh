@@ -86,6 +86,8 @@ EMA_ARGS="$(cf412_ema_args "$ARM")"
 ARM_SEED="$(cf412_seed "$ARM")"
 DECAY_ARGS="$(cf412_decay_args "$ARM")"
 ARM_LR="$(cf412_lr "$ARM")"
+ALIGN_ARGS_ARM="$(cf412_align_args "$ARM")"
+LR_SCHED_ARGS="$(cf412_lr_sched_args "$ARM")"
 ARCH_ARGS="$(cf412_arch_args)"
 # GAP_ARGS is the LAST thing on the trainer command line. Every value here is
 # stated by the runner earlier, so the repeat is what moves it. An arm at the
@@ -93,8 +95,13 @@ ARCH_ARGS="$(cf412_arch_args)"
 # leg log name the objective and the shape it trained.
 GAP_ARGS="$ARCH_ARGS --train-rollout-reduce $ARM_REDUCE"
 GAP_ARGS="$GAP_ARGS --batch-size $CF412_BATCH_SIZE --lr $ARM_LR"
+# Empty for an arm at the runner's own L_align weight, which is every arm
+# before pass 7.
+[ -n "$ALIGN_ARGS_ARM" ] && GAP_ARGS="$GAP_ARGS $ALIGN_ARGS_ARM"
 # Empty for an arm with no decay, whose objective is then its plain twin's.
 [ -n "$DECAY_ARGS" ] && GAP_ARGS="$GAP_ARGS $DECAY_ARGS"
+# Empty for an arm at a constant rate, which is every arm before pass 11.
+[ -n "$LR_SCHED_ARGS" ] && GAP_ARGS="$GAP_ARGS $LR_SCHED_ARGS"
 
 # Fault injection, for the test that proves the check below fires. It hands
 # the trainer a shape this card does not carry, which is what a wiring defect
@@ -109,7 +116,7 @@ if [ -n "${CF412_DRY_RUN:-}" ]; then
   echo "  ema=$EMA_ARGS"
   echo "  decay=${DECAY_ARGS:-none}"
   echo "  seed=$ARM_SEED reduce=$ARM_REDUCE batch=$CF412_BATCH_SIZE" \
-       "lr=$ARM_LR"
+       "lr=$ARM_LR align_w=${ALIGN_ARGS_ARM:-runner}"
   echo "  runner=$RUNNER"
   echo "  RUN_SUFFIX=$(cf412_run_suffix "$ARM") RUNS=$ARM_ROOT"
   echo "  CF_RESULTS=$CF412_RESULTS"

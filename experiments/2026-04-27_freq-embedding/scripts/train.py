@@ -104,6 +104,16 @@ def parse_args():
     p.add_argument("--total-steps", type=int, default=30000)
     p.add_argument("--batch-size", type=int, default=24)
     p.add_argument("--lr", type=float, default=1e-4)
+    # A single cosine anneal (#414). Every rate this card tried holds a
+    # floor at a different step: 5.6e-4 at 40,000 steps, 5.6e-5 at 240,000,
+    # 5.6e-6 past 500,000. One schedule can follow that envelope.
+    p.add_argument("--lr-final", type=float, default=None,
+                   help="End rate of a single cosine anneal from --lr. "
+                        "Omit it for a constant rate.")
+    p.add_argument("--lr-cosine-steps", type=int, default=0,
+                   help="Length of the anneal in steps. 0 takes "
+                        "--total-steps. The rate holds at --lr-final "
+                        "after it, so a second pass stays at the floor.")
     # Optimizer hyperparams. --adam-beta1/2 keep torch.optim.AdamW defaults
     # so prior runs that omitted them reproduce bit-identically.
     # MOIRAI Aksu and others recipe: lr=1e-3, weight_decay=0.1, betas=(0.9, 0.98).
@@ -1324,6 +1334,13 @@ class AttnAmplitudeCSV:
         self._file.close()
 
 
+def cosine_lr(step, lr_start, lr_final, total):
+    """The rate of one cosine anneal, clamped at both ends."""
+    t = min(max(step, 0), total)
+    return lr_final + 0.5 * (lr_start - lr_final) * (
+        1.0 + math.cos(math.pi * t / total))
+
+
 def main():
     args = parse_args()
 
@@ -1800,8 +1817,13 @@ def main():
     timing_count = 0
     mixup_applied_count = 0
 
+    cosine_steps = args.lr_cosine_steps or args.total_steps
     for step in range(start_step + 1, args.total_steps + 1):
         t_step_start = time.perf_counter()
+        if args.lr_final is not None:
+            lr_now = cosine_lr(step, args.lr, args.lr_final, cosine_steps)
+            for group in optimizer.param_groups:
+                group["lr"] = lr_now
         model.train()
         optimizer.zero_grad()
 
