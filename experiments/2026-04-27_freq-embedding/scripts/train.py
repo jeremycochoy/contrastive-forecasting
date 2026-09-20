@@ -917,7 +917,8 @@ def should_snapshot(step, save_every, extra_steps):
 
 def save_snapshot(model, optimizer, path, step, best_gap, best_gap_step,
                   best_loss, best_loss_step, ema_loss=None, ema_gap=None,
-                  hf_rows_consumed=0, synth_rows_consumed=0):
+                  hf_rows_consumed=0, synth_rows_consumed=0,
+                  lr_schedule=None):
     # Rank-0 only — concurrent writers to one path corrupt the checkpoint.
     # Centralised here so every call site (NaN/periodic/best/final) is
     # covered. Params are kept in sync across ranks (broadcast at init +
@@ -935,6 +936,7 @@ def save_snapshot(model, optimizer, path, step, best_gap, best_gap_step,
         synth_rows_consumed=synth_rows_consumed,
         rng_state_torch=torch.get_rng_state(),
         rng_state_numpy=_np.random.get_state(),
+        lr_schedule=lr_schedule,
     )
     print(f"  -> Saved {path}")
 
@@ -1643,6 +1645,27 @@ def main():
         model.load_state_dict(torch.load(args.resume, map_location=device))
         restored = load_training_state(optimizer, args.resume, device=device)
         start_step = restored["step"]
+        # The schedule the checkpoint trained under (#414). A resume that
+        # omits the flags keeps the same curve, and a resume that names a
+        # different one says so and follows the command line.
+        saved_sched = restored.get("lr_schedule")
+        if saved_sched:
+            if args.lr_final is None:
+                args.lr = saved_sched["lr_start"]
+                args.lr_final = saved_sched["lr_final"]
+                args.lr_cosine_steps = saved_sched["cosine_steps"]
+                print(f"  [lr] resumed schedule from the checkpoint: "
+                      f"{args.lr:g} to {args.lr_final:g} over "
+                      f"{args.lr_cosine_steps} steps")
+            else:
+                live = (args.lr, args.lr_final,
+                        args.lr_cosine_steps or args.total_steps)
+                held = (saved_sched["lr_start"], saved_sched["lr_final"],
+                        saved_sched["cosine_steps"])
+                if live != held:
+                    print(f"  [lr] WARNING: the checkpoint holds {held} and "
+                          f"the command line names {live}. The command line "
+                          f"wins.")
         best_gap = restored["best_val_ff"]
         best_gap_step = restored["best_step"]
         best_loss = restored.get("best_loss", float("inf"))
@@ -1818,6 +1841,9 @@ def main():
     mixup_applied_count = 0
 
     cosine_steps = args.lr_cosine_steps or args.total_steps
+    lr_schedule = None if args.lr_final is None else {
+        "lr_start": args.lr, "lr_final": args.lr_final,
+        "cosine_steps": cosine_steps}
     for step in range(start_step + 1, args.total_steps + 1):
         t_step_start = time.perf_counter()
         if args.lr_final is not None:
@@ -2136,7 +2162,8 @@ def main():
                           best_gap, best_gap_step, best_loss, best_loss_step,
                           ema_loss=ema_loss, ema_gap=ema_gap,
                           hf_rows_consumed=hf_rows_consumed,
-                          synth_rows_consumed=synth_rows_consumed)
+                          synth_rows_consumed=synth_rows_consumed,
+                          lr_schedule=lr_schedule)
             csv_logger.close()
             if attn_amp_csv is not None:
                 attn_amp_csv.close()
@@ -2294,7 +2321,8 @@ def main():
                               best_gap, best_gap_step, best_loss, best_loss_step,
                               ema_loss=ema_loss, ema_gap=ema_gap,
                               hf_rows_consumed=hf_rows_consumed,
-                              synth_rows_consumed=synth_rows_consumed)
+                              synth_rows_consumed=synth_rows_consumed,
+                          lr_schedule=lr_schedule)
             if ema_loss < best_loss:
                 best_loss, best_loss_step = ema_loss, step
                 path = os.path.join(args.save_dir, f"{args.run_name}_best_loss.pth")
@@ -2302,7 +2330,8 @@ def main():
                               best_gap, best_gap_step, best_loss, best_loss_step,
                               ema_loss=ema_loss, ema_gap=ema_gap,
                               hf_rows_consumed=hf_rows_consumed,
-                              synth_rows_consumed=synth_rows_consumed)
+                              synth_rows_consumed=synth_rows_consumed,
+                          lr_schedule=lr_schedule)
 
         if should_snapshot(step, args.save_every, _extra_save_steps):
             path = os.path.join(args.save_dir, f"{args.run_name}_{step // 1000}k.pth")
@@ -2310,7 +2339,8 @@ def main():
                           best_gap, best_gap_step, best_loss, best_loss_step,
                           ema_loss=ema_loss, ema_gap=ema_gap,
                           hf_rows_consumed=hf_rows_consumed,
-                          synth_rows_consumed=synth_rows_consumed)
+                          synth_rows_consumed=synth_rows_consumed,
+                          lr_schedule=lr_schedule)
 
         if args.traj_save_every > 0 and step % args.traj_save_every == 0:
             path = os.path.join(args.save_dir, f"{args.run_name}_step{step}.pth")
@@ -2318,7 +2348,8 @@ def main():
                           best_gap, best_gap_step, best_loss, best_loss_step,
                           ema_loss=ema_loss, ema_gap=ema_gap,
                           hf_rows_consumed=hf_rows_consumed,
-                          synth_rows_consumed=synth_rows_consumed)
+                          synth_rows_consumed=synth_rows_consumed,
+                          lr_schedule=lr_schedule)
 
         if latent_drift_probe is not None and drift_every > 0 \
                 and step % drift_every == 0:
@@ -2329,7 +2360,8 @@ def main():
                   best_gap, best_gap_step, best_loss, best_loss_step,
                   ema_loss=ema_loss, ema_gap=ema_gap,
                   hf_rows_consumed=hf_rows_consumed,
-                  synth_rows_consumed=synth_rows_consumed)
+                  synth_rows_consumed=synth_rows_consumed,
+                  lr_schedule=lr_schedule)
     if latent_drift_probe is not None:
         # One final probe at total_steps so the CSV covers the run's tail.
         if latent_drift_probe.prev_step != args.total_steps:
