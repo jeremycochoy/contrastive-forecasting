@@ -375,3 +375,17 @@ k3_r100_09_lr56_fix09_dec10k_lr10xb	3	sum	0.9	-	-	20260525	10000	5.6e-5	-
 #
 # arm	k	reduce	tau	end	ramp	seed	decay	lr	align_w	lr_final
 k3_r100_09_lr56_fix09_dec10k_cos665k	3	sum	0.9	-	-	20260520	10000	6e-5	-	1e-6
+#
+#   k3_r100_09_lr56_fix09_dec10k_cos200k
+#                     The anneal, SHORT. 5e-5 down to 1e-6 over 200,000 steps,
+#                     then constant at 1e-6 for the rest of the pass.
+#                     `cos665k` spreads the same fall over the whole pass and
+#                     reads 1.2310 at 200,000 steps. This row asks whether the
+#                     low rate pays sooner when the run reaches it sooner: the
+#                     5.6e-6 arm moves every hard dataset down, and it reaches
+#                     1e-6 here at 200,000 steps rather than at 665,000.
+#                     Column 12 is NEW. It holds the LENGTH of the anneal, and
+#                     a `-` takes the 665,000 of one pass.
+#
+# arm	k	reduce	tau	end	ramp	seed	decay	lr	align_w	lr_final	lr_cos_steps
+k3_r100_09_lr56_fix09_dec10k_cos200k	3	sum	0.9	-	-	20260520	10000	5e-5	-	1e-6	200000

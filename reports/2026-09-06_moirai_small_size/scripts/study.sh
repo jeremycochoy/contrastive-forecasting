@@ -192,7 +192,8 @@ cf412_arm_row(){  # <arm>
     '!/^#/ && $1 == a {
        print $1, $2, $3, $4, $5, $6, $7, $8, $9,
              ($10 == "" ? "-" : $10),
-             ($11 == "" ? "-" : $11); found = 1 }
+             ($11 == "" ? "-" : $11),
+             ($12 == "" ? "-" : $12); found = 1 }
      END { exit !found }' "$CF412_ARMS_TSV"
 }
 
@@ -237,14 +238,17 @@ cf412_lr(){  # <arm>
 # Column 11 holds the END rate of a single cosine anneal. A `-` there emits
 # nothing, so every arm before pass 11 trains at a constant rate.
 #
-# The anneal always spans 665,000 steps, which is one pass over the data.
-# A second pass then holds the end rate, because the trainer clamps past the
-# anneal length.
+# Column 12 holds the LENGTH of the anneal. A `-` there takes 665,000 steps,
+# which is one pass over the data. The trainer clamps past the length, so the
+# rate then holds at the end value for as long as the run continues.
 cf412_lr_sched_args(){  # <arm>
-  local e
-  e="$(cf412_arm_row "${1:?arm}" | awk '{print $11}')"
+  local row e n
+  row="$(cf412_arm_row "${1:?arm}")"
+  e="$(printf '%s\n' "$row" | awk '{print $11}')"
   case "$e" in ''|-) return 0 ;; esac
-  printf -- '--lr-final %s --lr-cosine-steps 665000\n' "$e"
+  n="$(printf '%s\n' "$row" | awk '{print $12}')"
+  case "$n" in ''|-) n=665000 ;; esac
+  printf -- '--lr-final %s --lr-cosine-steps %s\n' "$e" "$n"
 }
 
 cf412_align_args(){  # <arm>
