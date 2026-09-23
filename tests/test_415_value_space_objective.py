@@ -311,6 +311,40 @@ def test_the_trainer_accepts_a_value_space_depth():
     assert "value-space objective" in r.stdout
 
 
+def test_a_value_leg_resumes_its_own_checkpoint(tmp_path):
+    """The ladder resumes every stop from the one below it. The value head is
+    a new parameter in the same AdamW group, so the optimizer state has to
+    round-trip with it — this project has lost days to a resume that did not.
+    """
+    def leg(total, *extra):
+        return subprocess.run(
+            [sys.executable, str(TRAIN_PY), "--device", "cpu",
+             "--weight-decay", "0.1", "--total-steps", str(total),
+             "--value-space-objective", "--train-rollout-depth", "2",
+             "--t-raw", "128", "--n-channels", "1", "--d-model", "16",
+             "--n-heads", "2", "--num-layers", "1",
+             "--num-encoder-layers", "1", "--enc-num-layers", "1",
+             "--enc-nhead", "2", "--batch-size", "2",
+             "--mix-ratio", "1.0", "--synth-kind", "periodic",
+             "--freq-emb-dim", "0", "--seasonality-emb-dim", "0",
+             "--log-every", "1", "--save-every", "1000000",
+             "--save-dir", str(tmp_path), "--run-name", "leg", *extra],
+            capture_output=True, text=True, timeout=600,
+            env=dict(os.environ, PYTHONPATH=str(REPO_ROOT)))
+
+    first = leg(2)
+    assert first.returncode == 0, first.stdout[-3000:] + first.stderr[-3000:]
+    ckpt = tmp_path / "leg_final.pth"
+    assert ckpt.is_file()
+
+    resumed = leg(4, "--resume", str(ckpt))
+    assert resumed.returncode == 0, resumed.stdout[-3000:] + resumed.stderr[-3000:]
+    assert "Resumed from" in resumed.stdout
+    assert "Restored optimizer" in resumed.stdout
+    # The resumed leg trains steps 3 and 4, not 1 and 2.
+    assert "[      3]" in resumed.stdout and "[      1]" not in resumed.stdout
+
+
 def test_the_contrastive_path_still_refuses_a_depth_with_no_consumer():
     """The refusal #373 added stays live for every run that is not this one."""
     r = run_trainer("--train-rollout-depth", "3",
