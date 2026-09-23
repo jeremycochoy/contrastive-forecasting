@@ -79,6 +79,7 @@ class ConfigurableModel(torch.nn.Module):
                  forecaster_kind: str = "transformer",
                  cpc_k_steps: int = 12,
                  cpc_infonce: bool = False,
+                 value_head_quantiles: int = 0,
                  qk_norm: bool = False,
                  attn_out_norm: bool = False,
                  log_attn_amplitude: bool = False,
@@ -115,6 +116,24 @@ class ConfigurableModel(torch.nn.Module):
         self.cpc_infonce = bool(cpc_infonce)
         if self.cpc_infonce:
             self.cpc_w1 = torch.nn.Linear(H, H, bias=False)
+
+        # Value head (#415): the output map of the value-space objective. It
+        # decodes one forecaster latent into the Q quantiles of the next
+        # patch's W values, so the loss can read the ACTUAL values rather
+        # than a latent similarity. One matrix — the body and the input head
+        # are the cell's, unchanged.
+        #
+        # Like `cpc_w1` it is a training-only branch: the head trainer and
+        # the GIFT-Eval build a backbone without it and load strictly, so
+        # `prepare_backbone_state_dict` strips `value_head.*`. Default 0 ⇒
+        # the parameter is not created and every prior checkpoint is
+        # byte-for-byte unchanged.
+        self.value_head_quantiles = int(value_head_quantiles)
+        if self.value_head_quantiles > 0:
+            self.value_head = torch.nn.Linear(
+                H, self.value_head_quantiles * W)
+        else:
+            self.value_head = None
 
         # Reversible normalization (optional). Two kinds:
         #   ewma  → RevEWMNorm(span=rev_norm_span)  (default, dynamic)
@@ -372,6 +391,24 @@ class ConfigurableModel(torch.nn.Module):
         optimizer.step(), to keep τ in a sane range)."""
         if getattr(self, 'learnable_tau', False):
             self.log_inv_tau.data.clamp_(0.0, math.log(100.0))
+
+    def value_forward(self, f_lat):
+        """Decode forecaster latents into the next patch's values (#415).
+
+        ``f_lat``: ``[B, T, C, H]`` — the forecaster output of
+        :meth:`forward`. Returns ``[B, T, C, Q, W]``: at position t, the Q
+        quantiles of the W values of patch t + 1.
+
+        Raises RuntimeError on a model built without a value head. A silent
+        fallback would train the objective on nothing.
+        """
+        if self.value_head is None:
+            raise RuntimeError(
+                "value_forward needs a value head; build the model with "
+                "value_head_quantiles > 0 (--value-space-objective).")
+        B, T, C, _ = f_lat.shape
+        return self.value_head(f_lat).reshape(
+            B, T, C, self.value_head_quantiles, self.W)
 
     def _apply_freq_embedding(self, x_patch, freq_ids=None, freq_embs=None):
         """Widen the per-patch time axis with a broadcast freq embedding.

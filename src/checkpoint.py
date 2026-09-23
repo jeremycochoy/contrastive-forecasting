@@ -238,8 +238,11 @@ _TEACHER_PROMOTIONS = {
     "teacher_encoder_layers.": ("transformer.encoder_layers.",),
 }
 # Pretraining-only weights with no downstream role: `cpc_w1.*` from the
-# CPC-InfoNCE auxiliary (#344), `teacher_*` from the EMA teacher (#353).
-_PRETRAIN_ONLY_PREFIXES = ("cpc_w1", "teacher_")
+# CPC-InfoNCE auxiliary (#344), `teacher_*` from the EMA teacher (#353),
+# `value_head.*` from the value-space objective (#415). The head trainer
+# trains its OWN forecasting head on the frozen backbone, so the pretraining
+# value head has no consumer and its keys would break the strict load.
+_PRETRAIN_ONLY_PREFIXES = ("cpc_w1", "teacher_", "value_head")
 
 
 def has_teacher_weights(state_dict: dict) -> bool:
@@ -355,9 +358,10 @@ def load_backbone_from_checkpoint(
     ``learnable_tau``, ``patch_stats_kind``.
 
     Non-load state_dict keys (``cpc_w1.*`` from the CPC-InfoNCE
-    auxiliary, ``teacher_*`` from the EMA-target teacher — training-only
-    branches with no downstream role) are stripped so ``load_state_dict``
-    with the default ``strict=True`` still succeeds.
+    auxiliary, ``teacher_*`` from the EMA-target teacher, ``value_head.*``
+    from the value-space objective — training-only branches with no
+    downstream role) are stripped so ``load_state_dict`` with the default
+    ``strict=True`` still succeeds.
 
     ``encoder_source='teacher'`` returns the same architecture running the
     EMA teacher's encoder weights — see

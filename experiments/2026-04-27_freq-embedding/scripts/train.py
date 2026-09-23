@@ -67,9 +67,11 @@ from src.metrics import (
     u_batchtime,
     retrieval_auc_topk,
 )
-from src.forecasting_head import (extract_encoder_latents,
+from src.forecasting_head import (QUANTILE_LEVELS,
+                                  extract_encoder_latents,
                                   extract_teacher_encoder_latents,
-                                  rollout_forecaster_latents)
+                                  rollout_forecaster_latents,
+                                  value_space_objective)
 
 # -- Tiny architecture (identical to v3c) -----------------------------------
 # C and T_raw can be overridden at runtime via --n-channels / --t-raw to
@@ -583,6 +585,21 @@ def parse_args():
                         "would ramp over its own budget and no two stops "
                         "would sit on one curve. Same contract as "
                         "--ema-tau-ramp-steps.")
+    p.add_argument("--value-space-objective", action="store_true",
+                   help="Train on the ACTUAL FUTURE VALUES instead of a "
+                        "latent contrastive objective (#415). The forecaster "
+                        "latent decodes through a value head into the "
+                        "quantiles of the next patch, and the loss is the "
+                        "pinball term against the values. The rollout then "
+                        "runs in VALUE space: --train-rollout-depth j "
+                        "re-runs the whole cell on the median forecast of "
+                        "depth j-1, and --train-rollout-reduce combines the "
+                        "copies as it does for the latent rollout. The body "
+                        "and the input head are unchanged; the objective is "
+                        "the whole difference. Mutually exclusive with every "
+                        "contrastive term — the teacher, the EMA, L_rep, "
+                        "L_align, the CPC auxiliary and SIGReg are refused "
+                        "rather than silently ignored.")
     p.add_argument("--train-rollout-depth", type=int, default=0,
                    help="k — train the COMPOSED forecaster, not just one step "
                         "(#373). Every loss term that ties f to h is duplicated "
@@ -971,8 +988,12 @@ def rollout_depth_has_no_consumer(args):
 
     Three terms can: the main contrastive term (see
     :func:`main_term_depth_gap`), L_align, and the CPC auxiliary. SIGReg,
-    L_rep and align_moco carry no f and enter once at any k.
+    L_rep and align_moco carry no f and enter once at any k. The value-space
+    objective (#415) is a fourth: its depth j is a further forecast step, and
+    it reads no f-to-h term at all.
     """
+    if getattr(args, "value_space_objective", False):
+        return False
     return (main_term_depth_gap(args) is not None
             and args.align_loss_weight <= 0
             and args.cpc_infonce_weight <= 0)
@@ -997,6 +1018,36 @@ def keeps_gradient_without_rep(args):
             or (args.sigreg_encoding and args.sigreg_encoding_weight > 0))
 
 
+# Every flag that names a term the value-space objective (#415) removes, or a
+# contrastive knob it cannot honour. The card's claim is that ONLY the
+# objective changed, so a term that survived in a copied command line would
+# void the comparison with #414 — and none of these leaves a trace in the
+# file names, the CSV columns or the log lines.
+VALUE_SPACE_CONFLICTS = (
+    ("ema_embedding", "--ema-embedding", lambda v: bool(v)),
+    ("ema_encoder", "--ema-encoder", lambda v: bool(v)),
+    ("align_loss_weight", "--align-loss-weight", lambda v: v > 0),
+    ("align_moco_loss_weight", "--align-moco-loss-weight", lambda v: v > 0),
+    ("cpc_infonce_weight", "--cpc-infonce-weight", lambda v: v > 0),
+    ("sigreg_embedding", "--sigreg-embedding", lambda v: bool(v)),
+    ("sigreg_encoding", "--sigreg-encoding", lambda v: bool(v)),
+    ("moco_negatives", "--moco-negatives", lambda v: bool(v)),
+    ("moco_rep_keys", "--moco-rep-keys", lambda v: bool(v)),
+    ("no_main_contrastive_loss", "--no-main-contrastive-loss", lambda v: bool(v)),
+    ("stopgrad_positive_h", "--stopgrad-positive-h", lambda v: bool(v)),
+    ("pos_in_denominator", "--pos-in-denominator", lambda v: bool(v)),
+    ("subtract_contrastive_floor", "--subtract-contrastive-floor", lambda v: bool(v)),
+    ("rep_loss_weight_end", "--rep-loss-weight-end", lambda v: v is not None),
+    ("learnable_tau", "--learnable-tau", lambda v: bool(v)),
+)
+
+
+def value_space_conflicts(args):
+    """Flags this run passed that the value-space objective removes (#415)."""
+    return [flag for attr, flag, live in VALUE_SPACE_CONFLICTS
+            if live(getattr(args, attr))]
+
+
 def safe_run_name(save_dir, run_name):
     if not _has_checkpoints(save_dir, run_name):
         return run_name
@@ -1011,13 +1062,19 @@ def safe_run_name(save_dir, run_name):
 
 class CSVLogger:
     def __init__(self, path, flush_every=100, tau_ref_column=True,
-                 rollout_depth=0):
+                 rollout_depth=0, depth_column_prefix="cos_err_d"):
         self.path = path
         self.flush_every = flush_every
         # rollout_depth (#373): k > 0 adds one `cos_err_dj` column per depth
         # j = 0..k, the per-depth forecast error 1 − cos(f^(j)_t, h_{t+1+j}).
         # A k = 0 run writes no such column — its depth-0 curve is 1 − ff.
         self.rollout_depth = int(rollout_depth)
+        # What the per-depth columns measure. `cos_err_d*` is #373's latent
+        # error 1 - cos(f^(j)_t, h_{t+1+j}); a value-space run (#415) writes
+        # `val_err_d*`, the pinball loss of depth j against the actual
+        # values. One name per quantity, so no reader has to know the
+        # objective to read the column.
+        self.depth_column_prefix = depth_column_prefix
         # tau_ref_column: when True, the CSV gains a `loss_tau_ref` column
         # (positioned right after `loss`) carrying the τ=0.07 reference loss
         # — same loss recomputed under torch.no_grad() with a fixed canonical
@@ -1077,7 +1134,7 @@ class CSVLogger:
         header += ["rep_w", "l_pred", "l_rep", "l_align"]
         # Per-depth forecast error (#373), only on --train-rollout-depth runs.
         if self.rollout_depth:
-            header += [f"cos_err_d{j}"
+            header += [f"{self.depth_column_prefix}{j}"
                        for j in range(self.rollout_depth + 1)]
         if os.path.getsize(path) == 0:
             self._writer.writerow(header)
@@ -1356,6 +1413,23 @@ def main():
     print("Command line: " + " ".join(shlex.quote(a) for a in sys.argv),
           flush=True)
 
+    # #415: the value-space objective replaces the contrastive one outright.
+    # Refuse the terms it removes here, before the device, the model and the
+    # data stream — a run that kept one of them would read as this card's
+    # twin and answer another question.
+    if args.value_space_objective:
+        clash = value_space_conflicts(args)
+        if clash:
+            raise SystemExit(
+                "--value-space-objective trains on the actual values and "
+                "drops the teacher, the EMA, L_rep, L_align, the CPC "
+                "auxiliary and SIGReg. This command line still carries "
+                + ", ".join(clash) + ". Drop them (#415).")
+        if args.forecaster_kind != "transformer":
+            raise SystemExit(
+                "--value-space-objective needs the single-step transformer "
+                f"forecaster; got --forecaster-kind {args.forecaster_kind}.")
+
     # Distributed (opt-in, env-driven): launch with
     #   torchrun --nproc_per_node=N experiments/.../train.py ...
     # WORLD_SIZE<=1 (the default, no torchrun) → (0,1,0,False) and every
@@ -1452,6 +1526,10 @@ def main():
             "--align-loss-weight > 0 and/or --sigreg-embedding / "
             "--sigreg-encoding.")
     model_config["cpc_infonce"] = args.cpc_infonce_weight > 0
+    # #415: the value head, the one module the value-space objective adds.
+    # 0 on every other run, so the model is the cell's unchanged.
+    model_config["value_head_quantiles"] = (
+        len(QUANTILE_LEVELS) if args.value_space_objective else 0)
     model_config["qk_norm"] = bool(args.qk_norm)
     model_config["attn_out_norm"] = bool(args.attn_out_norm)
     model_config["log_attn_amplitude"] = bool(args.log_attn_amplitude)
@@ -1707,6 +1785,12 @@ def main():
           + (f" | DDP rank {rank}/{world_size} (per-rank bs={args.batch_size}, "
              f"global bs={args.batch_size * world_size}) | {_loss_mode}"
              if distributed else ""))
+    if args.value_space_objective:
+        print(f"Objective: value-space objective (#415) — pinball on the "
+              f"actual values, {len(QUANTILE_LEVELS)} quantiles, rollout "
+              f"depth {args.train_rollout_depth} in value space, "
+              f"reduce={args.train_rollout_reduce}. No teacher, no EMA, no "
+              f"L_rep, no L_align, no CPC, no SIGReg.")
     print(f"Training for {args.total_steps} steps, bs={args.batch_size}, "
           f"lr={args.lr}, T={args.t_raw}, C={args.n_channels}, "
           f"mix_ratio={args.mix_ratio}, "
@@ -1720,8 +1804,14 @@ def main():
     print(f"Checkpoints: {args.save_dir}/{args.run_name}_*.pth")
 
     csv_path = os.path.join(args.save_dir, f"{args.run_name}_losses.csv")
-    csv_logger = CSVLogger(csv_path, flush_every=100,
-                           rollout_depth=args.train_rollout_depth)
+    csv_logger = CSVLogger(
+        csv_path, flush_every=100,
+        rollout_depth=args.train_rollout_depth,
+        # #415 keeps no contrastive term, so the tau-reference curve has no
+        # shape to be taken at and the per-depth columns hold a value error.
+        tau_ref_column=not args.value_space_objective,
+        depth_column_prefix=("val_err_d" if args.value_space_objective
+                             else "cos_err_d"))
     print(f"Loss CSV: {csv_path}")
 
     # Latent-drift probe (rank-0 only). Fixed ARMA batch drawn once and
@@ -1906,7 +1996,25 @@ def main():
         # term so a run with only --sigreg-encoding doesn't pay for a
         # gather it never consumes (#356-P4).
         want_embed = use_sigreg
-        if use_ema:
+        value_depths = None
+        if args.value_space_objective:
+            # #415. One reversible-norm call for the whole step: every
+            # rollout depth reads the SAME statistics, so a predicted patch
+            # is not rescaled by its own spread. The objective then runs the
+            # cell once per depth on values, and returns depth 0's latents
+            # for the diagnostics below.
+            x_norm = (model.rev_norm(x, mode='norm')
+                      if model.rev_norm is not None else x)
+            value_loss, f_lat, o_lat, value_depths = value_space_objective(
+                model, x_norm,
+                depth=args.train_rollout_depth,
+                reduce=args.train_rollout_reduce,
+                freq_ids=freq_ids, freq_embs=freq_embs,
+                seasonality_ids=seasonality_ids,
+                seasonality_embs=seasonality_embs)
+            teacher_o_lat = None
+            e_lat = None
+        elif use_ema:
             res = forward_step(
                 model, x,
                 freq_ids=freq_ids, freq_embs=freq_embs,
@@ -1958,8 +2066,11 @@ def main():
         # inside each decoder layer), it feeds an fp32 sequence the way the
         # encoder boundary feeds the depth-0 pass, and it runs the same
         # `forecaster_forward` under the same fp32-tail policy.
-        rollout_lats = rollout_forecaster_latents(
-            model, f_lat, args.train_rollout_depth)
+        # #415 rolls the forecast out in VALUE space instead, inside
+        # `value_space_objective` above, so no latent depth is built here.
+        rollout_lats = ([] if args.value_space_objective
+                        else rollout_forecaster_latents(
+                            model, f_lat, args.train_rollout_depth))
         # DDP: gather latents across ranks so the contrastive loss pools
         # negatives over the GLOBAL (W*B) batch — 2-GPU @ B/2 == 1-GPU @ B.
         # Strict no-op single-GPU. Done on the fp32 latents so loss,
@@ -2021,7 +2132,16 @@ def main():
         with torch.amp.autocast('cuda', enabled=False):
             tau_tensor_loss = (tau_tensor.float()
                                if tau_tensor is not None else None)
-            if args.no_main_contrastive_loss:
+            if args.value_space_objective:
+                # The whole objective (#415): the pinball loss on the actual
+                # values, already reduced over the depths. Every term below
+                # is refused on this path, so nothing is added to it.
+                #
+                # Under torchrun this loss is per-rank on purpose: it pools
+                # no negatives, so the mean of the rank losses IS the global
+                # loss and `average_gradients` gives the global gradient.
+                loss = value_loss
+            elif args.no_main_contrastive_loss:
                 # #344 follow-up arm: drop the main contrastive loss. Train only
                 # on the auxiliary terms. Skip contrastive_latent_loss (no
                 # xshh_allt Gram backward) and add the BYOL align term standalone
@@ -2121,36 +2241,42 @@ def main():
         # whose negatives-only objective is intentionally unchanged and
         # goes negative once positives separate. ONLY this diagnostic
         # call passes the flag. The training loss keeps the default.
-        with torch.no_grad():
-            # `cosine_similarity_batch_split_pred_rep` (#374) is L_pred +
-            # L_rep where L_pred is ALREADY normalized-InfoNCE. The shape
-            # rejects `include_positive_in_denominator` as a semantic no-op.
-            # Its own default at τ=0.07 IS the correct reference.
-            _pos_in_denom_ref = (
-                args.loss_shape not in (
-                    "cosine_similarity_batch_split_pred_rep",
-                    "cosine_similarity_batch_rep_only"))
-            loss_tau_ref = contrastive_latent_loss(
-                (f_lat.detach(), o_lat.detach()),
-                validation=False, spec=LOSS_SPEC,
-                tau_override=torch.tensor(
-                    0.07, device=f_lat.device, dtype=f_lat.dtype),
-                include_positive_in_denominator=_pos_in_denom_ref,
-                # Keep this a PURE contrastive reference regardless of the
-                # run's --align-loss-weight / --subtract-contrastive-floor
-                # / --moco-negatives (the diagnostic doesn't have a teacher
-                # to route through anyway. Force off to keep it a fixed
-                # student-side reference).
-                align_loss_weight=0.0,
-                subtract_contrastive_floor=False,
-                moco_negatives=False,
-                moco_rep_keys=False,
-                # Depth-0 reference on a --train-rollout-depth run too (#373):
-                # one curve comparable across k, and the extra depths are the
-                # thing the run varies.
-                train_rollout_depth=0,
-            )
-        loss_tau_ref_val = loss_tau_ref.item()
+        # #415 keeps no contrastive term, so there is no shape to take the
+        # reference at and the CSV drops the column. The `auc`, `gap` and
+        # `r2_*` columns still read the latents, which is what tells whether
+        # a value-trained cell separates futures from pasts.
+        loss_tau_ref_val = None
+        if not args.value_space_objective:
+            with torch.no_grad():
+                # `cosine_similarity_batch_split_pred_rep` (#374) is L_pred +
+                # L_rep where L_pred is ALREADY normalized-InfoNCE. The shape
+                # rejects `include_positive_in_denominator` as a semantic no-op.
+                # Its own default at τ=0.07 IS the correct reference.
+                _pos_in_denom_ref = (
+                    args.loss_shape not in (
+                        "cosine_similarity_batch_split_pred_rep",
+                        "cosine_similarity_batch_rep_only"))
+                loss_tau_ref = contrastive_latent_loss(
+                    (f_lat.detach(), o_lat.detach()),
+                    validation=False, spec=LOSS_SPEC,
+                    tau_override=torch.tensor(
+                        0.07, device=f_lat.device, dtype=f_lat.dtype),
+                    include_positive_in_denominator=_pos_in_denom_ref,
+                    # Keep this a PURE contrastive reference regardless of the
+                    # run's --align-loss-weight / --subtract-contrastive-floor
+                    # / --moco-negatives (the diagnostic doesn't have a teacher
+                    # to route through anyway. Force off to keep it a fixed
+                    # student-side reference).
+                    align_loss_weight=0.0,
+                    subtract_contrastive_floor=False,
+                    moco_negatives=False,
+                    moco_rep_keys=False,
+                    # Depth-0 reference on a --train-rollout-depth run too (#373):
+                    # one curve comparable across k, and the extra depths are the
+                    # thing the run varies.
+                    train_rollout_depth=0,
+                )
+            loss_tau_ref_val = loss_tau_ref.item()
         t_fwd_end = time.perf_counter()
 
         loss_val = loss.item()
@@ -2240,10 +2366,16 @@ def main():
             # Per-depth forecast error (#373): does the composed forecaster
             # improve with training, and does depth 0 pay for it? Blank
             # (None) on a k = 0 run, whose depth-0 curve is 1 − ff.
-            cos_err_depths = (
-                rollout_cos_error(f_det, o_det,
-                                  [f_j.detach() for f_j in rollout_lats])
-                if args.train_rollout_depth else None)
+            if not args.train_rollout_depth:
+                cos_err_depths = None
+            elif args.value_space_objective:
+                # #415: the per-depth columns hold the VALUE error, the
+                # pinball loss of each forecast step against the actual
+                # values. `val_err_d*` in the CSV header.
+                cos_err_depths = [v.item() for v in value_depths]
+            else:
+                cos_err_depths = rollout_cos_error(
+                    f_det, o_det, [f_j.detach() for f_j in rollout_lats])
             r2_random_val = 1.0 - q_r
             r2_naive_val = 1.0 - q_n
             auc_val = ret["auc"].item()
