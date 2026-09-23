@@ -398,11 +398,23 @@ def test_the_last_stop_gets_its_own_checkpoint():
     assert "--extra-save-steps 665000" in line
 
 
-def test_run_sh_lists_every_stop():
-    text = RUN_SH.read_text()
-    stops = re.search(r'STOPS="([^"]*)"', text)
-    assert stops, "run.sh names no stop list"
-    assert [int(s) for s in stops.group(1).split()] == list(STOPS)
+def test_one_stop_list_feeds_the_ladder_and_the_score():
+    """`head_eval_value.sh` validates the stop it is given, so a second list
+    in `run.sh` would let a stop train and then fail to score."""
+    paths = (EXP / "scripts" / "paths.sh").read_text()
+    listed = re.search(r'CF415_STOPS="\$\{CF415_STOPS:-([^}]*)\}"', paths)
+    assert listed, "paths.sh names no stop list"
+    assert [int(s) for s in listed.group(1).split()] == list(STOPS)
+    assert 'STOPS="$CF415_STOPS"' in RUN_SH.read_text()
+
+
+def test_the_ladder_scores_every_stop_it_trains():
+    r = subprocess.run(["bash", str(RUN_SH)], capture_output=True, text=True,
+                       env=dict(os.environ, CF415_DRY_RUN="1"))
+    assert r.returncode == 0, r.stdout + r.stderr
+    for stop in STOPS:
+        assert f"--total-steps {stop}" in r.stdout, f"{stop} never trains"
+        assert f"head stop={stop}" in r.stdout, f"{stop} never scores"
 
 
 def test_the_head_and_the_eval_are_414s():

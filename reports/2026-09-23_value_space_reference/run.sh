@@ -22,7 +22,10 @@ set -uo pipefail
 
 . "$(dirname "${BASH_SOURCE[0]}")/scripts/paths.sh"
 
-STOPS="40000 100000 200000 300000 400000 500000 600000 665000"
+# The eight stops live in `paths.sh`, because `head_eval_value.sh` validates
+# against them. A second list here would let a stop train and then fail to
+# score.
+STOPS="$CF415_STOPS"
 [ "$#" -gt 0 ] && STOPS="$*"
 
 BB_GPU="${BB_GPU:-0}"
