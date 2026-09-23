@@ -29,9 +29,15 @@ STOPS="$CF415_STOPS"
 [ "$#" -gt 0 ] && STOPS="$*"
 
 BB_GPU="${BB_GPU:-0}"
-log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#415] $*" \
-  | tee -a "$CF415_RESULTS/run.log"; }
-mkdir -p "$CF415_RESULTS"
+# A dry run prints and writes nothing, so the guards can run the whole ladder
+# without leaving a log behind in a shared checkout.
+if [ -n "${CF415_DRY_RUN:-}" ]; then
+  log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#415] $*"; }
+else
+  mkdir -p "$CF415_RESULTS"
+  log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#415] $*" \
+    | tee -a "$CF415_RESULTS/run.log"; }
+fi
 
 for stop in $STOPS; do
   log "stop $stop: train"
