@@ -61,7 +61,7 @@ HEAD = "teacher"
 
 # The line that makes the teacher head load student tensors. Quoted so the
 # artefact carries the reason, not a summary of it.
-PROMOTION_SITE = "src/checkpoint.py:266"
+PROMOTION_SITE = "src/checkpoint.py:275"
 PROMOTION_LINE = "out = dict(state_dict)"
 
 
