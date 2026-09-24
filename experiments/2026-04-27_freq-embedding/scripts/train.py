@@ -100,7 +100,7 @@ REP_WEIGHT_SHAPES = ("cosine_similarity_batch_split_pred_rep",
 T_RAW = 1024  # Default. Overridden by --t-raw CLI flag.
 
 
-def parse_args():
+def build_parser():
     p = argparse.ArgumentParser(description="Contrastive + freq embedding training")
     p.add_argument("--device", default="cuda")
     p.add_argument("--total-steps", type=int, default=30000)
@@ -596,10 +596,11 @@ def parse_args():
                         "depth j-1, and --train-rollout-reduce combines the "
                         "copies as it does for the latent rollout. The body "
                         "and the input head are unchanged; the objective is "
-                        "the whole difference. Mutually exclusive with every "
-                        "contrastive term — the teacher, the EMA, L_rep, "
-                        "L_align, the CPC auxiliary and SIGReg are refused "
-                        "rather than silently ignored.")
+                        "the whole difference. Every flag the run does not "
+                        "read is refused when named, whatever its value: "
+                        "the contrastive loss and its knobs, the teacher and "
+                        "its EMA, SIGReg, the CPC auxiliary and --grad-clip. "
+                        "VALUE_SPACE_FLAGS lists what the run reads.")
     p.add_argument("--train-rollout-depth", type=int, default=0,
                    help="k — train the COMPOSED forecaster, not just one step "
                         "(#373). Every loss term that ties f to h is duplicated "
@@ -789,7 +790,11 @@ def parse_args():
                         "decay across T). Set to 100 to expose covid-style "
                         "100× explosive trends; range becomes (1/max, max) so "
                         "log-symmetric around 1.")
-    return p.parse_args()
+    return p
+
+
+def parse_args(argv=None):
+    return build_parser().parse_args(argv)
 
 
 def random_sign_flip(x):
@@ -1022,34 +1027,67 @@ def keeps_gradient_without_rep(args):
             or (args.sigreg_encoding and args.sigreg_encoding_weight > 0))
 
 
-# Every flag that names a term the value-space objective (#415) removes, or a
-# contrastive knob it cannot honour. The card's claim is that ONLY the
-# objective changed, so a term that survived in a copied command line would
-# void the comparison with #414 — and none of these leaves a trace in the
-# file names, the CSV columns or the log lines.
-VALUE_SPACE_CONFLICTS = (
-    ("ema_embedding", "--ema-embedding", lambda v: bool(v)),
-    ("ema_encoder", "--ema-encoder", lambda v: bool(v)),
-    ("align_loss_weight", "--align-loss-weight", lambda v: v > 0),
-    ("align_moco_loss_weight", "--align-moco-loss-weight", lambda v: v > 0),
-    ("cpc_infonce_weight", "--cpc-infonce-weight", lambda v: v > 0),
-    ("sigreg_embedding", "--sigreg-embedding", lambda v: bool(v)),
-    ("sigreg_encoding", "--sigreg-encoding", lambda v: bool(v)),
-    ("moco_negatives", "--moco-negatives", lambda v: bool(v)),
-    ("moco_rep_keys", "--moco-rep-keys", lambda v: bool(v)),
-    ("no_main_contrastive_loss", "--no-main-contrastive-loss", lambda v: bool(v)),
-    ("stopgrad_positive_h", "--stopgrad-positive-h", lambda v: bool(v)),
-    ("pos_in_denominator", "--pos-in-denominator", lambda v: bool(v)),
-    ("subtract_contrastive_floor", "--subtract-contrastive-floor", lambda v: bool(v)),
-    ("rep_loss_weight_end", "--rep-loss-weight-end", lambda v: v is not None),
-    ("learnable_tau", "--learnable-tau", lambda v: bool(v)),
-)
+# The flags a value-space run reads (#415), by argparse dest. The run refuses
+# every other flag its command line NAMES, whatever the value: the
+# contrastive loss and every knob of it, the teacher and its EMA, SIGReg, the
+# CPC auxiliary, and --grad-clip, which the Moirai recipe does not use. The
+# run reads none of them, so none leaves a trace in the file names, the CSV
+# columns or the log lines, and a copied contrastive line would train
+# unnoticed. A flag added to the trainer later is refused here until it is
+# listed.
+VALUE_SPACE_FLAGS = frozenset((
+    # The run: the device, the clock, the names, the saves, the diagnostics.
+    "device", "total_steps", "save_dir", "run_name", "resume", "log_every",
+    "save_every", "extra_save_steps", "traj_save_every", "ema_decay",
+    "latent_drift_probe", "latent_drift_probe_every",
+    "latent_drift_probe_batch_size", "latent_drift_probe_seed",
+    "log_attn_amplitude", "log_attn_amplitude_every",
+    # The optimizer and the rate schedule.
+    "batch_size", "lr", "lr_final", "lr_cosine_steps", "weight_decay",
+    "adam_beta1", "adam_beta2", "seed",
+    # The data.
+    "hf_repo", "hf_path", "split", "mix_ratio", "crossfade_ratio",
+    "crossfade_triplets", "synth_seed", "synth_kind", "enable_pulse",
+    "seas_heavy", "more_primitives", "env_gain_max", "t_raw", "n_channels",
+    "mixup_p", "mixup_alpha",
+    # The body and the input head.
+    "d_model", "n_heads", "num_layers", "num_encoder_layers",
+    "forecaster_d_model", "forecaster_n_heads", "forecaster_kind",
+    "encoder_type", "enc_num_layers", "enc_nhead", "enc_ffn_mult",
+    "enc_dropout", "enc_depthwise_conv", "enc_chunk_size",
+    "enc_no_grad_ckpt", "encoder_dropkey", "encoder_dropkey_share_heads",
+    "encoder_dropkey_share_layers", "depthwise_conv",
+    "deprecated_depthwise_conv", "qk_norm", "attn_out_norm",
+    "residual_dtype", "attn_dtype", "ffn_dtype", "conv_dtype",
+    "patch_emb_dtype", "rev_norm_kind", "rev_norm_span", "patch_stats",
+    "freq_emb_dim", "seasonality_emb_dim",
+    # The objective.
+    "value_space_objective", "train_rollout_depth", "train_rollout_reduce",
+))
 
 
-def value_space_conflicts(args):
-    """Flags this run passed that the value-space objective removes (#415)."""
-    return [flag for attr, flag, live in VALUE_SPACE_CONFLICTS
-            if live(getattr(args, attr))]
+def named_on_command_line(argv=None):
+    """The dests the command line NAMES, whatever values it gives them.
+
+    A flag given at its default leaves no trace in the parsed namespace, so a
+    check that reads values cannot see it. This parse gives no flag a
+    default, so only the named ones come back. argparse resolves an
+    abbreviated flag here as it does in the real parse.
+    """
+    probe = build_parser()
+    for action in probe._actions:
+        action.default = argparse.SUPPRESS
+        action.required = False
+    named, _ = probe.parse_known_args(argv)
+    return set(vars(named))
+
+
+def value_space_conflicts(argv=None):
+    """The flags this command line names that a value-space run does not
+    read (#415), in the parser's order."""
+    unread = named_on_command_line(argv) - VALUE_SPACE_FLAGS
+    return [action.option_strings[0] for action in build_parser()._actions
+            if action.dest in unread]
 
 
 def safe_run_name(save_dir, run_name):
@@ -1418,17 +1456,18 @@ def main():
           flush=True)
 
     # #415: the value-space objective replaces the contrastive one outright.
-    # Refuse the terms it removes here, before the device, the model and the
-    # data stream — a run that kept one of them would read as this card's
-    # twin and answer another question.
+    # Refuse every flag it does not read here, before the device, the model
+    # and the data stream — a run that kept one of them would read as this
+    # card's twin and answer another question.
     if args.value_space_objective:
-        clash = value_space_conflicts(args)
+        clash = value_space_conflicts(sys.argv[1:])
         if clash:
             raise SystemExit(
                 "--value-space-objective trains on the actual values and "
-                "drops the teacher, the EMA, L_rep, L_align, the CPC "
-                "auxiliary and SIGReg. This command line still carries "
-                + ", ".join(clash) + ". Drop them (#415).")
+                "reads no contrastive term, no teacher, no EMA, no CPC "
+                "auxiliary, no SIGReg and no gradient clip. This command "
+                "line still names " + ", ".join(clash) + ". Drop them "
+                "(#415).")
         if args.forecaster_kind != "transformer":
             raise SystemExit(
                 "--value-space-objective needs the single-step transformer "

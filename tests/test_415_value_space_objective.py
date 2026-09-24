@@ -2,7 +2,7 @@
 
 The card keeps the body and the input head of #414's cell and changes ONLY the
 objective. The model predicts the FUTURE VALUES, the rollout runs in value
-space, and the loss reads the actual values. Four groups of guards follow.
+space, and the loss reads the actual values. Six groups of guards follow.
 
 1. The objective itself. The target of depth j must be the patch the rollout
    reaches at depth j, and the rolled input must be the values the model
@@ -16,14 +16,24 @@ space, and the loss reads the actual values. Four groups of guards follow.
 4. The no-op. #414 runs the same `train.py` right now. Without
    `--value-space-objective` every byte of the model, the objective and the
    command line must be what it was.
+5. The command line. The run refuses every flag it does not read, and the
+   leg's body is #414's cell, flag for flag.
+6. The ladder. Every stop is scored under B4 and A2, the checkpoints stay on
+   the box's disk, and no score holds up the training.
 """
 
 from __future__ import annotations
 
+import importlib.util
+import json
 import os
 import re
+import shlex
+import shutil
 import subprocess
 import sys
+import tempfile
+import time
 from pathlib import Path
 
 import pytest
@@ -49,6 +59,11 @@ EXP = REPO_ROOT / "reports" / "2026-09-23_value_space_reference"
 RUN_LEG = EXP / "scripts" / "run_leg_value.sh"
 HEAD_EVAL = EXP / "scripts" / "head_eval_value.sh"
 RUN_SH = EXP / "run.sh"
+PARENT = REPO_ROOT / "reports" / "2026-08-08_rollout_depth" / "scripts"
+EVAL_LOCAL = PARENT / "eval_local.sh"
+RUN_LEG_K = PARENT / "run_leg_k.sh"
+RUN_ARM_412 = (REPO_ROOT / "reports" / "2026-09-06_moirai_small_size"
+               / "scripts" / "run_arm.sh")
 
 # The cell #414 trains, at the width #412 chose. #415 keeps both.
 D_MODEL = 384
@@ -56,6 +71,10 @@ NUM_LAYERS = 3
 NUM_ENCODER_LAYERS = 3
 # The stops the card scores. 665,000 steps is one pass over the data.
 STOPS = (40000, 100000, 200000, 300000, 400000, 500000, 600000, 665000)
+# #414's best arm. Its command line is the body this card must match.
+ARM_414 = "k3_r100_09_lr56_fix09_dec10k_cos200k"
+# Where the checkpoints go when nothing names a root: the box's own disk.
+BOX_RUNS = "/workspace/ckpt/cf-415"
 
 W = 8
 Q = len(QUANTILE_LEVELS)
@@ -269,6 +288,16 @@ def test_a_plain_model_state_dict_is_unchanged_by_the_new_kwarg():
 # The trainer flag
 # ---------------------------------------------------------------------------
 
+@pytest.fixture(scope="module")
+def train_py():
+    """train.py as a module, for its parser, its refusal and its schedule."""
+    spec = importlib.util.spec_from_file_location("train_py_415", TRAIN_PY)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 def run_trainer(*extra):
     env = dict(os.environ, PYTHONPATH=str(REPO_ROOT))
     return subprocess.run(
@@ -277,36 +306,117 @@ def run_trainer(*extra):
         capture_output=True, text=True, env=env, timeout=600)
 
 
+# The smallest value-space run the CPU trains in seconds.
+TINY_VALUE_RUN = (
+    "--value-space-objective",
+    "--t-raw", "128", "--n-channels", "1", "--d-model", "16",
+    "--n-heads", "2", "--num-layers", "1",
+    "--num-encoder-layers", "1", "--enc-num-layers", "1",
+    "--enc-nhead", "2", "--batch-size", "2",
+    "--mix-ratio", "1.0", "--synth-kind", "periodic",
+    "--freq-emb-dim", "0", "--seasonality-emb-dim", "0",
+    "--log-every", "1", "--save-every", "1000000")
+
+
+# The flags the review of PR #416 named, and the other knobs of the terms
+# the card removes. Each one is given at its own default, or at a value that
+# changes nothing, so a check that read VALUES would let most of them pass.
+# The run refuses the NAME: it does not read the flag, so a line that names
+# one was copied from a contrastive run, and it is not this card's twin.
+UNREAD_FLAGS = [
+    ["--loss-shape", "cosine_similarity_batch_no_time_neg"],
+    ["--rep-loss-weight", "1.0"],
+    ["--tau", "0.07"],
+    ["--align-target", "student"],
+    ["--ema-tau", "0.99"],
+    ["--ema-tau-end", "1.0"],
+    ["--ema-tau-ramp-steps", "100000"],
+    ["--grad-clip", "1.0"],
+    ["--align-loss-weight", "0.0"],
+    ["--align-moco-loss-weight", "0.0"],
+    ["--cpc-infonce-weight", "0.0"],
+    ["--cpc-infonce-negs", "matched"],
+    ["--cpc-k-steps", "12"],
+    ["--sigreg-embedding-weight", "0.1"],
+    ["--sigreg-n-chunk", "2048"],
+    ["--tau-rep", "1.0"],
+    ["--pred-loss-weight", "1.0"],
+    ["--rep-loss-weight-ramp-steps", "10000"],
+    ["--shard-loss-on-batch"],
+    ["--ema-embedding"],
+    ["--moco-rep-keys"],
+    ["--learnable-tau"],
+]
+
+
+@pytest.mark.parametrize("flags", UNREAD_FLAGS, ids=lambda f: f[0])
+def test_the_value_run_refuses_a_flag_it_does_not_read(train_py, flags):
+    clash = train_py.value_space_conflicts(
+        ["--value-space-objective", "--weight-decay", "0.1", *flags])
+    assert clash == [flags[0]]
+
+
+def test_every_listed_flag_exists(train_py):
+    """A misspelt name in the list would allow nothing, and the real flag
+    would then be refused on the leg's own line."""
+    dests = {a.dest for a in train_py.build_parser()._actions}
+    assert train_py.VALUE_SPACE_FLAGS <= dests
+
+
+def test_an_abbreviated_flag_is_refused_too(train_py):
+    """argparse takes a unique prefix, so `--grad-c 1` sets the clip."""
+    clash = train_py.value_space_conflicts(
+        ["--value-space-objective", "--weight-decay", "0.1", "--grad-c", "1"])
+    assert clash == ["--grad-clip"]
+
+
 @pytest.mark.parametrize("flags", [
     ["--ema-embedding", "--ema-encoder"],
-    ["--align-loss-weight", "1.0"],
-    ["--cpc-infonce-weight", "1.0"],
+    ["--loss-shape", "cosine_similarity_batch_rep_only"],
+    ["--grad-clip", "1.0"],
     ["--sigreg-embedding"],
-    ["--sigreg-encoding"],
-    ["--align-moco-loss-weight", "1.0"],
 ])
-def test_the_trainer_refuses_the_dropped_terms(flags):
-    """The card drops the teacher, the EMA, L_rep and L_align. #412's runner
-    reads the objective back off the trainer's command line, so a stray flag
-    must stop the run rather than reinstate a term the card removed."""
-    r = run_trainer("--value-space-objective", *flags)
+def test_the_trainer_refuses_before_it_builds_anything(tmp_path, flags):
+    """The refusal runs first in `main`, so a copied line costs seconds and
+    leaves nothing on disk: not even the save directory."""
+    never = tmp_path / "never"
+    r = run_trainer("--value-space-objective", "--save-dir", str(never),
+                    *flags)
+    out = r.stdout + r.stderr
     assert r.returncode != 0
-    assert "--value-space-objective" in r.stdout + r.stderr
+    assert "--value-space-objective" in out and flags[0] in out
+    assert not never.exists()
 
 
-def test_the_trainer_accepts_a_value_space_depth():
+def test_a_warmup_cannot_reach_the_run(train_py):
+    """The trainer has no warmup, so no flag names one, and argparse stops a
+    command line that names an unknown flag."""
+    parser = train_py.build_parser()
+    assert not [a.dest for a in parser._actions if "warmup" in a.dest]
+    with pytest.raises(SystemExit):
+        train_py.parse_args(
+            ["--weight-decay", "0.1", "--warmup-steps", "1000"])
+
+
+def test_the_trainer_defaults_give_no_clip_and_no_warmup(train_py):
+    """The Moirai recipe clips nothing and has no warmup here. Unnamed, the
+    trainer clips nothing, and a schedule starts at its peak rate."""
+    args = train_py.parse_args(["--weight-decay", "0.1"])
+    assert args.grad_clip is None
+    assert args.lr_final is None
+    peak, final, steps = 5e-4, 1e-6, 665000
+    assert train_py.cosine_lr(0, peak, final, steps) == peak
+    assert train_py.cosine_lr(1, peak, final, steps) == pytest.approx(
+        peak, rel=1e-9)
+    assert train_py.cosine_lr(steps, peak, final, steps) == pytest.approx(
+        final)
+
+
+def test_the_trainer_accepts_a_value_space_depth(tmp_path):
     """`--train-rollout-depth` rides on the terms that tie f to h. The value
     objective is a new consumer, so the refusal must not fire on it."""
-    r = run_trainer("--value-space-objective", "--train-rollout-depth", "3",
-                    "--loss-shape", "cosine_similarity_batch_rep_only",
-                    "--t-raw", "128", "--n-channels", "1", "--d-model", "16",
-                    "--n-heads", "2", "--num-layers", "1",
-                    "--num-encoder-layers", "1", "--enc-num-layers", "1",
-                    "--enc-nhead", "2", "--batch-size", "2",
-                    "--mix-ratio", "1.0", "--synth-kind", "periodic",
-                    "--freq-emb-dim", "0", "--seasonality-emb-dim", "0",
-                    "--log-every", "1", "--save-every", "1000000",
-                    "--save-dir", "/tmp/cf415_smoke", "--run-name", "cf415_smoke")
+    r = run_trainer(*TINY_VALUE_RUN, "--train-rollout-depth", "3",
+                    "--save-dir", str(tmp_path), "--run-name", "cf415_smoke")
     assert r.returncode == 0, r.stdout[-4000:] + r.stderr[-4000:]
     assert "value-space objective" in r.stdout
 
@@ -315,19 +425,15 @@ def test_a_value_leg_resumes_its_own_checkpoint(tmp_path):
     """The ladder resumes every stop from the one below it. The value head is
     a new parameter in the same AdamW group, so the optimizer state has to
     round-trip with it — this project has lost days to a resume that did not.
+    The leg names the same schedule at every stop, so the resume must read
+    it back with no warning.
     """
     def leg(total, *extra):
         return subprocess.run(
             [sys.executable, str(TRAIN_PY), "--device", "cpu",
              "--weight-decay", "0.1", "--total-steps", str(total),
-             "--value-space-objective", "--train-rollout-depth", "2",
-             "--t-raw", "128", "--n-channels", "1", "--d-model", "16",
-             "--n-heads", "2", "--num-layers", "1",
-             "--num-encoder-layers", "1", "--enc-num-layers", "1",
-             "--enc-nhead", "2", "--batch-size", "2",
-             "--mix-ratio", "1.0", "--synth-kind", "periodic",
-             "--freq-emb-dim", "0", "--seasonality-emb-dim", "0",
-             "--log-every", "1", "--save-every", "1000000",
+             *TINY_VALUE_RUN, "--train-rollout-depth", "2",
+             "--lr", "5e-4", "--lr-final", "1e-6", "--lr-cosine-steps", "8",
              "--save-dir", str(tmp_path), "--run-name", "leg", *extra],
             capture_output=True, text=True, timeout=600,
             env=dict(os.environ, PYTHONPATH=str(REPO_ROOT)))
@@ -341,6 +447,7 @@ def test_a_value_leg_resumes_its_own_checkpoint(tmp_path):
     assert resumed.returncode == 0, resumed.stdout[-3000:] + resumed.stderr[-3000:]
     assert "Resumed from" in resumed.stdout
     assert "Restored optimizer" in resumed.stdout
+    assert "[lr] WARNING" not in resumed.stdout
     # The resumed leg trains steps 3 and 4, not 1 and 2.
     assert "[      3]" in resumed.stdout and "[      1]" not in resumed.stdout
 
