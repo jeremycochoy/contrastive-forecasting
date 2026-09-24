@@ -982,10 +982,28 @@ def forecast_A1(backbone, head, x_context, horizon, device):
     return forecast_autoregressive(backbone, head, x_context, horizon, device)
 
 
+def _last_forecast(head, f_bc):
+    """The head's forecast at the last position.
+
+    ``(C, L)`` for a point head, ``(C, Q, L)`` for a quantile head. A
+    Gaussian head gives ``(mu, log_var)``, which becomes the same Q levels
+    the B strategies read.
+    """
+    out = head(f_bc)
+    if isinstance(out, tuple):
+        out = head.to_quantiles(*out)
+    return out[:, -1]
+
+
 def forecast_A2(backbone, head, x_context, horizon, device):
     """A2: Value-space rollout with W-value head.
 
     Same as A1 but head outputs W=16 values. Slides by W each step.
+
+    A point head returns ``(horizon, C)``. A quantile or Gaussian head
+    (#415) returns ``(num_quantiles, horizon, C)``, the shape
+    :func:`forecast_B4` returns for one, and rolls its MEDIAN forward as the
+    next patch.
     """
     forecast_len = head.forecast_len  # should be W (16)
     W_bb = backbone.W
@@ -1002,24 +1020,35 @@ def forecast_A2(backbone, head, x_context, horizon, device):
     while remaining > 0:
         with torch.no_grad():
             f_bc, x_norm = extract_forecaster_latents(backbone, current_context)
-            pred_norm = head(f_bc)  # (C, T, forecast_len)
-            pred_last = pred_norm[:, -1, :]  # (C, forecast_len)
+            pred_last = _last_forecast(head, f_bc)  # (C, L) or (C, Q, L)
 
             mean_c, stdev_c = _get_denorm_stats(backbone, C)
-            pred_actual = _denormalize(pred_last, mean_c, stdev_c)
+            if pred_last.dim() == 3:
+                # The (C, 1) statistics broadcast over the Q levels.
+                pred_actual = _denormalize(
+                    pred_last,
+                    None if mean_c is None else mean_c.unsqueeze(-1),
+                    None if stdev_c is None else stdev_c.unsqueeze(-1))
+                rolled = pred_actual[
+                    :, median_quantile_index(head.quantile_levels), :]
+            else:
+                pred_actual = _denormalize(pred_last, mean_c, stdev_c)
+                rolled = pred_actual
 
             n_take = min(forecast_len, remaining)
-            all_preds.append(pred_actual[:, :n_take].cpu())
+            all_preds.append(pred_actual[..., :n_take].cpu())
             remaining -= n_take
 
             if remaining > 0:
-                new_values = pred_actual[:, :forecast_len].T.unsqueeze(0)
+                new_values = rolled[:, :forecast_len].T.unsqueeze(0)
                 current_context = torch.cat([
                     current_context[:, forecast_len:, :],
                     new_values
                 ], dim=1)
 
-    forecast = torch.cat(all_preds, dim=1)
+    forecast = torch.cat(all_preds, dim=-1)
+    if forecast.dim() == 3:
+        return forecast.permute(1, 2, 0).numpy()  # (Q, horizon, C)
     return forecast.T.numpy()
 
 

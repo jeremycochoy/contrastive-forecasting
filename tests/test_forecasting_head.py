@@ -1138,3 +1138,120 @@ def _make_mock_backbone():
     # which reads rev_norm.mean / .stdev).
     _ = bb.rev_norm(torch.zeros(1, T_RAW, C), mode='norm')
     return bb
+
+
+# ---------------------------------------------------------------------------
+# A2 on a quantile head (#415)
+#
+# #415 scores its value-space backbone under A2 beside B4, with the quantile
+# head #414's protocol trains. A2 read `head(f)[:, -1]` as a point forecast,
+# so on a quantile head it sliced the LEVELS as if they were time steps.
+# ---------------------------------------------------------------------------
+
+Q = len(QUANTILE_LEVELS)
+
+
+class _RecordingBackbone(FakeBackbone):
+    """FakeBackbone that keeps every context A2 hands it."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.seen = []
+
+    def prepare_encoder_input(self, x_norm, **kwargs):
+        self.seen.append(x_norm.clone())
+        return super().prepare_encoder_input(x_norm, **kwargs)
+
+
+class _LevelHead(nn.Module):
+    """A quantile head that reads 10 * q + i at level q and step i.
+
+    Every value names its own level and step, so a test can see which level
+    A2 rolls forward and where each level lands in the forecast.
+    """
+
+    quantile_levels = list(QUANTILE_LEVELS)
+    forecast_len = W
+
+    def forward(self, x):
+        BC, T_, _ = x.shape
+        level = torch.arange(Q, dtype=torch.float32).view(1, 1, Q, 1)
+        step = torch.arange(W, dtype=torch.float32).view(1, 1, 1, W)
+        return (10.0 * level + step).expand(BC, T_, Q, W).clone()
+
+
+class TestForecastA2QuantileHead:
+    def test_a_quantile_head_gives_every_level(self):
+        """A2 returns (Q, horizon, C), the shape B4 returns for this head,
+        so the eval builds a real probabilistic forecast from either."""
+        torch.manual_seed(0)
+        backbone = FakeBackbone(C=C, H=H, W_=W, T_raw=T_RAW)
+        backbone.eval()
+        head = TransformerQuantileForecastingHead(
+            H=H, num_layers=1, nhead=4, ffn_mult=2.0, forecast_len=W)
+        head.eval()
+        x_context = torch.randn(1, T_RAW, C)
+        for horizon in (48, 100):
+            out = forecast_with_strategy(
+                'A2', backbone, head, x_context, horizon=horizon, device='cpu')
+            assert out.shape == (Q, horizon, C)
+
+    def test_each_level_lands_in_its_own_row(self):
+        backbone = FakeBackbone(C=C, H=H, W_=W, T_raw=T_RAW)
+        out = forecast_with_strategy(
+            'A2', backbone, _LevelHead(), torch.randn(1, T_RAW, C),
+            horizon=2 * W, device='cpu')
+        steps = torch.arange(W, dtype=torch.float32).numpy()
+        for q in range(Q):
+            for c in range(C):
+                assert (out[q, :W, c] == 10.0 * q + steps).all()
+                assert (out[q, W:, c] == 10.0 * q + steps).all()
+
+    def test_the_rollout_feeds_back_the_median(self):
+        """The next step reads the median forecast, level 0.5, as its newest
+        patch. The mean of the levels would be a different estimator."""
+        backbone = _RecordingBackbone(C=C, H=H, W_=W, T_raw=T_RAW)
+        context = torch.randn(1, T_RAW, C)
+        forecast_with_strategy('A2', backbone, _LevelHead(), context,
+                               horizon=2 * W, device='cpu')
+        assert len(backbone.seen) == 2
+        median = 10.0 * QUANTILE_LEVELS.index(0.5) + torch.arange(
+            W, dtype=torch.float32)
+        rolled = backbone.seen[1][0]
+        assert torch.equal(rolled[:-W], context[0, W:])
+        for c in range(C):
+            assert torch.equal(rolled[-W:, c], median)
+
+    def test_a_gaussian_head_gives_every_level(self):
+        torch.manual_seed(0)
+        backbone = FakeBackbone(C=C, H=H, W_=W, T_raw=T_RAW)
+        head = TransformerGaussianForecastingHead(
+            H=H, num_layers=1, nhead=4, ffn_mult=2.0, forecast_len=W)
+        head.eval()
+        out = forecast_with_strategy('A2', backbone, head,
+                                     torch.randn(1, T_RAW, C), horizon=48,
+                                     device='cpu')
+        assert out.shape == (Q, 48, C)
+        assert torch.isfinite(torch.from_numpy(out)).all()
+
+    def test_a_point_head_is_unchanged(self):
+        """An MSE head keeps its (horizon, C) point forecast: step 1 is the
+        head at the last position, step 2 the head on the slid context."""
+        torch.manual_seed(0)
+        backbone = FakeBackbone(C=C, H=H, W_=W, T_raw=T_RAW)
+        backbone.eval()
+        head = ForecastingHead(H=H, hidden_dim=64, num_gru_layers=1,
+                               forecast_len=W)
+        head.eval()
+        context = torch.randn(1, T_RAW, C)
+        out = forecast_with_strategy('A2', backbone, head, context,
+                                     horizon=2 * W, device='cpu')
+        with torch.no_grad():
+            f1, _ = extract_forecaster_latents(backbone, context)
+            first = head(f1)[:, -1, :]                        # (C, W)
+            slid = torch.cat([context[:, W:, :], first.T.unsqueeze(0)], dim=1)
+            f2, _ = extract_forecaster_latents(backbone, slid)
+            second = head(f2)[:, -1, :]
+        want = torch.cat([first, second], dim=1).T.numpy()
+        assert out.shape == (2 * W, C)
+        assert torch.allclose(torch.from_numpy(out), torch.from_numpy(want))
