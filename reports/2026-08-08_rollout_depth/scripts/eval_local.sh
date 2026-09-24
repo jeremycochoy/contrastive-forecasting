@@ -73,8 +73,18 @@ EVAL_EXPECT_CONFIGS="${EVAL_EXPECT_CONFIGS:-97}"
 if [ -n "$EVAL_CONFIG_FILTER" ]; then
   EVAL_SHARDS=1
 fi
-GIFT="$OUT/gift"
-LOG="$OUT/eval_local.log"
+# The rollout the eval scores. B4, the latent rollout, is the protocol of
+# every published score of these cards, and unset it is still the only one.
+# #415 scores a value-space model under A2 beside it. A2 keeps its own
+# directory and log, so no merge mixes the rows of the two. The head of this
+# protocol decodes 16 values, and only these two strategies read it that way.
+EVAL_STRATEGY="${EVAL_STRATEGY:-B4}"
+case "$EVAL_STRATEGY" in
+  B4) GIFT="$OUT/gift"; LOG="$OUT/eval_local.log" ;;
+  A2) GIFT="$OUT/gift_a2"; LOG="$OUT/eval_local_a2.log" ;;
+  *) echo "ABORT: EVAL_STRATEGY=$EVAL_STRATEGY; this protocol scores B4 or A2" >&2
+     exit 2 ;;
+esac
 mkdir -p "$GIFT" "$(dirname "$SCORE_OUT")" || exit 2
 
 export PYTHONPATH="$WT"
@@ -151,7 +161,7 @@ for (( s = 0; s < EVAL_SHARDS; s++ )); do
   python3 -u "$GEVAL" \
     --backbone-path "$BB" --head-path "$HEAD_CKPT" \
     --encoder-source "$ENC" --output-dir "$sdir" \
-    --strategy B4 --forecast-len 16 --resume --device cpu \
+    --strategy "$EVAL_STRATEGY" --forecast-len 16 --resume --device cpu \
     --config-filter "$filt" "${ARCH[@]}" >>"$sdir/shard.log" 2>&1 &
   pids+=($!); tags+=("$s")
 done
@@ -205,7 +215,7 @@ fi
 python3 -u "$GEVAL" \
   --backbone-path "$BB" --head-path "$HEAD_CKPT" \
   --encoder-source "$ENC" --output-dir "$GIFT" \
-  --strategy B4 --forecast-len 16 --resume --device cpu \
+  --strategy "$EVAL_STRATEGY" --forecast-len 16 --resume --device cpu \
   "${AGG_FILTER[@]}" "${ARCH[@]}" >>"$LOG" 2>&1
 rc=$?
 [ $rc -eq 0 ] || { log "ABORT: aggregate pass rc=$rc"; exit 7; }

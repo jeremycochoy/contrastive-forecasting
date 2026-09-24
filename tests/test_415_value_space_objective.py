@@ -470,14 +470,57 @@ def test_the_contrastive_path_still_refuses_a_depth_with_no_consumer():
 # ---------------------------------------------------------------------------
 
 
-def leg_command_line(*args):
+# The variables the card's scripts read. A test starts from an environment
+# without them, so a value set in the shell that runs the suite changes no
+# path and no flag.
+CARD_VARS = ("RUNS", "WT", "LR", "K", "SEED", "BB_GPU", "CF_RESULTS",
+             "CF_BB_SHAPE", "EVAL_STRATEGY", "EVAL_SHARDS",
+             "EVAL_CONFIG_FILTER", "EVAL_EXPECT_CONFIGS", "GIFT_EVAL")
+
+
+def clean_env(**extra):
+    env = {k: v for k, v in os.environ.items()
+           if k not in CARD_VARS and not k.startswith(("CF415_", "CF412_"))}
+    env.update({k: v for k, v in extra.items() if v is not None})
+    return env
+
+
+def leg_command_line(*args, **env):
     r = subprocess.run(["bash", str(RUN_LEG), *(args or ("40000",))],
                        capture_output=True, text=True,
-                       env=dict(os.environ, CF415_DRY_RUN="1"))
+                       env=clean_env(CF415_DRY_RUN="1", **env))
     assert r.returncode == 0, r.stdout + r.stderr
     line = [l for l in r.stdout.splitlines() if l.startswith("Command line: ")]
     assert len(line) == 1, r.stdout
     return line[0]
+
+
+def leg_argv(stop="40000"):
+    """The trainer's argv on this card's leg, as the dry run resolves it."""
+    tokens = shlex.split(leg_command_line(stop)[len("Command line: "):])
+    assert tokens[:2] == ["python3", "-u"], tokens[:3]
+    assert tokens[2].endswith("train.py"), tokens[:3]
+    return tokens[3:]
+
+
+@pytest.fixture
+def durable_root():
+    """A root outside /tmp and the checkout, which `runs_root` accepts."""
+    root = tempfile.mkdtemp(prefix="cf415-", dir="/var/tmp")
+    yield Path(root)
+    shutil.rmtree(root, ignore_errors=True)
+
+
+def stub_checkout(tmp_path):
+    """A checkout whose trainer writes down its own argv, and nothing else."""
+    wt = tmp_path / "wt"
+    scripts = wt / "experiments" / "2026-04-27_freq-embedding" / "scripts"
+    scripts.mkdir(parents=True)
+    (scripts / "train.py").write_text(
+        "import json, os, sys\n"
+        "json.dump(sys.argv[1:], open(os.environ['CF415_ARGV_OUT'], 'w'))\n")
+    (wt / "experiments" / "hf_token.txt").write_text("stub-token\n")
+    return wt
 
 
 def test_every_script_parses():
@@ -508,15 +551,80 @@ def test_the_leg_drops_every_term_the_card_removes():
         assert flag not in line, f"{flag} reaches the trainer"
 
 
-def test_the_leg_carries_the_moirai_recipe():
-    """lr 1e-3, weight decay 0.1, betas (0.9, 0.98), flat, no warmup."""
-    line = leg_command_line()
-    assert "--lr 1e-3" in line
-    assert "--weight-decay 0.1" in line
-    assert "--adam-beta1 0.9" in line
-    assert "--adam-beta2 0.98" in line
-    assert "--lr-final" not in line
-    assert "--lr-cosine-steps" not in line
+# The rate schedule of this card. `paths.sh` says where each number comes
+# from: the Moirai run's 1e-3 at batch 256, scaled to batch 64, and one cosine
+# anneal over one pass, because #414 found that no constant rate holds.
+PEAK_LR, FINAL_LR, ANNEAL_STEPS = 5e-4, 1e-6, 665000
+
+
+@pytest.mark.parametrize("stop", ["40000", "665000"])
+def test_every_leg_anneals_over_one_pass(train_py, stop):
+    """Each leg runs to its own --total-steps. An anneal length left to its
+    default takes that number, so the 40,000-step leg would reach the floor
+    at step 40,000. Every leg names one pass instead."""
+    args = train_py.parse_args(leg_argv(stop))
+    assert (args.lr, args.lr_final, args.lr_cosine_steps) == (
+        PEAK_LR, FINAL_LR, ANNEAL_STEPS)
+    assert (args.weight_decay, args.adam_beta1, args.adam_beta2) == (
+        0.1, 0.9, 0.98)
+    assert args.batch_size == 64
+    assert args.grad_clip is None
+
+
+def test_the_leg_line_names_nothing_the_value_run_ignores(train_py):
+    assert train_py.value_space_conflicts(leg_argv()) == []
+
+
+def arm_414_settings(tmp_path):
+    """K, EMA_ARGS, GAP_ARGS and SEED of #414's best arm, as #412's
+    `run_arm.sh` hands them to `run_leg_k.sh`."""
+    r = subprocess.run(
+        ["bash", str(RUN_ARM_412), ARM_414, "40000"],
+        capture_output=True, text=True, timeout=120,
+        env=clean_env(CF412_DRY_RUN="1", CF412_RESULTS=str(tmp_path / "r412"),
+                      CF412_ROOT=str(tmp_path / "root412")))
+    assert r.returncode == 0, r.stdout + r.stderr
+    out = r.stdout
+    return {"K": re.search(r" k=(\d+) ", out).group(1),
+            "GAP_ARGS": re.search(r"^  gap=(.*)$", out, re.M).group(1),
+            "EMA_ARGS": re.search(r"^  ema=(.*)$", out, re.M).group(1),
+            "SEED": re.search(r"^  seed=(\d+) ", out, re.M).group(1)}
+
+
+def test_the_body_is_414s_cell_flag_for_flag(train_py, tmp_path,
+                                              durable_root):
+    """#373's runner builds the line #414's best arm trains, and both lines
+    go through the trainer's own parser, so a repeated flag, a default and
+    an abbreviation resolve as they do at run time. Every flag outside the
+    objective, the rate schedule and the run's two names must then read the
+    same: the width, both stacks, the input head, the normalisation, the
+    numerics, the data, the batch and the seed."""
+    argv_out = tmp_path / "argv.json"
+    env = clean_env(WT=str(stub_checkout(tmp_path)), RUNS=str(durable_root),
+                    CF_RESULTS=str(tmp_path / "res"),
+                    CF415_ARGV_OUT=str(argv_out),
+                    GPU_GATE_LOCKDIR=str(tmp_path),
+                    **arm_414_settings(tmp_path))
+    subprocess.run(["bash", str(RUN_LEG_K), "arm6_v2_combab_alignT", "40000"],
+                   capture_output=True, text=True, env=env, timeout=300)
+    assert argv_out.is_file(), "run_leg_k.sh never reached the trainer"
+    cell = vars(train_py.parse_args(json.loads(argv_out.read_text())))
+    ours = vars(train_py.parse_args(leg_argv()))
+
+    objective = set(cell) - train_py.VALUE_SPACE_FLAGS
+    not_body = {"value_space_objective", "train_rollout_depth",
+                "train_rollout_reduce", "lr", "lr_final", "lr_cosine_steps",
+                "save_dir", "run_name"}
+    body = sorted(set(cell) - objective - not_body)
+    differ = {d: (cell[d], ours[d]) for d in body if cell[d] != ours[d]}
+    assert not differ, f"#414 against #415: {differ}"
+    # The comparison is not empty: the width, the input head, the numerics,
+    # the data and the seed are all in it.
+    for dest in ("d_model", "n_heads", "num_layers", "num_encoder_layers",
+                 "encoder_type", "encoder_dropkey", "rev_norm_span",
+                 "residual_dtype", "qk_norm", "hf_path", "mix_ratio",
+                 "mixup_p", "batch_size", "seed"):
+        assert dest in body, dest
 
 
 def test_the_leg_keeps_the_data_and_the_clock_of_414():
@@ -551,7 +659,7 @@ def test_one_stop_list_feeds_the_ladder_and_the_score():
 
 def test_the_ladder_scores_every_stop_it_trains():
     r = subprocess.run(["bash", str(RUN_SH)], capture_output=True, text=True,
-                       env=dict(os.environ, CF415_DRY_RUN="1"))
+                       env=clean_env(CF415_DRY_RUN="1"))
     assert r.returncode == 0, r.stdout + r.stderr
     for stop in STOPS:
         assert f"--total-steps {stop}" in r.stdout, f"{stop} never trains"
@@ -562,7 +670,7 @@ def test_the_head_and_the_eval_are_414s():
     """The scoring path must be the one #414 uses, so the numbers compare."""
     r = subprocess.run(["bash", str(HEAD_EVAL), "40000"],
                        capture_output=True, text=True,
-                       env=dict(os.environ, CF415_DRY_RUN="1"))
+                       env=clean_env(CF415_DRY_RUN="1"))
     assert r.returncode == 0, r.stdout + r.stderr
     assert "head_eval_bb.sh" in r.stdout
     assert "2026-08-08_rollout_depth" in r.stdout
@@ -573,6 +681,260 @@ def test_the_head_and_the_eval_are_414s():
 def test_the_head_refuses_a_step_count_that_is_not_a_stop():
     r = subprocess.run(["bash", str(HEAD_EVAL), "123000"],
                        capture_output=True, text=True,
-                       env=dict(os.environ, CF415_DRY_RUN="1"))
+                       env=clean_env(CF415_DRY_RUN="1"))
     assert r.returncode != 0
     assert "not a stop" in r.stdout + r.stderr
+
+
+# ---------------------------------------------------------------------------
+# The checkpoints stay on the box's disk
+# ---------------------------------------------------------------------------
+
+def test_the_checkpoints_default_to_the_box_disk():
+    """The leg trains on the vast box, and the orchestrator mirrors the box's
+    disk. A default on elisa's disk is a path the box cannot write."""
+    leg = subprocess.run(["bash", str(RUN_LEG), "40000"], capture_output=True,
+                         text=True, env=clean_env(CF415_DRY_RUN="1"))
+    assert f"runs={BOX_RUNS}/value_space" in leg.stdout, leg.stdout
+    head = subprocess.run(["bash", str(HEAD_EVAL), "40000"],
+                          capture_output=True, text=True,
+                          env=clean_env(CF415_DRY_RUN="1"))
+    assert f"eval={BOX_RUNS}/value_space/eval/" in head.stdout, head.stdout
+
+
+def test_a_leg_that_cannot_make_its_save_dir_trains_nothing(tmp_path):
+    """Off the box, the default root cannot be made. The leg must stop before
+    the trainer starts, not at its first save 20,000 steps in."""
+    argv_out = tmp_path / "argv.json"
+    r = subprocess.run(
+        ["bash", str(RUN_LEG), "40000"], capture_output=True, text=True,
+        env=clean_env(WT=str(stub_checkout(tmp_path)), RUNS="/dev/null/cf415",
+                      CF_RESULTS=str(tmp_path / "res"),
+                      CF415_ARGV_OUT=str(argv_out),
+                      GPU_GATE_LOCKDIR=str(tmp_path)))
+    assert r.returncode == 2, r.stdout + r.stderr
+    assert "cannot create" in r.stdout + r.stderr
+    assert not argv_out.exists()
+
+
+# ---------------------------------------------------------------------------
+# A2 beside B4
+#
+# B4 rolls the forecast out in latent space. This model trains its rollout
+# in value space, which is what A2 does, so every stop is scored under both.
+# The stubs below write what the real head trainer and GIFT-Eval write, and
+# log the command line each one got.
+# ---------------------------------------------------------------------------
+
+STUB_HEAD = r'''
+import json, os, sys
+a = sys.argv[1:]
+arg = lambda k: a[a.index(k) + 1]
+final = os.path.join(arg("--save-dir"), arg("--run-name") + "_final.pth")
+open(final, "w").write("head")
+with open(os.environ["CF415_CALLS"], "a") as fh:
+    fh.write(json.dumps({"prog": "head", "final": final}) + "\n")
+'''
+
+STUB_GIFT = r'''
+import json, os, sys
+a = sys.argv[1:]
+arg = lambda k: a[a.index(k) + 1]
+out = arg("--output-dir")
+os.makedirs(out, exist_ok=True)
+rows = os.path.join(out, "all_results.csv")
+if os.path.exists(rows):
+    open(os.path.join(out, "summary.txt"), "w").write(
+        "Aggregate GM-Relative MASE (1 configs): 0.9876\n")
+else:
+    open(rows, "w").write("dataset,MASE\nm4_hourly/H/short,1.0\n")
+with open(os.environ["CF415_CALLS"], "a") as fh:
+    fh.write(json.dumps({"prog": "gift", "strategy": arg("--strategy"),
+                         "out": out, "head": arg("--head-path")}) + "\n")
+'''
+
+
+def stub_scoring_checkout(tmp_path):
+    """A checkout whose head trainer and GIFT-Eval are the stubs above."""
+    wt = tmp_path / "wt_scoring"
+    scripts = wt / "experiments" / "2026-04-13_gift-eval" / "scripts"
+    scripts.mkdir(parents=True)
+    (scripts / "train_forecasting_head.py").write_text(STUB_HEAD)
+    (scripts / "eval_gift_eval_official.py").write_text(STUB_GIFT)
+    (wt / "experiments" / "hf_token.txt").write_text("stub-token\n")
+    return wt
+
+
+def scoring_env(tmp_path, **extra):
+    """One config instead of 97, and no lock, slot or VRAM wait on the
+    machine that runs the suite."""
+    (tmp_path / "gift_data").mkdir(exist_ok=True)
+    return clean_env(
+        WT=str(stub_scoring_checkout(tmp_path)),
+        CF415_CALLS=str(tmp_path / "calls.jsonl"),
+        GIFT_EVAL=str(tmp_path / "gift_data"),
+        EVAL_CONFIG_FILTER="^m4_hourly/H/short$", EVAL_EXPECT_CONFIGS="1",
+        CF393_EVAL_SLOTDIR=str(tmp_path / "slots"),
+        GPU_GATE_LOCKDIR=str(tmp_path), CF415_HEAD_VRAM_MIB="0", **extra)
+
+
+def calls(tmp_path, prog):
+    path = tmp_path / "calls.jsonl"
+    rows = path.read_text().splitlines() if path.exists() else []
+    return [c for c in map(json.loads, rows) if c["prog"] == prog]
+
+
+@pytest.mark.parametrize("strategy,gift,log", [
+    (None, "gift", "eval_local.log"),
+    ("B4", "gift", "eval_local.log"),
+    ("A2", "gift_a2", "eval_local_a2.log"),
+])
+def test_eval_local_scores_the_strategy_it_is_given(tmp_path, strategy,
+                                                    gift, log):
+    """Unset, the eval is #414's B4, into the same directory as before.
+    A2 keeps its own directory and log, so no merge mixes the two."""
+    bb, head = tmp_path / "bb.pth", tmp_path / "head.pth"
+    bb.write_text("bb")
+    head.write_text("head")
+    out, score = tmp_path / "eval", tmp_path / "score.txt"
+    r = subprocess.run(
+        ["bash", str(EVAL_LOCAL), "cell", "40", "student", str(bb),
+         str(head), str(out), str(score)],
+        capture_output=True, text=True, timeout=300,
+        env=scoring_env(tmp_path, EVAL_STRATEGY=strategy))
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert score.read_text().strip() == "0.9876"
+    evals = calls(tmp_path, "gift")
+    assert {c["strategy"] for c in evals} == {strategy or "B4"}
+    assert all(Path(c["out"]).is_relative_to(out / gift) for c in evals)
+    assert (out / log).is_file()
+
+
+def test_eval_local_refuses_a_strategy_this_head_cannot_score(tmp_path):
+    """A1 and the B variants read a 128-value head or crop one. The head of
+    this protocol decodes 16 values, so only B4 and A2 score it."""
+    bb, head = tmp_path / "bb.pth", tmp_path / "head.pth"
+    bb.write_text("bb")
+    head.write_text("head")
+    r = subprocess.run(
+        ["bash", str(EVAL_LOCAL), "cell", "40", "student", str(bb),
+         str(head), str(tmp_path / "eval"), str(tmp_path / "score.txt")],
+        capture_output=True, text=True, timeout=300,
+        env=scoring_env(tmp_path, EVAL_STRATEGY="A1"))
+    assert r.returncode == 2, r.stdout + r.stderr
+    assert "A1" in r.stdout + r.stderr
+    assert not calls(tmp_path, "gift")
+
+
+def test_every_stop_is_scored_under_b4_and_a2_with_one_head(tmp_path,
+                                                            durable_root):
+    leg = durable_root / "value_space" / "leg_40k"
+    leg.mkdir(parents=True)
+    (leg / "cf415_value_k3_40k.pth").write_text("backbone")
+    res = tmp_path / "res"
+    env = scoring_env(tmp_path, RUNS=str(durable_root), CF_RESULTS=str(res))
+
+    r = subprocess.run(["bash", str(HEAD_EVAL), "40000"], capture_output=True,
+                       text=True, timeout=300, env=env)
+    assert r.returncode == 0, r.stdout + r.stderr
+    heads, evals = calls(tmp_path, "head"), calls(tmp_path, "gift")
+    assert len(heads) == 1
+    assert [c["strategy"] for c in evals] == ["B4", "B4", "A2", "A2"]
+    assert {c["head"] for c in evals} == {heads[0]["final"]}
+    tag = "value_bb40k_h30k_student"
+    assert (res / f"score_{tag}.txt").read_text().strip() == "0.9876"
+    assert (res / f"score_{tag}_a2.txt").read_text().strip() == "0.9876"
+    per_config = durable_root / "value_space" / "eval" / tag
+    assert (per_config / "gift" / "all_results.csv").is_file()
+    assert (per_config / "gift_a2" / "all_results.csv").is_file()
+
+    again = subprocess.run(["bash", str(HEAD_EVAL), "40000"],
+                           capture_output=True, text=True, timeout=300,
+                           env=env)
+    assert again.returncode == 0, again.stdout + again.stderr
+    assert len(calls(tmp_path, "gift")) == 4, "a scored stop scored again"
+
+
+def test_the_dry_run_names_both_scores():
+    r = subprocess.run(["bash", str(HEAD_EVAL), "40000"],
+                       capture_output=True, text=True,
+                       env=clean_env(CF415_DRY_RUN="1"))
+    assert r.returncode == 0, r.stdout + r.stderr
+    tag = "value_bb40k_h30k_student"
+    assert f"score_{tag}.txt" in r.stdout
+    assert f"score_{tag}_a2.txt" in r.stdout
+
+
+# ---------------------------------------------------------------------------
+# The ladder
+#
+# A2 re-runs the whole cell once per forecast patch, so its eval takes
+# several times as long as B4's. A ladder that scored each stop before it
+# trained the next would leave the card idle for most of the run.
+# ---------------------------------------------------------------------------
+
+# A leg writes the weights, then the optimizer state, as the trainer does.
+STUB_LEG = r'''#!/bin/bash
+echo "train $1" >>"$LADDER_LOG"
+[ "$1" = "${FAIL_AT:-none}" ] && exit 1
+k=$(( $1 / 1000 ))
+d="$RUNS/value_space/leg_${k}k"
+mkdir -p "$d"
+echo bb >"$d/cf415_value_k3_${k}k.pth"
+echo opt >"$d/cf415_value_k3_${k}k_optimizer.pth"
+'''
+
+# The score of the FIRST stop waits for the SECOND leg to start. A ladder
+# that scored a stop before it trained on would never start that leg, and
+# the stub would give up after 30 seconds.
+STUB_SCORE = r'''#!/bin/bash
+echo "score $1 start" >>"$LADDER_LOG"
+if [ "$1" = "$FIRST" ]; then
+  for _ in $(seq 300); do
+    grep -q "^train $SECOND$" "$LADDER_LOG" && break
+    sleep 0.1
+  done
+  grep -q "^train $SECOND$" "$LADDER_LOG" || exit 7
+fi
+echo "score $1 done" >>"$LADDER_LOG"
+'''
+
+
+def run_ladder(tmp_path, durable_root, stops, **extra):
+    leg, score = tmp_path / "leg.sh", tmp_path / "score.sh"
+    leg.write_text(STUB_LEG)
+    score.write_text(STUB_SCORE)
+    log = tmp_path / "ladder.log"
+    env = clean_env(RUNS=str(durable_root), CF_RESULTS=str(tmp_path / "res"),
+                    CF415_LEG_RUNNER=str(leg), CF415_SCORER=str(score),
+                    CF415_POLL="0.2", LADDER_LOG=str(log),
+                    FIRST=str(stops[0]), SECOND=str(stops[1]), **extra)
+    t0 = time.monotonic()
+    r = subprocess.run(["bash", str(RUN_SH), *map(str, stops)],
+                       capture_output=True, text=True, timeout=120, env=env)
+    return r, log.read_text().splitlines(), time.monotonic() - t0
+
+
+def test_no_score_holds_up_the_training(tmp_path, durable_root):
+    stops = (40000, 100000, 200000)
+    r, lines, _ = run_ladder(tmp_path, durable_root, stops)
+    assert r.returncode == 0, r.stdout + r.stderr
+    for stop in stops:
+        assert lines.count(f"train {stop}") == 1
+        assert lines.count(f"score {stop} done") == 1
+        assert lines.index(f"train {stop}") < lines.index(f"score {stop} start")
+    # The stops are scored in the order they train.
+    done = [l for l in lines if l.endswith(" done")]
+    assert done == [f"score {s} done" for s in stops]
+
+
+def test_a_failed_leg_ends_the_ladder_without_a_hang(tmp_path, durable_root):
+    """The lane waits for a checkpoint. A leg that fails leaves none, so the
+    lane must see the trainer end and stop, not poll forever."""
+    stops = (40000, 100000, 200000)
+    r, lines, took = run_ladder(tmp_path, durable_root, stops,
+                                FAIL_AT="100000")
+    assert r.returncode != 0
+    assert "train 200000" not in lines
+    assert "score 100000 start" not in lines
+    assert took < 60

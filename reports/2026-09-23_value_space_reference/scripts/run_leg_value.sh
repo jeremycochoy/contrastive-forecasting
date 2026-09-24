@@ -34,12 +34,11 @@
 #
 # ---- The rate ----------------------------------------------------------------
 #
-# 1e-3 is the Moirai recipe, which `exp_realonly_full4096_moirai_hp_FINAL`
-# ran against this corpus at H = 384. #412's pass 1 found 1e-3 too high for
-# the CONTRASTIVE objective at this width and settled at 5.6e-4; that verdict
-# is about a different loss and does not carry here. Watch the first 5,000
-# steps. If the loss diverges, the rate is the first thing to move, and
-# `LR=5.6e-4 bash run_leg_value.sh ...` moves it without editing this file.
+# 5e-4, annealed by one cosine to 1e-6 over one pass, with no warmup and no
+# grad clip. `paths.sh` gives the source of each number: the Moirai run's
+# 1e-3 at batch 256, scaled to this batch of 64, and #414's finding that no
+# constant rate holds its best score. Every leg names the anneal length, so
+# the eight legs follow one curve.
 set -uo pipefail
 
 TARGET_STEPS="${1:?usage: run_leg_value.sh <target steps>}"
@@ -47,7 +46,7 @@ TARGET_STEPS="${1:?usage: run_leg_value.sh <target steps>}"
 . "$(dirname "${BASH_SOURCE[0]}")/paths.sh"
 . "$CF415_PARENT/scripts/leg_paths.sh"
 . "$CF415_PARENT/scripts/gpu_gate.sh"
-. "$CF415_WT/scripts/hub_gate.sh"
+. "$CF415_REPO/scripts/hub_gate.sh"
 
 BB_GPU="${BB_GPU:-0}"
 SAVE_EVERY="${SAVE_EVERY:-20000}"
@@ -67,12 +66,15 @@ log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#415] $*" \
   | tee -a "$CF415_RESULTS/leg.log"; }
 
 # The trainer command line, in one array, so the dry run prints exactly what
-# the leg runs. Every flag above `--value-space-objective` is the cell's.
+# the leg runs. Every flag above `--value-space-objective` is the cell's,
+# except the three of the rate schedule. A test diffs them against the line
+# #414's best arm trains.
 TRAIN_ARGS=(
   --qk-norm --attn-out-norm
   --batch-size "$CF415_BATCH_SIZE" --device cuda
   --total-steps "$TARGET_STEPS"
   --lr "$CF415_LR" --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98
+  --lr-final "$CF415_LR_FINAL" --lr-cosine-steps "$CF415_LR_COSINE_STEPS"
   --seed "$CF415_SEED"
   --save-every "$SAVE_EVERY" --extra-save-steps "$EXTRA_SAVES"
   --save-dir "$LEG" --run-name "$NAME" --log-every "${LOG_EVERY:-200}"
@@ -106,7 +108,10 @@ if [ -n "${CF415_DRY_RUN:-}" ]; then
   exit 0
 fi
 
-mkdir -p "$LEG" "$CF415_RESULTS"
+# The default root is the box's disk. Elsewhere it cannot be made, and the
+# trainer would find that out at its first save, 20,000 steps in.
+mkdir -p "$CF415_RESULTS" || exit 2
+mkdir -p "$LEG" || { log "ABORT: cannot create $LEG. Off the box, set RUNS."; exit 2; }
 [ -f "$TRAIN" ] || { log "ABORT: no trainer at $TRAIN"; exit 2; }
 [ -f "$HF_TOKEN_PATH" ] || { log "ABORT: HF token missing at $HF_TOKEN_PATH"; exit 2; }
 export HF_TOKEN="$(cat "$HF_TOKEN_PATH")"; export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
