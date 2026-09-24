@@ -5,8 +5,9 @@ Operational facts. The science lives in
 
 ## Preflight, 2026-09-23, elisa (RTX 4090)
 
-The leg is not started. These runs exist to size it and to check that the
-Moirai rate holds at batch 64. All artefacts went to `/tmp` and are gone.
+The leg is not started. These runs exist to size it. All artefacts went to
+`/tmp` and are gone. They ran at the first rate, 1e-3 flat. The leg now runs
+5e-4 with a cosine anneal, after the review of PR #416.
 
 ### The leg, 3,000 steps on the real corpus
 
@@ -16,9 +17,8 @@ The runner's own command line, `gift-pretrain-full-4096` / `small_v1`, batch
 - **5.0 steps/s**, 151 ms of measured step work (`fwd` 74 + `bwd` 73).
   665,000 steps is then about **37 GPU-hours**.
 - **5.4 GB** VRAM. One 4090 holds two of these legs.
-- The loss falls 2.01 → 1.10 over 2,000 steps and keeps falling. **No
-  divergence at the Moirai rate**, which is what #412's pass 1 found for the
-  contrastive objective at this width.
+- The loss falls 2.01 → 1.10 over 2,000 steps and keeps falling, with no
+  divergence at 1e-3.
 
 ### Cost against #414's cell
 
@@ -39,14 +39,35 @@ pays for the Gram, the teacher and SIGReg instead.
 The `gap` column (ff − fp: how much better the forecast latent matches the
 future than the past does) goes **more negative** as the value loss falls:
 −0.21 at step 400, −0.35 at step 1,100. Dimension usage `U_t` sits near
-0.01.
+0.01. The latent is not shaped to separate futures from pasts, because the
+card drops `L_rep`, `L_align` and SIGReg. This is why every stop scores A2
+beside B4.
 
-The latent is not being shaped to separate futures from pasts, which is what
-dropping `L_rep`, `L_align` and SIGReg removes. Strategy B4 rolls the
-forecast out in LATENT space — it feeds f back as the next encoder latent —
-while this objective trains the rollout in VALUE space. So B4 composes an
-operator this run never trains.
+## A2 against B4, 2026-09-24, elisa, one CPU core
 
-Watch `gap` and `auc` over the leg. If B4 scores badly while `val_err_d0` is
-good, that mismatch is the first thing to check, and strategy A2 (value-space
-rollout, already in `src/forecasting_head.py`) is the matched read.
+`scripts/a2_cost.py`: one series, a random backbone and head at this card's
+shape. The cost of a forward does not depend on the weights.
+
+| horizon | B4 (s) | A2 (s) | A2 / B4 |
+|---|---|---|---|
+| 48 | 0.21 | 0.47 | 2.2 |
+| 480 | 1.12 | 4.40 | 3.9 |
+| 720 | 1.72 | 6.76 | 3.9 |
+
+A2 re-runs the whole cell once per patch of 16 values. B4 spends 37 % of
+its eval time on short-term configs and 63 % on medium and long ones
+(`reports/2026-08-08_rollout_depth/results/config_costs.csv`). So an A2 eval
+of a stop takes about 3.3 times its B4 eval. `run.sh` therefore trains in one
+lane and scores in a second.
+
+## The box, 2026-09-24, instance 51431200
+
+One read-only `nvidia-smi`, no launch:
+
+- Compute mode **Default**. `gpu_gate` returns at once, so the leg starts
+  beside `cos200k`.
+- 21,758 of 32,607 MiB in use by three processes, so 10,849 MiB free. The
+  leg at batch 64 needs 5.4 GB and fits. The head's gate then waits for
+  9,000 MiB free, for up to 4 h, and a stop whose head times out scores on
+  the next run of `run.sh`.
+- 8 cores. The score lane runs one eval at a time, 4 shards.
