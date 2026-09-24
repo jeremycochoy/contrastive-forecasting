@@ -88,7 +88,7 @@ score_lane(){  # <pid of the train lane>
       if ! kill -0 "$1" 2>/dev/null; then
         # One last look: the lane can end just after it wrote this stop.
         stop_ready "$stop" && break
-        log "stop $stop: never trained — the score lane stops"
+        log "stop $stop: no checkpoint with its optimizer file — the score lane stops"
         return 1
       fi
       sleep "$POLL"

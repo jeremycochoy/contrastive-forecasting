@@ -60,6 +60,11 @@ its eval time on short-term configs and 63 % on medium and long ones
 of a stop takes about 3.3 times its B4 eval. `run.sh` therefore trains in one
 lane and scores in a second.
 
+The real `eval_local.sh` ran under both strategies on two configs,
+`ett1/D/short` and `bizitobs_l2c/H/long`, with a mirrored #414 backbone at
+40,000 steps and its head: rc 0 each, B4 0.8625 in 10 s, A2 0.8573 in 20 s.
+Both wrote quantile metrics per config. The two-config numbers rank nothing.
+
 ## The box, 2026-09-24, instance 51431200
 
 One read-only `nvidia-smi`, no launch:
