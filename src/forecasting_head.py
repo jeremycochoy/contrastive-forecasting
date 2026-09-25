@@ -810,6 +810,148 @@ def rollout_forecaster_latents(backbone, forecasted_latent, depth):
     return depths
 
 
+# ---------------------------------------------------------------------------
+# The value-space objective (#415)
+#
+# `rollout_forecaster_latents` above composes the forecaster on its own LATENT
+# output, and the loss then reads a cosine similarity. The functions below
+# compose the SAME forecast in value space: the model decodes one patch of
+# future values, those values re-enter the input head as the next patch, and
+# the loss reads the actual values through a pinball term.
+#
+# They take the model unfrozen and keep the graph, so the whole body trains on
+# them. That is the one difference from the head-training functions above,
+# which run the backbone under `no_grad`.
+# ---------------------------------------------------------------------------
+
+
+def median_quantile_index(quantile_levels=QUANTILE_LEVELS):
+    """Index of the level nearest 0.5 — the point forecast of a quantile head.
+
+    The rollout feeds this one back as the next patch. A mean over the levels
+    would be a different estimator at every asymmetric step.
+    """
+    levels = list(quantile_levels)
+    return min(range(len(levels)), key=lambda i: abs(levels[i] - 0.5))
+
+
+def patch_value_targets(x_norm, W=16, shift=0):
+    """The actual values of patch ``t + 1 + shift``, for every position t.
+
+    ``shift`` is the rollout depth: depth j reaches the patch j further out,
+    so its target moves j patches with it.
+
+    Args:
+        x_norm: (B, T_raw, C) normalised input — the series the loss reads.
+        W: patch size.
+        shift: rollout depth j.
+
+    Returns:
+        targets: (B, T_valid, C, W)
+        T_valid: positions whose target is inside the window,
+            ``T - 1 - shift``.
+    """
+    B, T_raw, C = x_norm.shape
+    T = T_raw // W
+    T_valid = T - 1 - shift
+    if T_valid <= 0:
+        raise ValueError(
+            f"shift={shift} leaves no supervised position: T={T} patches of "
+            f"W={W} hold targets for t + 1 + shift < T.")
+    patches = x_norm.view(B, T, W, C).permute(0, 1, 3, 2)      # (B, T, C, W)
+    return patches[:, 1 + shift:1 + shift + T_valid], T_valid
+
+
+def value_patches_to_series(v_hat, q_index):
+    """Lay one quantile of a patch forecast back out as a value series.
+
+    ``v_hat``: (B, T, C, Q, W) → (B, T * W, C), the shape the input head
+    takes. This is what makes the rollout a VALUE-space rollout: the next
+    forecast step reads the numbers the model just produced.
+    """
+    B, T, C, _, W = v_hat.shape
+    median = v_hat[:, :, :, q_index, :]                        # (B, T, C, W)
+    return median.permute(0, 1, 3, 2).reshape(B, T * W, C)
+
+
+def value_space_forward(model, x_norm, freq_ids=None, freq_embs=None,
+                        seasonality_ids=None, seasonality_embs=None):
+    """One forecast step: normalised values in, the next patch's values out.
+
+    Runs the cell unchanged — the input head (``prepare_encoder_input`` +
+    patch encoder), the encoder stack and the forecaster — then decodes the
+    forecaster latent through the model's value head.
+
+    ``x_norm`` is ALREADY normalised, so the reversible normaliser runs once
+    per step (in the caller) rather than once per rollout depth. Re-running
+    it on a predicted series would rescale the forecast by its own statistics.
+
+    Returns ``(f_lat, o_lat, v_hat)`` with ``f_lat``/``o_lat`` in the
+    ``[B, T, C, H]`` layout the trainer's diagnostics read, and ``v_hat`` in
+    ``[B, T, C, Q, W]``.
+    """
+    B, T_raw, C = x_norm.shape
+    H = model.H
+    T = T_raw // model.W
+    xr = model.prepare_encoder_input(
+        x_norm, freq_ids=freq_ids, freq_embs=freq_embs,
+        seasonality_ids=seasonality_ids, seasonality_embs=seasonality_embs)
+    f_flat, o_flat = model.transformer(xr)
+    f_lat = f_flat.reshape(B, C, T, H).permute(0, 2, 1, 3)
+    o_lat = o_flat.reshape(B, C, T, H).permute(0, 2, 1, 3)
+    # fp32 into the value head, so the pinball loss and the values the next
+    # depth reads are fp32 whatever `--residual-dtype` the body runs at. That
+    # is the trainer's own convention for everything downstream of a latent.
+    return f_lat, o_lat, model.value_forward(f_lat.float())
+
+
+def value_space_objective(model, x_norm, *, depth=0, reduce="sum",
+                          quantile_levels=QUANTILE_LEVELS,
+                          freq_ids=None, freq_embs=None,
+                          seasonality_ids=None, seasonality_embs=None):
+    """Pinball loss on the actual future values, rolled out in value space.
+
+    Depth 0 predicts patch t + 1 from position t. Depth j re-runs the whole
+    cell on the median forecast of depth j − 1 and is supervised against
+    patch t + 1 + j — the same fixed-point approximation of the eval rollout
+    that :func:`rollout_forecaster_latents` makes in latent space, one step
+    of the forecast at a time. Gradient flows through the chain: the values
+    fed back are not detached, so every depth trains the input head.
+
+    ``reduce`` matches ``--train-rollout-reduce``: ``'sum'`` gives the
+    forecast side ``depth + 1`` times its depth-0 weight, ``'mean'`` holds
+    it. The two agree exactly at depth 0.
+
+    Returns ``(loss, f_lat, o_lat, per_depth)``. ``f_lat`` / ``o_lat`` are
+    depth 0's, the latents the trainer's diagnostics read. ``per_depth[j]``
+    is the unweighted pinball loss of depth j.
+    """
+    if reduce not in ("sum", "mean"):
+        raise ValueError(f"reduce must be 'sum' or 'mean'; got {reduce!r}")
+    q_index = median_quantile_index(quantile_levels)
+    x_in = x_norm
+    f_lat0 = o_lat0 = None
+    per_depth = []
+    for j in range(depth + 1):
+        f_lat, o_lat, v_hat = value_space_forward(
+            model, x_in, freq_ids=freq_ids, freq_embs=freq_embs,
+            seasonality_ids=seasonality_ids,
+            seasonality_embs=seasonality_embs)
+        if j == 0:
+            f_lat0, o_lat0 = f_lat, o_lat
+        targets, t_valid = patch_value_targets(x_norm, model.W, shift=j)
+        per_depth.append(
+            quantile_loss(v_hat[:, :t_valid], targets, quantile_levels))
+        if j < depth:
+            x_in = value_patches_to_series(v_hat, q_index)
+    loss = per_depth[0]
+    for term in per_depth[1:]:
+        loss = loss + term
+    if reduce == "mean":
+        loss = loss / len(per_depth)
+    return loss, f_lat0, o_lat0, per_depth
+
+
 def _get_denorm_stats(backbone, C):
     """Extract last-timestep RevEWMNorm stats for denormalization."""
     if backbone.rev_norm is not None and backbone.rev_norm.mean is not None:
@@ -840,10 +982,28 @@ def forecast_A1(backbone, head, x_context, horizon, device):
     return forecast_autoregressive(backbone, head, x_context, horizon, device)
 
 
+def _last_forecast(head, f_bc):
+    """The head's forecast at the last position.
+
+    ``(C, L)`` for a point head, ``(C, Q, L)`` for a quantile head. A
+    Gaussian head gives ``(mu, log_var)``, which becomes the same Q levels
+    the B strategies read.
+    """
+    out = head(f_bc)
+    if isinstance(out, tuple):
+        out = head.to_quantiles(*out)
+    return out[:, -1]
+
+
 def forecast_A2(backbone, head, x_context, horizon, device):
     """A2: Value-space rollout with W-value head.
 
     Same as A1 but head outputs W=16 values. Slides by W each step.
+
+    A point head returns ``(horizon, C)``. A quantile or Gaussian head
+    (#415) returns ``(num_quantiles, horizon, C)``, the shape
+    :func:`forecast_B4` returns for one, and rolls its MEDIAN forward as the
+    next patch.
     """
     forecast_len = head.forecast_len  # should be W (16)
     W_bb = backbone.W
@@ -860,24 +1020,35 @@ def forecast_A2(backbone, head, x_context, horizon, device):
     while remaining > 0:
         with torch.no_grad():
             f_bc, x_norm = extract_forecaster_latents(backbone, current_context)
-            pred_norm = head(f_bc)  # (C, T, forecast_len)
-            pred_last = pred_norm[:, -1, :]  # (C, forecast_len)
+            pred_last = _last_forecast(head, f_bc)  # (C, L) or (C, Q, L)
 
             mean_c, stdev_c = _get_denorm_stats(backbone, C)
-            pred_actual = _denormalize(pred_last, mean_c, stdev_c)
+            if pred_last.dim() == 3:
+                # The (C, 1) statistics broadcast over the Q levels.
+                pred_actual = _denormalize(
+                    pred_last,
+                    None if mean_c is None else mean_c.unsqueeze(-1),
+                    None if stdev_c is None else stdev_c.unsqueeze(-1))
+                rolled = pred_actual[
+                    :, median_quantile_index(head.quantile_levels), :]
+            else:
+                pred_actual = _denormalize(pred_last, mean_c, stdev_c)
+                rolled = pred_actual
 
             n_take = min(forecast_len, remaining)
-            all_preds.append(pred_actual[:, :n_take].cpu())
+            all_preds.append(pred_actual[..., :n_take].cpu())
             remaining -= n_take
 
             if remaining > 0:
-                new_values = pred_actual[:, :forecast_len].T.unsqueeze(0)
+                new_values = rolled[:, :forecast_len].T.unsqueeze(0)
                 current_context = torch.cat([
                     current_context[:, forecast_len:, :],
                     new_values
                 ], dim=1)
 
-    forecast = torch.cat(all_preds, dim=1)
+    forecast = torch.cat(all_preds, dim=-1)
+    if forecast.dim() == 3:
+        return forecast.permute(1, 2, 0).numpy()  # (Q, horizon, C)
     return forecast.T.numpy()
 
 
