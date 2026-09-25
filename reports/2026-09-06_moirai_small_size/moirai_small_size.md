@@ -35,7 +35,8 @@ rate, the later the turn: 40,000 steps at 5.6e-4, 240,000 at 5.6e-5 and
 
 The cosine anneal to 1e-6 by step 200,000 has no turn in one pass. Its lowest
 score, 1.1369, is its 665,000-step score. A second pass at 1e-6 stays inside
-the seed band: 1.1440 at 800,000 and 1.1394 at 1,000,000. The lowest scores of
+the seed band: 1.1440 at 800,000, 1.1394 at 1,000,000 and 1.1386 at
+1,200,000. The lowest scores of
 the three best runs (1.1369, 1.1403 and 1.1435) also lie inside one band. So
 the anneal removes the climb, and its floor is the floor of the constant rates.
 
@@ -99,7 +100,7 @@ counts its steps at batch 256.
 | 1.8e-5 | 1.1544 | 300,000 | 1.1715 | 600,000 |
 | 5.6e-6 | 1.1435 | 1,000,000 | 1.1435 | 1,000,000 |
 | cosine 6e-5 to 1e-6 over 665,000 | 1.1646 | 100,000 | 1.2738 | 600,000 |
-| cosine 5.6e-5 to 1e-6 by 200,000, then 1e-6 | 1.1369 | 665,000 | 1.1394 | 1,000,000 |
+| cosine 5.6e-5 to 1e-6 by 200,000, then 1e-6 | 1.1369 | 665,000 | 1.1386 | 1,200,000 |
 | value space, Moirai recipe | 1.2951 | 25,000 | 1.9036 | 50,000 |
 
 `results/gm_trajectories.tsv` holds every scored stop of the card, one row per
