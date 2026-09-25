@@ -652,3 +652,59 @@
 [09-12 13:35:00] [#412 phase1] arms: k3_r100_09_lr56_fix099_dec10k
 [09-12 13:35:00] [#412 phase1] stops: 100000  gpu: 0
 [09-12 13:35:00] [#412 phase1] backbone k3_r100_09_lr56_fix099_dec10k -> 100000 (gpu 0 holds the 7700 MiB it needs)
+[09-12 13:35:58] [#412 phase1] arms: k3_r100_09_lr56_fix099
+[09-12 13:35:58] [#412 phase1] stops: 200000  gpu: 1
+[09-12 13:35:58] [#412 phase1] backbone k3_r100_09_lr56_fix099 -> 200000 (gpu 1 holds the 7700 MiB it needs)
+[09-12 16:47:28] [#412 phase1] backbone k3_r100_09_lr56_fix099_dec10k -> 100000 (gpu 0 holds the 7700 MiB it needs)
+[09-12 18:22:20] [#412 phase1] head k3_r100_09_lr56_fix099_dec10k bb100000
+[09-12 22:02:21] [#412 phase1] arms: k3_r100_09_lr56_fix09_dec10k
+[09-12 22:02:21] [#412 phase1] stops: 400000  gpu: 0
+[09-12 22:02:21] [#412 phase1] backbone k3_r100_09_lr56_fix09_dec10k -> 400000 (gpu 0 holds the 7700 MiB it needs)
+[09-13 00:36:35] [#412 phase1] phase1 done — 0 failure(s)
+[09-13 02:35:19] [#412 phase1] arms: k3_r100_09_lr56_fix099_dec10k
+[09-13 02:35:19] [#412 phase1] stops: 400000  gpu: 0
+[09-13 02:35:19] [#412 phase1] backbone k3_r100_09_lr56_fix099_dec10k -> 400000 (gpu 0 holds the 7700 MiB it needs)
+[09-13 08:28:23] [#412 phase1] head k3_r100_09_lr56_fix099 bb200000
+[09-13 13:33:29] [#412 phase1] phase1 done — 0 failure(s)
+[09-13 21:37:46] [#412 phase1] arms: k3_r100_09_lr56_fix09_dec10k_cos200k
+[09-13 21:37:46] [#412 phase1] stops: 40000 100000 200000  gpu: 1
+[09-13 21:37:46] [#412 phase1] backbone k3_r100_09_lr56_fix09_dec10k_cos200k -> 40000 (gpu 1 holds the 7700 MiB it needs)
+[09-13 21:49:58] [#412 phase1] arms: k3_r100_09_lr56_fix09_dec0
+[09-13 21:49:58] [#412 phase1] stops: 40000 100000 200000  gpu: 1
+[09-13 21:49:58] [#412 phase1] backbone k3_r100_09_lr56_fix09_dec0 -> 40000 (gpu 1 holds the 7700 MiB it needs)
+[09-14 00:09:22] [#412 phase1] head k3_r100_09_lr56_fix09_dec0 bb40000
+[09-14 01:36:36] [#412 phase1] backbone k3_r100_09_lr56_fix099_dec10k stop 400000 FAILED rc=2
+[09-14 01:36:36] [#412 phase1] phase1 done — 1 failure(s)
+[09-14 01:38:21] [#412 phase1] arms: k3_r100_09_lr56_dec
+[09-14 01:38:21] [#412 phase1] stops: 300000 400000  gpu: 1
+[09-14 01:38:21] [#412 phase1] backbone k3_r100_09_lr56_dec -> 300000 (gpu 1 holds the 7700 MiB it needs)
+[09-14 03:26:53] [#412 phase1] backbone k3_r100_09_lr56_fix09_dec10k stop 400000 FAILED rc=2
+[09-14 03:26:53] [#412 phase1] phase1 done — 1 failure(s)
+[09-14 05:16:39] [#412 phase1] backbone k3_r100_09_lr56_fix09_dec0 -> 100000 (gpu 1 holds the 7700 MiB it needs)
+[09-14 05:33:49] [#412 phase1] arms: k3_r100_09_lr56_ramp665k_dec10k
+[09-14 05:33:49] [#412 phase1] stops: 40000 100000 200000  gpu: 0
+[09-14 05:33:49] [#412 phase1] backbone k3_r100_09_lr56_ramp665k_dec10k -> 40000 (gpu 0 holds the 7700 MiB it needs)
+[09-14 08:18:27] [#412 phase1] head k3_r100_09_lr56_ramp665k_dec10k bb40000
+[09-14 08:37:05] [#412 phase1] head k3_r100_09_lr56_dec bb300000
+[09-14 09:44:30] [#412 phase1] head k3_r100_09_lr56_fix09_dec0 bb100000
+[09-14 10:34:12] [#412 phase1] arms: k3_r100_09_lr56_ramp665k_dec0
+[09-14 10:34:12] [#412 phase1] stops: 40000 100000 200000  gpu: 0
+[09-14 10:34:12] [#412 phase1] backbone k3_r100_09_lr56_ramp665k_dec0 -> 40000 (gpu 0 holds the 7700 MiB it needs)
+[09-14 11:33:58] [#412 phase1] arms: k3_r100_09_lr56_fix09_dec10k
+[09-14 11:33:58] [#412 phase1] stops: 665000  gpu: 1
+[09-14 11:33:58] [#412 phase1] backbone k3_r100_09_lr56_fix09_dec10k -> 665000 (gpu 1 holds the 7700 MiB it needs)
+[09-14 13:16:36] [#412 phase1] head k3_r100_09_lr56_ramp665k_dec0 bb40000
+[09-14 13:51:00] [#412 phase1] backbone k3_r100_09_lr56_ramp665k_dec10k -> 100000 (gpu 0 holds the 7700 MiB it needs)
+[09-14 14:22:17] [#412 phase1] backbone k3_r100_09_lr56_dec -> 400000 (gpu 1 holds the 7700 MiB it needs)
+[09-14 15:39:05] [#412 phase1] backbone k3_r100_09_lr56_fix09_dec0 -> 200000 (gpu 1 holds the 7700 MiB it needs)
+[09-14 16:34:41] [#412 phase1] arms: k3_r100_09_lr56_fix09_dec0
+[09-14 16:34:41] [#412 phase1] stops: 200000  gpu: 0
+[09-14 16:34:41] [#412 phase1] backbone k3_r100_09_lr56_fix09_dec0 -> 200000 (gpu 0 holds the 7700 MiB it needs)
+[09-14 17:55:33] [#412 phase1] backbone k3_r100_09_lr56_ramp665k_dec10k stop 100000 FAILED rc=2
+[09-14 17:55:33] [#412 phase1] backbone k3_r100_09_lr56_ramp665k_dec10k -> 200000 (gpu 0 holds the 7700 MiB it needs)
+[#412 vram] gpu 0 has 3634 MiB free, backbone k3_r100_09_lr56_ramp665k_dec0 needs 7700
+[#412 vram] gpu 0 has 9134 MiB free after 120s — backbone k3_r100_09_lr56_ramp665k_dec0 starts
+[09-14 18:35:11] [#412 phase1] backbone k3_r100_09_lr56_ramp665k_dec0 -> 100000 (gpu 0 holds the 7700 MiB it needs)
+[09-14 21:40:14] [#412 phase1] backbone k3_r100_09_lr56_dec stop 400000 FAILED rc=2
+[09-14 21:40:14] [#412 phase1] phase1 done — 1 failure(s)
+[09-14 23:13:21] [#412 phase1] head k3_r100_09_lr56_fix09_dec0 bb200000

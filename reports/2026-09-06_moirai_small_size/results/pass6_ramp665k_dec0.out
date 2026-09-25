@@ -1,0 +1,26 @@
+[09-14 10:34:12] [#412 phase1] arms: k3_r100_09_lr56_ramp665k_dec0
+[09-14 10:34:12] [#412 phase1] stops: 40000 100000 200000  gpu: 0
+[09-14 10:34:12] [#412 phase1] backbone k3_r100_09_lr56_ramp665k_dec0 -> 40000 (gpu 0 holds the 7700 MiB it needs)
+[09-14 10:34:12] [#412] arm k3_r100_09_lr56_ramp665k_dec0 arch='--d-model 384 --n-heads 8 --num-layers 3 --num-encoder-layers 3' k=3 reduce=sum ema='--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 665000' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 1' seed=20260520 lr=5.6e-4 -> 40000 steps on gpu 0
+[09-14 10:34:12] [arm6_v2_combab_alignT] FRESH start at step 0
+[09-14 10:34:12] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-412/k3_r100_09_lr56_ramp665k_dec0/arm6_v2_combab_alignT/leg_40k
+[09-14 10:34:17] [#412] arm k3_r100_09_lr56_ramp665k_dec0 arch=384 3 3 k=3 reduce=sum ema='0.9 1.0 665000' decay='1.0 0.0 1' seed=20260520 batch=64 lr=5.6e-4 align=teacher OK — all eight reached the trainer
+[09-14 10:34:17] [#412] arm k3_r100_09_lr56_ramp665k_dec0 AUC gate OFF (CF412_AUC_WATCH=0) — a human must watch the auc column of /home/jupyter/checkpoints_backup/cf-412/k3_r100_09_lr56_ramp665k_dec0/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_ramp665k_dec0_losses.csv
+[09-14 13:16:36] [arm6_v2_combab_alignT] DONE target=40000 (66M) -> /home/jupyter/checkpoints_backup/cf-412/k3_r100_09_lr56_ramp665k_dec0/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_ramp665k_dec0_40k.pth
+[09-14 13:16:36] [#412] arm k3_r100_09_lr56_ramp665k_dec0 stop=40000 rc=0
+[09-14 13:16:36] [#412 phase1] head k3_r100_09_lr56_ramp665k_dec0 bb40000
+[09-14 13:16:36] [#412] head k3_r100_09_lr56_ramp665k_dec0_bb40k_h30k_student on cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_ramp665k_dec0_40k.pth
+[09-14 13:16:36] [k3_r100_09_lr56_ramp665k_dec0_bb40k_h30k_student] head-train start enc=student steps=30000 seed=20260722 gpu=0 bb=cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_ramp665k_dec0_40k.pth
+[09-14 14:45:36] [k3_r100_09_lr56_ramp665k_dec0_bb40k_h30k_student] head-train rc=0
+[09-14 14:45:36] [k3_r100_09_lr56_ramp665k_dec0_bb40k_h30k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[09-14 18:33:11] [k3_r100_09_lr56_ramp665k_dec0_bb40k_h30k_student] eval rc=0
+[09-14 18:33:11] [k3_r100_09_lr56_ramp665k_dec0_bb40k_h30k_student] DONE — GM-Relative MASE 1.1855
+[09-14 18:33:11] [#412] head k3_r100_09_lr56_ramp665k_dec0_bb40k_h30k_student rc=0
+[#412 vram] gpu 0 has 3634 MiB free, backbone k3_r100_09_lr56_ramp665k_dec0 needs 7700
+[#412 vram] gpu 0 has 9134 MiB free after 120s — backbone k3_r100_09_lr56_ramp665k_dec0 starts
+[09-14 18:35:11] [#412 phase1] backbone k3_r100_09_lr56_ramp665k_dec0 -> 100000 (gpu 0 holds the 7700 MiB it needs)
+[09-14 18:35:11] [#412] arm k3_r100_09_lr56_ramp665k_dec0 arch='--d-model 384 --n-heads 8 --num-layers 3 --num-encoder-layers 3' k=3 reduce=sum ema='--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 665000' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 1' seed=20260520 lr=5.6e-4 -> 100000 steps on gpu 0
+[09-14 18:35:11] [arm6_v2_combab_alignT] RESUME from cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_ramp665k_dec0_40k.pth (step 40k)
+[09-14 18:35:11] [arm6_v2_combab_alignT] START target=100000 gpu=0 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-412/k3_r100_09_lr56_ramp665k_dec0/arm6_v2_combab_alignT/leg_100k
+[09-14 18:35:16] [#412] arm k3_r100_09_lr56_ramp665k_dec0 arch=384 3 3 k=3 reduce=sum ema='0.9 1.0 665000' decay='1.0 0.0 1' seed=20260520 batch=64 lr=5.6e-4 align=teacher OK — all eight reached the trainer
+[09-14 18:35:16] [#412] arm k3_r100_09_lr56_ramp665k_dec0 AUC gate OFF (CF412_AUC_WATCH=0) — a human must watch the auc column of /home/jupyter/checkpoints_backup/cf-412/k3_r100_09_lr56_ramp665k_dec0/arm6_v2_combab_alignT/leg_100k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_ramp665k_dec0_losses.csv

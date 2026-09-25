@@ -188,7 +188,7 @@ def reference(arm, stop):
 
 # The columns of `arms.tsv`, in its order.
 ARMS_COLUMNS = ("arm", "k", "reduce", "tau", "end", "ramp", "seed", "decay",
-                "lr")
+                "lr", "align_w")
 # The rate every published run of this cell trained at. Two arms bracket it.
 LR_DEFAULT = "1e-3"
 # The backbone seed every arm of this card carries, except the repeat.
@@ -206,6 +206,7 @@ def read_arms(path):
             if len(parts) < 8 or parts[0] == "arm":
                 continue
             row = dict(zip(ARMS_COLUMNS, parts))
+            row.setdefault("align_w", "-")
             if row.get("lr", "-") == "-":
                 row["lr"] = LR_DEFAULT
             out.append(row)

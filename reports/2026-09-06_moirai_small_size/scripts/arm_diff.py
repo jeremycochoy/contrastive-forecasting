@@ -10,7 +10,8 @@ Usage:  arm_diff.py <arm> <arm>      the columns that differ
 """
 import sys, pathlib, itertools
 
-COLS = ["arm", "k", "reduce", "tau", "end", "ramp", "seed", "decay", "lr"]
+COLS = ["arm", "k", "reduce", "tau", "end", "ramp", "seed", "decay", "lr",
+        "align_w"]
 
 # `end` and `ramp` encode ONE experimental setting. `cf412_ema_args` reads
 # `end == "-"` as a constant momentum and ignores `ramp`, so the trainer sees
@@ -39,6 +40,7 @@ def load():
         if not line.strip() or line.startswith("#"):
             continue
         f = line.split("\t")
+        f += ["-"] * (len(COLS) - len(f))
         rows[f[0]] = dict(zip(COLS, f))
     return rows
 

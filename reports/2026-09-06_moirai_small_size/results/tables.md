@@ -6,6 +6,7 @@ The band is **0.0649** (this card measured it at 11.4M and 5.6e-4). Two numbers 
 |---|---|---|---|---|---|---|---|---|---|---|
 | k3_r100_09_lr56 | 3 | sum | 20260520 | 5.6e-4 | no | 40,000 | 1.1820 | never run | — | — |
 | k3_r100_09_lr56_dec10k | 3 | sum | 20260520 | 5.6e-4 | yes | 40,000 | 1.1915 | never run | — | — |
+| k32_r100_09_dec_lr56 | 32 | sum | 20260520 | 5.6e-4 | yes | 40,000 | 1.2111 | never run | — | — |
 | k3_r100_09_lr56_dec10k | 3 | sum | 20260520 | 5.6e-4 | yes | 100,000 | 1.2151 | never run | — | — |
 | k32_r100_09_sum | 32 | sum | 20260520 | 5.6e-4 | no | 40,000 | 1.2161 | never run | — | — |
 | k3_r100_09_lr56_dec | 3 | sum | 20260520 | 5.6e-4 | yes | 40,000 | 1.2164 | never run | — | — |
@@ -214,3 +215,42 @@ Lower is worse. A run at 0.5 has lost the task. The last column is what the same
 | k3_r100_09_lr56_fix09_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 4.1 |
 | k3_r100_09_lr56_fix099_bb40k_h30k_student | head | 30,000 | 1.5 |
 | k3_r100_09_lr56_fix099_bb100k_h30k_student | head | 30,000 | 1.4 |
+| k32_r100_09_dec_lr56_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 4.4 |
+| k3_r100_09_lr56_fix09_dec10k_bb100k_h30k_student | GIFT-Eval, 97 configs | — | 4.9 |
+| k3_r100_09_lr56_fix099_dec10k_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 4.9 |
+| k3_r100_09_lr56_fix099_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 4.7 |
+| k3_r100_09_lr56_fix099_bb100k_h30k_student | GIFT-Eval, 97 configs | — | 4.7 |
+| k3_r100_09_lr56_fix099_dec10k | backbone | 100,000 | 1.6 |
+| k3_r100_09_lr56_fix09_dec10k_bb180k_h30k_student | head | 30,000 | 1.4 |
+| k3_r100_09_lr56_fix099_dec10k_bb100k_h30k_student | head | 30,000 | 1.3 |
+| k3_r100_09_lr56_fix09_bb180k_h30k_student | head | 30,000 | 1.3 |
+| k3_r100_09_lr56_fix09_dec10k_bb180k_h30k_student | GIFT-Eval, 97 configs | — | 4.0 |
+| k3_r100_09_lr56_fix099_dec10k_bb100k_h30k_student | GIFT-Eval, 97 configs | — | 4.2 |
+| k3_r100_09_lr56_fix09_bb180k_h30k_student | GIFT-Eval, 97 configs | — | 4.2 |
+| k3_r100_09_lr56_fix099 | backbone | 200,000 | 18.9 |
+| k3_r100_09_lr56_fix099_bb200k_h30k_student | head | 30,000 | 1.3 |
+| k3_r100_09_lr56_fix099_dec10k_bb200k_h30k_student | head | 30,000 | 1.3 |
+| k3_r100_09_lr56_fix099_bb200k_h30k_student | GIFT-Eval, 97 configs | — | 3.8 |
+| k3_r100_09_lr56_fix099_dec10k_bb200k_h30k_student | GIFT-Eval, 97 configs | — | 3.7 |
+| k3_r100_09_lr56_fix09_dec0 | backbone | 40,000 | 2.3 |
+| k3_r100_09_lr56_fix09_dec0_bb40k_h30k_student | head | 30,000 | 1.3 |
+| k3_r100_09_lr56_fix099_dec10k_bb400k_h30k_student | head | 30,000 | 1.5 |
+| k3_r100_09_lr56_fix09_dec0_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 3.8 |
+| k3_r100_09_lr56_fix09_dec10k_bb400k_h30k_student | head | 30,000 | 1.3 |
+| k3_r100_09_lr56_fix099_dec10k_bb400k_h30k_student | GIFT-Eval, 97 configs | — | 4.0 |
+| k3_r100_09_lr56_ramp665k_dec10k | backbone | 40,000 | 2.7 |
+| k3_r100_09_lr56_dec | backbone | 300,000 | 7.0 |
+| k3_r100_09_lr56_fix09_dec10k_bb400k_h30k_student | GIFT-Eval, 97 configs | — | 3.8 |
+| k3_r100_09_lr56_ramp665k_dec10k_bb40k_h30k_student | head | 30,000 | 1.3 |
+| k3_r100_09_lr56_fix09_dec0 | backbone | 100,000 | 4.5 |
+| k3_r100_09_lr56_dec_bb300k_h30k_student | head | 30,000 | 1.5 |
+| k3_r100_09_lr56_fix09_dec0_bb100k_h30k_student | head | 30,000 | 1.3 |
+| k3_r100_09_lr56_ramp665k_dec0 | backbone | 40,000 | 2.7 |
+| k3_r100_09_lr56_ramp665k_dec10k_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 4.2 |
+| k3_r100_09_lr56_dec_bb300k_h30k_student | GIFT-Eval, 97 configs | — | 4.2 |
+| k3_r100_09_lr56_ramp665k_dec0_bb40k_h30k_student | head | 30,000 | 1.5 |
+| k3_r100_09_lr56_fix09_dec0_bb100k_h30k_student | GIFT-Eval, 97 configs | — | 4.2 |
+| k3_r100_09_lr56_ramp665k_dec0_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 3.8 |
+| k3_r100_09_lr56_fix09_dec0 | backbone | 200,000 | 6.6 |
+| k3_r100_09_lr56_fix09_dec10k_lr10x_bb400k_h30k_student | GIFT-Eval, 97 configs | — | 2.5 |
+| k3_r100_09_lr56_fix09_dec10k_aw03_lr10x_bb40k_h30k_student | GIFT-Eval, 97 configs | — | 2.5 |
