@@ -331,7 +331,6 @@ UNREAD_FLAGS = [
     ["--ema-tau", "0.99"],
     ["--ema-tau-end", "1.0"],
     ["--ema-tau-ramp-steps", "100000"],
-    ["--grad-clip", "1.0"],
     ["--align-loss-weight", "0.0"],
     ["--align-moco-loss-weight", "0.0"],
     ["--cpc-infonce-weight", "0.0"],
@@ -364,16 +363,16 @@ def test_every_listed_flag_exists(train_py):
 
 
 def test_an_abbreviated_flag_is_refused_too(train_py):
-    """argparse takes a unique prefix, so `--grad-c 1` sets the clip."""
+    """argparse takes a unique prefix, so `--learnable-t` sets the flag."""
     clash = train_py.value_space_conflicts(
-        ["--value-space-objective", "--weight-decay", "0.1", "--grad-c", "1"])
-    assert clash == ["--grad-clip"]
+        ["--value-space-objective", "--weight-decay", "0.1", "--learnable-t"])
+    assert clash == ["--learnable-tau"]
 
 
 @pytest.mark.parametrize("flags", [
     ["--ema-embedding", "--ema-encoder"],
     ["--loss-shape", "cosine_similarity_batch_rep_only"],
-    ["--grad-clip", "1.0"],
+    ["--tau", "0.07"],
     ["--sigreg-embedding"],
 ])
 def test_the_trainer_refuses_before_it_builds_anything(tmp_path, flags):
@@ -474,6 +473,29 @@ def test_a_value_leg_resumes_its_own_checkpoint(tmp_path):
     assert "[      3]" in resumed.stdout and "[      1]" not in resumed.stdout
 
 
+def test_a_leg_with_a_warmup_resumes_on_the_same_curve(tmp_path):
+    """Every stop of the Moirai run resumes inside or after the warmup. The
+    checkpoint keeps the warmup, so the resumed leg reads the same schedule
+    and says nothing."""
+    def leg(total, *extra):
+        return subprocess.run(
+            [sys.executable, str(TRAIN_PY), "--device", "cpu",
+             "--weight-decay", "0.1", "--total-steps", str(total),
+             *TINY_VALUE_RUN, "--train-rollout-depth", "2", "--lr", "1e-3",
+             "--lr-final", "0", "--lr-cosine-steps", "8",
+             "--lr-warmup-steps", "2", "--grad-clip", "1.0",
+             "--save-dir", str(tmp_path), "--run-name", "warm", *extra],
+            capture_output=True, text=True, timeout=600,
+            env=dict(os.environ, PYTHONPATH=str(REPO_ROOT)))
+
+    first = leg(3)
+    assert first.returncode == 0, first.stdout[-3000:] + first.stderr[-3000:]
+    resumed = leg(5, "--resume", str(tmp_path / "warm_final.pth"))
+    assert resumed.returncode == 0, resumed.stdout[-3000:] + resumed.stderr[-3000:]
+    assert "Restored optimizer" in resumed.stdout
+    assert "[lr] WARNING" not in resumed.stdout
+
+
 def test_the_contrastive_path_still_refuses_a_depth_with_no_consumer():
     """The refusal #373 added stays live for every run that is not this one."""
     r = run_trainer("--train-rollout-depth", "3",
@@ -568,7 +590,7 @@ def test_the_leg_drops_every_term_the_card_removes():
     for flag in ("--ema-embedding", "--ema-encoder", "--align-loss-weight",
                  "--align-target", "--sigreg-embedding", "--sigreg-encoding",
                  "--moco-rep-keys", "--moco-negatives", "--rep-loss-weight",
-                 "--cpc-infonce-weight", "--grad-clip", "--loss-shape",
+                 "--cpc-infonce-weight", "--loss-shape",
                  "--tau ", "--learnable-tau"):
         assert flag not in line, f"{flag} reaches the trainer"
 
@@ -638,6 +660,8 @@ def test_the_body_is_414s_cell_flag_for_flag(train_py, tmp_path,
     not_body = {"value_space_objective", "train_rollout_depth",
                 "train_rollout_reduce", "lr", "lr_final", "lr_cosine_steps",
                 "lr_warmup_steps", "grad_clip", "batch_size",
+                # The stop: the two cards run different clocks.
+                "total_steps", "extra_save_steps",
                 "save_dir", "run_name"}
     body = sorted(set(cell) - objective - not_body)
     differ = {d: (cell[d], ours[d]) for d in body if cell[d] != ours[d]}
@@ -887,6 +911,15 @@ def test_the_dry_run_names_both_scores():
     tag = "value_bb10k_h30k_student"
     assert f"score_{tag}.txt" in r.stdout
     assert f"score_{tag}_a2.txt" in r.stdout
+    assert "strategies=B4 A2" in r.stdout
+
+
+def test_the_a2_switch_scores_b4_alone():
+    r = subprocess.run(["bash", str(HEAD_EVAL), "10000"],
+                       capture_output=True, text=True,
+                       env=clean_env(CF415_DRY_RUN="1", CF415_SCORE_A2="0"))
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "strategies=B4\n" in r.stdout
 
 
 # ---------------------------------------------------------------------------

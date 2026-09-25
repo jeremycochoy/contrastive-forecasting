@@ -55,6 +55,10 @@ HEAD_CKPT="$OUT/qhead_${TAG}_s${HEAD_SEED:-20260722}_final.pth"
 SCORE_B4="$(cf415_score_file "$STOP" B4)"
 SCORE_A2="$(cf415_score_file "$STOP" A2)"
 BB_GPU="${BB_GPU:-0}"
+# A2 doubles the CPU time of a stop. CF415_SCORE_A2=0 scores B4 alone; the
+# head stays on disk, so A2 can score it later.
+STRATEGIES="B4 A2"
+[ "${CF415_SCORE_A2:-1}" = "0" ] && STRATEGIES="B4"
 # The default of `head_eval_bb.sh`, so the A2 eval reads the data B4 reads.
 export GIFT_EVAL="${GIFT_EVAL:-$HOME/workspaces/gift-eval-data}"
 mkdir -p "$CF415_RESULTS"
@@ -64,7 +68,7 @@ if [ -n "${CF415_DRY_RUN:-}" ]; then
   echo "  runner=$RUNNER"
   echo "  CF_BB_SHAPE=$(cf415_bb_shape)"
   echo "  bb=${BB:-<not trained yet>}"
-  echo "  eval=$OUT strategies=B4 A2"
+  echo "  eval=$OUT strategies=$STRATEGIES"
   echo "  score=$SCORE_B4"
   echo "  score_a2=$SCORE_A2"
   exit 0
@@ -85,6 +89,7 @@ CF373_ROOT="$CELL_RUNS" CF_RESULTS="$CF415_RESULTS" WT="$CF415_WT" \
 rc=$?
 log "head $TAG + B4 rc=$rc"
 [ $rc -eq 0 ] || exit $rc
+[ "$STRATEGIES" = "B4" ] && { log "A2 $TAG skipped: CF415_SCORE_A2=0"; exit 0; }
 
 EVAL_STRATEGY=A2 WT="$CF415_WT" CF_BB_SHAPE="$(cf415_bb_shape)" \
   bash "$EVAL" "$TAG" "$(( STOP / 1000 ))" "$CF415_ENC" "$BB" \

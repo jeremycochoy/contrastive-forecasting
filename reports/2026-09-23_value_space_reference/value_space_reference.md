@@ -1,7 +1,7 @@
 # A value-space reference model: the same body, trained on the actual values
 
-*(#415. The run is scheduled but not yet started, so this file holds the
-question and the protocol. The result replaces this note.)*
+*(#415. The first run trained at a flat 1e-3 and stopped at 92,600 steps. The
+run with the Moirai schedule trains now. The result replaces this note.)*
 
 ## Question
 
@@ -30,8 +30,10 @@ input head are that cell's, flag for flag. A test diffs the two command lines.
 | Where the rollout runs | latent space | **value space** |
 | What the loss reads | cosine similarity | **the actual values** (pinball, 9 quantiles) |
 | Teacher, EMA, `L_rep`, `L_align`, CPC, SIGReg | on | **gone** |
-| Rate | 5.6e-5 to 1e-6, cosine over 200,000 steps, then 1e-6 | **5e-4 to 1e-6, cosine over 665,000 steps** |
-| Batch, weight decay, betas, warmup, grad clip | 64, 0.1, (0.9, 0.98), none, none | same |
+| Rate | 5.6e-5 to 1e-6, cosine over 200,000 steps, then 1e-6 | **1e-3, a 10,000-step warmup, then cosine to 0 at 166,000 steps** |
+| Batch | 64 | **256** |
+| Gradient clip | none | **1.0** |
+| Weight decay, betas | 0.1, (0.9, 0.98) | same |
 
 The rollout is what "value space" means here. At depth j the model re-reads
 its own median forecast as the next patch and runs the whole cell on it. The
@@ -39,16 +41,18 @@ loss of depth j reads the patch j further out. Depth 3 matches the cell.
 
 ## The rate
 
-The Moirai recipe ran on this corpus in
-`experiments/2026-05-03_exp_realonly_full4096_moirai_hp_FINAL/`.
-`scripts/run_resume50k.sh` lines 44 and 45 set lr 1e-3 at batch 256, and the
-report (line 94) gives a flat rate, no warmup and no grad clip. This card
-keeps #414's batch of 64, so 665,000 steps stay one pass. The square-root rule
-for Adam then gives 1e-3 × √(64/256) = **5e-4**.
+The owner asked for the Moirai recipe with its schedule. The Moirai papers
+train at batch 256 with AdamW at 1e-3, weight decay 0.1 and betas
+(0.9, 0.98). The rate rises linearly over the first 10,000 steps, then falls
+by cosine to 0 ([Moirai 2.0](https://arxiv.org/abs/2511.11698)). The uni2ts
+pretraining config clips the gradient norm at 1.0. At batch 256, one pass over
+the data is 166,000 steps, so the anneal ends there.
 
-#414 found that every constant rate reaches its best score and then climbs.
-So the rate falls by one cosine from 5e-4 to 1e-6 over the 665,000 steps. The
-Moirai paper also anneals by cosine.
+The first run of this card trained at a flat 1e-3 with no warmup and no clip,
+as `experiments/2026-05-03_exp_realonly_full4096_moirai_hp_FINAL/` did. Its
+loss spiked between 25,000 and 50,000 steps, and again at 73,000, 77,000 and
+79,000 to 84,000. Its B4 scores were 1.3396 at 10,000 steps, 1.2951 at 25,000
+and 1.9036 at 50,000. The owner stopped it at 92,600 steps.
 
 ## Which score answers the question
 
@@ -74,9 +78,9 @@ the card fixes this choice before the run starts.
 ## Protocol
 
 - **Data.** `jeremycochoy/gift-pretrain-full-4096`, path `small_v1`,
-  `T_raw` 4096, C = 1, batch 64, seed 20260520 — #414's, so 665,000 steps is
-  one pass over the data in both runs.
-- **Stops.** 40k, 100k, 200k, 300k, 400k, 500k, 600k and 665,000 steps, on one
+  `T_raw` 4096, C = 1, batch 256, seed 20260520. 166,000 steps is one pass
+  over the data, the data of #414's 665,000 steps at batch 64.
+- **Stops.** 10k, 25k, 50k, 75k, 100k, 125k, 150k and 166,000 steps, on one
   trajectory: each leg resumes the previous stop with its optimizer state.
 - **Scoring.** #414's head, unchanged: a quantile head (2-layer transformer,
   forecast length 16, batch 256, lr 1e-3, head seed 20260722, 30,000 steps)
