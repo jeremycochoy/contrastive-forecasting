@@ -44,36 +44,32 @@ CF415_SEED="${SEED:-20260520}"
 
 # ---- The Moirai recipe -------------------------------------------------------
 #
-# `experiments/2026-05-03_exp_realonly_full4096_moirai_hp_FINAL/` ran the
-# recipe against this corpus at H = 384. `scripts/run_resume50k.sh` line 44
-# sets batch 256, and line 45 sets lr 1e-3, weight decay 0.1 and betas
-# (0.9, 0.98). The report (line 94) and `scripts/run.sh` (lines 91 to 93)
-# give no warmup, no grad clip and a flat rate.
+# The owner asked for the Moirai training recipe, with its schedule. The
+# Moirai papers train at batch 256, AdamW at 1e-3, weight decay 0.1 and betas
+# (0.9, 0.98), with a linear warmup over the first 10,000 steps and then a
+# cosine anneal to 0 (Woo and others 2024, and Moirai 2.0, arXiv 2511.11698).
+# The uni2ts pretraining config clips the gradient norm at 1.0
+# (cli/conf/pretrain/default.yaml).
 #
-# The BATCH SIZE stays at 64. 665,000 steps is one pass over the data at 64
-# rows a step, and #414's trajectory is measured on that clock. Also, the
-# box's card is shared, and a leg at 256 holds four times the activations.
+# The first run of this card used a flat 1e-3 with no warmup and no clip, as
+# `experiments/2026-05-03_exp_realonly_full4096_moirai_hp_FINAL/` did. Its
+# loss spiked at 25k to 50k, 73k, 77k and 79k to 84k steps. The owner stopped
+# it at 92,600 steps.
 #
-# So the RATE moves with the batch: 1e-3 x sqrt(64 / 256) = 5e-4, the
-# square-root rule for Adam. The weight decay and the betas stay.
-#
-# The SCHEDULE is not flat. #414 found that every constant rate reaches its
-# best score at one step and then climbs, and its best arm, `cos200k`, anneals.
-# The Moirai paper also anneals by cosine. So the rate falls by one cosine
-# from 5e-4 to 1e-6 over one pass, 665,000 steps. Every leg names that length:
-# unnamed, the trainer takes the leg's own --total-steps, and the first leg
-# would anneal to the floor by step 40,000. The floor is #414's.
-#
-# NO WARMUP and NO GRAD CLIP, as in that run. The trainer has neither.
-CF415_LR="${LR:-5e-4}"
-CF415_LR_FINAL="${CF415_LR_FINAL:-1e-6}"
-CF415_LR_COSINE_STEPS="${CF415_LR_COSINE_STEPS:-665000}"
-CF415_BATCH_SIZE="${CF415_BATCH_SIZE:-64}"
+# One pass over the data is 166,000 steps at batch 256 (42.6M rows). The
+# anneal ends there, and every leg names that length: unnamed, the trainer
+# takes the leg's own --total-steps.
+CF415_LR="${LR:-1e-3}"
+CF415_LR_FINAL="${CF415_LR_FINAL:-0}"
+CF415_LR_WARMUP_STEPS="${CF415_LR_WARMUP_STEPS:-10000}"
+CF415_LR_COSINE_STEPS="${CF415_LR_COSINE_STEPS:-166000}"
+CF415_GRAD_CLIP="${CF415_GRAD_CLIP:-1.0}"
+CF415_BATCH_SIZE="${CF415_BATCH_SIZE:-256}"
 
 # ---- The stops ---------------------------------------------------------------
 #
-# The eight the card scores. 665,000 steps is one pass over the data.
-CF415_STOPS="${CF415_STOPS:-40000 100000 200000 300000 400000 500000 600000 665000}"
+# The eight the card scores. 166,000 steps at batch 256 is one pass.
+CF415_STOPS="${CF415_STOPS:-10000 25000 50000 75000 100000 125000 150000 166000}"
 # #373's head protocol, which #412 and #414 run on every stop.
 CF415_HEAD_STEPS="${CF415_HEAD_STEPS:-30000}"
 # No teacher exists on this card, so the head reads the student encoder.

@@ -34,11 +34,10 @@
 #
 # ---- The rate ----------------------------------------------------------------
 #
-# 5e-4, annealed by one cosine to 1e-6 over one pass, with no warmup and no
-# grad clip. `paths.sh` gives the source of each number: the Moirai run's
-# 1e-3 at batch 256, scaled to this batch of 64, and #414's finding that no
-# constant rate holds its best score. Every leg names the anneal length, so
-# the eight legs follow one curve.
+# The Moirai schedule: 1e-3 at batch 256, a linear warmup over 10,000 steps,
+# then one cosine anneal to 0 at the end of one pass, with the gradient norm
+# clipped at 1.0. `paths.sh` gives the source of each number. Every leg names
+# the anneal length, so the eight legs follow one curve.
 set -uo pipefail
 
 TARGET_STEPS="${1:?usage: run_leg_value.sh <target steps>}"
@@ -75,6 +74,7 @@ TRAIN_ARGS=(
   --total-steps "$TARGET_STEPS"
   --lr "$CF415_LR" --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98
   --lr-final "$CF415_LR_FINAL" --lr-cosine-steps "$CF415_LR_COSINE_STEPS"
+  --lr-warmup-steps "$CF415_LR_WARMUP_STEPS" --grad-clip "$CF415_GRAD_CLIP"
   --seed "$CF415_SEED"
   --save-every "$SAVE_EVERY" --extra-save-steps "$EXTRA_SAVES"
   --save-dir "$LEG" --run-name "$NAME" --log-every "${LOG_EVERY:-200}"

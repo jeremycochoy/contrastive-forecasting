@@ -116,6 +116,12 @@ def build_parser():
                    help="Length of the anneal in steps. 0 takes "
                         "--total-steps. The rate holds at --lr-final "
                         "after it, so a second pass stays at the floor.")
+    # The Moirai schedule (#415): a linear warmup, then the cosine anneal.
+    p.add_argument("--lr-warmup-steps", type=int, default=0,
+                   help="Linear warmup from 0 to --lr over this many steps. "
+                        "The cosine anneal then runs from --lr to "
+                        "--lr-final and ends at --lr-cosine-steps. Needs "
+                        "--lr-final. 0 means no warmup.")
     # Optimizer hyperparams. --adam-beta1/2 keep torch.optim.AdamW defaults
     # so prior runs that omitted them reproduce bit-identically.
     # MOIRAI Aksu and others recipe: lr=1e-3, weight_decay=0.1, betas=(0.9, 0.98).
@@ -1043,8 +1049,8 @@ VALUE_SPACE_FLAGS = frozenset((
     "latent_drift_probe_batch_size", "latent_drift_probe_seed",
     "log_attn_amplitude", "log_attn_amplitude_every",
     # The optimizer and the rate schedule.
-    "batch_size", "lr", "lr_final", "lr_cosine_steps", "weight_decay",
-    "adam_beta1", "adam_beta2", "seed",
+    "batch_size", "lr", "lr_final", "lr_cosine_steps", "lr_warmup_steps",
+    "grad_clip", "weight_decay", "adam_beta1", "adam_beta2", "seed",
     # The data.
     "hf_repo", "hf_path", "split", "mix_ratio", "crossfade_ratio",
     "crossfade_triplets", "synth_seed", "synth_kind", "enable_pulse",
@@ -1442,6 +1448,27 @@ def cosine_lr(step, lr_start, lr_final, total):
         1.0 + math.cos(math.pi * t / total))
 
 
+def scheduled_lr(step, lr_start, lr_final, total, warmup=0):
+    """A linear warmup over `warmup` steps, then one cosine anneal from
+    `lr_start` to `lr_final` that ends at step `total`. This is the shape of
+    the Moirai schedule (uni2ts `get_scheduler`, #415). With no warmup it is
+    `cosine_lr` itself."""
+    if step < warmup:
+        return lr_start * step / warmup
+    return cosine_lr(step - warmup, lr_start, lr_final, total - warmup)
+
+
+def check_lr_schedule(args):
+    """Stop a warmup that has no anneal to lead into, or that outlasts it."""
+    if not args.lr_warmup_steps:
+        return
+    if args.lr_final is None:
+        sys.exit("ERROR: --lr-warmup-steps needs --lr-final.")
+    if args.lr_warmup_steps >= (args.lr_cosine_steps or args.total_steps):
+        sys.exit("ERROR: --lr-warmup-steps must be shorter than the anneal "
+                 "(--lr-cosine-steps, else --total-steps).")
+
+
 def main():
     args = parse_args()
 
@@ -1775,14 +1802,18 @@ def main():
                 args.lr = saved_sched["lr_start"]
                 args.lr_final = saved_sched["lr_final"]
                 args.lr_cosine_steps = saved_sched["cosine_steps"]
+                args.lr_warmup_steps = saved_sched.get("warmup_steps", 0)
                 print(f"  [lr] resumed schedule from the checkpoint: "
                       f"{args.lr:g} to {args.lr_final:g} over "
-                      f"{args.lr_cosine_steps} steps")
+                      f"{args.lr_cosine_steps} steps, warmup "
+                      f"{args.lr_warmup_steps}")
             else:
                 live = (args.lr, args.lr_final,
-                        args.lr_cosine_steps or args.total_steps)
+                        args.lr_cosine_steps or args.total_steps,
+                        args.lr_warmup_steps)
                 held = (saved_sched["lr_start"], saved_sched["lr_final"],
-                        saved_sched["cosine_steps"])
+                        saved_sched["cosine_steps"],
+                        saved_sched.get("warmup_steps", 0))
                 if live != held:
                     print(f"  [lr] WARNING: the checkpoint holds {held} and "
                           f"the command line names {live}. The command line "
@@ -1973,14 +2004,16 @@ def main():
     timing_count = 0
     mixup_applied_count = 0
 
+    check_lr_schedule(args)
     cosine_steps = args.lr_cosine_steps or args.total_steps
     lr_schedule = None if args.lr_final is None else {
         "lr_start": args.lr, "lr_final": args.lr_final,
-        "cosine_steps": cosine_steps}
+        "cosine_steps": cosine_steps, "warmup_steps": args.lr_warmup_steps}
     for step in range(start_step + 1, args.total_steps + 1):
         t_step_start = time.perf_counter()
         if args.lr_final is not None:
-            lr_now = cosine_lr(step, args.lr, args.lr_final, cosine_steps)
+            lr_now = scheduled_lr(step, args.lr, args.lr_final,
+                                  cosine_steps, args.lr_warmup_steps)
             for group in optimizer.param_groups:
                 group["lr"] = lr_now
         model.train()

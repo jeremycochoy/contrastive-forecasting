@@ -69,8 +69,8 @@ RUN_ARM_412 = (REPO_ROOT / "reports" / "2026-09-06_moirai_small_size"
 D_MODEL = 384
 NUM_LAYERS = 3
 NUM_ENCODER_LAYERS = 3
-# The stops the card scores. 665,000 steps is one pass over the data.
-STOPS = (40000, 100000, 200000, 300000, 400000, 500000, 600000, 665000)
+# The stops the card scores. 166,000 steps at batch 256 is one pass.
+STOPS = (10000, 25000, 50000, 75000, 100000, 125000, 150000, 166000)
 # #414's best arm. Its command line is the body this card must match.
 ARM_414 = "k3_r100_09_lr56_fix09_dec10k_cos200k"
 # Where the checkpoints go when nothing names a root: the box's own disk.
@@ -388,22 +388,44 @@ def test_the_trainer_refuses_before_it_builds_anything(tmp_path, flags):
     assert not never.exists()
 
 
-def test_a_warmup_cannot_reach_the_run(train_py):
-    """The trainer has no warmup, so no flag names one, and argparse stops a
-    command line that names an unknown flag."""
-    parser = train_py.build_parser()
-    assert not [a.dest for a in parser._actions if "warmup" in a.dest]
-    with pytest.raises(SystemExit):
-        train_py.parse_args(
-            ["--weight-decay", "0.1", "--warmup-steps", "1000"])
+def test_the_warmup_rises_linearly_then_hands_over_to_the_anneal(train_py):
+    """The Moirai schedule: 0 to the peak over the warmup, then one cosine
+    from the peak to the final rate, which ends at the anneal length."""
+    peak, final, total, warmup = 1e-3, 0.0, 166000, 10000
+    lr = lambda step: train_py.scheduled_lr(step, peak, final, total, warmup)
+    assert lr(0) == 0.0
+    assert lr(5000) == pytest.approx(peak / 2)
+    assert lr(warmup) == pytest.approx(peak)
+    assert lr((warmup + total) // 2) == pytest.approx(peak / 2)
+    assert lr(total) == pytest.approx(final)
+    assert lr(total + 50000) == pytest.approx(final)
+
+
+def test_no_warmup_gives_the_plain_anneal(train_py):
+    """Every run before this flag keeps its curve, value for value."""
+    for step in (0, 1, 333, 200000, 665000):
+        assert train_py.scheduled_lr(step, 5.6e-5, 1e-6, 200000) == \
+            train_py.cosine_lr(step, 5.6e-5, 1e-6, 200000)
+
+
+@pytest.mark.parametrize("flags", [
+    ["--lr-warmup-steps", "10"],
+    ["--lr-warmup-steps", "10", "--lr-final", "0", "--lr-cosine-steps", "10"],
+])
+def test_a_warmup_with_no_anneal_after_it_is_refused(tmp_path, flags):
+    r = run_trainer(*TINY_VALUE_RUN, *flags, "--save-dir", str(tmp_path),
+                    "--run-name", "cf415_warmup")
+    assert r.returncode != 0
+    assert "--lr-warmup-steps" in r.stdout + r.stderr
 
 
 def test_the_trainer_defaults_give_no_clip_and_no_warmup(train_py):
-    """The Moirai recipe clips nothing and has no warmup here. Unnamed, the
-    trainer clips nothing, and a schedule starts at its peak rate."""
+    """The trainer's own defaults stay as they were: no clip, no warmup and a
+    constant rate. The leg of this card names the Moirai schedule."""
     args = train_py.parse_args(["--weight-decay", "0.1"])
     assert args.grad_clip is None
     assert args.lr_final is None
+    assert args.lr_warmup_steps == 0
     peak, final, steps = 5e-4, 1e-6, 665000
     assert train_py.cosine_lr(0, peak, final, steps) == peak
     assert train_py.cosine_lr(1, peak, final, steps) == pytest.approx(
@@ -486,7 +508,7 @@ def clean_env(**extra):
 
 
 def leg_command_line(*args, **env):
-    r = subprocess.run(["bash", str(RUN_LEG), *(args or ("40000",))],
+    r = subprocess.run(["bash", str(RUN_LEG), *(args or ("10000",))],
                        capture_output=True, text=True,
                        env=clean_env(CF415_DRY_RUN="1", **env))
     assert r.returncode == 0, r.stdout + r.stderr
@@ -495,7 +517,7 @@ def leg_command_line(*args, **env):
     return line[0]
 
 
-def leg_argv(stop="40000"):
+def leg_argv(stop="10000"):
     """The trainer's argv on this card's leg, as the dry run resolves it."""
     tokens = shlex.split(leg_command_line(stop)[len("Command line: "):])
     assert tokens[:2] == ["python3", "-u"], tokens[:3]
@@ -551,24 +573,25 @@ def test_the_leg_drops_every_term_the_card_removes():
         assert flag not in line, f"{flag} reaches the trainer"
 
 
-# The rate schedule of this card. `paths.sh` says where each number comes
-# from: the Moirai run's 1e-3 at batch 256, scaled to batch 64, and one cosine
-# anneal over one pass, because #414 found that no constant rate holds.
-PEAK_LR, FINAL_LR, ANNEAL_STEPS = 5e-4, 1e-6, 665000
+# The rate schedule of this card: the Moirai recipe. `paths.sh` gives the
+# source of each number.
+PEAK_LR, FINAL_LR, ANNEAL_STEPS = 1e-3, 0.0, 166000
+WARMUP_STEPS, GRAD_CLIP = 10000, 1.0
 
 
-@pytest.mark.parametrize("stop", ["40000", "665000"])
-def test_every_leg_anneals_over_one_pass(train_py, stop):
+@pytest.mark.parametrize("stop", ["10000", "166000"])
+def test_every_leg_follows_the_moirai_schedule(train_py, stop):
     """Each leg runs to its own --total-steps. An anneal length left to its
-    default takes that number, so the 40,000-step leg would reach the floor
-    at step 40,000. Every leg names one pass instead."""
+    default takes that number, so the 10,000-step leg would reach the floor
+    at step 10,000. Every leg names one pass instead, and the same warmup."""
     args = train_py.parse_args(leg_argv(stop))
     assert (args.lr, args.lr_final, args.lr_cosine_steps) == (
         PEAK_LR, FINAL_LR, ANNEAL_STEPS)
+    assert args.lr_warmup_steps == WARMUP_STEPS
+    assert args.grad_clip == GRAD_CLIP
     assert (args.weight_decay, args.adam_beta1, args.adam_beta2) == (
         0.1, 0.9, 0.98)
-    assert args.batch_size == 64
-    assert args.grad_clip is None
+    assert args.batch_size == 256
 
 
 def test_the_leg_line_names_nothing_the_value_run_ignores(train_py):
@@ -614,6 +637,7 @@ def test_the_body_is_414s_cell_flag_for_flag(train_py, tmp_path,
     objective = set(cell) - train_py.VALUE_SPACE_FLAGS
     not_body = {"value_space_objective", "train_rollout_depth",
                 "train_rollout_reduce", "lr", "lr_final", "lr_cosine_steps",
+                "lr_warmup_steps", "grad_clip", "batch_size",
                 "save_dir", "run_name"}
     body = sorted(set(cell) - objective - not_body)
     differ = {d: (cell[d], ours[d]) for d in body if cell[d] != ours[d]}
@@ -623,28 +647,28 @@ def test_the_body_is_414s_cell_flag_for_flag(train_py, tmp_path,
     for dest in ("d_model", "n_heads", "num_layers", "num_encoder_layers",
                  "encoder_type", "encoder_dropkey", "rev_norm_span",
                  "residual_dtype", "qk_norm", "hf_path", "mix_ratio",
-                 "mixup_p", "batch_size", "seed"):
+                 "mixup_p", "seed"):
         assert dest in body, dest
 
 
 def test_the_leg_keeps_the_data_and_the_clock_of_414():
-    """The twin must see the same corpus and the same rows per step, or
-    665,000 steps is not one pass in both runs."""
+    """The twin must see the same corpus as #414. At 256 rows a step, 166,000
+    steps is one pass."""
     line = leg_command_line()
     assert "--hf-repo jeremycochoy/gift-pretrain-full-4096" in line
     assert "--hf-path small_v1" in line
     assert "--t-raw 4096" in line
     assert "--n-channels 1" in line
-    assert "--batch-size 64" in line
+    assert "--batch-size 256" in line
     assert "--seed 20260520" in line
 
 
 def test_the_last_stop_gets_its_own_checkpoint():
-    """665,000 is not a multiple of the 20,000 save cadence, so the periodic
+    """166,000 is not a multiple of the 20,000 save cadence, so the periodic
     save never lands it. --extra-save-steps has to."""
-    line = leg_command_line("665000")
-    assert "--total-steps 665000" in line
-    assert "--extra-save-steps 665000" in line
+    line = leg_command_line("166000")
+    assert "--total-steps 166000" in line
+    assert "--extra-save-steps 166000" in line
 
 
 def test_one_stop_list_feeds_the_ladder_and_the_score():
@@ -668,7 +692,7 @@ def test_the_ladder_scores_every_stop_it_trains():
 
 def test_the_head_and_the_eval_are_414s():
     """The scoring path must be the one #414 uses, so the numbers compare."""
-    r = subprocess.run(["bash", str(HEAD_EVAL), "40000"],
+    r = subprocess.run(["bash", str(HEAD_EVAL), "10000"],
                        capture_output=True, text=True,
                        env=clean_env(CF415_DRY_RUN="1"))
     assert r.returncode == 0, r.stdout + r.stderr
@@ -693,10 +717,10 @@ def test_the_head_refuses_a_step_count_that_is_not_a_stop():
 def test_the_checkpoints_default_to_the_box_disk():
     """The leg trains on the vast box, and the orchestrator mirrors the box's
     disk. A default on elisa's disk is a path the box cannot write."""
-    leg = subprocess.run(["bash", str(RUN_LEG), "40000"], capture_output=True,
+    leg = subprocess.run(["bash", str(RUN_LEG), "10000"], capture_output=True,
                          text=True, env=clean_env(CF415_DRY_RUN="1"))
     assert f"runs={BOX_RUNS}/value_space" in leg.stdout, leg.stdout
-    head = subprocess.run(["bash", str(HEAD_EVAL), "40000"],
+    head = subprocess.run(["bash", str(HEAD_EVAL), "10000"],
                           capture_output=True, text=True,
                           env=clean_env(CF415_DRY_RUN="1"))
     assert f"eval={BOX_RUNS}/value_space/eval/" in head.stdout, head.stdout
@@ -707,7 +731,7 @@ def test_a_leg_that_cannot_make_its_save_dir_trains_nothing(tmp_path):
     the trainer starts, not at its first save 20,000 steps in."""
     argv_out = tmp_path / "argv.json"
     r = subprocess.run(
-        ["bash", str(RUN_LEG), "40000"], capture_output=True, text=True,
+        ["bash", str(RUN_LEG), "10000"], capture_output=True, text=True,
         env=clean_env(WT=str(stub_checkout(tmp_path)), RUNS="/dev/null/cf415",
                       CF_RESULTS=str(tmp_path / "res"),
                       CF415_ARGV_OUT=str(argv_out),
@@ -828,27 +852,27 @@ def test_eval_local_refuses_a_strategy_this_head_cannot_score(tmp_path):
 
 def test_every_stop_is_scored_under_b4_and_a2_with_one_head(tmp_path,
                                                             durable_root):
-    leg = durable_root / "value_space" / "leg_40k"
+    leg = durable_root / "value_space" / "leg_10k"
     leg.mkdir(parents=True)
-    (leg / "cf415_value_k3_40k.pth").write_text("backbone")
+    (leg / "cf415_value_k3_10k.pth").write_text("backbone")
     res = tmp_path / "res"
     env = scoring_env(tmp_path, RUNS=str(durable_root), CF_RESULTS=str(res))
 
-    r = subprocess.run(["bash", str(HEAD_EVAL), "40000"], capture_output=True,
+    r = subprocess.run(["bash", str(HEAD_EVAL), "10000"], capture_output=True,
                        text=True, timeout=300, env=env)
     assert r.returncode == 0, r.stdout + r.stderr
     heads, evals = calls(tmp_path, "head"), calls(tmp_path, "gift")
     assert len(heads) == 1
     assert [c["strategy"] for c in evals] == ["B4", "B4", "A2", "A2"]
     assert {c["head"] for c in evals} == {heads[0]["final"]}
-    tag = "value_bb40k_h30k_student"
+    tag = "value_bb10k_h30k_student"
     assert (res / f"score_{tag}.txt").read_text().strip() == "0.9876"
     assert (res / f"score_{tag}_a2.txt").read_text().strip() == "0.9876"
     per_config = durable_root / "value_space" / "eval" / tag
     assert (per_config / "gift" / "all_results.csv").is_file()
     assert (per_config / "gift_a2" / "all_results.csv").is_file()
 
-    again = subprocess.run(["bash", str(HEAD_EVAL), "40000"],
+    again = subprocess.run(["bash", str(HEAD_EVAL), "10000"],
                            capture_output=True, text=True, timeout=300,
                            env=env)
     assert again.returncode == 0, again.stdout + again.stderr
@@ -856,11 +880,11 @@ def test_every_stop_is_scored_under_b4_and_a2_with_one_head(tmp_path,
 
 
 def test_the_dry_run_names_both_scores():
-    r = subprocess.run(["bash", str(HEAD_EVAL), "40000"],
+    r = subprocess.run(["bash", str(HEAD_EVAL), "10000"],
                        capture_output=True, text=True,
                        env=clean_env(CF415_DRY_RUN="1"))
     assert r.returncode == 0, r.stdout + r.stderr
-    tag = "value_bb40k_h30k_student"
+    tag = "value_bb10k_h30k_student"
     assert f"score_{tag}.txt" in r.stdout
     assert f"score_{tag}_a2.txt" in r.stdout
 
