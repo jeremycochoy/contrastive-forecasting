@@ -18,8 +18,9 @@ def read(path):
 
 sn = read(SN)
 ARMS = [("cyan665",  "contrastive, cosine to 1e-6 by 200k, 665k   1.1369", "#17becf"),
-        ("value25k", "VALUE SPACE, Moirai recipe, 25k at batch 256   1.2951", "#7f7f7f"),
-        ("value50k", "VALUE SPACE, Moirai recipe, 50k at batch 256   1.9036", "#000000")]
+        ("value25k", "value space, flat 1e-3, 25k at batch 256   1.2951", "#7f7f7f"),
+        ("value50k", "value space, flat 1e-3, 50k at batch 256   1.9036", "#000000"),
+        ("value75k", "value space, flat 1e-3, 75k at batch 256   1.4096", "#d62728")]
 
 per_ds = {}
 for name, _, _ in ARMS:

@@ -22,7 +22,7 @@ SERIES = [
     (P + "_lr100x",   "5.6e-6",                        "#ff9f40", 4.0, "^", "-"),
     (P + "_cos665k",  "cosine 6e-5 to 1e-6 over 665k", "#9467bd", 4.0, "D", "-"),
     (P + "_cos200k",  "cosine 5.6e-5 to 1e-6 by 200k, then 1e-6", "#17becf", 4.0, "v", "-"),
-    ("cf415_value",   "value space, Moirai recipe (#415)", "#000000", 3.2, "*", "--"),
+    ("cf415_value",   "value space, flat 1e-3 (#415)", "#000000", 3.2, "*", "--"),
 ]
 # The value-space run trains at batch 256: one of its steps holds the data of
 # four batch-64 steps.
@@ -30,7 +30,7 @@ XSCALE = {"cf415_value": 4}
 # Where the last score of a line prints, so two lines that end together part.
 END_LABEL_OFFSET = {P + "_lr100x": (9, 4), P + "_cos200k": (9, -12)}
 BEST, BAND, PROJECT_BEST = 1.1369, 0.008, 1.0651
-YMIN, YMAX = 1.05, 1.36
+YMIN, YMAX = 1.05, 1.43
 
 
 def load_points():
@@ -49,9 +49,11 @@ def draw_series(ax, arm, label, colour, width, marker, style, points):
             label=label, zorder=3)
     for xi, yi in zip(x, y):
         if yi > YMAX:
+            # The label sits left of the point, clear of the title.
             ax.annotate(f"{yi:.4f}, off the chart", (xi, YMAX - 0.004),
-                        xytext=(8, -14), textcoords="offset points",
-                        fontsize=9, color=colour, weight="bold")
+                        xytext=(xi / 1.9, YMAX - 0.012), va="center",
+                        fontsize=9, color=colour, weight="bold",
+                        arrowprops=dict(arrowstyle="->", color=colour, lw=1))
     if y[-1] <= YMAX:
         ax.annotate(f"{y[-1]:.4f}", (x[-1], shown[-1]), textcoords="offset points",
                     xytext=END_LABEL_OFFSET.get(arm, (9, -3)), fontsize=9,

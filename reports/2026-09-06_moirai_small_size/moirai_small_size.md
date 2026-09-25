@@ -6,7 +6,8 @@ project best. The best 11.4M score is 1.1369 GM-Relative MASE, after one pass
 over the data. Its rate starts at 5.6e-5 and falls by cosine to 1e-6 at step
 200,000. Each constant rate gives a lowest score and then a climb, and the
 rate sets where that turn falls. The same body, trained in value space with the
-Moirai recipe (#415), scores worse than the contrastive model at equal data.
+Moirai optimiser at a flat rate (#415), scores worse than the contrastive model
+at equal data.
 
 ## Definitions
 
@@ -60,21 +61,25 @@ and m4_yearly. At 5.6e-6 each one ends below its 40,000-step value. At 5.6e-5,
 m4_hourly, solar and electricity climb after 400,000 steps. All six stay above
 1.0.
 
-## The value-space Moirai recipe scores worse than the contrastive model
+## The value-space run at a flat 1e-3 scores worse than the contrastive model
 
 ![relative MASE per GIFT-Eval dataset, the value-space reference against the best contrastive run](plots/gm_mase_radar_value.png)
 
 The reference of #415 trains the same body on the quantiles of the actual
 values, and rolls the forecast out in value space. It has no teacher, no EMA,
-no `L_rep` and no `L_align`. It uses the Moirai recipe as this repository runs
-it: rate 1e-3 flat, batch 256, weight decay 0.1, betas (0.9, 0.98), no warmup
-and no gradient clip.
+no `L_rep` and no `L_align`. This first run used the Moirai optimiser settings
+at a flat rate: 1e-3, batch 256, weight decay 0.1, betas (0.9, 0.98), no
+warmup and no gradient clip.
 
-At 6.4M windows (25,000 steps at batch 256) it scores 1.2951. The contrastive
-run scores 1.1526 at the same data, and its 665,000-step score is better on 27
-of the 28 datasets. The loss of the reference spiked between 25,000 and 50,000
-steps, and its 50,000-step score, 1.9036, is worse on all 28. The reference
-trains on to one pass, 166,000 steps at batch 256.
+At 6.4M windows (25,000 steps at batch 256) the reference scores 1.2951, and
+the contrastive run scores 1.1526 at the same data. Against the contrastive
+run at 665,000 steps, the reference is worse on 27 of the 28 datasets at
+25,000 steps, and on all 28 at 50,000 and 75,000 steps. Its loss spiked
+between 25,000 and 50,000 steps (1.9036 at 50,000), and again at 73,000,
+77,000 and 79,000 to 84,000 steps (1.4096 at 75,000). The owner stopped the
+run at 92,600 steps. A second run with the Moirai schedule replaces it (#415):
+a 10,000-step warmup, a cosine to 0 at 166,000 steps and a gradient clip of
+1.0.
 
 ## The tables
 
@@ -101,7 +106,7 @@ counts its steps at batch 256.
 | 5.6e-6 | 1.1435 | 1,000,000 | 1.1435 | 1,000,000 |
 | cosine 6e-5 to 1e-6 over 665,000 | 1.1646 | 100,000 | 1.2738 | 600,000 |
 | cosine 5.6e-5 to 1e-6 by 200,000, then 1e-6 | 1.1369 | 665,000 | 1.1386 | 1,200,000 |
-| value space, Moirai recipe | 1.2951 | 25,000 | 1.9036 | 50,000 |
+| value space, flat 1e-3 | 1.2951 | 25,000 | 1.4096 | 75,000 |
 
 `results/gm_trajectories.tsv` holds every scored stop of the card, one row per
 stop. `scripts/gm_trajectories.py` builds it from the score files.
@@ -127,16 +132,16 @@ Small to Moirai 2.0 Small. MASE is GM-Relative MASE on GIFT-Eval.
 The Moirai 1.0 column gives the uni2ts pretraining defaults. The paper gives
 no separate recipe for its 0.946 run.
 
-| | Moirai 1.0 Small, GIFT-Eval Pretrain | value-space reference (#415) | contrastive, cosine by 200,000 |
+| | Moirai 1.0 Small, GIFT-Eval Pretrain | value space, flat 1e-3 (#415) | contrastive, cosine by 200,000 |
 |---|---|---|---|
-| GM-Relative MASE | 0.946 | 1.2951, best so far | 1.1369 |
+| GM-Relative MASE | 0.946 | 1.2951, its best | 1.1369 |
 | parameters | 14M | 11.4M | 11.4M |
 | body | masked encoder, 6 layers | 3 encoder and 3 forecaster layers | the same |
 | patch | 8 to 128, set by the frequency | 16 | 16 |
 | objective | mixture negative log-likelihood | 9 quantiles of the values | contrastive, in latent space |
 | forecast | the whole horizon at once | rollout, 1 patch per step | latent rollout, then a 30,000-step head |
 | data | GIFT-Eval Pretrain, 230B points | `small_v1`, synthetic ARMA at 1/128, mixup | the same |
-| steps and batch | 100,000 at 256 | 166,000 at 256 | 665,000 at 64 |
+| steps and batch | 100,000 at 256 | 92,600 at 256, then stopped | 665,000 at 64 |
 | rate | 1e-3, 10,000-step warmup, then cosine | 1e-3 flat | 5.6e-5, cosine to 1e-6 by 200,000 |
 | gradient clip | 1.0 | none | none |
 | weight decay | 0.1, linear weights only | 0.1, all weights | 0.1, all weights |
@@ -167,7 +172,8 @@ BB_GPU=0 ARMS=k3_r100_09_lr56_fix09_dec10k_cos200k CF412_STOPS="$S" STOPS="$S" \
 # Score one stop again.
 BB_GPU=0 bash scripts/head_eval.sh k3_r100_09_lr56_fix09_dec10k_cos200k 665000
 
-# The value-space reference of #415 trains from PR #416 at commit c2f796d7.
+# The flat-rate value-space run of #415 trained from PR #416 at c2f796d7.
+# Its Moirai-schedule run trains from 9d0f3311, with the defaults of paths.sh.
 git worktree add /tmp/cf-415 c2f796d7
 (cd /tmp/cf-415/reports/2026-09-23_value_space_reference && \
   LR=1e-3 CF415_BATCH_SIZE=256 SAVE_EVERY=5000 \
