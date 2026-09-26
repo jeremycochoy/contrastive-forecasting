@@ -20,7 +20,7 @@ sn = read(SN)
 # The best contrastive run against the value-space reference with the Moirai
 # schedule. The flat-rate run trained without that schedule, so it stays out.
 ARMS = [("cyan665",    "contrastive, cosine to 1e-6 by 200k, 665k   1.1369", "#17becf"),
-        ("moirai125k", "value space, Moirai schedule, 125k at batch 256   1.2887", "#8c564b")]
+        ("moirai150k", "value space, Moirai schedule, 150k at batch 256   1.2347", "#8c564b")]
 
 per_ds = {}
 for name, _, _ in ARMS:

@@ -19,8 +19,9 @@ at equal data: 1.2358 at 100,000 steps of batch 256, against 1.1477.
   EMA momentum fixed at 0.9, and an `L_rep` weight that falls from 1.0 to 0.0
   over the first 10,000 steps (`fix09_dec10k`). Only the rate changes between
   the coloured lines of the first figure.
-- **One pass**: 665,000 steps at batch 64. That is the 42.6M windows of 4,096
-  values in `gift-pretrain-full-4096/small_v1`.
+- **One pass**: 665,000 steps at batch 64. That is the 42.6M rows of
+  `gift-pretrain-full-4096/small_v1`. Each row is a window of 1,025 values, and
+  the model reads the first 1,024 (`src/dataloader.py:23`).
 - **The seed band**: 0.008, the largest gap between two seeds of the cell at
   5.6e-5 (0.0042 at 40,000 steps, 0.0081 at 100,000). Two numbers closer than
   the band are not ranked.
@@ -72,9 +73,9 @@ no `L_rep` and no `L_align`. It follows the Moirai recipe: batch 256, AdamW at
 of 1.0.
 
 It scores 1.6318 at 10,000 steps, the end of its warmup, 1.5283 at 25,000,
-1.3494 at 50,000, 1.2491 at 75,000, 1.2358 at 100,000 and 1.2887 at 125,000.
-At the same data as its best stop, 400,000 steps at batch 64, the contrastive
-run scored 1.1477. Against the contrastive run at 665,000 steps, the reference
+1.3494 at 50,000, 1.2491 at 75,000, 1.2358 at 100,000, 1.2887 at 125,000 and
+1.2347 at 150,000. At 400,000 steps at batch 64, the data of its 100,000-step
+stop, the contrastive run scored 1.1477. Against the contrastive run at 665,000 steps, the reference
 at 100,000 steps is worse on 24 of the 28 datasets, and better on
 bizitobs_service, saugeen, us_births and car_parts. From 100,000 to 125,000
 steps it gets worse on 25 datasets, most on the M4 sets: m4_weekly by 48%,
@@ -110,7 +111,7 @@ counts its steps at batch 256.
 | cosine 6e-5 to 1e-6 over 665,000 | 1.1646 | 100,000 | 1.2738 | 600,000 |
 | cosine 5.6e-5 to 1e-6 by 200,000, then 1e-6 | 1.1369 | 665,000 | 1.1432 | 1,330,000 |
 | value space, flat 1e-3 | 1.2951 | 25,000 | 1.4482 | 90,000 |
-| value space, Moirai schedule | 1.2358 | 100,000 | 1.2887 | 125,000 |
+| value space, Moirai schedule | 1.2347 | 150,000 | 1.2347 | 150,000 |
 
 `results/gm_trajectories.tsv` holds every scored stop of the card, one row per
 stop. `scripts/gm_trajectories.py` builds it from the score files.
@@ -138,7 +139,7 @@ no separate recipe for its 0.946 run.
 
 | | Moirai 1.0 Small, GIFT-Eval Pretrain | value space, Moirai schedule (#415) | contrastive, cosine by 200,000 |
 |---|---|---|---|
-| GM-Relative MASE | 0.946 | 1.2358 at 100,000 steps, its best so far | 1.1369 |
+| GM-Relative MASE | 0.946 | 1.2347 at 150,000 steps, its best so far | 1.1369 |
 | parameters | 14M | 11.4M | 11.4M |
 | body | masked encoder, 6 layers | 3 encoder and 3 forecaster layers | the same |
 | patch | 8 to 128, set by the frequency | 16 | 16 |
