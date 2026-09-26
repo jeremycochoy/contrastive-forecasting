@@ -17,12 +17,12 @@ def read(path):
     return out
 
 sn = read(SN)
-# The flat run shows its best stop and its last one; the curves figure holds
-# the rest.
+# The flat run shows its best stop and its last one, the Moirai-schedule run
+# its latest; the curves figure holds the rest.
 ARMS = [("cyan665",   "contrastive, cosine to 1e-6 by 200k, 665k   1.1369", "#17becf"),
         ("value25k",  "value space, flat 1e-3, 25k at batch 256   1.2951", "#7f7f7f"),
         ("value90k",  "value space, flat 1e-3, 90k at batch 256   1.4482", "#d62728"),
-        ("moirai10k", "value space, Moirai schedule, 10k at batch 256   1.6318", "#8c564b")]
+        ("moirai25k", "value space, Moirai schedule, 25k at batch 256   1.5283", "#8c564b")]
 
 per_ds = {}
 for name, _, _ in ARMS:
