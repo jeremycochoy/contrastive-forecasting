@@ -995,6 +995,32 @@ def _last_forecast(head, f_bc):
     return out[:, -1]
 
 
+class ValueHeadForecaster(nn.Module):
+    """The value head a value-space backbone trained with (#415), in the
+    shape the A strategies read: from each forecaster latent, the Q
+    quantiles of the next W values. Under :func:`forecast_A2` the model then
+    forecasts on its own, autoregressively in value space, the way it
+    trained. No separate head is trained."""
+
+    def __init__(self, backbone, quantile_levels=QUANTILE_LEVELS):
+        super().__init__()
+        if backbone.value_head is None:
+            raise ValueError("the backbone has no value head; train it with "
+                             "--value-space-objective")
+        self.value_head = backbone.value_head
+        self.num_quantiles = backbone.value_head_quantiles
+        self.forecast_len = backbone.W
+        self.quantile_levels = list(quantile_levels)
+        if len(self.quantile_levels) != self.num_quantiles:
+            raise ValueError(f"{self.num_quantiles} quantiles in the value "
+                             f"head, {len(self.quantile_levels)} levels given")
+
+    def forward(self, f_lat):
+        """``(..., H)`` latents to ``(..., Q, W)`` quantiles."""
+        return self.value_head(f_lat).unflatten(
+            -1, (self.num_quantiles, self.forecast_len))
+
+
 def forecast_A2(backbone, head, x_context, horizon, device):
     """A2: Value-space rollout with W-value head.
 

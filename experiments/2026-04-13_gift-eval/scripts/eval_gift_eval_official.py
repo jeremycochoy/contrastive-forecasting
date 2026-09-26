@@ -362,7 +362,13 @@ def get_ds_config_name(ds_name, term):
 def parse_args():
     p = argparse.ArgumentParser(description="Official GIFT-Eval evaluation")
     p.add_argument("--backbone-path", required=True)
-    p.add_argument("--head-path", required=True)
+    p.add_argument("--head-path", default=None,
+                   help="The forecasting head. Required, except under "
+                        "--native-value-head.")
+    p.add_argument("--native-value-head", action="store_true",
+                   help="Forecast with the backbone's own value head (#415, "
+                        "--value-space-objective): strategy A2 rolls the "
+                        "model out in value space with no separate head.")
     p.add_argument("--output-dir", default="results/contrastive_tiny")
     p.add_argument("--device", default="cuda")
     p.add_argument("--test-only", type=int, default=0,
@@ -436,7 +442,12 @@ def parse_args():
                         "matches training-time semantics). State dict "
                         "is identical for causal vs bidir — pass the same "
                         "value used at training time.")
-    return p.parse_args()
+    args = p.parse_args()
+    if args.native_value_head and args.strategy != "A2":
+        p.error("--native-value-head forecasts in value space: use --strategy A2")
+    if not args.native_value_head and args.head_path is None:
+        p.error("--head-path is required unless --native-value-head")
+    return args
 
 
 def load_models(args, device):
@@ -566,17 +577,31 @@ def load_models(args, device):
                     f"{PATCH_STATS_DIM}.")
         print(f"  [eval] auto-detected patch_stats={args.patch_stats}")
     BACKBONE_CONFIG["patch_stats_kind"] = args.patch_stats
+    if args.native_value_head:
+        vh = sd.get("value_head.weight")
+        if vh is None:
+            raise SystemExit(f"--native-value-head: {args.backbone_path} has "
+                             f"no value head (train with --value-space-objective)")
+        BACKBONE_CONFIG["value_head_quantiles"] = vh.shape[0] // BACKBONE_CONFIG["W"]
     backbone = ConfigurableModel(**BACKBONE_CONFIG)
     # Drops the pretraining-only branches (CPC-InfoNCE `cpc_w1.*`, the EMA
     # teacher's `teacher_*`) so the strict load matches the eval-time
     # backbone, and — under --encoder-source teacher (#393) — promotes the
     # teacher's encoder weights into the student's slots first.
-    backbone.load_state_dict(prepare_backbone_state_dict(sd, args.encoder_source))
+    # --native-value-head keeps `value_head.*`: the eval forecasts with it.
+    backbone.load_state_dict(prepare_backbone_state_dict(
+        sd, args.encoder_source, keep_value_head=args.native_value_head))
     backbone = backbone.to(device)
     backbone.eval()
     for p in backbone.parameters():
         p.requires_grad = False
     print(f"  [eval] encoder={args.encoder_source}")
+    if args.native_value_head:
+        from src.forecasting_head import ValueHeadForecaster
+        head = ValueHeadForecaster(backbone).to(device).eval()
+        print(f"  [eval] native value head: {head.num_quantiles} quantiles of "
+              f"the next {head.forecast_len} values, no separate head")
+        return backbone, head
 
     # A head decodes the latents of one encoder. Running a teacher head on
     # the student gives a number that looks fine and means nothing, so the

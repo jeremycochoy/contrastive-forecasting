@@ -45,6 +45,8 @@ sys.path.insert(0, str(REPO_ROOT))
 from src.checkpoint import prepare_backbone_state_dict  # noqa: E402
 from src.forecasting_head import (  # noqa: E402
     QUANTILE_LEVELS,
+    ValueHeadForecaster,
+    forecast_A2,
     median_quantile_index,
     patch_value_targets,
     value_patches_to_series,
@@ -798,7 +800,9 @@ else:
     open(rows, "w").write("dataset,MASE\nm4_hourly/H/short,1.0\n")
 with open(os.environ["CF415_CALLS"], "a") as fh:
     fh.write(json.dumps({"prog": "gift", "strategy": arg("--strategy"),
-                         "out": out, "head": arg("--head-path")}) + "\n")
+                         "out": out,
+                         "head": arg("--head-path") if "--head-path" in a else None,
+                         "native": "--native-value-head" in a}) + "\n")
 '''
 
 
@@ -920,6 +924,52 @@ def test_the_a2_switch_scores_b4_alone():
                        env=clean_env(CF415_DRY_RUN="1", CF415_SCORE_A2="0"))
     assert r.returncode == 0, r.stdout + r.stderr
     assert "strategies=B4\n" in r.stdout
+
+
+def test_eval_local_a2v_forecasts_with_the_models_own_head(tmp_path):
+    """A2V runs A2 with --native-value-head into its own directory, and reads
+    no head file: the model forecasts alone."""
+    bb = tmp_path / "bb.pth"
+    bb.write_text("bb")
+    out, score = tmp_path / "eval", tmp_path / "score.txt"
+    r = subprocess.run(
+        ["bash", str(EVAL_LOCAL), "cell", "40", "student", str(bb), "-",
+         str(out), str(score)],
+        capture_output=True, text=True, timeout=300,
+        env=scoring_env(tmp_path, EVAL_STRATEGY="A2V"))
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert score.read_text().strip() == "0.9876"
+    evals = calls(tmp_path, "gift")
+    assert evals
+    assert all(c["strategy"] == "A2" and c["native"] and c["head"] is None
+               for c in evals)
+    assert all(Path(c["out"]).is_relative_to(out / "gift_a2v") for c in evals)
+    assert (out / "eval_local_a2v.log").is_file()
+
+
+def test_the_value_head_forecaster_is_the_models_value_forward():
+    model = tiny_model()
+    f_lat = torch.randn(2, 5, 1, model.value_head.in_features)
+    ours = ValueHeadForecaster(model)(f_lat[:, :, 0])
+    assert torch.equal(ours, model.value_forward(f_lat)[:, :, 0])
+
+
+def test_the_state_dict_keeps_the_value_head_only_when_asked():
+    sd = tiny_model().state_dict()
+    assert not any(k.startswith("value_head") for k in
+                   prepare_backbone_state_dict(sd))
+    assert "value_head.weight" in prepare_backbone_state_dict(
+        sd, keep_value_head=True)
+
+
+def test_a2_forecasts_with_the_models_own_value_head():
+    """The native eval: A2 rolls the model out in value space on its own
+    quantiles, one patch at a time, past one patch of horizon."""
+    model = tiny_model().eval()
+    out = forecast_A2(model, ValueHeadForecaster(model), torch.randn(64, 1),
+                      horizon=40, device="cpu")
+    assert out.shape == (Q, 40, 1)
+    assert torch.isfinite(torch.as_tensor(out)).all()
 
 
 # ---------------------------------------------------------------------------
