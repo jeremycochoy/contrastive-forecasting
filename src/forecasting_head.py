@@ -24,6 +24,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from .patch_size import patch_size_choices
+
 
 W = 16  # Patch size (must match backbone)
 FORECAST_LEN = 128  # Output horizon per patch
@@ -401,7 +403,7 @@ def quantile_loss(predicted, target, quantile_levels=QUANTILE_LEVELS):
 
 
 def extract_forecaster_latents(backbone, x, freq_ids=None,
-                                seasonality_ids=None):
+                                seasonality_ids=None, patch_size=None):
     """Extract f_lat from backbone for forecasting head input.
 
     Applies RevEWMNorm, patches the input (incl. patch-stats, freq-emb,
@@ -416,7 +418,10 @@ def extract_forecaster_latents(backbone, x, freq_ids=None,
         seasonality_ids: LongTensor (B,) of seasonality class ids when the
             backbone has a seasonality embedding. Defaults to class 0
             (unknown) if missing.
+        patch_size: the patch size a multi-patch backbone reads (#417).
+            None reads the backbone's one size, W.
     """
+    size_kwarg = {} if patch_size is None else {"patch_size": patch_size}
     with torch.no_grad():
         if backbone.rev_norm is not None:
             x_norm = backbone.rev_norm(x, mode='norm')
@@ -434,7 +439,8 @@ def extract_forecaster_latents(backbone, x, freq_ids=None,
             seasonality_ids = torch.full((B,), default, dtype=torch.long, device=x.device)
 
         xr = backbone.prepare_encoder_input(
-            x_norm, freq_ids=freq_ids, seasonality_ids=seasonality_ids)
+            x_norm, freq_ids=freq_ids, seasonality_ids=seasonality_ids,
+            **size_kwarg)
 
         f_flat, _ = backbone.transformer(xr)
 
@@ -875,7 +881,8 @@ def value_patches_to_series(v_hat, q_index):
 
 
 def value_space_forward(model, x_norm, freq_ids=None, freq_embs=None,
-                        seasonality_ids=None, seasonality_embs=None):
+                        seasonality_ids=None, seasonality_embs=None,
+                        patch_size=None):
     """One forecast step: normalised values in, the next patch's values out.
 
     Runs the cell unchanged — the input head (``prepare_encoder_input`` +
@@ -886,29 +893,35 @@ def value_space_forward(model, x_norm, freq_ids=None, freq_embs=None,
     per step (in the caller) rather than once per rollout depth. Re-running
     it on a predicted series would rescale the forecast by its own statistics.
 
+    ``patch_size`` picks the patch encoder and the value head of a
+    multi-patch model (#417). None is the model's one size, W.
+
     Returns ``(f_lat, o_lat, v_hat)`` with ``f_lat``/``o_lat`` in the
     ``[B, T, C, H]`` layout the trainer's diagnostics read, and ``v_hat`` in
-    ``[B, T, C, Q, W]``.
+    ``[B, T, C, Q, P]``.
     """
     B, T_raw, C = x_norm.shape
     H = model.H
-    T = T_raw // model.W
+    P = model.W if patch_size is None else int(patch_size)
+    T = T_raw // P
     xr = model.prepare_encoder_input(
         x_norm, freq_ids=freq_ids, freq_embs=freq_embs,
-        seasonality_ids=seasonality_ids, seasonality_embs=seasonality_embs)
+        seasonality_ids=seasonality_ids, seasonality_embs=seasonality_embs,
+        patch_size=P)
     f_flat, o_flat = model.transformer(xr)
     f_lat = f_flat.reshape(B, C, T, H).permute(0, 2, 1, 3)
     o_lat = o_flat.reshape(B, C, T, H).permute(0, 2, 1, 3)
     # fp32 into the value head, so the pinball loss and the values the next
     # depth reads are fp32 whatever `--residual-dtype` the body runs at. That
     # is the trainer's own convention for everything downstream of a latent.
-    return f_lat, o_lat, model.value_forward(f_lat.float())
+    return f_lat, o_lat, model.value_forward(f_lat.float(), patch_size=P)
 
 
 def value_space_objective(model, x_norm, *, depth=0, reduce="sum",
                           quantile_levels=QUANTILE_LEVELS,
                           freq_ids=None, freq_embs=None,
-                          seasonality_ids=None, seasonality_embs=None):
+                          seasonality_ids=None, seasonality_embs=None,
+                          patch_size=None):
     """Pinball loss on the actual future values, rolled out in value space.
 
     Depth 0 predicts patch t + 1 from position t. Depth j re-runs the whole
@@ -922,6 +935,9 @@ def value_space_objective(model, x_norm, *, depth=0, reduce="sum",
     forecast side ``depth + 1`` times its depth-0 weight, ``'mean'`` holds
     it. The two agree exactly at depth 0.
 
+    ``patch_size`` is the size P every sample of the batch reads (#417),
+    W by default. Each depth then advances the forecast by P values.
+
     Returns ``(loss, f_lat, o_lat, per_depth)``. ``f_lat`` / ``o_lat`` are
     depth 0's, the latents the trainer's diagnostics read. ``per_depth[j]``
     is the unweighted pinball loss of depth j.
@@ -929,6 +945,7 @@ def value_space_objective(model, x_norm, *, depth=0, reduce="sum",
     if reduce not in ("sum", "mean"):
         raise ValueError(f"reduce must be 'sum' or 'mean'; got {reduce!r}")
     q_index = median_quantile_index(quantile_levels)
+    P = model.W if patch_size is None else int(patch_size)
     x_in = x_norm
     f_lat0 = o_lat0 = None
     per_depth = []
@@ -936,10 +953,10 @@ def value_space_objective(model, x_norm, *, depth=0, reduce="sum",
         f_lat, o_lat, v_hat = value_space_forward(
             model, x_in, freq_ids=freq_ids, freq_embs=freq_embs,
             seasonality_ids=seasonality_ids,
-            seasonality_embs=seasonality_embs)
+            seasonality_embs=seasonality_embs, patch_size=P)
         if j == 0:
             f_lat0, o_lat0 = f_lat, o_lat
-        targets, t_valid = patch_value_targets(x_norm, model.W, shift=j)
+        targets, t_valid = patch_value_targets(x_norm, P, shift=j)
         per_depth.append(
             quantile_loss(v_hat[:, :t_valid], targets, quantile_levels))
         if j < depth:
@@ -950,6 +967,59 @@ def value_space_objective(model, x_norm, *, depth=0, reduce="sum",
     if reduce == "mean":
         loss = loss / len(per_depth)
     return loss, f_lat0, o_lat0, per_depth
+
+
+def patch_size_groups(sample_sizes):
+    """``{P: row indices}`` for a batch whose sample i reads size
+    ``sample_sizes[i]``, in increasing P (#417)."""
+    return {int(p): (sample_sizes == p).nonzero().squeeze(1)
+            for p in sample_sizes.unique().tolist()}
+
+
+def _rows(tensor, rows):
+    """``tensor[rows]``, or None for an input the batch does not carry."""
+    return None if tensor is None else tensor[rows.to(tensor.device)]
+
+
+def _diagnostic_latents(latents, base_size):
+    """``(f_lat, o_lat)`` of the base size's group, else of the largest."""
+    size = (base_size if base_size in latents
+            else max(latents, key=lambda s: latents[s][0]))
+    return latents[size][1:]
+
+
+def multi_patch_value_objective(model, x_norm, sample_sizes, *, depth=0,
+                                reduce="sum", quantile_levels=QUANTILE_LEVELS,
+                                **conditioning):
+    """:func:`value_space_objective` when each sample has its own patch size.
+
+    The batch splits by patch size (#417). Each group runs the objective at
+    its size P: its own patch encoder, its own value head, and a rollout
+    that advances P values per depth. A group's loss is the mean over its
+    samples, so a weight of (group size / batch size) makes the total the
+    mean over all samples. The same weights combine ``per_depth``.
+
+    ``sample_sizes`` is a LongTensor of one size per sample.
+    ``conditioning`` takes the ``freq_*`` and ``seasonality_*`` inputs of
+    :func:`value_space_objective`, one row per sample.
+
+    Returns ``(loss, f_lat, o_lat, per_depth)``. The trainer's diagnostics
+    read one sequence length, so the latents are those of the base size
+    W's group, or of the largest group when no sample reads W.
+    """
+    n = x_norm.shape[0]
+    loss, per_depth, latents = 0.0, [0.0] * (depth + 1), {}
+    for size, rows in patch_size_groups(sample_sizes).items():
+        part = {k: _rows(v, rows) for k, v in conditioning.items()}
+        g_loss, f_lat, o_lat, g_depths = value_space_objective(
+            model, _rows(x_norm, rows), depth=depth, reduce=reduce,
+            quantile_levels=quantile_levels, patch_size=size, **part)
+        share = len(rows) / n
+        loss = loss + share * g_loss
+        per_depth = [a + share * b for a, b in zip(per_depth, g_depths)]
+        latents[size] = (len(rows), f_lat, o_lat)
+    f_lat, o_lat = _diagnostic_latents(latents, model.W)
+    return loss, f_lat, o_lat, per_depth
 
 
 def _get_denorm_stats(backbone, C):
@@ -1000,16 +1070,23 @@ class ValueHeadForecaster(nn.Module):
     shape the A strategies read: from each forecaster latent, the Q
     quantiles of the next W values. Under :func:`forecast_A2` the model then
     forecasts on its own, autoregressively in value space, the way it
-    trained. No separate head is trained."""
+    trained. No separate head is trained.
 
-    def __init__(self, backbone, quantile_levels=QUANTILE_LEVELS):
+    ``patch_size`` picks one size of a multi-patch backbone (#417): its
+    value head decodes P values, and :func:`forecast_A2` reads the context
+    in patches of P and steps by P. None keeps the backbone's one size W.
+    """
+
+    def __init__(self, backbone, quantile_levels=QUANTILE_LEVELS,
+                 patch_size=None):
         super().__init__()
-        if backbone.value_head is None:
+        if backbone.value_head_quantiles <= 0:
             raise ValueError("the backbone has no value head; train it with "
                              "--value-space-objective")
-        self.value_head = backbone.value_head
+        self.patch_size = patch_size
+        self.value_head = backbone.value_head_for(patch_size)
         self.num_quantiles = backbone.value_head_quantiles
-        self.forecast_len = backbone.W
+        self.forecast_len = backbone.W if patch_size is None else int(patch_size)
         self.quantile_levels = list(quantile_levels)
         if len(self.quantile_levels) != self.num_quantiles:
             raise ValueError(f"{self.num_quantiles} quantiles in the value "
@@ -1021,6 +1098,20 @@ class ValueHeadForecaster(nn.Module):
             -1, (self.num_quantiles, self.forecast_len))
 
 
+def native_value_head(backbone, freq=None):
+    """The backbone's own value head for one eval config (#415, #417).
+
+    A multi-patch backbone reads the config at its frequency's inference
+    patch size (:mod:`src.patch_size`). A single-patch backbone reads every
+    config at W, as it did before #417.
+    """
+    if not getattr(backbone, "multi_patch_sizes", ()):
+        return ValueHeadForecaster(backbone)
+    (size,) = patch_size_choices(freq, backbone.multi_patch_sizes,
+                                 training=False)
+    return ValueHeadForecaster(backbone, patch_size=size)
+
+
 def forecast_A2(backbone, head, x_context, horizon, device):
     """A2: Value-space rollout with W-value head.
 
@@ -1030,9 +1121,13 @@ def forecast_A2(backbone, head, x_context, horizon, device):
     (#415) returns ``(num_quantiles, horizon, C)``, the shape
     :func:`forecast_B4` returns for one, and rolls its MEDIAN forward as the
     next patch.
+
+    A head with a ``patch_size`` (the value head of a multi-patch backbone,
+    #417) makes the backbone read the context in patches of that size, and
+    the rollout then slides by that size.
     """
     forecast_len = head.forecast_len  # should be W (16)
-    W_bb = backbone.W
+    patch_size = getattr(head, "patch_size", None)
 
     if x_context.dim() == 2:
         x_context = x_context.unsqueeze(0)
@@ -1045,7 +1140,8 @@ def forecast_A2(backbone, head, x_context, horizon, device):
 
     while remaining > 0:
         with torch.no_grad():
-            f_bc, x_norm = extract_forecaster_latents(backbone, current_context)
+            f_bc, x_norm = extract_forecaster_latents(
+                backbone, current_context, patch_size=patch_size)
             pred_last = _last_forecast(head, f_bc)  # (C, L) or (C, Q, L)
 
             mean_c, stdev_c = _get_denorm_stats(backbone, C)
