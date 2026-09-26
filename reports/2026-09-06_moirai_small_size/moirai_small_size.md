@@ -81,9 +81,10 @@ between 25,000 and 50,000 steps (1.9036 at 50,000), and again at 73,000,
 
 A second run with the Moirai schedule replaces it (#415): a 10,000-step
 warmup, a cosine to 0 at 166,000 steps and a gradient clip of 1.0. It scores
-1.6318 at 10,000 steps, the end of its warmup, and 1.5283 at 25,000 steps. The
-flat run scored 1.2951 at 25,000 steps. Both stops of the second run are worse
-than the contrastive run on all 28 datasets.
+1.6318 at 10,000 steps, the end of its warmup, 1.5283 at 25,000 and 1.3494
+at 50,000. The flat run scored 1.2951 at 25,000 steps and 1.9036 at 50,000. At
+50,000 steps the second run is worse than the contrastive run on 27 of the 28
+datasets. On restaurant it is better.
 
 ## The tables
 
@@ -111,7 +112,7 @@ counts its steps at batch 256.
 | cosine 6e-5 to 1e-6 over 665,000 | 1.1646 | 100,000 | 1.2738 | 600,000 |
 | cosine 5.6e-5 to 1e-6 by 200,000, then 1e-6 | 1.1369 | 665,000 | 1.1432 | 1,330,000 |
 | value space, flat 1e-3 | 1.2951 | 25,000 | 1.4482 | 90,000 |
-| value space, Moirai schedule | 1.5283 | 25,000 | 1.5283 | 25,000 |
+| value space, Moirai schedule | 1.3494 | 50,000 | 1.3494 | 50,000 |
 
 `results/gm_trajectories.tsv` holds every scored stop of the card, one row per
 stop. `scripts/gm_trajectories.py` builds it from the score files.

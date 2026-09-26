@@ -22,7 +22,7 @@ sn = read(SN)
 ARMS = [("cyan665",   "contrastive, cosine to 1e-6 by 200k, 665k   1.1369", "#17becf"),
         ("value25k",  "value space, flat 1e-3, 25k at batch 256   1.2951", "#7f7f7f"),
         ("value90k",  "value space, flat 1e-3, 90k at batch 256   1.4482", "#d62728"),
-        ("moirai25k", "value space, Moirai schedule, 25k at batch 256   1.5283", "#8c564b")]
+        ("moirai50k", "value space, Moirai schedule, 50k at batch 256   1.3494", "#8c564b")]
 
 per_ds = {}
 for name, _, _ in ARMS:
