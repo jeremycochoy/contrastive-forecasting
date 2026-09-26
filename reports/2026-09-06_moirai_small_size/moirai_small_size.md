@@ -82,7 +82,7 @@ m4_quarterly by 44% and m4_yearly by 36%.
 
 A first run of the reference used a flat 1e-3 with no warmup and no clip. Its
 loss spiked four times, its best score was 1.2951 at 25,000 steps, and the owner
-stopped it at 92,600 steps. The curves figure shows it as the black line.
+stopped it at 92,600 steps.
 
 ## The tables
 
