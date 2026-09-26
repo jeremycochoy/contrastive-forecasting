@@ -238,8 +238,11 @@ _TEACHER_PROMOTIONS = {
     "teacher_encoder_layers.": ("transformer.encoder_layers.",),
 }
 # Pretraining-only weights with no downstream role: `cpc_w1.*` from the
-# CPC-InfoNCE auxiliary (#344), `teacher_*` from the EMA teacher (#353).
-_PRETRAIN_ONLY_PREFIXES = ("cpc_w1", "teacher_")
+# CPC-InfoNCE auxiliary (#344), `teacher_*` from the EMA teacher (#353),
+# `value_head.*` from the value-space objective (#415). The head trainer
+# trains its OWN forecasting head on the frozen backbone, so the pretraining
+# value head has no consumer and its keys would break the strict load.
+_PRETRAIN_ONLY_PREFIXES = ("cpc_w1", "teacher_", "value_head")
 
 
 def has_teacher_weights(state_dict: dict) -> bool:
@@ -248,7 +251,8 @@ def has_teacher_weights(state_dict: dict) -> bool:
 
 
 def prepare_backbone_state_dict(state_dict: dict,
-                                encoder_source: str = "student") -> dict:
+                                encoder_source: str = "student",
+                                keep_value_head: bool = False) -> dict:
     """State dict for a downstream ``ConfigurableModel``, built without the
     pretraining-only branches.
 
@@ -263,6 +267,9 @@ def prepare_backbone_state_dict(state_dict: dict,
     matching :meth:`ConfigurableModel.teacher_forward`'s fallback. A
     checkpoint whose teacher is partial (``--ema-embedding`` without
     ``--ema-encoder``, or the reverse) promotes the half it has.
+
+    ``keep_value_head=True`` keeps ``value_head.*`` for an eval that
+    forecasts with the backbone's own value head (#415).
 
     Raises ValueError when a teacher is asked of a checkpoint that has none.
     """
@@ -283,8 +290,9 @@ def prepare_backbone_state_dict(state_dict: dict,
                 tail = key[len(src):]
                 for dest in dests:
                     out[dest + tail] = value
-    return {k: v for k, v in out.items()
-            if not k.startswith(_PRETRAIN_ONLY_PREFIXES)}
+    dropped = tuple(p for p in _PRETRAIN_ONLY_PREFIXES
+                    if not (keep_value_head and p == "value_head"))
+    return {k: v for k, v in out.items() if not k.startswith(dropped)}
 
 
 def encoder_source_marker_path(checkpoint_path: str) -> str:
@@ -355,9 +363,10 @@ def load_backbone_from_checkpoint(
     ``learnable_tau``, ``patch_stats_kind``.
 
     Non-load state_dict keys (``cpc_w1.*`` from the CPC-InfoNCE
-    auxiliary, ``teacher_*`` from the EMA-target teacher — training-only
-    branches with no downstream role) are stripped so ``load_state_dict``
-    with the default ``strict=True`` still succeeds.
+    auxiliary, ``teacher_*`` from the EMA-target teacher, ``value_head.*``
+    from the value-space objective — training-only branches with no
+    downstream role) are stripped so ``load_state_dict`` with the default
+    ``strict=True`` still succeeds.
 
     ``encoder_source='teacher'`` returns the same architecture running the
     EMA teacher's encoder weights — see
