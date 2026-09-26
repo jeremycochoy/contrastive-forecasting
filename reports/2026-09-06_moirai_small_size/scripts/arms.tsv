@@ -1,0 +1,391 @@
+# #412 — the arms of the card, one row each. Tab separated.
+#
+# Columns: arm, the rollout depth k, the reduction over the k + 1 depth
+# copies, the EMA momentum alpha at step 0, alpha at the end of the ramp, the
+# ramp length, the backbone seed, the L_rep decay ramp, the learning rate, and
+# the weight of L_align.
+#
+# `align_w` is `-` on every arm before pass 7, and `-` means the 1.0 that
+# `run_leg_k.sh` hardcodes. No study of this lineage has ever moved it.
+#
+# Every arm trains #373's cell `arm6_v2_combab_alignT` at `d_model` 384. The
+# WIDTH is the one thing this card moves, and it is not a column: every arm
+# carries it, so it lives in `study.sh`.
+#
+# Each row is a PUBLISHED configuration at the new width. So the depth, the
+# reduction and the momentum of a row are its parent's values, and a row that
+# changed one of them would answer a question no parent asked.
+#
+# ---- The six configurations of the card -------------------------------------
+#
+#   k3_r100_09        1. k = 3, the sum reduction. The cell that holds the
+#                     project best, 1.0651 at 200,000 steps, with the align
+#                     target moved to the teacher. That run is
+#                     `arm6_v2_combab_alignS`, and it carries no
+#                     `--train-rollout-reduce`, which is the sum.
+#                     THIS ROW HAS A 1.1M TWIN, and an earlier version of this
+#                     comment said it did not. #373 ran it as cell A3,
+#                     `arm6_v2_combab_alignT_sched`: the same cell, k = 3,
+#                     sum, the same momentum and the same seed 20260520. It
+#                     scored 1.3618 at 40,000 steps under a 15,000-step head,
+#                     1.3010 at 100,000 and 1.3998 at 200,000, both under a
+#                     30,000-step head. So the 100,000-step and 200,000-step
+#                     stops of this row are head-matched size comparisons, and
+#                     the 40,000-step stop is not.
+#   k32_r100_09       2. k = 32, mean. #404's `r100_09`. The best teacher-align
+#                     score at the 40,000-step stop, 1.1491 over two seeds.
+#   k32_r200_08       3. k = 32, mean. #404's `s08`, 1.1782 at 40,000 steps.
+#                     Its momentum still climbs at 200,000 steps, so it has
+#                     not saturated.
+#   k3_r100_09_dec    4. Configuration 1 with the L_rep decay. #409 answered
+#                     this at 1.1M parameters. It is open at 11.4M.
+#   k32_r100_09_dec   5. Configuration 2 with the L_rep decay. #409's best
+#                     decay arm scored 1.2295 at 1.1M.
+#   k8_r100_09        6. k = 8, mean. OPTIONAL. #401 ran this depth under the
+#                     mean reduction against the STUDENT target. The depth
+#                     sits between the two cells above, and at 1.1M parameters
+#                     k = 3 beats k = 32. That order may not hold at 11.4M.
+#
+# ---- Why two decay arms stay in ---------------------------------------------
+#
+# #409 measured the decay in 22 trained runs at 1.1M parameters, and it never
+# won. `L_rep` carries the negatives of the objective. A model with ten times
+# the capacity has more room to collapse without them, or more room to do
+# without them, and #409 cannot answer that.
+#
+# The decay column is the whole difference between row 5 and row 2, and
+# between row 4 and row 1. So `5 minus 2` measures the decay alone at the new
+# size. Both twins carry the seed of their plain twin for the same reason.
+#
+# A decay arm can lose the contrastive task. `auc_guard.sh` reads the
+# trainer's own `auc` column while the leg runs and stops the arm that does.
+#
+# ---- The seed band ----------------------------------------------------------
+#
+#   k3_r100_09b   `k3_r100_09` again at backbone seed 20260525. It differs
+#                 from row 1 in the SEED column alone.
+#
+# THIS ROW MEASURED THE BAND, and the band is 0.0568 GM-Relative MASE:
+# `k3_r100_09` scores 1.3495 and `k3_r100_09b` scores 1.2927 at 40,000 steps.
+# Two arms that land closer than that are not ranked, at every stop of this
+# card. The number replaces #409's 0.0471, which is a 1.1M number. The row
+# repeats row 1 because row 1 is the arm the headline rests on: it is the
+# teacher twin of the run that holds 1.0651.
+# 20260525 continues the seed count of #404, which used 20260520 thru 20260524.
+# #404 saw seed 20260521 lose the contrastive task, so this card does not use
+# it.
+#
+# ---- The learning-rate bracket ----------------------------------------------
+#
+#   k3_r100_09_lr33   Configuration 1 at 3.3e-4.
+#   k3_r100_09_lr17   Configuration 1 at 1.67e-4, which is 1e-3 times 64/384.
+#
+# Every other arm trains at 1e-3. That rate is the Moirai recipe, and
+# `run_leg_k.sh` states it. This project does not use muP, and the trainer
+# builds ONE AdamW group over all parameters with no width multiplier
+# (`train.py`). So a rate that fits `d_model` 64 need not fit 384, and a
+# capacity verdict taken at a rate that does not fit the width answers a
+# question about the rate.
+#
+# Two points bracket the rate. The verdict needs "does a lower rate win", not
+# the optimum, so the bracket holds no third point. Both rows carry seed
+# 20260520 and the columns of configuration 1, so each one moves the RATE
+# alone.
+#
+# A lower rate also reaches the contrastive task later. `cf412_auc_warmup`
+# scales the AUC warm-up by the rate ratio for the same reason, or the gate
+# stops a healthy slow arm in its first minutes.
+#
+# ---- What this design can say, and what it cannot ---------------------------
+#
+# One backbone of this card costs about six times one backbone of its parent,
+# so five seeds of each arm are out of reach. The design answers ONE question
+# with confidence: does the 11.4M model beat the 1.1M model by more than
+# 0.0568? It ranks the arms against each other ONLY where a gap is wider than
+# that band, and it measures the decay pair directly.
+#
+# Add an arm by adding a row. Every script, guard and figure reads this file.
+#
+# ---- Pass 2: the three arms the rate verdict opened -------------------------
+#
+# Pass 1 found that 1e-3 does not fit `d_model` 384: `k3_r100_09_lr56` scores
+# 1.1820 against 1.3495 at the same seed, 2.9 bands. The card's own rule voids
+# every 1e-3 number of pass 1. These three arms are the follow-ups PR #413
+# names, and each one moves ONE column of an arm above it.
+#
+#   k32_r100_09_lr56  R2, THE RESCUE TEST. `k32_r100_09` at 5.6e-4. It moves
+#                     the RATE alone. Both k = 32 arms that lost the
+#                     contrastive task ran at 1e-3, and no deep mean arm has
+#                     run lower, so this arm tests whether the rate caused the
+#                     collapses. Its twin scored 1.4629.
+#   k3_r100_09_mean   R3, THE REDUCTION. `k3_r100_09` under `mean`. It moves
+#                     the REDUCTION alone against `k3_r100_09`, and the DEPTH
+#                     alone against `k32_r100_09`. Pass 1 confounded the two:
+#                     every k = 3 arm ran `sum` and every deeper arm ran
+#                     `mean`. This arm is ADDED beside the k = 3 lineage and
+#                     does not move it. Every parent and twin of that lineage
+#                     is `sum`, and a moved lineage orphans every size
+#                     comparison.
+#                     NOTE `sum` gives the f-side terms (k + 1) times their
+#                     k = 0 weight (`src/loss.py:42`), so this arm also moves a
+#                     4x f-side weight, not the geometry alone.
+#   k3_r100_09b_lr56  R4, THE BAND AT THE WINNING RATE. `k3_r100_09_lr56` at
+#                     seed 20260525. It moves the SEED alone, as
+#                     `k3_r100_09b` does against `k3_r100_09` at 1e-3. Pass 1
+#                     measured the band 0.0568 at 1e-3, and this arm measures
+#                     it at 5.6e-4.
+#
+# R1 needs no row. It is `k3_r100_09_lr56` at the 100,000-step and the
+# 200,000-step stop, resumed from its 40,000-step checkpoint.
+#
+# arm	k	reduce	tau	end	ramp	seed	decay	lr	align_w
+k3_r100_09	3	sum	0.9	1.0	100000	20260520	-	1e-3	-
+k32_r100_09	32	mean	0.9	1.0	100000	20260520	-	1e-3	-
+k32_r200_08	32	mean	0.8	1.0	200000	20260520	-	1e-3	-
+k3_r100_09_dec	3	sum	0.9	1.0	100000	20260520	2000	1e-3	-
+k32_r100_09_dec	32	mean	0.9	1.0	100000	20260520	2000	1e-3	-
+k8_r100_09	8	mean	0.9	1.0	100000	20260520	-	1e-3	-
+k3_r100_09b	3	sum	0.9	1.0	100000	20260525	-	1e-3	-
+k3_r100_09_lr33	3	sum	0.9	1.0	100000	20260520	-	3.3e-4	-
+k3_r100_09_lr17	3	sum	0.9	1.0	100000	20260520	-	1.67e-4	-
+k3_r100_09_lr56	3	sum	0.9	1.0	100000	20260520	-	5.6e-4	-
+k32_r100_09_lr56	32	mean	0.9	1.0	100000	20260520	-	5.6e-4	-
+k3_r100_09_mean	3	mean	0.9	1.0	100000	20260520	-	1e-3	-
+k3_r100_09b_lr56	3	sum	0.9	1.0	100000	20260525	-	5.6e-4	-
+k32_r100_09_sum	32	sum	0.9	1.0	100000	20260520	-	5.6e-4	-
+k3_r100_09_lr45	3	sum	0.9	1.0	100000	20260520	-	4.5e-4	-
+k3_r100_09_lr70	3	sum	0.9	1.0	100000	20260520	-	7e-4	-
+k3_r100_09_lr56_dec	3	sum	0.9	1.0	100000	20260520	2000	5.6e-4	-
+k3_r100_09_lr56_dec10k	3	sum	0.9	1.0	40000	20260520	10000	5.6e-4	-
+k32_r200_08_lr56	32	sum	0.8	1.0	40000	20260520	-	5.6e-4	-
+k32_r100_09_dec_lr56	32	sum	0.9	1.0	100000	20260520	2000	5.6e-4	-
+k8_r100_09_lr56	8	sum	0.9	1.0	100000	20260520	-	5.6e-4	-
+k3_r100_09_lr56_fix09	3	sum	0.9	-	-	20260520	-	5.6e-4	-
+k3_r100_09_lr56_fix099	3	sum	0.99	-	-	20260520	-	5.6e-4	-
+k3_r100_09_lr56_fix09_dec10k	3	sum	0.9	-	-	20260520	10000	5.6e-4	-
+k3_r100_09_lr56_fix099_dec10k	3	sum	0.99	-	-	20260520	10000	5.6e-4	-
+#
+# ---- Pass 6: the two levers the user named -----------------------------------
+#
+# Both rows move ONE existing column. Neither adds a flag.
+#
+#   k3_r100_09_lr56_fix09_dec0
+#                     `L_rep` OFF. The decay ramp is 1 step, so the weight is
+#                     0.0 from step 2 to the end. No run of this project has
+#                     trained without `L_rep`: #409's shortest ramp is 1,000
+#                     steps. It moves the DECAY RAMP alone against
+#                     `k3_r100_09_lr56_fix09_dec10k`, whose drift is the
+#                     smallest of the card, +0.0455 over 140,000 steps.
+#                     THE AUC GUARD MUST BE OFF for this arm. `L_rep` carries
+#                     the negatives the AUC probe reads, so the probe falls by
+#                     construction and the guard would stop a healthy run.
+#   k3_r100_09_lr56_ramp665k_dec10k
+#                     The EMA momentum climbs 0.9 to 1.0 over 665,000 steps,
+#                     which is one pass over the data. Every ramped arm of this
+#                     card reaches 1.0 at 100,000 steps or sooner, so its
+#                     teacher is frozen over 85 percent of the data. It moves
+#                     the EMA SCHEDULE alone against
+#                     `k3_r100_09_lr56_fix09_dec10k`.
+#
+k3_r100_09_lr56_fix09_dec0	3	sum	0.9	-	-	20260520	1	5.6e-4	-
+k3_r100_09_lr56_ramp665k_dec10k	3	sum	0.9	1.0	665000	20260520	10000	5.6e-4	-
+#
+#   k3_r100_09_lr56_ramp665k_dec0
+#                     The fourth corner. `L_rep` off AND the teacher never
+#                     freezes. It moves the DECAY RAMP alone against
+#                     `k3_r100_09_lr56_ramp665k_dec10k`, and the EMA SCHEDULE
+#                     alone against `k3_r100_09_lr56_fix09_dec0`. So it closes
+#                     this 2 x 2:
+#
+#                       EMA          L_rep decay 10k      L_rep off
+#                       0.9 fixed    fix09_dec10k         fix09_dec0
+#                       ramp 665k    ramp665k_dec10k      ramp665k_dec0
+#
+#                     THE AUC GUARD MUST BE OFF, as for every `dec0` arm.
+#
+k3_r100_09_lr56_ramp665k_dec0	3	sum	0.9	1.0	665000	20260520	1	5.6e-4	-
+#
+# ---- Pass 7: the weight of L_align ------------------------------------------
+#
+# `run_leg_k.sh` hardcodes `--align-loss-weight 1.0`, and NO study of this
+# lineage has ever moved it. At 400,000 steps the best arm reads a total loss
+# of 0.7110 with `l_align` at 0.1744, so L_align carries about a quarter of
+# the objective and the forecasting term carries the rest. The teacher shapes
+# the representation less than the forecaster does.
+#
+#   k3_r100_09_lr56_fix09_dec10k_aw3
+#                     The best arm at `--align-loss-weight 3.0`. That puts the
+#                     two remaining terms at parity: 3 x 0.1744 = 0.523 against
+#                     0.537. It moves the L_ALIGN WEIGHT alone.
+#
+k3_r100_09_lr56_fix09_dec10k_aw3	3	sum	0.9	-	-	20260520	10000	5.6e-4	3.0
+#
+# ---- Pass 8: is 0.9 too fast a teacher? -------------------------------------
+#
+# `fix09_dec0` reads 1.1806, 1.3487, 1.2721 at 40k, 100k and 200k. It rises
+# then falls with NO `L_rep` at all, so the movement is not the contrastive
+# term. The user asks whether alpha 0.9 lets the teacher track the student too
+# closely, and whether something slower holds steadier.
+#
+# #409 measured 0.86, 0.90, 0.94, 0.99 and 0.70 at 1.1M, and EVERY one of those
+# numbers is the 40,000-step stop. That sweep ranks the LEVEL and says nothing
+# about the slope.
+#
+#   k3_r100_09_lr56_fix095_dec0
+#                     `fix09_dec0` at alpha 0.95. It moves the MOMENTUM alone.
+#                     THE AUC GUARD MUST BE OFF, as for every `dec0` arm.
+#
+k3_r100_09_lr56_fix095_dec0	3	sum	0.95	-	-	20260520	1	5.6e-4	-
+#
+#   k3_r100_09_lr56_fix09_dec40k
+#                     The best arm with a LONGER `L_rep` decay, 40,000 steps
+#                     against its 10,000. The ramp axis under fixed 0.9 holds
+#                     two points and the middle one won: 1 step reads 1.1806 at
+#                     40,000 steps and 10,000 steps reads 1.1634. This asks
+#                     whether longer is better still. It moves the DECAY RAMP
+#                     alone. The AUC guard stays ON: `L_rep` is live for the
+#                     first 40,000 steps.
+#
+k3_r100_09_lr56_fix09_dec40k	3	sum	0.9	-	-	20260520	40000	5.6e-4	-
+#
+# ---- Pass 9: the rate, ten times smaller ------------------------------------
+#
+# The user relaxed rule 1 to ask this. `fix09_dec10k` holds its training loss
+# flat near 0.6 from 40,000 steps to 500,000 while GM-Relative MASE climbs
+# 1.1634 to 1.2550. A smaller rate is the direct test of whether the climb is
+# the rate acting over sustained training.
+#
+# THE PASS-1 SWEEP DOES NOT SETTLE THIS. Every one of its points is the
+# 40,000-step stop, so it ranks the LEVEL and says nothing about the slope.
+# Its own seed pair is 1.1820 and 1.2469, a spread of 0.0649, and 1.67e-4
+# scored 1.2612. So the second seed of 5.6e-4 and the 1.67e-4 arm are 0.0143
+# apart, which is a tie.
+#
+#   k3_r100_09_lr56_fix09_dec10k_lr10x
+#                     `fix09_dec10k` at 5.6e-5, ten times smaller. It moves
+#                     the RATE alone.
+#
+k3_r100_09_lr56_fix09_dec10k_lr10x	3	sum	0.9	-	-	20260520	10000	5.6e-5	-
+#
+#
+#   k3_r100_09_lr56_fix099_dec10k_lr10x
+#                     `fix099_dec10k` at 5.6e-5. That arm holds the FLATTEST
+#                     early segment of the whole card, +0.0088 from 40,000 to
+#                     100,000 steps, and then it collapsed: 1.1729, 1.1817,
+#                     1.2916, 1.3219. Every one of those points was measured
+#                     at 5.6e-4. It moves the RATE alone against
+#                     `fix099_dec10k`, and the MOMENTUM alone against
+#                     `k3_r100_09_lr56_fix09_dec10k_lr10x`.
+#
+k3_r100_09_lr56_fix099_dec10k_lr10x	3	sum	0.99	-	-	20260520	10000	5.6e-5	-
+#
+#   k3_r100_09_lr56_fix09_dec0_lr10x
+#                     `L_rep` OFF at 5.6e-5. The user asked for `L_rep` off,
+#                     and separately for the rate ten times smaller. Only the
+#                     10,000-step decay has run at the new rate. It moves the
+#                     RATE alone against `fix09_dec0`, and the DECAY RAMP alone
+#                     against `k3_r100_09_lr56_fix09_dec10k_lr10x`.
+#                     THE AUC GUARD MUST BE OFF, as for every `dec0` arm.
+#
+k3_r100_09_lr56_fix09_dec0_lr10x	3	sum	0.9	-	-	20260520	1	5.6e-5	-
+#
+#   k3_r100_09_lr56_fix095_dec0_lr10x
+#                     Alpha 0.95 with `L_rep` off, at 5.6e-5. Both settings
+#                     come from the user. At 5.6e-4 that pair drifts +0.1149
+#                     from 40,000 to 100,000 steps, against +0.1681 for alpha
+#                     0.9, so the momentum helped and the rate was still wrong.
+#                     It moves the RATE alone against `fix095_dec0`, and the
+#                     MOMENTUM alone against `fix09_dec0_lr10x`.
+#
+k3_r100_09_lr56_fix095_dec0_lr10x	3	sum	0.95	-	-	20260520	1	5.6e-5	-
+#
+#   k3_r100_09_lr56_ramp665k_dec10k_lr10x
+#                     The teacher never freezes, at 5.6e-5. The user asked for
+#                     an EMA that reaches 1.0 only once the data is shown, and
+#                     separately for the rate ten times smaller. At 5.6e-4 that
+#                     pair reads 1.1877 and 1.2218. It moves the RATE alone
+#                     against `ramp665k_dec10k`, and the EMA SCHEDULE alone
+#                     against `k3_r100_09_lr56_fix09_dec10k_lr10x`.
+#
+k3_r100_09_lr56_ramp665k_dec10k_lr10x	3	sum	0.9	1.0	665000	20260520	10000	5.6e-5	-
+k3_r100_09_lr56_fix09_lr10x	3	sum	0.9	-	-	20260520	-	5.6e-5	-
+#
+#   k3_r100_09_lr56_fix09_dec10k_aw03_lr10x
+#                     The align weight, DOWN. At 5.6e-4 the weight 3.0 arm
+#                     holds the worst climb of the card, 1.1783 to 1.4651 over
+#                     60,000 steps. The other side of that axis has never run.
+#                     It moves the L_ALIGN WEIGHT alone against
+#                     `k3_r100_09_lr56_fix09_dec10k_lr10x`, which holds the
+#                     best score of the card, 1.1499.
+#
+k3_r100_09_lr56_fix09_dec10k_aw03_lr10x	3	sum	0.9	-	-	20260520	10000	5.6e-5	0.3
+#
+# ---- Pass 10: the rate, a hundred times smaller ------------------------------
+#
+# Each cut of the rate by ten moved the turn later and lowered the floor.
+# `fix09_dec10k` at 5.6e-4 peaks at its 40,000-step stop, 1.1634, and climbs
+# after it. `fix09_dec10k_lr10x` at 5.6e-5 holds 1.1499 to 1.1577 from 100,000
+# to 360,000 steps, reaches 1.1403 at 240,000, and climbs only by 460,000.
+# So ten times smaller moved the turn from 40,000 steps to about 300,000 and
+# lowered the floor by 0.0231.
+#
+#   k3_r100_09_lr56_fix09_dec10k_lr100x
+#                     `fix09_dec10k` at 5.6e-6. It moves the RATE alone. The
+#                     card asks whether the turn then falls outside 665,000
+#                     steps, which is one pass over the data.
+#
+k3_r100_09_lr56_fix09_dec10k_lr100x	3	sum	0.9	-	-	20260520	10000	5.6e-6	-
+#
+#   k3_r100_09_lr56_fix09_dec10k_lr30x
+#                     `fix09_dec10k` at 1.8e-5, between 5.6e-5 and 5.6e-6.
+#                     It brackets the rate axis. 5.6e-5 turns at 240,000 to
+#                     300,000 steps and floors at 1.1403. A rate ten times
+#                     smaller may not reach a good level inside one pass over
+#                     the data, so this row holds the middle. It moves the
+#                     RATE alone.
+#
+k3_r100_09_lr56_fix09_dec10k_lr30x	3	sum	0.9	-	-	20260520	10000	1.8e-5	-
+#
+#   k3_r100_09_lr56_fix09_dec10k_lr10xb
+#                     THE SEED BAND AT 5.6e-5. `fix09_dec10k_lr10x` at backbone
+#                     seed 20260525. It moves the SEED alone.
+#                     Every 5.6e-5 number of this card rests on one seed. The
+#                     band 0.0649 was measured at 5.6e-4, and the floor gain
+#                     the rate bought, 1.1634 to 1.1403, is a third of it. So
+#                     the rate verdict is not ranked until this row runs.
+#
+k3_r100_09_lr56_fix09_dec10k_lr10xb	3	sum	0.9	-	-	20260525	10000	5.6e-5	-
+#
+# ---- Pass 11: the rate follows the data, on a schedule -----------------------
+#
+# Every constant rate of this card holds a floor at a DIFFERENT step, and then
+# climbs: 5.6e-4 at 40,000 steps, 5.6e-5 at 240,000, 1.8e-5 at 300,000, and
+# 5.6e-6 still falls at 500,000. So no constant rate is right for the whole
+# run, and the envelope of the four is below each one.
+#
+# Column 11 is NEW. It holds the end rate of a single cosine anneal over
+# 665,000 steps, which is one pass over the data. A `-` keeps the constant
+# rate of every earlier row.
+#
+#   k3_r100_09_lr56_fix09_dec10k_cos665k
+#                     6e-5 down to 1e-6, one cosine, no restart and no warmup.
+#                     It moves the RATE SCHEDULE alone against
+#                     `k3_r100_09_lr56_fix09_dec10k_lr10x`, whose 5.6e-5 is the
+#                     same rate to one digit.
+#
+# arm	k	reduce	tau	end	ramp	seed	decay	lr	align_w	lr_final
+k3_r100_09_lr56_fix09_dec10k_cos665k	3	sum	0.9	-	-	20260520	10000	6e-5	-	1e-6
+#
+#   k3_r100_09_lr56_fix09_dec10k_cos200k
+#                     The anneal, SHORT. 5e-5 down to 1e-6 over 200,000 steps,
+#                     then constant at 1e-6 for the rest of the pass.
+#                     `cos665k` spreads the same fall over the whole pass and
+#                     reads 1.2310 at 200,000 steps. This row asks whether the
+#                     low rate pays sooner when the run reaches it sooner: the
+#                     5.6e-6 arm moves every hard dataset down, and it reaches
+#                     1e-6 here at 200,000 steps rather than at 665,000.
+#                     Column 12 is NEW. It holds the LENGTH of the anneal, and
+#                     a `-` takes the 665,000 of one pass.
+#
+# arm	k	reduce	tau	end	ramp	seed	decay	lr	align_w	lr_final	lr_cos_steps
+k3_r100_09_lr56_fix09_dec10k_cos200k	3	sum	0.9	-	-	20260520	10000	5.6e-5	-	1e-6	200000

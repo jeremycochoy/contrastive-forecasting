@@ -30,6 +30,10 @@ _DEFAULTS = {
     "synth_rows_consumed": 0,
     "rng_state_torch": None,
     "rng_state_numpy": None,
+    # The learning-rate schedule the run trained under (#414), or None
+    # for a constant rate. A resume reads it back, so the rate follows
+    # the same curve even when the command line omits the flags.
+    "lr_schedule": None,
 }
 
 
@@ -47,7 +51,8 @@ def save_training_state(optimizer, model_path: str, step: int,
                         hf_rows_consumed: int = 0,
                         synth_rows_consumed: int = 0,
                         rng_state_torch=None,
-                        rng_state_numpy=None) -> str:
+                        rng_state_numpy=None,
+                        lr_schedule=None) -> str:
     """Save optimizer state and training metadata to companion file.
 
     Returns the path where the state was saved.
@@ -65,6 +70,7 @@ def save_training_state(optimizer, model_path: str, step: int,
         "synth_rows_consumed": synth_rows_consumed,
         "rng_state_torch": rng_state_torch,
         "rng_state_numpy": rng_state_numpy,
+        "lr_schedule": lr_schedule,
     }
     optim_path = get_optimizer_state_path(model_path)
     torch.save(state, optim_path)

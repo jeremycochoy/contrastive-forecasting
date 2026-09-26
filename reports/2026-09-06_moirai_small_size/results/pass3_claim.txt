@@ -1,0 +1,15 @@
+#412 pass 3 — who drives what, written 2026-09-08 22:20 by session aa4180.
+
+Two agent sessions hold this card again. This file says which lanes exist,
+so a peer does not start a second trainer on an arm.
+
+  gpu 1  lane r5     k32_r100_09_sum -> 40,000 steps       started 22:10:20
+  gpu 0  lane r6r7   k3_r100_09_lr45 then k3_r100_09_lr70  started 22:10:45
+  gpu 0  head sweep  run_snapshot/head_sweep.sh            started 22:11
+         heartbeat   run_snapshot/heartbeat.sh             started 22:11
+
+Every lane runs from run_snapshot/, the frozen copy. That copy was refreshed
+from scripts/ at 22:09, so it holds the three pass-3 arms and the head sweep
+sees them.
+
+Ask scripts/arm_busy.sh and scripts/head_busy.sh before you start anything.

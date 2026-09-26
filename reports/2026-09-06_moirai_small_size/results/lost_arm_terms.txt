@@ -1,0 +1,14 @@
+k32_r200_08  (28500 rows, last step 28500)
+  u_temporal  step 2,000: 0.0458   last: 0.0972
+  u_batch     step 2,000: 0.0559   last: 0.1007
+  l_align     step 2,000: 1.4578   last: 1.9682
+  auc peak (raw)   0.9798 at step 411
+  auc raw < 0.55   first at step 23901
+  auc median < 0.55 (guard) first at step 28152
+k32_r100_09_dec  (19100 rows, last step 19100)
+  u_temporal  step 2,000: 0.0124   last: 0.0094
+  u_batch     step 2,000: 0.0270   last: 0.0098
+  l_align     step 2,000: 0.7826   last: 1.7824
+  auc peak (raw)   0.9878 at step 1396
+  auc raw < 0.55   first at step 5131
+  auc median < 0.55 (guard) first at step 17313

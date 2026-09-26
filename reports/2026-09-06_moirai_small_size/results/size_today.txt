@@ -1,0 +1,9 @@
+checkpoint: /home/jupyter/checkpoints_backup/cf-409/dec_m090r100_ramp2k/arm6_v2_combab_alignT/leg_200k/cf393_arm6_v2_combab_alignT_cf373k32_cf409_dec_m090r100_ramp2k_200k.pth
+     total     1,699,534
+   student     1,135,774
+   teacher       563,760
+The student number counts the patch encoder two times. See src/model_size.py.
+
+the model that wrote it, counted as parameters:
+              H     num_layers  num_encoder_layers      trainable         frozen          total     state_dict
+             64              3                   3        720,668        563,760      1,284,428      1,699,534

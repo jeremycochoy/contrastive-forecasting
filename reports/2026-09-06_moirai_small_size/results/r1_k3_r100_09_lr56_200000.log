@@ -1,0 +1,7 @@
+[09-08 05:36:06] [#412] arm k3_r100_09_lr56 arch='--d-model 384 --n-heads 8 --num-layers 3 --num-encoder-layers 3' k=3 reduce=sum ema='--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000' decay='none' seed=20260520 lr=5.6e-4 -> 200000 steps on gpu 0
+[09-08 05:36:06] [arm6_v2_combab_alignT] RESUME from cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_100k.pth (step 100k)
+[09-08 05:36:06] [arm6_v2_combab_alignT] START target=200000 gpu=0 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-412/k3_r100_09_lr56/arm6_v2_combab_alignT/leg_200k
+[09-08 05:36:11] [#412] arm k3_r100_09_lr56 arch=384 3 3 k=3 reduce=sum ema='0.9 1.0 100000' decay='1.0 - -' seed=20260520 batch=64 lr=5.6e-4 align=teacher OK — all eight reached the trainer
+[09-08 05:36:11] [#412] arm k3_r100_09_lr56 AUC gate pid 3125439 — window 500, threshold 0.55, warmup 1786
+[09-08 16:51:15] [arm6_v2_combab_alignT] DONE target=200000 (66M) -> /home/jupyter/checkpoints_backup/cf-412/k3_r100_09_lr56/arm6_v2_combab_alignT/leg_200k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_200k.pth
+[09-08 16:51:15] [#412] arm k3_r100_09_lr56 stop=200000 rc=0

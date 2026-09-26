@@ -1,0 +1,11 @@
+--- the rule ---
+  reference   1.1820   k3_r100_09_lr56 at 40,000 steps
+  band        0.0649   two seeds at 5.6e-4
+  progress    score < 1.1171
+  worse       score > 1.2469
+  the AUC says only whether the guard stopped a run.
+
+--- the pass-3 arms ---
+  k32_r100_09_sum    -        no score yet
+  k3_r100_09_lr45    -        no score yet
+  k3_r100_09_lr70    -        no score yet

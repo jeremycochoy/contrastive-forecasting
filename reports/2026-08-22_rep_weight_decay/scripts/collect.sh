@@ -29,7 +29,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 OUT="$CF409_RESULTS/scores.csv"
 VERDICTS="$CF409_RESULTS/auc_verdicts.tsv"
-WATCH="$HERE/auc_watch.py"
+WATCH="$CF409_REPO/scripts/auc_watch.py"
 # Two lanes drain at the same time and the launcher refreshes the table between
 # them, so more than one collect can run at once. The temp name carries the
 # pid: one shared temp name would let a second collect truncate the file the

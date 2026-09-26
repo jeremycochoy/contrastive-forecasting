@@ -43,6 +43,9 @@ case "$ENC" in student|teacher) ;; *) echo "ABORT: bad encoder '$ENC'" >&2; exit
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$HERE/leg_paths.sh"
 . "$HERE/eval_slot.sh"
+# The backbone shape, from the same file head_eval_bb.sh reads. That script
+# starts this one, so an exported CF_BB_SHAPE reaches both (#412).
+. "$HERE/bb_shape.sh"
 
 WT="${WT:-/tmp/contrastive-forecasting-393}"
 GEVAL="$WT/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py"
@@ -83,9 +86,10 @@ export GIFT_EVAL="${GIFT_EVAL:-/home/jupyter/workspaces/gift-eval-data}"
 log() { echo "[$(date '+%m-%d %H:%M:%S')] $*" | tee -a "$LOG"; }
 
 # Matches eval_stop.sh. GIFT-Eval rebuilds the freq / seasonality embedding
-# dims from the checkpoint, so it takes the shorter list.
-ARCH=(--t-raw 4096 --n-channels 1 --d-model 64 --n-heads 8
-      --num-layers 3 --encoder-type gru
+# dims from the checkpoint, so it takes the shorter list. The three shape
+# flags come from `bb_shape.sh`, the same file head_eval_bb.sh reads (#412).
+ARCH=(--t-raw 4096 --n-channels 1 "${BB_SHAPE[@]}"
+      --encoder-type gru
       --rev-norm-kind ewma --rev-norm-span 128
       --head-nhead 8 --head-causal true)
 
