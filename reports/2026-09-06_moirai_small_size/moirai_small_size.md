@@ -74,12 +74,15 @@ warmup and no gradient clip.
 At 6.4M windows (25,000 steps at batch 256) the reference scores 1.2951, and
 the contrastive run scores 1.1526 at the same data. Against the contrastive
 run at 665,000 steps, the reference is worse on 27 of the 28 datasets at
-25,000 steps, and on all 28 at 50,000 and 75,000 steps. Its loss spiked
+25,000 steps, and on all 28 at 50,000, 75,000 and 90,000 steps. Its loss spiked
 between 25,000 and 50,000 steps (1.9036 at 50,000), and again at 73,000,
-77,000 and 79,000 to 84,000 steps (1.4096 at 75,000). The owner stopped the
-run at 92,600 steps. A second run with the Moirai schedule replaces it (#415):
-a 10,000-step warmup, a cosine to 0 at 166,000 steps and a gradient clip of
-1.0.
+77,000 and 79,000 to 84,000 steps (1.4096 at 75,000). Its last checkpoint,
+90,000 steps, scores 1.4482. The owner stopped the run at 92,600 steps.
+
+A second run with the Moirai schedule replaces it (#415): a 10,000-step
+warmup, a cosine to 0 at 166,000 steps and a gradient clip of 1.0. At the end
+of its warmup, 10,000 steps, it scores 1.6318, worse than the contrastive run
+on all 28 datasets.
 
 ## The tables
 
@@ -106,7 +109,8 @@ counts its steps at batch 256.
 | 5.6e-6 | 1.1435 | 1,000,000 | 1.1435 | 1,000,000 |
 | cosine 6e-5 to 1e-6 over 665,000 | 1.1646 | 100,000 | 1.2738 | 600,000 |
 | cosine 5.6e-5 to 1e-6 by 200,000, then 1e-6 | 1.1369 | 665,000 | 1.1386 | 1,200,000 |
-| value space, flat 1e-3 | 1.2951 | 25,000 | 1.4096 | 75,000 |
+| value space, flat 1e-3 | 1.2951 | 25,000 | 1.4482 | 90,000 |
+| value space, Moirai schedule | 1.6318 | 10,000 | 1.6318 | 10,000 |
 
 `results/gm_trajectories.tsv` holds every scored stop of the card, one row per
 stop. `scripts/gm_trajectories.py` builds it from the score files.
