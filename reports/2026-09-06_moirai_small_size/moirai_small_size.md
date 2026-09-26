@@ -72,11 +72,13 @@ no `L_rep` and no `L_align`. It follows the Moirai recipe: batch 256, AdamW at
 of 1.0.
 
 It scores 1.6318 at 10,000 steps, the end of its warmup, 1.5283 at 25,000,
-1.3494 at 50,000, 1.2491 at 75,000 and 1.2358 at 100,000. At the same data,
-400,000 steps at batch 64, the contrastive run scored 1.1477. Against the
-contrastive run at 665,000 steps, the reference at 100,000 steps is worse on 24
-of the 28 datasets, and better on bizitobs_service, saugeen, us_births and
-car_parts.
+1.3494 at 50,000, 1.2491 at 75,000, 1.2358 at 100,000 and 1.2887 at 125,000.
+At the same data as its best stop, 400,000 steps at batch 64, the contrastive
+run scored 1.1477. Against the contrastive run at 665,000 steps, the reference
+at 100,000 steps is worse on 24 of the 28 datasets, and better on
+bizitobs_service, saugeen, us_births and car_parts. From 100,000 to 125,000
+steps it gets worse on 25 datasets, most on the M4 sets: m4_weekly by 48%,
+m4_quarterly by 44% and m4_yearly by 36%.
 
 A first run of the reference used a flat 1e-3 with no warmup and no clip. Its
 loss spiked four times, its best score was 1.2951 at 25,000 steps, and the owner
@@ -108,7 +110,7 @@ counts its steps at batch 256.
 | cosine 6e-5 to 1e-6 over 665,000 | 1.1646 | 100,000 | 1.2738 | 600,000 |
 | cosine 5.6e-5 to 1e-6 by 200,000, then 1e-6 | 1.1369 | 665,000 | 1.1432 | 1,330,000 |
 | value space, flat 1e-3 | 1.2951 | 25,000 | 1.4482 | 90,000 |
-| value space, Moirai schedule | 1.2358 | 100,000 | 1.2358 | 100,000 |
+| value space, Moirai schedule | 1.2358 | 100,000 | 1.2887 | 125,000 |
 
 `results/gm_trajectories.tsv` holds every scored stop of the card, one row per
 stop. `scripts/gm_trajectories.py` builds it from the score files.
@@ -136,7 +138,7 @@ no separate recipe for its 0.946 run.
 
 | | Moirai 1.0 Small, GIFT-Eval Pretrain | value space, Moirai schedule (#415) | contrastive, cosine by 200,000 |
 |---|---|---|---|
-| GM-Relative MASE | 0.946 | 1.2358 at 100,000 steps, so far | 1.1369 |
+| GM-Relative MASE | 0.946 | 1.2358 at 100,000 steps, its best so far | 1.1369 |
 | parameters | 14M | 11.4M | 11.4M |
 | body | masked encoder, 6 layers | 3 encoder and 3 forecaster layers | the same |
 | patch | 8 to 128, set by the frequency | 16 | 16 |
