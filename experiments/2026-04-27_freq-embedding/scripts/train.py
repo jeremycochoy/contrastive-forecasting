@@ -67,6 +67,7 @@ from src.metrics import (
     u_batchtime,
     retrieval_auc_topk,
 )
+from src.freq_embedding import FREQ_VOCABS
 from src.forecasting_head import (QUANTILE_LEVELS,
                                   extract_encoder_latents,
                                   extract_teacher_encoder_latents,
@@ -181,6 +182,22 @@ def build_parser():
     p.add_argument("--grad-clip", type=float, default=None)
     p.add_argument("--hf-repo", default=None)
     p.add_argument("--hf-path", default=None)
+    # #419: every series of Salesforce/GiftEvalPretrain, streamed by range.
+    p.add_argument("--gift-pretrain", action="store_true",
+                   help="Train the real rows on every series of "
+                        "Salesforce/GiftEvalPretrain, sampled as uni2ts "
+                        "pretrains Moirai 1.0 (src/gift_pretrain.py), in "
+                        "place of --hf-repo/--hf-path. A window is 1,024 "
+                        "values; a shorter series is padded with zeros on "
+                        "the left, and the EWMA normaliser takes its "
+                        "statistics from the real values only. Each window "
+                        "carries its source's frequency and seasonality id.")
+    p.add_argument("--gift-pretrain-index", default=None,
+                   help="The record-batch index. Default: "
+                        "src/gift_pretrain_index.json.gz.")
+    p.add_argument("--gift-pretrain-root", default=None,
+                   help="A local copy of the dataset repository to read "
+                        "instead of Hugging Face (tests).")
     p.add_argument("--split", default="train")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--mix-ratio", type=float, default=0.5)
@@ -405,6 +422,12 @@ def build_parser():
                    help="Seasonality embedding dim (0 = disabled).")
     p.add_argument("--freq-emb-dim", type=int, default=3,
                    help="Frequency embedding dimension (0 disables it).")
+    p.add_argument("--freq-vocab", default="v1", choices=["v1", "v2"],
+                   help="Frequency classes (#419). v1: the 10 classes up to "
+                        "weekly. v2 keeps them at their ids and adds every "
+                        "other frequency of GiftEvalPretrain and GIFT-Eval "
+                        "(src/freq_embedding.py). The checkpoint records it "
+                        "as the row count of its frequency embedding.")
     # Mixup on (X, freq)
     p.add_argument("--mixup-p", type=float, default=0.0,
                    help="Probability of applying mixup at each step. 0 disables.")
@@ -1055,7 +1078,8 @@ VALUE_SPACE_FLAGS = frozenset((
     "hf_repo", "hf_path", "split", "mix_ratio", "crossfade_ratio",
     "crossfade_triplets", "synth_seed", "synth_kind", "enable_pulse",
     "seas_heavy", "more_primitives", "env_gain_max", "t_raw", "n_channels",
-    "mixup_p", "mixup_alpha",
+    "mixup_p", "mixup_alpha", "gift_pretrain", "gift_pretrain_index",
+    "gift_pretrain_root",
     # The body and the input head.
     "d_model", "n_heads", "num_layers", "num_encoder_layers",
     "forecaster_d_model", "forecaster_n_heads", "forecaster_kind",
@@ -1066,7 +1090,7 @@ VALUE_SPACE_FLAGS = frozenset((
     "deprecated_depthwise_conv", "qk_norm", "attn_out_norm",
     "residual_dtype", "attn_dtype", "ffn_dtype", "conv_dtype",
     "patch_emb_dtype", "rev_norm_kind", "rev_norm_span", "patch_stats",
-    "freq_emb_dim", "seasonality_emb_dim",
+    "freq_emb_dim", "seasonality_emb_dim", "freq_vocab",
     # The objective.
     "value_space_objective", "train_rollout_depth", "train_rollout_reduce",
 ))
@@ -1094,6 +1118,41 @@ def value_space_conflicts(argv=None):
     unread = named_on_command_line(argv) - VALUE_SPACE_FLAGS
     return [action.option_strings[0] for action in build_parser()._actions
             if action.dest in unread]
+
+
+def check_gift_pretrain(args):
+    """Refuse a #419 command line that cannot mean what it says."""
+    if not args.gift_pretrain:
+        if args.gift_pretrain_index or args.gift_pretrain_root:
+            raise SystemExit("--gift-pretrain-index and --gift-pretrain-root "
+                             "read the GiftEvalPretrain stream; add "
+                             "--gift-pretrain.")
+        return
+    if args.hf_repo or args.hf_path:
+        raise SystemExit("--gift-pretrain replaces --hf-repo and --hf-path. "
+                         "Drop them.")
+    if args.rev_norm_kind != "ewma":
+        raise SystemExit("--gift-pretrain pads short series with zeros, and "
+                         "only the EWMA normaliser skips the padding. Use "
+                         "--rev-norm-kind ewma.")
+
+
+def gift_rows(args, C, position):
+    """The factory of GiftEvalPretrain streams the mixed loaders call (#419).
+
+    ``position`` is the count of real rows the run consumed, rank offset
+    included. The stream's seed is ``[--seed, position]``, so a resumed leg
+    and every rank draw their own windows.
+    """
+    from src.gift_pretrain import GiftPretrainStream, load_index
+    index = load_index(args.gift_pretrain_index)
+
+    def make(batch_size, emit_labels):
+        return GiftPretrainStream(
+            batch_size=batch_size, C=C, seed=[args.seed, position],
+            index=index, root=args.gift_pretrain_root,
+            freq_vocab=args.freq_vocab, emit_labels=emit_labels)
+    return make
 
 
 def safe_run_name(save_dir, run_name):
@@ -1500,6 +1559,8 @@ def main():
                 "--value-space-objective needs the single-step transformer "
                 f"forecaster; got --forecaster-kind {args.forecaster_kind}.")
 
+    check_gift_pretrain(args)
+
     # Distributed (opt-in, env-driven): launch with
     #   torchrun --nproc_per_node=N experiments/.../train.py ...
     # WORLD_SIZE<=1 (the default, no torchrun) → (0,1,0,False) and every
@@ -1539,6 +1600,10 @@ def main():
     model_config["freq_emb_dim"] = args.freq_emb_dim
     model_config["seasonality_emb_dim"] = args.seasonality_emb_dim
     model_config["rev_norm_kind"] = args.rev_norm_kind
+    # #419: the vocabulary gives the rows of the frequency table (v1: 10,
+    # the default), and zero left padding needs a normaliser that skips it.
+    model_config["num_freqs"] = len(FREQ_VOCABS[args.freq_vocab])
+    model_config["rev_norm_skip_leading_zeros"] = args.gift_pretrain
     if args.rev_norm_kind == "ewma":
         model_config["rev_norm_span"] = args.rev_norm_span
     model_config["patch_stats_kind"] = args.patch_stats
@@ -1951,6 +2016,8 @@ def main():
         synth_seed += rank * 1_000_003
         hf_rows_consumed += rank * max(1, hf_rows_per_step) * 100_003
 
+    real_rows = (gift_rows(args, C, hf_rows_consumed)
+                 if args.gift_pretrain else None)
     if args.synth_kind == "composite":
         synth_kwargs = {}
         if args.enable_pulse:
@@ -1969,7 +2036,7 @@ def main():
             path_in_repo=args.hf_path, split=args.split,
             skip_rows=hf_rows_consumed, T_raw=args.t_raw, seed=synth_seed,
             emit_freq_ids=(args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0),
-            synth_kwargs=synth_kwargs or None,
+            synth_kwargs=synth_kwargs or None, real_rows=real_rows,
         )
     elif args.synth_kind == "forked-arma":
         data_loader = create_mixed_forked_arma_dataloader(
@@ -1979,6 +2046,7 @@ def main():
             path_in_repo=args.hf_path, split=args.split,
             skip_rows=hf_rows_consumed, T_raw=args.t_raw, seed=synth_seed,
             emit_freq_ids=(args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0),
+            real_rows=real_rows,
         )
     else:
         data_loader = create_mixed_periodic_dataloader(
@@ -1987,6 +2055,7 @@ def main():
             path_in_repo=args.hf_path, split=args.split,
             skip_rows=hf_rows_consumed, T_raw=args.t_raw, seed=synth_seed,
             emit_freq_ids=(args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0),
+            real_rows=real_rows,
         )
     real_frac = (1 - args.mix_ratio - args.crossfade_ratio) * 100
     trip_rows = 3 * args.crossfade_triplets
@@ -1995,6 +2064,11 @@ def main():
           f"+ {args.crossfade_triplets} triplet(s)={trip_rows} rows, "
           f"hf_bs={hf_bs}, synth_bs={synth_bs}, cross_bs={cross_bs}, "
           f"total_bs={args.batch_size + trip_rows}")
+    if args.gift_pretrain:
+        print(f"Data: the real rows are Salesforce/GiftEvalPretrain (#419), "
+              f"uni2ts sampling, 1,024-value windows, left zero padding, "
+              f"frequency vocabulary {args.freq_vocab}, stream seed "
+              f"[{args.seed}, {hf_rows_consumed}]")
     data_iter = iter(data_loader)
     sys.stdout.flush()
 
@@ -2081,13 +2155,16 @@ def main():
             # for the diagnostics below.
             x_norm = (model.rev_norm(x, mode='norm')
                       if model.rev_norm is not None else x)
+            # #419: with zero left padding the normaliser marks the padded
+            # values, and the objective skips them. None on every other run.
             value_loss, f_lat, o_lat, value_depths = value_space_objective(
                 model, x_norm,
                 depth=args.train_rollout_depth,
                 reduce=args.train_rollout_reduce,
                 freq_ids=freq_ids, freq_embs=freq_embs,
                 seasonality_ids=seasonality_ids,
-                seasonality_embs=seasonality_embs)
+                seasonality_embs=seasonality_embs,
+                pad_mask=getattr(model.rev_norm, "pad_mask", None))
             teacher_o_lat = None
             e_lat = None
         elif use_ema:
