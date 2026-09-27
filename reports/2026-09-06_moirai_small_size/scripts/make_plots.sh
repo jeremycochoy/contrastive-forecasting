@@ -7,7 +7,7 @@
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 rc=0
-for step in gm_trajectories plot_gm_rates plot_414 plot_hard plot_radar_value; do
+for step in gm_trajectories plot_gm_rates plot_414 plot_hard plot_radar_value plot_radar_419; do
   python3 "$HERE/$step.py" || rc=1
 done
 exit $rc
