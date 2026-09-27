@@ -81,6 +81,19 @@ SHUFFLE_WINDOWS = 4096
 # uni2ts builds the ERA5 and CMIP6 years with one weight each and uniform
 # rows. One pool per family then draws every row exactly as uni2ts does.
 FAMILY_PREFIXES = ("era5_", "cmip6_")
+# A range read tries this many times, with a wait that doubles from 1 s up to
+# FETCH_WAIT_CAP: 19 waits of 3,511 s in all, so a Hub outage of about an
+# hour costs time and no run.
+FETCH_TRIES = 20
+FETCH_WAIT_CAP = 300.0
+# A chunk that still fails after its retries is replaced by another drawn
+# chunk, and a small source's file is read again. The stream raises only
+# after this many failures in a row.
+LOAD_RETRIES = 3
+
+
+def log(msg):
+    print(f"[gift_pretrain] {msg}", flush=True)
 
 
 def _session_and_headers():
@@ -96,32 +109,59 @@ def _local_range(root, path, start, end):
         return f.read(end - start)
 
 
-def fetch_range(path, start, end, revision=None, repo=HF_REPO, tries=8,
+def _get_range(session, url, headers, start, end):
+    """One range request: ``(bytes, None)``, or ``(None, the error)``."""
+    try:
+        r = session.get(url, timeout=120, headers={
+            **headers, "Range": f"bytes={start}-{end - 1}"})
+        r.raise_for_status()  # "503 Server Error: ...", as hub_gate reads
+        if r.status_code == 206 and len(r.content) == end - start:
+            return r.content, None
+        return None, RuntimeError(f"HTTP {r.status_code}, "
+                                  f"{len(r.content)} bytes")
+    except Exception as e:  # network errors: retry the same range
+        return None, e
+
+
+def fetch_range(path, start, end, revision=None, repo=HF_REPO, tries=None,
                 root=None):
     """Bytes ``[start, end)`` of one file of the dataset, by HTTP range, or
     from a local copy of the repository under ``root``.
 
-    Retries with a doubling wait on a network error or a non-206 answer
-    (a 429 or a 5xx under load), then raises the last error.
+    Retries a network error or an answer other than 206 (a 429 or a 5xx
+    under load) ``tries`` times (default ``FETCH_TRIES``), logs each one with
+    its error, and waits 1, 2, 4 ... up to ``FETCH_WAIT_CAP`` seconds between
+    them. Then it raises the last error.
     """
     if root is not None:
         return _local_range(root, path, start, end)
     from huggingface_hub import hf_hub_url
     url = hf_hub_url(repo, path, repo_type="dataset", revision=revision)
     session, headers = _session_and_headers()
-    rng = {"Range": f"bytes={start}-{end - 1}"}
+    tries = tries or FETCH_TRIES
     for attempt in range(tries):
-        try:
-            r = session.get(url, headers={**headers, **rng}, timeout=120)
-            r.raise_for_status()  # "503 Server Error: ...", as hub_gate reads
-            if r.status_code == 206 and len(r.content) == end - start:
-                return r.content
-            err = RuntimeError(f"range read of {path} [{start}, {end}) gave "
-                               f"HTTP {r.status_code}, {len(r.content)} bytes")
-        except Exception as e:  # network errors: retry the same range
-            err = e
-        time.sleep(min(60.0, 2.0 ** attempt))
+        data, err = _get_range(session, url, headers, start, end)
+        if err is None:
+            return data
+        log(f"range read {path} [{start}, {end}) failed, try {attempt + 1}"
+            f"/{tries}: {str(err)[:300]}")
+        if attempt + 1 < tries:
+            time.sleep(min(FETCH_WAIT_CAP, 2.0 ** attempt))
     raise err
+
+
+def result_with_retries(future, resubmit, what):
+    """The result of ``future``; when it failed, the result of a fresh try
+    from ``resubmit()``, up to ``LOAD_RETRIES`` times, each one logged."""
+    for attempt in range(LOAD_RETRIES + 1):
+        try:
+            return future.result()
+        except Exception as e:
+            if attempt == LOAD_RETRIES:
+                raise
+            log(f"{what} failed, retry {attempt + 1}/{LOAD_RETRIES}: "
+                f"{str(e)[:300]}")
+            future = resubmit()
 
 
 # ── The index ────────────────────────────────────────────────────────────────
@@ -364,14 +404,16 @@ class ResidentPool:
     """Every record batch of a small source, read once. A draw picks a batch
     in proportion to its rows (uniform sources) or its length.
 
-    ``jobs`` are futures of block lists (one per file); the pool waits for
-    them at its first draw, so every family fetches in parallel."""
+    ``jobs`` are ``(future, resubmit)`` pairs, one per file, whose future
+    gives the file's blocks. The pool waits for them at its first draw, so
+    every family fetches in parallel; a file that fails is read again."""
 
     def __init__(self, jobs):
         self.jobs, self.blocks, self.cdf = jobs, None, None
 
     def _resolve(self):
-        self.blocks = [b for job in self.jobs for b in job.result()]
+        self.blocks = [b for future, again in self.jobs for b in
+                       result_with_retries(future, again, "a source file")]
         self.cdf = np.cumsum([b.weight for b in self.blocks])
         self.jobs = None
 
@@ -416,7 +458,8 @@ class StreamingPool:
         return self.executor.submit(self.load, ref)
 
     def _take(self):
-        block = self.pending.popleft().result()
+        block = result_with_retries(self.pending.popleft(), self._submit,
+                                    "a chunk")
         return [block, block_budget(block, self.block_use)]
 
     def _next(self):
@@ -572,8 +615,15 @@ class GiftPretrainStream:
         by_file = collections.defaultdict(list)
         for ref in family["refs"]:
             by_file[ref["path"]].append(ref)
-        return [executor.submit(loader.whole_file, refs, family["uniform"])
+        return [self._file_job(executor, loader, refs, family["uniform"])
                 for _, refs in sorted(by_file.items())]
+
+    @staticmethod
+    def _file_job(executor, loader, refs, uniform):
+        """``(future, resubmit)`` of the whole-file read of one source file."""
+        def submit():
+            return executor.submit(loader.whole_file, refs, uniform)
+        return submit(), submit
 
     def rngs(self):
         """Independent generators for the draws and the shuffle buffer, from

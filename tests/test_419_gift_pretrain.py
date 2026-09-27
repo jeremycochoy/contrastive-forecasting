@@ -681,3 +681,109 @@ def test_a_few_trainer_steps_on_the_stream(corpus, tmp_path):
 def test_the_trainer_refuses_a_line_it_cannot_honour(tmp_path, extra, why):
     r = run_trainer(*extra, "--total-steps", "1", "--save-dir", str(tmp_path))
     assert r.returncode != 0 and why in r.stdout + r.stderr
+
+
+# ---------------------------------------------------------------------------
+# 8. Hub outages
+# ---------------------------------------------------------------------------
+
+class FakeResponse:
+    def __init__(self, status, content=b""):
+        self.status_code, self.content = status, content
+
+    def raise_for_status(self):
+        import requests
+        if self.status_code >= 400:
+            raise requests.HTTPError(f"{self.status_code} Server Error")
+
+
+class FlakySession:
+    """A timeout, then 503s, ``fails`` failures in all; then 206 answers."""
+
+    def __init__(self, fails, data):
+        self.fails, self.data, self.calls = fails, data, 0
+
+    def get(self, url, timeout, headers):
+        import requests
+        self.calls += 1
+        if self.calls == 1 and self.fails:
+            raise requests.exceptions.ReadTimeout("Read timed out")
+        if self.calls <= self.fails:
+            return FakeResponse(503)
+        a, b = map(int, headers["Range"][len("bytes="):].split("-"))
+        return FakeResponse(206, self.data[a:b + 1])
+
+
+def flaky(monkeypatch, fails):
+    session, waits = FlakySession(fails, bytes(range(200))), []
+    monkeypatch.setattr(gp, "_session_and_headers", lambda: (session, {}))
+    monkeypatch.setattr(gp.time, "sleep", waits.append)
+    return session, waits
+
+
+def test_a_range_read_rides_out_an_hour_of_failures(monkeypatch, capsys):
+    session, waits = flaky(monkeypatch, gp.FETCH_TRIES - 1)
+    assert gp.fetch_range("s/data.arrow", 10, 20) == bytes(range(10, 20))
+    assert session.calls == gp.FETCH_TRIES
+    assert max(waits) == gp.FETCH_WAIT_CAP and sum(waits) >= 3500
+    logged = capsys.readouterr().out
+    assert logged.count("failed, try") == gp.FETCH_TRIES - 1
+    assert "Read timed out" in logged and "503 Server Error" in logged
+
+
+def test_a_range_read_gives_up_after_its_tries(monkeypatch):
+    import requests
+    session, _ = flaky(monkeypatch, 10 ** 6)
+    with pytest.raises(requests.HTTPError, match="503 Server Error"):
+        gp.fetch_range("s/data.arrow", 0, 5, tries=3)
+    assert session.calls == 3
+
+
+class FakeBlock:
+    values, weight = 4096, 1.0
+
+
+def pool_of(load, executor):
+    return gp.StreamingPool(list(range(8)), load, executor,
+                            np.random.default_rng(0), 1, 1.0)
+
+
+def test_a_failed_chunk_is_replaced_by_another(capsys):
+    from concurrent.futures import ThreadPoolExecutor
+    loads = []
+
+    def load(ref):
+        loads.append(ref)
+        if len(loads) == 1:
+            raise RuntimeError("503 Server Error")
+        return FakeBlock()
+    with ThreadPoolExecutor(1) as ex:
+        block, _ = pool_of(load, ex).pick(np.random.default_rng(1))
+    assert isinstance(block, FakeBlock) and len(loads) == 3
+    assert "a chunk failed, retry 1/" in capsys.readouterr().out
+
+
+def test_the_stream_raises_only_after_failures_in_a_row():
+    from concurrent.futures import ThreadPoolExecutor
+
+    def load(ref):
+        raise RuntimeError("503 Server Error")
+    with ThreadPoolExecutor(1) as ex, pytest.raises(RuntimeError, match="503"):
+        pool_of(load, ex).pick(np.random.default_rng(1))
+
+
+def test_a_failed_source_file_is_read_again():
+    from concurrent.futures import ThreadPoolExecutor
+    reads = []
+
+    def read():
+        reads.append(1)
+        if len(reads) == 1:
+            raise RuntimeError("Read timed out")
+        return [FakeBlock()]
+    with ThreadPoolExecutor(1) as ex:
+        def submit():
+            return ex.submit(read)
+        block, _ = gp.ResidentPool([(submit(), submit)]).pick(
+            np.random.default_rng(0))
+    assert isinstance(block, FakeBlock) and len(reads) == 2
