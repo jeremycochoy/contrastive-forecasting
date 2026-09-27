@@ -193,6 +193,20 @@ def gather_latent(latent: torch.Tensor) -> torch.Tensor:
     return DifferentiableAllGather.apply(latent)
 
 
+def gather_mask(mask: torch.Tensor) -> torch.Tensor:
+    """Concatenate a bool tensor across ranks along the batch dim, with one
+    all-gather (#419: the padding of the gathered latents). No gradient.
+
+    No-op (returns the input unchanged) when not distributed.
+    """
+    if not is_distributed():
+        return mask
+    x = mask.float().contiguous()
+    gathered = [torch.empty_like(x) for _ in range(dist.get_world_size())]
+    dist.all_gather(gathered, x)
+    return torch.cat(gathered, dim=0) > 0.5
+
+
 def gather_latents(
     forecasted_latent: torch.Tensor, original_latent: torch.Tensor
 ):

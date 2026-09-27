@@ -47,6 +47,10 @@ class ConfigurableModel(torch.nn.Module):
         ``'raw'`` — append centred mean and centred log_std as an ablation.
         Only meaningful with ``rev_norm_kind='ewma'``; with RevIN the
         per-step stats are constant and the diff/centred values are all 0.
+    rev_norm_skip_leading_zeros : bool
+        #419. The EWMA normaliser treats the zeros before the first nonzero
+        value as left padding (see ``RevEWMNorm``). Needs
+        ``rev_norm_kind='ewma'``. Default False: every earlier model.
     """
     def __init__(self, C, H, W, encoder_type='mlp', intermediate_dim=None,
                  num_layers=12, nhead=4, ffn_mult=2, dropout=0.1,
@@ -56,6 +60,7 @@ class ConfigurableModel(torch.nn.Module):
                  freq_emb_dim=0, num_freqs=NUM_FREQS,
                  seasonality_emb_dim=0, num_seasonalities=NUM_SEASONALITIES,
                  rev_norm_kind='ewma',
+                 rev_norm_skip_leading_zeros: bool = False,
                  patch_stats_kind='none',
                  learnable_tau=False, tau_init=0.07,
                  enc_transformer_num_layers=4,
@@ -139,10 +144,16 @@ class ConfigurableModel(torch.nn.Module):
         #   ewma  → RevEWMNorm(span=rev_norm_span)  (default, dynamic)
         #   revin → RevIN()                         (single per-instance z-score)
         # rev_norm_span is only used by ewma. revin ignores it.
+        if rev_norm_skip_leading_zeros and not (
+                rev_norm_kind == 'ewma' and rev_norm_span is not None):
+            raise ValueError(
+                "rev_norm_skip_leading_zeros needs rev_norm_kind='ewma' "
+                "and a rev_norm_span")
         if rev_norm_kind == 'ewma' and rev_norm_span is not None:
             self.rev_norm = RevEWMNorm(
                 num_features=C, span=rev_norm_span, patch_size=W,
-                patch_emb_dtype=patch_emb_dtype)
+                patch_emb_dtype=patch_emb_dtype,
+                skip_leading_zeros=rev_norm_skip_leading_zeros)
         elif rev_norm_kind == 'revin':
             self.rev_norm = RevIN(num_features=C)
         elif rev_norm_kind in (None, 'none') or rev_norm_span is None:

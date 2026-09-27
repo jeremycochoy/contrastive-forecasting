@@ -482,6 +482,15 @@ def compute_valid_targets(x_norm, W=16, forecast_len=128):
     return targets, T_valid
 
 
+def valid_target_keep(pad_mask, W=16, forecast_len=128):
+    """``(B*C, T_valid, forecast_len)`` bool, laid out as the targets of
+    :func:`compute_valid_targets`: True where a target is a real value and
+    not left zero padding (#419). ``pad_mask`` is ``RevEWMNorm.pad_mask``."""
+    pad_targets, _ = compute_valid_targets(pad_mask.float(), W=W,
+                                           forecast_len=forecast_len)
+    return pad_targets < 0.5
+
+
 def compute_reconstruction_targets(x_norm, W=16, output_len=16, mode='forecaster'):
     """Extract RECONSTRUCTION targets: the values a latent represents.
 
@@ -905,10 +914,49 @@ def value_space_forward(model, x_norm, freq_ids=None, freq_embs=None,
     return f_lat, o_lat, model.value_forward(f_lat.float())
 
 
+def masked_quantile_loss(predicted, target, keep,
+                         quantile_levels=QUANTILE_LEVELS):
+    """:func:`quantile_loss` over the kept target values only (#419).
+
+    ``keep`` has the shape of ``target``, ``(..., L)``. With every value kept
+    this is :func:`quantile_loss`.
+    """
+    err = target.unsqueeze(-2) - predicted                   # (..., Q, L)
+    q = predicted.new_tensor(list(quantile_levels)).view(
+        *([1] * (predicted.dim() - 2)), -1, 1)
+    loss = torch.maximum(q * err, (q - 1) * err)
+    w = keep.unsqueeze(-2).to(loss.dtype)
+    return (loss * w).sum() / (w.sum() * loss.shape[-2]).clamp(min=1.0)
+
+
+def shift_pad(pad_mask, W, j):
+    """The padded positions of the depth-j rolled input (#419).
+
+    Depth j reads, at patch t, the forecast of patch t + j, so its padding
+    is the input's padding moved j patches to the left.
+    """
+    out = torch.zeros_like(pad_mask)
+    if j * W < pad_mask.shape[1]:
+        out[:, :pad_mask.shape[1] - j * W] = pad_mask[:, j * W:]
+    return out
+
+
+def _depth_loss(v_hat, x_norm, W, j, pad_mask, quantile_levels):
+    """The pinball term of depth j, over the real target values only when
+    ``pad_mask`` marks left padding."""
+    targets, t_valid = patch_value_targets(x_norm, W, shift=j)
+    if pad_mask is None:
+        return quantile_loss(v_hat[:, :t_valid], targets, quantile_levels)
+    keep, _ = patch_value_targets(~pad_mask, W, shift=j)
+    return masked_quantile_loss(v_hat[:, :t_valid], targets, keep,
+                                quantile_levels)
+
+
 def value_space_objective(model, x_norm, *, depth=0, reduce="sum",
                           quantile_levels=QUANTILE_LEVELS,
                           freq_ids=None, freq_embs=None,
-                          seasonality_ids=None, seasonality_embs=None):
+                          seasonality_ids=None, seasonality_embs=None,
+                          pad_mask=None):
     """Pinball loss on the actual future values, rolled out in value space.
 
     Depth 0 predicts patch t + 1 from position t. Depth j re-runs the whole
@@ -925,6 +973,11 @@ def value_space_objective(model, x_norm, *, depth=0, reduce="sum",
     Returns ``(loss, f_lat, o_lat, per_depth)``. ``f_lat`` / ``o_lat`` are
     depth 0's, the latents the trainer's diagnostics read. ``per_depth[j]``
     is the unweighted pinball loss of depth j.
+
+    ``pad_mask`` (#419), ``[B, T_raw, C]``, marks left zero padding, as
+    ``RevEWMNorm(skip_leading_zeros=True)`` leaves it after the norm call.
+    A padded value is no target, and each rolled input keeps its padding at
+    0, as the context of the eval rollout does. None: every value counts.
     """
     if reduce not in ("sum", "mean"):
         raise ValueError(f"reduce must be 'sum' or 'mean'; got {reduce!r}")
@@ -939,11 +992,13 @@ def value_space_objective(model, x_norm, *, depth=0, reduce="sum",
             seasonality_embs=seasonality_embs)
         if j == 0:
             f_lat0, o_lat0 = f_lat, o_lat
-        targets, t_valid = patch_value_targets(x_norm, model.W, shift=j)
-        per_depth.append(
-            quantile_loss(v_hat[:, :t_valid], targets, quantile_levels))
+        per_depth.append(_depth_loss(v_hat, x_norm, model.W, j, pad_mask,
+                                     quantile_levels))
         if j < depth:
             x_in = value_patches_to_series(v_hat, q_index)
+            if pad_mask is not None:
+                x_in = x_in.masked_fill(shift_pad(pad_mask, model.W, j + 1),
+                                        0.0)
     loss = per_depth[0]
     for term in per_depth[1:]:
         loss = loss + term

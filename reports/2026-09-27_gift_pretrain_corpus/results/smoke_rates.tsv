@@ -1,0 +1,3 @@
+path	log	result
+old	results/smoke_old.log	windows=5 steps=100..200 data=53.6ms fwd=159.2ms bwd=195.8ms total=409.1ms -> 2.44 steps/s
+new	results/smoke_new.log	windows=9 steps=100..300 data=9.4ms fwd=158.4ms bwd=194.8ms total=363.1ms -> 2.75 steps/s

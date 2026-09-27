@@ -114,6 +114,66 @@ def compute_patch_stats(mean: torch.Tensor, stdev: torch.Tensor,
 PATCH_STATS_DIM = 2
 
 
+# ── Left zero padding (#419) ────────────────────────────────────────────────
+#
+# The GiftEvalPretrain loader pads a series shorter than the window with
+# zeros on the left. On such a window the plain EWMA starts from a first
+# patch of zeros (mean 0, variance 0), stays at 0 over the padding, and then
+# meets the first real value with a spread built from zeros. At span 128 the
+# first value of any level normalises to sqrt((1 - a) / a), about +8, and a
+# 20-point series stays far above 0 to its end. The helpers below let the
+# statistics start at the first nonzero value instead.
+
+
+def patch_padding(pad_mask: torch.Tensor, W: int) -> torch.Tensor:
+    """``[B, T_raw, C]`` padded values to ``[B, T_raw // W, C]`` patches:
+    True where the whole patch is padding. A patch that holds the first real
+    value is real."""
+    B, T_raw, C = pad_mask.shape
+    return pad_mask.reshape(B, T_raw // W, W, C).all(dim=2)
+
+
+def leading_zero_count(x: torch.Tensor) -> torch.Tensor:
+    """Exact zeros before the first nonzero value: ``[B, T, C]`` → ``[B, 1, C]``.
+
+    An all-zero series counts ``T``.
+    """
+    nonzero = x != 0
+    first = nonzero.float().argmax(dim=1, keepdim=True)
+    full = torch.full_like(first, x.shape[1])
+    return torch.where(nonzero.any(dim=1, keepdim=True), first, full)
+
+
+def _masked_first_patch(xs: torch.Tensor, n_real: torch.Tensor, W: int):
+    """Mean and variance of the first ``min(W, n_real)`` values of ``xs``.
+
+    ``xs`` is ``[B, T, C]`` with the real values first; ``n_real`` is
+    ``[B, 1, C]``. A series with no real value gets mean 0 and variance 0,
+    as the plain first patch of an all-zero series does.
+    """
+    head = xs[:, :W]
+    at = torch.arange(head.shape[1], device=xs.device).view(1, -1, 1)
+    keep = (at < n_real).to(xs.dtype)
+    count = keep.sum(dim=1, keepdim=True).clamp(min=1)
+    mean = (head * keep).sum(dim=1, keepdim=True) / count
+    var = ((head - mean) ** 2 * keep).sum(dim=1, keepdim=True) / count
+    return mean, var
+
+
+def _ewm_statistics(x64: torch.Tensor, init_mean: torch.Tensor,
+                    init_var: torch.Tensor, alpha: float):
+    """The EWMA mean and variance of :class:`RevEWMNorm` from a given start,
+    by the same cumulative-sum form, in float64."""
+    T = x64.shape[1]
+    steps = torch.arange(T, device=x64.device, dtype=torch.float64)
+    decay = ((1.0 - alpha) ** steps).view(1, T, 1)
+    inv_decay, shift = 1.0 / decay, decay * (1.0 - alpha)
+    mean = alpha * torch.cumsum(x64 * inv_decay, dim=1) * decay
+    mean = mean + shift * init_mean
+    var = alpha * torch.cumsum((x64 - mean) ** 2 * inv_decay, dim=1) * decay
+    return mean, var + shift * init_var
+
+
 class RevEWMNorm(nn.Module):
     """Reversible EWM normalization with first-patch initialization.
 
@@ -129,11 +189,18 @@ class RevEWMNorm(nn.Module):
             initializing EMA statistics.
         eps: Small constant for numerical stability.
         affine: If True, adds learnable scale and bias after normalization.
+        skip_leading_zeros: If True (#419), the zeros before the first
+            nonzero value count as left padding. The statistics start at the
+            first nonzero value, as if the padding were not there, and the
+            padded positions stay 0 after normalisation. ``pad_mask`` then
+            marks them. The mode is recorded in the state dict as the
+            buffer ``leading_zero_pad``, so a loader can rebuild it.
     """
 
     def __init__(self, num_features: int, span: float, patch_size: int,
                  eps: float = 1e-5, affine: bool = False,
-                 patch_emb_dtype: str = "fp32"):
+                 patch_emb_dtype: str = "fp32",
+                 skip_leading_zeros: bool = False):
         super().__init__()
         self.num_features = num_features
         self.span = span
@@ -150,6 +217,13 @@ class RevEWMNorm(nn.Module):
         # Stored statistics (set during 'norm', used during 'denorm')
         self.mean = None
         self.stdev = None
+        # #419: the left-padding mode, and the padded positions of the last
+        # 'norm' call. None when the mode is off.
+        self.skip_leading_zeros = bool(skip_leading_zeros)
+        self.pad_mask = None
+        if self.skip_leading_zeros:
+            self.register_buffer("leading_zero_pad",
+                                 torch.ones((), dtype=torch.bool))
 
         if affine:
             self.affine_weight = nn.Parameter(torch.ones(num_features))
@@ -170,6 +244,9 @@ class RevEWMNorm(nn.Module):
         # `_compute_statistics` is unaffected (autocast doesn't downcast
         # explicit `.to(float64)` operations).
         with _autocast_ctx(self.patch_emb_dtype):
+            if mode == 'norm' and self.skip_leading_zeros:
+                self._compute_statistics_skip_zeros(x)
+                return self._normalize(x).masked_fill(self.pad_mask, 0.0)
             if mode == 'norm':
                 self._compute_statistics(x)
                 return self._normalize(x)
@@ -242,6 +319,25 @@ class RevEWMNorm(nn.Module):
 
         self.mean = ema_mean.to(dtype).detach()  # [B, T, C]
         self.stdev = torch.sqrt(ema_var).to(dtype).detach()  # [B, T, C]
+
+    def _compute_statistics_skip_zeros(self, x: torch.Tensor):
+        """Statistics from the real values only (#419).
+
+        Each series is shifted left past its leading zeros, the plain
+        first-patch EWMA runs on what remains, and the result is shifted
+        back. A padded position keeps the statistics of the first real
+        value; its normalised value is 0 whatever they are.
+        """
+        T = x.shape[1]
+        z = leading_zero_count(x)                                # [B, 1, C]
+        t = torch.arange(T, device=x.device).view(1, T, 1)
+        xs = x.gather(1, (t + z).clamp(max=T - 1)).to(torch.float64)
+        init_mean, init_var = _masked_first_patch(xs, T - z, self.patch_size)
+        mean, var = _ewm_statistics(xs, init_mean, init_var, self.alpha)
+        back = (t - z).clamp(min=0)
+        self.mean = mean.gather(1, back).to(x.dtype).detach()
+        self.stdev = torch.sqrt(var.gather(1, back)).to(x.dtype).detach()
+        self.pad_mask = t < z
 
     def _normalize(self, x: torch.Tensor) -> torch.Tensor:
         x = x - self.mean
