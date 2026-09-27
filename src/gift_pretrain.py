@@ -488,6 +488,23 @@ def draw_windows(rng, block, dims, window=1024):
     return [w for w in cuts if w is not None]
 
 
+def return_large_buffers(threshold=1 << 20):
+    """Hand every buffer above ``threshold`` bytes back to the system on free.
+
+    The fetch threads allocate one ~16 MB buffer per chunk and the main
+    thread frees it. glibc raises its mmap threshold after the first such
+    free (up to 32 MB), so later chunks land on per-thread heaps, where
+    freed chunks fragment: the resident size of a stream then grew by about
+    1 MB/s while its Python objects stayed flat. A fixed threshold keeps
+    large buffers on mmap. No-op where the C library is not glibc.
+    """
+    import ctypes
+    try:
+        ctypes.CDLL("libc.so.6").mallopt(-3, threshold)  # M_MMAP_THRESHOLD
+    except (OSError, AttributeError):
+        pass
+
+
 # ── The stream ───────────────────────────────────────────────────────────────
 
 
@@ -503,10 +520,12 @@ class GiftPretrainStream:
 
     ``root`` reads a local copy of the repository instead of Hugging Face,
     for tests. ``with_covariates=False`` trains on the targets only.
+    ``prefetch`` batches (1 MB each at batch 256) wait ahead of the trainer,
+    so a slow range request does not stall a step.
     """
 
     def __init__(self, batch_size, C=1, seed=0, window=1024, index=None,
-                 root=None, freq_vocab="v1", emit_labels=True, prefetch=2,
+                 root=None, freq_vocab="v1", emit_labels=True, prefetch=8,
                  workers=8, block_use=BLOCK_USE, with_covariates=True):
         self.batch_size, self.C, self.window = batch_size, C, window
         self.seed, self.root, self.prefetch = seed, root, prefetch
@@ -534,6 +553,7 @@ class GiftPretrainStream:
 
     def open_pools(self, rng):
         """One pool per family: resident when small, streaming otherwise."""
+        return_large_buffers()
         loader = BlockLoader(self.index["revision"], self.root)
         executor = ThreadPoolExecutor(self.workers)
         return [self._pool(f, loader, executor, rng) for f in self.families]
