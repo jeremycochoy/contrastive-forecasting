@@ -23,10 +23,11 @@ SERIES = [
     (P + "_cos665k",  "cosine 6e-5 to 1e-6 over 665k", "#9467bd", 4.0, "D", "-"),
     (P + "_cos200k",  "cosine 5.6e-5 to 1e-6 by 200k, then 1e-6", "#17becf", 4.0, "v", "-"),
     ("cf415_moirai",  "value space, Moirai schedule (#415)", "#8c564b", 3.2, "X", "-"),
+    ("cf415_moirai_native", "the same, scored with its own head (A2V)", "#8c564b", 2.4, "o", ":"),
 ]
 # The value-space run trains at batch 256: one of its steps holds the data of
 # four batch-64 steps.
-XSCALE = {"cf415_moirai": 4}
+XSCALE = {"cf415_moirai": 4, "cf415_moirai_native": 4}
 # Where the last score of a line prints, so two lines that end together part.
 END_LABEL_OFFSET = {P + "_lr100x": (9, 4), P + "_cos200k": (9, -12)}
 BEST, BAND, PROJECT_BEST = 1.1369, 0.008, 1.0651

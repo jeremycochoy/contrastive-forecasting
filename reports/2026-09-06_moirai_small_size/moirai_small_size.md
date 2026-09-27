@@ -7,7 +7,7 @@ over the data. Its rate starts at 5.6e-5 and falls by cosine to 1e-6 at step
 200,000. Each constant rate gives a lowest score and then a climb, and the
 rate sets where that turn falls. The same body, trained in value space with the
 Moirai recipe and its schedule (#415), scores worse than the contrastive model
-at equal data: 1.2358 at 100,000 steps of batch 256, against 1.1477.
+after one pass: 1.2072 with its own value head, against 1.1369.
 
 ## Definitions
 
@@ -73,13 +73,15 @@ no `L_rep` and no `L_align`. It follows the Moirai recipe: batch 256, AdamW at
 of 1.0.
 
 It scores 1.6318 at 10,000 steps, the end of its warmup, 1.5283 at 25,000,
-1.3494 at 50,000, 1.2491 at 75,000, 1.2358 at 100,000, 1.2887 at 125,000 and
-1.2347 at 150,000. At 400,000 steps at batch 64, the data of its 100,000-step
-stop, the contrastive run scored 1.1477. Against the contrastive run at 665,000 steps, the reference
-at 100,000 steps is worse on 24 of the 28 datasets, and better on
-bizitobs_service, saugeen, us_births and car_parts. From 100,000 to 125,000
-steps it gets worse on 25 datasets, most on the M4 sets: m4_weekly by 48%,
-m4_quarterly by 44% and m4_yearly by 36%.
+1.3494 at 50,000, 1.2491 at 75,000, 1.2358 at 100,000, 1.2887 at 125,000,
+1.2347 at 150,000 and 1.2313 at 166,000, the end of one pass. These scores use
+a separate 30,000-step head on the frozen body (B4), as the contrastive runs do.
+
+Scored with its own value head, rolled out in value space the way it trains
+(A2V), the reference reads 1.2612 at 100,000 steps and 1.2072 at 166,000. The
+radar shows that last forecast. Against the contrastive run after one pass, it
+is worse on 24 of the 28 datasets, and better on m_dense, ett1, us_births and
+car_parts.
 
 A first run of the reference used a flat 1e-3 with no warmup and no clip. Its
 loss spiked four times, its best score was 1.2951 at 25,000 steps, and the owner
@@ -111,7 +113,8 @@ counts its steps at batch 256.
 | cosine 6e-5 to 1e-6 over 665,000 | 1.1646 | 100,000 | 1.2738 | 600,000 |
 | cosine 5.6e-5 to 1e-6 by 200,000, then 1e-6 | 1.1369 | 665,000 | 1.1432 | 1,330,000 |
 | value space, flat 1e-3 | 1.2951 | 25,000 | 1.4482 | 90,000 |
-| value space, Moirai schedule | 1.2347 | 150,000 | 1.2347 | 150,000 |
+| value space, Moirai schedule | 1.2313 | 166,000 | 1.2313 | 166,000 |
+| value space, Moirai schedule, its own head | 1.2072 | 166,000 | 1.2072 | 166,000 |
 
 `results/gm_trajectories.tsv` holds every scored stop of the card, one row per
 stop. `scripts/gm_trajectories.py` builds it from the score files.
@@ -139,7 +142,7 @@ no separate recipe for its 0.946 run.
 
 | | Moirai 1.0 Small, GIFT-Eval Pretrain | value space, Moirai schedule (#415) | contrastive, cosine by 200,000 |
 |---|---|---|---|
-| GM-Relative MASE | 0.946 | 1.2347 at 150,000 steps, its best so far | 1.1369 |
+| GM-Relative MASE | 0.946 | 1.2072 with its own head, 1.2313 with a separate head | 1.1369 |
 | parameters | 14M | 11.4M | 11.4M |
 | body | masked encoder, 6 layers | 3 encoder and 3 forecaster layers | the same |
 | patch | 8 to 128, set by the frequency | 16 | 16 |
@@ -150,7 +153,7 @@ no separate recipe for its 0.946 run.
 | rate | 1e-3, 10,000-step warmup, then cosine | 1e-3, 10,000-step warmup, then cosine to 0 | 5.6e-5, cosine to 1e-6 by 200,000 |
 | gradient clip | 1.0 | 1.0 | none |
 | weight decay | 0.1, linear weights only | 0.1, all weights | 0.1, all weights |
-| scoring | its own forecast | a 30,000-step head, strategy B4 | the same |
+| scoring | its own forecast | its own value head (A2V), or a 30,000-step head (B4) | a 30,000-step head, strategy B4 |
 
 Sources: the [Moirai 2.0 paper](https://arxiv.org/abs/2511.11698), the
 [uni2ts pretraining config](https://github.com/SalesforceAIResearch/uni2ts/blob/main/cli/conf/pretrain/default.yaml)
