@@ -676,3 +676,16 @@ class GiftPretrainStream:
         first = np.array([items[b * C][1] for b in range(B)])
         return (x, torch.from_numpy(freq_ids[first]),
                 torch.from_numpy(seas_ids[first]))
+
+
+def stream_factory(seed, C, freq_vocab, index_path=None, root=None):
+    """``make(batch_size, emit_labels)``: GiftEvalPretrain streams on one
+    index, for the ``real_rows`` of the mixed loaders. The trainer and the
+    head trainer build their real rows with it."""
+    index = load_index(index_path)
+
+    def make(batch_size, emit_labels):
+        return GiftPretrainStream(
+            batch_size=batch_size, C=C, seed=seed, index=index, root=root,
+            freq_vocab=freq_vocab, emit_labels=emit_labels)
+    return make

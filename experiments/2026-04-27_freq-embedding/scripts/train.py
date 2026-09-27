@@ -55,6 +55,7 @@ from src.dist_utils import (
     is_main_process,
     gather_latent,
     gather_latents,
+    gather_mask,
     average_gradients,
     broadcast_module,
 )
@@ -68,6 +69,7 @@ from src.metrics import (
     retrieval_auc_topk,
 )
 from src.freq_embedding import FREQ_VOCABS
+from src.norm import patch_padding
 from src.forecasting_head import (QUANTILE_LEVELS,
                                   extract_encoder_latents,
                                   extract_teacher_encoder_latents,
@@ -1135,6 +1137,43 @@ def check_gift_pretrain(args):
         raise SystemExit("--gift-pretrain pads short series with zeros, and "
                          "only the EWMA normaliser skips the padding. Use "
                          "--rev-norm-kind ewma.")
+    gap = None if args.value_space_objective else gift_contrastive_gap(args)
+    if gap:
+        raise SystemExit(f"--gift-pretrain keeps the zero padding out of "
+                         f"every loss term it trains, and {gap} takes no "
+                         f"padding mask (#419).")
+
+
+def gift_contrastive_gap(args):
+    """The first contrastive setting of this run that cannot skip the zero
+    padding (#419), or None. Masked: the rep_only L_rep with or without MoCo
+    keys, L_align (in the loss or alone), the matched CPC auxiliary and both
+    SIGReg terms."""
+    if (not args.no_main_contrastive_loss
+            and args.loss_shape != "cosine_similarity_batch_rep_only"):
+        return f"--loss-shape {args.loss_shape}"
+    if args.align_moco_loss_weight > 0:
+        return "--align-moco-loss-weight"
+    if args.cpc_infonce_weight > 0 and args.cpc_infonce_negs != "matched":
+        return f"--cpc-infonce-negs {args.cpc_infonce_negs}"
+    if args.subtract_contrastive_floor:
+        return "--subtract-contrastive-floor"
+    return None
+
+
+def contrastive_padding(model, args):
+    """``[B, T, C]``: the zero-padded patches of the batch the model has just
+    normalised, which no contrastive term may read (#419). None when the run
+    pads nothing, or trains the value objective, which masks its own."""
+    if not args.gift_pretrain or args.value_space_objective:
+        return None
+    return patch_padding(model.rev_norm.pad_mask, model.W)
+
+
+def real_positions(latent, pad_patches):
+    """The ``[N, H]`` vectors of the real positions of a ``[B, T, C, H]``
+    latent (#419), or the latent itself when nothing is padded."""
+    return latent if pad_patches is None else latent[~pad_patches]
 
 
 def gift_rows(args, C, position):
@@ -1144,15 +1183,9 @@ def gift_rows(args, C, position):
     included. The stream's seed is ``[--seed, position]``, so a resumed leg
     and every rank draw their own windows.
     """
-    from src.gift_pretrain import GiftPretrainStream, load_index
-    index = load_index(args.gift_pretrain_index)
-
-    def make(batch_size, emit_labels):
-        return GiftPretrainStream(
-            batch_size=batch_size, C=C, seed=[args.seed, position],
-            index=index, root=args.gift_pretrain_root,
-            freq_vocab=args.freq_vocab, emit_labels=emit_labels)
-    return make
+    from src.gift_pretrain import stream_factory
+    return stream_factory([args.seed, position], C, args.freq_vocab,
+                          args.gift_pretrain_index, args.gift_pretrain_root)
 
 
 def safe_run_name(save_dir, run_name):
@@ -2208,6 +2241,7 @@ def main():
             teacher_o_lat = teacher_o_lat.float()
         if e_lat is not None:
             e_lat = e_lat.float()
+        pad_patches = contrastive_padding(model, args)
         # Rollout depth (#373): f^(1)..f^(k), the forecaster re-applied to
         # its own output. Built from the LOCAL f_lat — the operator runs per
         # sequence — then gathered like f_lat below so every depth pools the
@@ -2242,6 +2276,9 @@ def main():
         # a sharded run trains at the k it was given, on its local shard.
         if not args.shard_loss_on_batch:
             f_lat, o_lat = gather_latents(f_lat, o_lat)
+            if pad_patches is not None:
+                # #419: the padding pools over the same global batch.
+                pad_patches = gather_mask(pad_patches)
             # Same global pooling for every rollout depth (#373); no-op
             # single-GPU, ONE all-gather per depth under torchrun (a depth is
             # a lone tensor, so it takes the single-tensor form).
@@ -2319,7 +2356,8 @@ def main():
                         f_lat, o_lat, args.align_loss_weight,
                         target_latent=align_target,
                         rollout_latents=rollout_lats,
-                        depth_reduce=args.train_rollout_reduce)
+                        depth_reduce=args.train_rollout_reduce,
+                        pad_patches=pad_patches)
             else:
                 loss = contrastive_latent_loss(
                     (f_lat, o_lat), validation=False,
@@ -2327,7 +2365,8 @@ def main():
                     teacher_original_latent=teacher_o_lat,
                     rollout_latents=rollout_lats,
                     rep_loss_weight=rep_w_now,
-                    term_out=loss_terms)
+                    term_out=loss_terms,
+                    pad_patches=pad_patches)
             # #374 arm 6: MoCo-style alignment on the encoder side (student
             # query, teacher key). Requires teacher_o_lat.
             align_moco_val = float('nan')
@@ -2353,7 +2392,8 @@ def main():
                     cpc_aux = cpc_infonce_aux_loss(
                         f_lat, o_lat, model.cpc_w1,
                         rollout_latents=rollout_lats,
-                        depth_reduce=args.train_rollout_reduce)
+                        depth_reduce=args.train_rollout_reduce,
+                        pad_patches=pad_patches)
                 else:  # "cross" (strict marginal) or "all" (full batch×time grid)
                     cpc_aux = cpc_infonce_all_loss(
                         f_lat, o_lat, model.cpc_w1,
@@ -2371,14 +2411,16 @@ def main():
             sigreg_h_val = float('nan')
             if args.sigreg_embedding:
                 sigreg_e = sigreg_loss(
-                    e_lat, M=args.sigreg_m, T_knots=args.sigreg_t_knots,
+                    real_positions(e_lat, pad_patches),
+                    M=args.sigreg_m, T_knots=args.sigreg_t_knots,
                     post_normalize=args.sigreg_post_normalization,
                     n_chunk=args.sigreg_n_chunk)
                 loss = loss + args.sigreg_embedding_weight * sigreg_e
                 sigreg_e_val = sigreg_e.item()
             if args.sigreg_encoding:
                 sigreg_h = sigreg_loss(
-                    o_lat, M=args.sigreg_m, T_knots=args.sigreg_t_knots,
+                    real_positions(o_lat, pad_patches),
+                    M=args.sigreg_m, T_knots=args.sigreg_t_knots,
                     post_normalize=args.sigreg_post_normalization,
                     n_chunk=args.sigreg_n_chunk)
                 loss = loss + args.sigreg_encoding_weight * sigreg_h
@@ -2428,6 +2470,10 @@ def main():
                     # one curve comparable across k, and the extra depths are the
                     # thing the run varies.
                     train_rollout_depth=0,
+                    # #419: the reference skips the padding as the loss does,
+                    # where its shape can.
+                    pad_patches=(pad_patches if args.loss_shape ==
+                                 "cosine_similarity_batch_rep_only" else None),
                 )
             loss_tau_ref_val = loss_tau_ref.item()
         t_fwd_end = time.perf_counter()
