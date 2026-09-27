@@ -482,6 +482,15 @@ def compute_valid_targets(x_norm, W=16, forecast_len=128):
     return targets, T_valid
 
 
+def valid_target_keep(pad_mask, W=16, forecast_len=128):
+    """``(B*C, T_valid, forecast_len)`` bool, laid out as the targets of
+    :func:`compute_valid_targets`: True where a target is a real value and
+    not left zero padding (#419). ``pad_mask`` is ``RevEWMNorm.pad_mask``."""
+    pad_targets, _ = compute_valid_targets(pad_mask.float(), W=W,
+                                           forecast_len=forecast_len)
+    return pad_targets < 0.5
+
+
 def compute_reconstruction_targets(x_norm, W=16, output_len=16, mode='forecaster'):
     """Extract RECONSTRUCTION targets: the values a latent represents.
 

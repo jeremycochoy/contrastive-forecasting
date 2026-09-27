@@ -32,6 +32,8 @@ import torch.optim as optim
 from src.models import ConfigurableModel, count_parameters
 from src.checkpoint import prepare_backbone_state_dict, save_encoder_source
 from src.dataloader import create_hf_dataloader, create_mixed_periodic_dataloader
+from src.freq_embedding import vocab_of_rows
+from src.loss import masked_mean
 from src.forecasting_head import (
     ForecastingHead,
     QuantileForecastingHead,
@@ -48,6 +50,8 @@ from src.forecasting_head import (
     extract_encoder_latents,
     rollout_latent,
     compute_valid_targets,
+    masked_quantile_loss,
+    valid_target_keep,
     compute_reconstruction_targets,
 )
 
@@ -124,6 +128,15 @@ def parse_args():
                    help="Subdirectory within the HF repo")
     p.add_argument("--skip-rows", type=int, default=0,
                    help="HF rows to skip (for data position resume)")
+    # #419: a backbone trained on GiftEvalPretrain (its checkpoint holds
+    # rev_norm.leading_zero_pad) trains its head on the same stream, with no
+    # flag. These two only point that stream elsewhere (tests).
+    p.add_argument("--gift-pretrain-index", default=None,
+                   help="GiftEvalPretrain record-batch index. Default: "
+                        "src/gift_pretrain_index.json.gz.")
+    p.add_argument("--gift-pretrain-root", default=None,
+                   help="A local copy of the dataset repository to read "
+                        "instead of Hugging Face (tests).")
     p.add_argument("--no-resume-data-skip", action="store_true",
                    help="When resuming, DON'T compute skip_rows from start_step. "
                         "The HF skip is O(rows_to_skip) and can take an hour+ "
@@ -390,8 +403,14 @@ def main():
     freq_w = sd.get("freq_embedding.embedding.weight")
     if freq_w is not None:
         BACKBONE_CONFIG["num_freqs"] = freq_w.shape[0]
-    BACKBONE_CONFIG["rev_norm_skip_leading_zeros"] = (
-        "rev_norm.leading_zero_pad" in sd)
+    zero_pad = "rev_norm.leading_zero_pad" in sd
+    BACKBONE_CONFIG["rev_norm_skip_leading_zeros"] = zero_pad
+    freq_vocab = vocab_of_rows(freq_w.shape[0]) if freq_w is not None else "v1"
+    if zero_pad and (args.reconstruction or args.mixed_rollout > 0):
+        raise SystemExit(
+            "This backbone trained on zero-padded GiftEvalPretrain windows "
+            "(#419); its head masks the padded targets of the prediction "
+            "branch only. Drop --reconstruction / --mixed-rollout.")
     # Auto-detect CLIP-style learnable τ from the checkpoint (#28). If
     # log_inv_tau is in the state_dict, we must instantiate the backbone
     # with learnable_tau=True so load_state_dict succeeds. The head loss
@@ -615,6 +634,18 @@ def main():
         hf_rows_consumed = start_step * rows_per_step + args.skip_rows
 
     emit_labels = (args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0)
+    # #419: the head of a zero-padding backbone reads the stream the
+    # backbone trained on, in the vocabulary its checkpoint holds.
+    real_rows = None
+    if zero_pad:
+        from src.gift_pretrain import stream_factory
+        real_rows = stream_factory(
+            [args.seed, hf_rows_consumed], C, freq_vocab,
+            args.gift_pretrain_index, args.gift_pretrain_root)
+        print(f"Data: the backbone trained on GiftEvalPretrain with zero "
+              f"padding (#419): the head trains on the same stream, "
+              f"vocabulary {freq_vocab}, padded targets skipped. "
+              f"--hf-repo/--hf-path are not read.")
     if args.mix_ratio > 0 or emit_labels:
         # Use the mixed loader when we need labels, even if mix_ratio=0
         # (it falls through to MixedPeriodicLoader with synth_bs=0 and
@@ -626,6 +657,7 @@ def main():
             mix_ratio=args.mix_ratio,
             path_in_repo=args.hf_path, skip_rows=hf_rows_consumed,
             seed=synth_seed, emit_freq_ids=emit_labels,
+            real_rows=real_rows,
         )
         synth_bs = int(round(args.batch_size * args.mix_ratio))
         hf_bs = args.batch_size - synth_bs
@@ -633,6 +665,8 @@ def main():
               f"{args.mix_ratio*100:.0f}% synth, hf_bs={hf_bs}, "
               f"synth_bs={synth_bs}, synth_seed={synth_seed}, "
               f"emit_labels={emit_labels}")
+    elif real_rows is not None:
+        data_loader = real_rows(args.batch_size, False)
     else:
         data_loader = create_hf_dataloader(
             args.hf_repo, batch_size=args.batch_size, C=C,
@@ -815,12 +849,20 @@ def main():
                     x_norm, W=W, forecast_len=args.forecast_len)
                 targets = targets.to(device)
                 preds = head(f_bc)
+                # #419: the padded targets of a zero-padding backbone.
+                keep = (valid_target_keep(backbone.rev_norm.pad_mask, W,
+                                          args.forecast_len)
+                        if zero_pad else None)
                 if args.quantile_head:
                     preds = preds[:, :T_valid, :, :]
-                    loss = quantile_loss(preds, targets, QUANTILE_LEVELS)
+                    loss = (quantile_loss(preds, targets, QUANTILE_LEVELS)
+                            if keep is None else masked_quantile_loss(
+                                preds, targets, keep, QUANTILE_LEVELS))
                 else:
                     preds = preds[:, :T_valid, :]
-                    loss = torch.nn.functional.mse_loss(preds, targets)
+                    loss = (torch.nn.functional.mse_loss(preds, targets)
+                            if keep is None
+                            else masked_mean((preds - targets) ** 2, keep))
 
         # NaN detection -- skip bad batches instead of crashing
         loss_val = loss.item()
