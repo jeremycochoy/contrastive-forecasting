@@ -1,0 +1,64 @@
+start rss=3067MB traced=2232MB
+t=   60s rate=2.50/s rss=3207MB traced=2235MB
+    /usr/local/lib/python3.12/dist-packages/numpy/core/shape_base.py:456: size=4065 KiB (+3048 KiB), count=16 (+12), average=254 KiB
+    /usr/local/lib/python3.12/dist-packages/requests/models.py:1042: size=2155 MiB (-87.4 KiB), count=199 (-4), average=10.8 MiB
+    /workspace/cf-419/src/gift_pretrain.py:327: size=1289 KiB (-30.4 KiB), count=1447 (-65), average=912 B
+    /workspace/cf-419/src/arrow_ipc.py:50: size=249 KiB (+26.6 KiB), count=5542 (+585), average=46 B
+    /usr/lib/python3.12/tracemalloc.py:558: size=17.6 KiB (+17.6 KiB), count=300 (+299), average=60 B
+    /usr/lib/python3.12/socket.py:336: size=16.7 KiB (+16.6 KiB), count=12 (+10), average=1425 B
+t=  120s rate=2.50/s rss=3291MB traced=2236MB
+    /usr/local/lib/python3.12/dist-packages/numpy/core/shape_base.py:456: size=4065 KiB (+3049 KiB), count=21 (+17), average=194 KiB
+    /usr/local/lib/python3.12/dist-packages/requests/models.py:1042: size=2156 MiB (+720 KiB), count=199 (-4), average=10.8 MiB
+    /usr/lib/python3.12/tracemalloc.py:115: size=155 KiB (+155 KiB), count=1986 (+1986), average=80 B
+    /usr/lib/python3.12/tracemalloc.py:193: size=92.1 KiB (+92.1 KiB), count=1964 (+1964), average=48 B
+    /workspace/cf-419/src/arrow_ipc.py:50: size=298 KiB (+75.3 KiB), count=6621 (+1664), average=46 B
+    /usr/lib/python3.12/tracemalloc.py:558: size=37.5 KiB (+37.5 KiB), count=649 (+648), average=59 B
+t=  181s rate=2.50/s rss=3452MB traced=2286MB
+    /usr/local/lib/python3.12/dist-packages/requests/models.py:1042: size=2209 MiB (+53.7 MiB), count=205 (+2), average=10.8 MiB
+    /workspace/cf-419/src/arrow_ipc.py:50: size=379 KiB (+157 KiB), count=8437 (+3480), average=46 B
+    /usr/lib/python3.12/tracemalloc.py:115: size=155 KiB (+155 KiB), count=1986 (+1986), average=80 B
+    /usr/lib/python3.12/tracemalloc.py:193: size=92.2 KiB (+92.2 KiB), count=1967 (+1967), average=48 B
+    /usr/lib/python3.12/tracemalloc.py:558: size=38.9 KiB (+38.8 KiB), count=671 (+670), average=59 B
+    /usr/local/lib/python3.12/dist-packages/urllib3/response.py:448: size=121 KiB (+27.5 KiB), count=157 (+29), average=788 B
+t=  241s rate=2.50/s rss=3493MB traced=2293MB
+    /usr/local/lib/python3.12/dist-packages/requests/models.py:1042: size=2212 MiB (+57.2 MiB), count=200 (-3), average=11.1 MiB
+    /usr/local/lib/python3.12/dist-packages/numpy/core/shape_base.py:456: size=4065 KiB (+3049 KiB), count=30 (+26), average=136 KiB
+    /workspace/cf-419/src/arrow_ipc.py:50: size=431 KiB (+209 KiB), count=9612 (+4655), average=46 B
+    /usr/lib/python3.12/tracemalloc.py:115: size=155 KiB (+155 KiB), count=1986 (+1986), average=80 B
+    /usr/lib/python3.12/tracemalloc.py:193: size=92.1 KiB (+92.1 KiB), count=1965 (+1965), average=48 B
+    /workspace/cf-419/src/gift_pretrain.py:327: size=1272 KiB (-47.5 KiB), count=1178 (-334), average=1106 B
+t=  301s rate=2.50/s rss=3592MB traced=2300MB
+    /usr/local/lib/python3.12/dist-packages/requests/models.py:1042: size=2220 MiB (+65.1 MiB), count=200 (-3), average=11.1 MiB
+    /usr/local/lib/python3.12/dist-packages/numpy/core/shape_base.py:456: size=2033 KiB (+1017 KiB), count=33 (+29), average=61.6 KiB
+    /workspace/cf-419/src/gift_pretrain.py:473: size=17.1 MiB (+735 KiB), count=11777 (+479), average=1526 B
+    /workspace/cf-419/src/arrow_ipc.py:50: size=481 KiB (+259 KiB), count=10738 (+5781), average=46 B
+    /usr/lib/python3.12/tracemalloc.py:115: size=155 KiB (+155 KiB), count=1988 (+1988), average=80 B
+    /usr/lib/python3.12/tracemalloc.py:193: size=92.4 KiB (+92.4 KiB), count=1971 (+1971), average=48 B
+t=  362s rate=2.50/s rss=3645MB traced=2308MB
+    /usr/local/lib/python3.12/dist-packages/requests/models.py:1042: size=2227 MiB (+71.6 MiB), count=201 (-2), average=11.1 MiB
+    /usr/local/lib/python3.12/dist-packages/numpy/core/shape_base.py:456: size=4065 KiB (+3049 KiB), count=36 (+32), average=113 KiB
+    /workspace/cf-419/src/arrow_ipc.py:50: size=528 KiB (+305 KiB), count=11785 (+6828), average=46 B
+    /usr/lib/python3.12/tracemalloc.py:115: size=155 KiB (+155 KiB), count=1984 (+1984), average=80 B
+    /usr/lib/python3.12/tracemalloc.py:193: size=92.2 KiB (+92.2 KiB), count=1966 (+1966), average=48 B
+    /workspace/cf-419/src/gift_pretrain.py:327: size=1272 KiB (-47.5 KiB), count=1143 (-369), average=1139 B
+t=  422s rate=2.50/s rss=3714MB traced=2288MB
+    /usr/local/lib/python3.12/dist-packages/requests/models.py:1042: size=2208 MiB (+52.5 MiB), count=203 (+0), average=10.9 MiB
+    /usr/local/lib/python3.12/dist-packages/numpy/core/shape_base.py:456: size=4065 KiB (+3049 KiB), count=35 (+31), average=116 KiB
+    /workspace/cf-419/src/arrow_ipc.py:50: size=581 KiB (+359 KiB), count=12988 (+8031), average=46 B
+    /usr/lib/python3.12/tracemalloc.py:115: size=155 KiB (+155 KiB), count=1990 (+1990), average=80 B
+    /usr/lib/python3.12/tracemalloc.py:193: size=92.5 KiB (+92.5 KiB), count=1973 (+1973), average=48 B
+    /usr/local/lib/python3.12/dist-packages/urllib3/response.py:448: size=137 KiB (+43.6 KiB), count=177 (+49), average=792 B
+t=  482s rate=2.50/s rss=3816MB traced=2294MB
+    /usr/local/lib/python3.12/dist-packages/requests/models.py:1042: size=2213 MiB (+58.1 MiB), count=200 (-3), average=11.1 MiB
+    /usr/local/lib/python3.12/dist-packages/numpy/core/shape_base.py:456: size=4065 KiB (+3049 KiB), count=32 (+28), average=127 KiB
+    /workspace/cf-419/src/arrow_ipc.py:50: size=629 KiB (+407 KiB), count=14053 (+9096), average=46 B
+    /usr/lib/python3.12/tracemalloc.py:115: size=155 KiB (+155 KiB), count=1986 (+1986), average=80 B
+    /usr/lib/python3.12/tracemalloc.py:193: size=92.2 KiB (+92.2 KiB), count=1966 (+1966), average=48 B
+    /usr/local/lib/python3.12/dist-packages/urllib3/response.py:448: size=143 KiB (+49.8 KiB), count=184 (+56), average=797 B
+t=  542s rate=2.50/s rss=3895MB traced=2295MB
+    /usr/local/lib/python3.12/dist-packages/requests/models.py:1042: size=2214 MiB (+59.0 MiB), count=202 (-1), average=11.0 MiB
+    /usr/local/lib/python3.12/dist-packages/numpy/core/shape_base.py:456: size=4065 KiB (+3049 KiB), count=33 (+29), average=123 KiB
+    /workspace/cf-419/src/arrow_ipc.py:50: size=672 KiB (+449 KiB), count=15005 (+10048), average=46 B
+    /usr/lib/python3.12/tracemalloc.py:115: size=155 KiB (+155 KiB), count=1986 (+1986), average=80 B
+    /usr/lib/python3.12/tracemalloc.py:193: size=92.2 KiB (+92.2 KiB), count=1967 (+1967), average=48 B
+    /usr/local/lib/python3.12/dist-packages/urllib3/response.py:448: size=146 KiB (+53.1 KiB), count=188 (+60), average=798 B
