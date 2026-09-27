@@ -384,6 +384,14 @@ def main():
     BACKBONE_CONFIG["freq_emb_dim"] = args.freq_emb_dim
     BACKBONE_CONFIG["seasonality_emb_dim"] = args.seasonality_emb_dim
     BACKBONE_CONFIG["rev_norm_kind"] = args.rev_norm_kind
+    # #419: the frequency table's row count is the vocabulary (10: v1, every
+    # earlier model), and a buffer marks a normaliser that skips zero
+    # padding. Both rebuild the backbone the checkpoint trained.
+    freq_w = sd.get("freq_embedding.embedding.weight")
+    if freq_w is not None:
+        BACKBONE_CONFIG["num_freqs"] = freq_w.shape[0]
+    BACKBONE_CONFIG["rev_norm_skip_leading_zeros"] = (
+        "rev_norm.leading_zero_pad" in sd)
     # Auto-detect CLIP-style learnable τ from the checkpoint (#28). If
     # log_inv_tau is in the state_dict, we must instantiate the backbone
     # with learnable_tau=True so load_state_dict succeeds. The head loss

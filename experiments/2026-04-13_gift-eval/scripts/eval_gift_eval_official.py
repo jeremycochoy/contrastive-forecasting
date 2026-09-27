@@ -218,8 +218,13 @@ class ContrastiveForecasterPredictor(RepresentablePredictor):
         backbone_c: int = BACKBONE_C,
         quantile_levels: Optional[List[float]] = None,
         strategy: str = 'A1',
+        context_pad: str = 'first',
     ):
         super().__init__(prediction_length=prediction_length)
+        # How a context shorter than t_raw is filled on the left (#419):
+        # 'first' repeats the first value (every earlier model), 'zeros'
+        # pads with zeros, as the GiftEvalPretrain stream trains.
+        self.context_pad = context_pad
         self.backbone = backbone
         self.head = head
         self.device = device
@@ -235,21 +240,30 @@ class ContrastiveForecasterPredictor(RepresentablePredictor):
         for item in dataset:
             yield self.predict_item(item)
 
-    def predict_item(self, item) -> QuantileForecast:
-        target = np.asarray(item["target"], dtype=np.float32)
+    def _fill_missing(self, target: np.ndarray) -> np.ndarray:
+        """Handle NaN in context: forward-fill then back-fill. Under
+        'zeros' (#419) the values missing before the first observed one are
+        dropped instead, so they become left padding, as in training."""
+        if not np.isnan(target).any():
+            return target
+        target = target.copy()
+        mask = np.isnan(target)
+        if mask.all():
+            target[:] = 0.0
+            return target
+        first_valid = np.where(~mask)[0][0]
+        if self.context_pad == 'zeros':
+            target = target[first_valid:]
+        else:
+            target[:first_valid] = target[first_valid]
+        for i in range(1, len(target)):
+            if np.isnan(target[i]):
+                target[i] = target[i - 1]
+        return target
 
-        # Handle NaN in context: forward-fill then back-fill
-        if np.isnan(target).any():
-            target = target.copy()
-            mask = np.isnan(target)
-            if mask.all():
-                target[:] = 0.0
-            else:
-                first_valid = np.where(~mask)[0][0]
-                target[:first_valid] = target[first_valid]
-                for i in range(1, len(target)):
-                    if np.isnan(target[i]):
-                        target[i] = target[i - 1]
+    def predict_item(self, item) -> QuantileForecast:
+        target = self._fill_missing(
+            np.asarray(item["target"], dtype=np.float32))
 
         # Prepare context: truncate/pad to t_raw, expand to backbone_c channels
         context = self._prepare_context(target)  # (1, t_raw, backbone_c)
@@ -309,8 +323,9 @@ class ContrastiveForecasterPredictor(RepresentablePredictor):
             context = target[-self.t_raw:]
         else:
             pad_len = self.t_raw - n
+            fill = 0.0 if self.context_pad == 'zeros' else target[0]
             context = np.concatenate([
-                np.full(pad_len, target[0], dtype=np.float32),
+                np.full(pad_len, fill, dtype=np.float32),
                 target,
             ])
 
@@ -392,6 +407,15 @@ def parse_args():
                         "rollout stays the student's. MUST match the encoder "
                         "the head was trained on — the head's own marker is "
                         "checked and a mismatch aborts.")
+    p.add_argument("--context-pad", default="auto",
+                   choices=["auto", "first", "zeros"],
+                   help="How to fill a context shorter than the window (#419). "
+                        "'first' repeats the first value, as every model "
+                        "before #419 was scored. 'zeros' pads with zeros, as "
+                        "the GiftEvalPretrain stream trains. 'auto' (default) "
+                        "picks 'zeros' for a checkpoint whose normaliser "
+                        "skips zero padding (rev_norm.leading_zero_pad) and "
+                        "'first' for every other one.")
     p.add_argument("--rev-norm-kind", default="ewma",
                    choices=["ewma", "revin", "none"],
                    help="Reversible norm variant — MUST match the backbone's "
@@ -478,6 +502,17 @@ def load_models(args, device):
     sd = torch.load(args.backbone_path, map_location=device, weights_only=True)
     w = sd.get("freq_embedding.embedding.weight")
     BACKBONE_CONFIG["freq_emb_dim"] = (w.shape[1] if w is not None else 0)
+    # #419: the row count of the frequency table is the vocabulary (10 rows:
+    # v1, every model before it), and a buffer marks a normaliser that skips
+    # zero padding. Both rebuild the model the checkpoint trained.
+    freq_rows = w.shape[0] if w is not None else None
+    if freq_rows is not None:
+        BACKBONE_CONFIG["num_freqs"] = freq_rows
+    zero_pad = "rev_norm.leading_zero_pad" in sd
+    BACKBONE_CONFIG["rev_norm_skip_leading_zeros"] = zero_pad
+    if args.context_pad == "auto":
+        args.context_pad = "zeros" if zero_pad else "first"
+    print(f"  [eval] context pad: {args.context_pad}")
     sw = sd.get("seasonality_embedding.embedding.weight")
     BACKBONE_CONFIG["seasonality_emb_dim"] = (sw.shape[1] if sw is not None else 0)
     if "log_inv_tau" in sd:
@@ -595,7 +630,11 @@ def load_models(args, device):
     backbone.eval()
     for p in backbone.parameters():
         p.requires_grad = False
-    print(f"  [eval] encoder={args.encoder_source}")
+    from src.freq_embedding import vocab_of_rows
+    backbone._freq_vocab = (vocab_of_rows(freq_rows) if freq_rows is not None
+                            else "v1")
+    print(f"  [eval] encoder={args.encoder_source} "
+          f"freq_vocab={backbone._freq_vocab}")
     if args.native_value_head:
         from src.forecasting_head import ValueHeadForecaster
         head = ValueHeadForecaster(backbone).to(device).eval()
@@ -776,9 +815,11 @@ def main():
                 # extract_*_latents picks them up as defaults — no need to
                 # thread kwargs through every forecast strategy.
                 from src.freq_embedding import (
-                    gluonts_freq_to_id, seasonality_to_id,
+                    freq_to_id, seasonality_to_id,
                 )
-                backbone._eval_freq_id = gluonts_freq_to_id(dataset.freq)
+                # v1 is gluonts_freq_to_id, as before #419.
+                backbone._eval_freq_id = freq_to_id(
+                    dataset.freq, backbone._freq_vocab)
                 backbone._eval_seasonality_id = seasonality_to_id(season_length)
 
                 # Create predictor for this dataset
@@ -789,6 +830,7 @@ def main():
                     device=device,
                     quantile_levels=QUANTILE_LEVELS,
                     strategy=args.strategy,
+                    context_pad=args.context_pad,
                 )
 
                 # Evaluate using gluonts official function
