@@ -122,9 +122,12 @@ def series(rng, length, level=0.0):
 
 @pytest.fixture(scope="module")
 def corpus(tmp_path_factory):
+    return build_corpus(tmp_path_factory.mktemp("gep"))
+
+
+def build_corpus(root):
     """Four sources: short yearly series, a multivariate hourly source with
     covariates (freq stored last), and two ERA5-like years."""
-    root = tmp_path_factory.mktemp("gep")
     rng = np.random.default_rng(0)
     short = [{"target": series(rng, n, 5000.0)} for n in (12, 20, 31, 7, 25)]
     multi = [{"target": np.stack([series(rng, 1500, 10.0 * j) for j in range(3)]),
