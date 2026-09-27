@@ -125,6 +125,14 @@ PATCH_STATS_DIM = 2
 # statistics start at the first nonzero value instead.
 
 
+def patch_padding(pad_mask: torch.Tensor, W: int) -> torch.Tensor:
+    """``[B, T_raw, C]`` padded values to ``[B, T_raw // W, C]`` patches:
+    True where the whole patch is padding. A patch that holds the first real
+    value is real."""
+    B, T_raw, C = pad_mask.shape
+    return pad_mask.reshape(B, T_raw // W, W, C).all(dim=2)
+
+
 def leading_zero_count(x: torch.Tensor) -> torch.Tensor:
     """Exact zeros before the first nonzero value: ``[B, T, C]`` → ``[B, 1, C]``.
 

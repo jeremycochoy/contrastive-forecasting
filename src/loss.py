@@ -167,6 +167,170 @@ def reduce_depth_terms(terms, reduce):
     return total / len(terms)
 
 
+# --- Left zero padding (#419) ----------------------------------------------
+#
+# A GiftEvalPretrain window of a short series starts with zero padding. With
+# ``pad_patches`` (``[B, T, C]`` bool, True where the whole patch is padding)
+# the terms below leave every padded position out: as an anchor, as a key
+# (negative or MoCo key) and as a positive. A term then equals the same term
+# on the batch with its padded positions removed. Padding is a prefix, so the
+# target of a real anchor is real too. ``pad_patches=None`` is the unchanged
+# code path of every other run.
+
+NEG_INF = float('-inf')
+
+
+def masked_mean(values, keep):
+    """Mean of ``values`` over the positions ``keep`` marks, 0 with none."""
+    return values.masked_fill(~keep, 0.0).sum() / keep.sum().clamp(min=1)
+
+
+def _xx_lse_masked(hx_norm, hx_key, pad_x, tau):
+    """L_rep's cross-channel same-time family, padded channels dropped."""
+    C = hx_norm.shape[2]
+    sims = cosine_similarity_from_normalized(
+        hx_norm.unsqueeze(3), hx_key.unsqueeze(2))           # [B, T-1, C, C]
+    drop = torch.eye(C, dtype=torch.bool, device=sims.device).view(1, 1, C, C)
+    drop = drop | pad_x.unsqueeze(3) | pad_x.unsqueeze(2)
+    return torch.logsumexp((sims / tau).masked_fill(drop, NEG_INF), dim=2)
+
+
+def _hh_all_lse_masked(hx_norm, key, pad, tau):
+    """L_rep's within-series all-time family, padded keys dropped."""
+    T = key.shape[1]
+    sims = torch.matmul(hx_norm.permute(0, 2, 1, 3),
+                        key.permute(0, 2, 3, 1))              # [B, C, T-1, T]
+    t_idx = torch.arange(T - 1, device=sims.device).view(T - 1, 1)
+    l_idx = torch.arange(T, device=sims.device).view(1, T)
+    drop = ((l_idx == t_idx).view(1, 1, T - 1, T)
+            | pad.permute(0, 2, 1).unsqueeze(2))
+    return torch.logsumexp((sims / tau).masked_fill(drop, NEG_INF),
+                           dim=3).permute(0, 2, 1)
+
+
+def _xs_chunk_lse_masked(anc, src_chunk, drop, tau):
+    gram = torch.matmul(anc.unsqueeze(1),
+                        src_chunk.permute(0, 1, 3, 2).unsqueeze(0)) / tau
+    gram = gram.masked_fill(drop, NEG_INF)
+    return torch.logsumexp(torch.logsumexp(gram, dim=4), dim=1)
+
+
+def _xs_allt_lse_masked(hx_norm, key, pad, tau, chunk):
+    """L_rep's cross-series all-time family, padded keys dropped. Chunked
+    over the source batch and checkpointed, as the unmasked branch is."""
+    anchor = hx_norm.permute(0, 2, 1, 3).contiguous()        # [B, C, T-1, H]
+    src = key.permute(0, 2, 1, 3).contiguous()               # [B, C, T, H]
+    src_pad = pad.permute(0, 2, 1)                           # [B, C, T]
+    B, C, T = src_pad.shape
+    b_all = torch.arange(B, device=anchor.device)
+    run = None
+    for s in range(0, B, chunk):
+        e = min(s + chunk, B)
+        same = (b_all.view(B, 1) == b_all[s:e].view(1, e - s)
+                ).view(B, e - s, 1, 1, 1)
+        drop = same | src_pad[s:e].reshape(1, e - s, C, 1, T)
+        lse = checkpoint(_xs_chunk_lse_masked, anchor, src[s:e], drop, tau,
+                         use_reentrant=False)
+        run = lse if run is None else torch.logsumexp(
+            torch.stack([run, lse], dim=0), dim=0)
+    return run.permute(0, 2, 1)
+
+
+def rep_only_loss_masked(hx_norm, orig_norm, teacher_norm, pad, tau, chunk):
+    """L_rep of ``cosine_similarity_batch_rep_only`` without the padding.
+
+    ``teacher_norm`` given: the MoCo form, with teacher keys and the positive
+    cos(h_t, h^T_t). None: student keys and no positive. The negatives pool
+    over the real anchors of each time step, as the unmasked branch pools
+    over all of them.
+    """
+    key = orig_norm if teacher_norm is None else teacher_norm
+    pad_x = pad[:, :-1]
+    negs = torch.stack([_xx_lse_masked(hx_norm, key[:, :-1], pad_x, tau),
+                        _hh_all_lse_masked(hx_norm, key, pad, tau),
+                        _xs_allt_lse_masked(hx_norm, key, pad, tau, chunk)])
+    per_anchor = torch.logsumexp(negs, dim=0).masked_fill(pad_x, NEG_INF)
+    total = torch.logsumexp(per_anchor, dim=0, keepdim=True)  # [1, T-1, C]
+    if teacher_norm is None:
+        return masked_mean(total, ~pad_x.all(dim=0, keepdim=True))
+    log_pos = cosine_similarity_from_normalized(hx_norm, key[:, :-1]) / tau
+    denom = torch.logsumexp(
+        torch.stack([log_pos, total.expand_as(log_pos)], dim=0), dim=0)
+    return masked_mean(denom - log_pos, ~pad_x)
+
+
+def _xs_allt_chunk_for_mask():
+    """The xs_allt chunk size. The fused and sharded kernels take no mask,
+    so a padded batch refuses them rather than train on its padding."""
+    if (os.environ.get('XSHH_ALLT_FUSED', '0') == '1'
+            or os.environ.get('XSHH_ALLT_SHARD', '0') == '1'):
+        raise NotImplementedError(
+            "XSHH_ALLT_FUSED / XSHH_ALLT_SHARD take no padding mask; unset "
+            "them to train on zero-padded windows (#419).")
+    return int(os.environ.get('XSHH_ALLT_CHUNK', '8'))
+
+
+def _cpc_time_lse_masked(q_a, e, pad_e):
+    """The CPC auxiliary's cross-time negatives, padded keys dropped."""
+    T = e.shape[1]
+    sims = torch.matmul(q_a.permute(0, 2, 1, 3),
+                        e.permute(0, 2, 3, 1))                # [B, C, T-1, T]
+    t_idx = torch.arange(T - 1, device=e.device).view(T - 1, 1)
+    l_idx = torch.arange(T, device=e.device).view(1, T)
+    drop = ((l_idx == t_idx + 1).view(1, 1, T - 1, T)
+            | pad_e.permute(0, 2, 1).unsqueeze(2))
+    return torch.logsumexp(sims.masked_fill(drop, NEG_INF),
+                           dim=3).permute(0, 2, 1)
+
+
+def _cpc_chunk_lse_masked(anc, tgt_chunk, drop):
+    gram = torch.matmul(anc, tgt_chunk.transpose(-2, -1))    # [T-1,C,B,ch]
+    return torch.logsumexp(gram.masked_fill(drop, NEG_INF), dim=3)
+
+
+def _cpc_batch_lse_masked(q_a, e_pos, pad_pos, chunk):
+    """The CPC auxiliary's cross-batch negatives e_{b', t+1}, padded keys
+    dropped, chunked and checkpointed as the unmasked term is."""
+    q_ap = q_a.permute(1, 2, 0, 3).contiguous()              # [T-1, C, B, H]
+    e_pp = e_pos.permute(1, 2, 0, 3).contiguous()
+    key_pad = pad_pos.permute(1, 2, 0)                        # [T-1, C, B]
+    B = q_ap.shape[2]
+    b_all = torch.arange(B, device=q_ap.device)
+    run = None
+    for s in range(0, B, chunk):
+        ee = min(s + chunk, B)
+        same = (b_all.view(B, 1) == b_all[s:ee].view(1, ee - s)
+                ).view(1, 1, B, ee - s)
+        drop = same | key_pad[:, :, s:ee].unsqueeze(2)
+        lse = checkpoint(_cpc_chunk_lse_masked, q_ap, e_pp[:, :, s:ee], drop,
+                         use_reentrant=False)
+        run = lse if run is None else torch.logsumexp(
+            torch.stack([run, lse], dim=0), dim=0)
+    return run.permute(2, 0, 1)
+
+
+def cpc_infonce_aux_masked(forecasted_latent, original_latent, w1, pad,
+                           depth, chunk):
+    """One depth copy of :func:`cpc_infonce_aux_loss` without the padding.
+
+    ``pad`` is the depth-0 padding ``[B, T, C]``; the copy reads the views of
+    :func:`rollout_depth_views`. The anchors and the cross-time keys take
+    ``pad[:, :steps]``: a row then drops its first ``depth`` real positions
+    as keys, as the unmasked view drops the first ``depth`` positions of an
+    unpadded row. The cross-batch keys take their own padding.
+    """
+    steps = forecasted_latent.shape[1]
+    pad_view, pad_key = pad[:, :steps], pad[:, depth:]
+    e = F.normalize(original_latent, p=2, dim=-1)
+    q_a = w1(forecasted_latent)[:, :-1]                      # W_1 h_t
+    log_pos = (q_a * e[:, 1:]).sum(-1)                       # [B, T-1, C]
+    log_neg = torch.logsumexp(torch.stack([
+        _cpc_time_lse_masked(q_a, e, pad_view),
+        _cpc_batch_lse_masked(q_a, e[:, 1:], pad_key[:, 1:], chunk)]), dim=0)
+    log_denom = torch.logsumexp(torch.stack([log_pos, log_neg]), dim=0)
+    return masked_mean(log_denom - log_pos, ~pad_view[:, :-1])
+
+
 def infonce_floor(tau, n_negatives):
     """Theoretical minimum of the normalized-InfoNCE loss (positive in the
     denominator): the value at perfect alignment (cos(f, h⁺) = 1) with
@@ -407,7 +571,7 @@ def cpc_multistep_cpcnegs_loss(forecasted_multi, original_latent, tau,
 
 def cpc_infonce_aux_loss(forecasted_latent, original_latent, w1,
                          cross_batch_chunk=256, rollout_latents=None,
-                         depth_reduce='sum'):
+                         depth_reduce='sum', pad_patches=None):
     """CPC InfoNCE auxiliary term (van den Oord and others 2018, Eq. 4, k=1), #344.
 
     Predict the next-step encoder embedding ``e_{t+1}`` from the
@@ -462,6 +626,9 @@ def cpc_infonce_aux_loss(forecasted_latent, original_latent, w1,
         depth_reduce: how the k + 1 copies combine (#401) — ``'sum'``
             (default, #373's objective) or ``'mean'``. The term carries no
             h-only half, so the mean is the plain mean of the copies.
+        pad_patches: ``[B, T, C]`` bool, the zero-padded patches (#419).
+            Given, no padded position enters as an anchor, a positive or a
+            negative (:func:`cpc_infonce_aux_masked`). None: unchanged.
 
     Returns: scalar loss (mean over B, C, t).
     """
@@ -474,6 +641,11 @@ def cpc_infonce_aux_loss(forecasted_latent, original_latent, w1,
     B, T, C, H = forecasted_latent.shape
     if T < 2:
         return forecasted_latent.new_zeros(())
+    if pad_patches is not None:
+        return _cpc_aux_masked_copies(
+            forecasted_latent, original_latent, w1, pad_patches,
+            int(os.environ.get('CPC_CB_CHUNK', str(cross_batch_chunk))),
+            rollout_latents, depth_reduce)
     neg_inf = float('-inf')
     e = F.normalize(original_latent, p=2, dim=-1)        # [B,T,C,H] unit embeddings e_j
     q = w1(forecasted_latent)                            # [B,T,C,H] W_1 h_t (raw scale)
@@ -529,6 +701,20 @@ def cpc_infonce_aux_loss(forecasted_latent, original_latent, w1,
             f_depth, original_latent, depth)
         copies.append(cpc_infonce_aux_loss(
             f_view, e_view, w1, cross_batch_chunk=cross_batch_chunk))
+    return reduce_depth_terms(
+        copies, resolve_rollout_reduce(depth_reduce, None))
+
+
+def _cpc_aux_masked_copies(forecasted_latent, original_latent, w1, pad,
+                           chunk, rollout_latents, depth_reduce):
+    """The k + 1 rollout copies of :func:`cpc_infonce_aux_masked` (#419)."""
+    copies = [cpc_infonce_aux_masked(forecasted_latent, original_latent, w1,
+                                     pad, 0, chunk)]
+    for depth, f_depth in enumerate(rollout_latents or (), start=1):
+        f_view, e_view, _ = rollout_depth_views(
+            f_depth, original_latent, depth)
+        copies.append(cpc_infonce_aux_masked(f_view, e_view, w1, pad, depth,
+                                             chunk))
     return reduce_depth_terms(
         copies, resolve_rollout_reduce(depth_reduce, None))
 
@@ -765,7 +951,7 @@ def sigreg_loss(z, sigma2=None, M=1024, T_knots=17, W=None,
 
 def align_loss(forecasted_latent, original_latent, weight=1.0,
                target_latent=None, rollout_latents=None,
-               depth_reduce='sum'):
+               depth_reduce='sum', pad_patches=None):
     """BYOL/SimSiam alignment term, standalone (#344 follow-up arm).
 
     ``L_align = weight · (2 − 2·cos(f_t, sg(h_{t+1}))).mean()`` — pull the
@@ -789,6 +975,10 @@ def align_loss(forecasted_latent, original_latent, weight=1.0,
     the k + 1 copies: ``'sum'`` (default, #373's objective) or ``'mean'``,
     which holds the term at its k = 0 weight at every depth.
 
+    ``pad_patches`` (#419): ``[B, T, C]`` bool, the zero-padded patches of
+    the positions of ``forecasted_latent``. Given, the mean runs over the
+    pairs with a real anchor f_t only. None: every pair, as before.
+
     forecasted_latent, original_latent, target_latent: ``[B, T, C, H]``.
     Returns scalar.
     """
@@ -798,12 +988,18 @@ def align_loss(forecasted_latent, original_latent, weight=1.0,
     hy_hat_norm = fore_norm[:, :-1, :, :]              # f_t
     hy_norm = targ_norm[:, 1:, :, :].detach()          # sg(target_{t+1})
     cos_align = cosine_similarity_from_normalized(hy_hat_norm, hy_norm)
-    copies = [weight * (2.0 - 2.0 * cos_align).mean()]
+    if pad_patches is None:
+        copies = [weight * (2.0 - 2.0 * cos_align).mean()]
+    else:
+        copies = [weight * masked_mean(2.0 - 2.0 * cos_align,
+                                       ~pad_patches[:, :-1])]
     for depth, f_depth in enumerate(rollout_latents or (), start=1):
         f_view, o_view, target_view = rollout_depth_views(
             f_depth, original_latent, depth, target_latent)
-        copies.append(align_loss(f_view, o_view, weight,
-                                 target_latent=target_view))
+        copies.append(align_loss(
+            f_view, o_view, weight, target_latent=target_view,
+            pad_patches=(None if pad_patches is None
+                         else pad_patches[:, :f_view.shape[1]])))
     return reduce_depth_terms(
         copies, resolve_rollout_reduce(depth_reduce, None))
 
@@ -1051,7 +1247,8 @@ def contrastive_latent_loss(predicted_position, validation, spec,
                             depth_index=0,
                             f_terms_only=False,
                             rep_loss_weight=None,
-                            term_out=None):
+                            term_out=None,
+                            pad_patches=None):
     """Compute the contrastive divergence loss.
 
     Args:
@@ -1187,6 +1384,16 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     a depth copy carries. It is what the mean divides — the depth-0 call
     returns the f-side and the h-side added together, and the two have to be
     told apart before one of them can be divided.
+
+    ``pad_patches`` (#419): ``[B, T, C]`` bool, True where a patch of the
+    window is all zero padding (the GiftEvalPretrain stream pads short
+    series on the left). Given, no padded position enters the loss: L_rep
+    drops padded anchors, padded keys (student or MoCo teacher) and their
+    positives (:func:`rep_only_loss_masked`), and L_align averages over the
+    pairs with a real anchor. The loss then equals the loss of the batch
+    with its padded positions removed. Only ``cosine_similarity_batch_
+    rep_only`` takes it; every other shape raises. None (default): the
+    unchanged code path of every other run.
     """
     forecasted_latent, original_latent = predicted_position
     train_config = spec.train_configuration
@@ -1204,6 +1411,15 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     # every rollout-depth copy (depth_index > 0), and the depth-0 f-side the
     # `mean` reduction subtracts before it divides (#401).
     f_only = bool(depth_index) or bool(f_terms_only)
+
+    # #419: the padding mask is wired into the rep_only shape alone. Any
+    # other shape would train on the padding and say nothing, so it raises.
+    if pad_patches is not None and \
+            train_config.get('loss_shape') != 'cosine_similarity_batch_rep_only':
+        raise NotImplementedError(
+            "pad_patches (zero-padded windows, #419) is implemented for "
+            "loss_shape='cosine_similarity_batch_rep_only' only; got "
+            f"{train_config.get('loss_shape')!r}.")
 
     # CPC multi-step (#316): the forecaster latent is a [B,T,C,K,H] stack of
     # K linear-head predictions, so the 4-D unpack/positives below do not
@@ -2223,6 +2439,22 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # reading 0.
         loss = hy_hat_norm.new_zeros(())
 
+    elif train_config.get('loss_shape') == 'cosine_similarity_batch_rep_only' \
+            and pad_patches is not None:
+        # #419: the branch below with the zero-padded positions left out, as
+        # anchors, as keys and as MoCo positives. Same weight, same keys.
+        moco_rep = (
+            moco_rep_keys if moco_rep_keys is not None
+            else bool(train_config.get('moco_rep_keys', False)))
+        teacher_keys = (
+            F.normalize(teacher_original_latent, p=2, dim=-1)
+            if moco_rep and teacher_original_latent is not None else None)
+        loss_rep = rep_only_loss_masked(
+            hx_norm, orig_norm, teacher_keys, pad_patches, tau_rep,
+            _xs_allt_chunk_for_mask())
+        _record_term(term_out, 'l_rep', loss_rep)
+        loss = resolve_rep_loss_weight(train_config, rep_loss_weight) * loss_rep
+
     elif train_config.get('loss_shape') == 'cosine_similarity_batch_rep_only':
         # #374 follow-up arm: drop L_pred from the split shape and pair
         # `L_rep` (h-anchored logsumexp) with `align_loss` added by the
@@ -2915,10 +3147,19 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         align_ref = (hy_teacher_norm if align_tgt == 'teacher' else hy_norm)
         cos_align = cosine_similarity_from_normalized(
             hy_hat_norm, align_ref.detach())
-        loss_align = (2.0 - 2.0 * cos_align).mean()
+        if pad_patches is None:
+            loss_align = (2.0 - 2.0 * cos_align).mean()
+        else:
+            # #419: the pairs with a real anchor f_t; their targets are real.
+            loss_align = masked_mean(2.0 - 2.0 * cos_align,
+                                     ~pad_patches[:, :-1])
         _record_term(term_out, 'l_align', loss_align)
         loss = loss + align_w * loss_align
 
+    if sub_floor and pad_patches is not None:
+        raise NotImplementedError(
+            "subtract_contrastive_floor counts every position of the window; "
+            "it is not defined with zero-padded windows (#419).")
     if sub_floor:
         # Re-base the loss by the (constant) uniformity floor so the logged
         # curve reads ~0 at that floor. Gradient-neutral.
@@ -2973,7 +3214,9 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             teacher_original_latent=teacher_view,
             train_rollout_depth=0,
             depth_index=j,
-            rep_loss_weight=rep_loss_weight))
+            rep_loss_weight=rep_loss_weight,
+            pad_patches=(None if pad_patches is None
+                         else pad_patches[:, :f_view.shape[1]])))
 
     if depth_copies and reduce == 'sum':
         # #373's objective, byte for byte: the copies are added to a `loss`
@@ -3012,7 +3255,8 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             teacher_original_latent=teacher_original_latent,
             train_rollout_depth=0,
             f_terms_only=True,
-            rep_loss_weight=rep_loss_weight)
+            rep_loss_weight=rep_loss_weight,
+            pad_patches=pad_patches)
         h_side = loss - f_side_depth0
         loss = h_side + reduce_depth_terms(
             [f_side_depth0] + depth_copies, 'mean')
