@@ -24,6 +24,7 @@ SERIES = [
     (P + "_cos200k",  "cosine 5.6e-5 to 1e-6 by 200k, then 1e-6", "#17becf", 4.0, "v", "-"),
     ("cf415_moirai",  "value space, Moirai schedule (#415)", "#8c564b", 3.2, "X", "-"),
     ("cf415_moirai_native", "the same, scored with its own head (A2V)", "#8c564b", 2.4, "o", ":"),
+    ("b2cos",         "1.1M: #373 cell B2 with the same cosine as cyan", "#e377c2", 3.0, "P", "-."),
 ]
 # The value-space run trains at batch 256: one of its steps holds the data of
 # four batch-64 steps.
@@ -91,7 +92,7 @@ def main():
     ax.set_xlabel("data seen, in batch-64 steps (log scale). The value-space "
                   "run trains at batch 256, so each of its steps counts 4.")
     ax.set_ylabel("GM-Relative MASE, 97-config GIFT-Eval (lower is better)")
-    ax.set_title("GM-Relative MASE against data seen, at 11.4M parameters\n"
+    ax.set_title("GM-Relative MASE against data seen, at 11.4M parameters unless marked\n"
                  "The coloured lines change the backbone rate alone. The brown line "
                  "trains the same body in value space.")
     ax.grid(alpha=0.3)
