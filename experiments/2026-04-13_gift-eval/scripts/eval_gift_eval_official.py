@@ -425,7 +425,10 @@ def parse_args():
                    choices=["ewma", "revin", "none"],
                    help="Reversible norm variant — MUST match the backbone's "
                         "training-time choice. Both have 0 params so state_dict "
-                        "doesn't disambiguate. Default 'ewma'.")
+                        "doesn't disambiguate. Default 'ewma'. A checkpoint "
+                        "with the mean/std scaling (#421) names it with the "
+                        "buffer rev_norm.mean_std_scaling, and the eval "
+                        "reads that kind whatever this flag says.")
     p.add_argument("--rev-norm-span", type=int, default=32,
                    help="Span for RevEWMNorm (only used when "
                         "--rev-norm-kind=ewma). Must match training-time value.")
@@ -591,6 +594,10 @@ def load_models(args, device):
         print(f"  [eval] auto-detected cpc forecaster "
               f"(K={BACKBONE_CONFIG['cpc_k_steps']}, "
               f"d={BACKBONE_CONFIG.get('forecaster_d_model')}) from checkpoint")
+    # #421: a buffer marks the mean/std scaling of Moirai 1.0, so the
+    # checkpoint names it. The flag picks among the kinds with no mark.
+    if "rev_norm.mean_std_scaling" in sd:
+        args.rev_norm_kind = "meanstd"
     BACKBONE_CONFIG["rev_norm_kind"] = args.rev_norm_kind
     if args.rev_norm_kind == "ewma":
         BACKBONE_CONFIG["rev_norm_span"] = args.rev_norm_span

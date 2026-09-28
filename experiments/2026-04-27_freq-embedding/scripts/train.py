@@ -73,6 +73,7 @@ from src.norm import patch_padding
 from src.forecasting_head import (QUANTILE_LEVELS,
                                   extract_encoder_latents,
                                   extract_teacher_encoder_latents,
+                                  mean_std_inputs,
                                   multi_patch_value_objective,
                                   rollout_forecaster_latents,
                                   value_space_objective)
@@ -438,10 +439,15 @@ def build_parser():
     p.add_argument("--mixup-alpha", type=float, default=0.2,
                    help="Beta(alpha, alpha) parameter for mixup lambda.")
     p.add_argument("--rev-norm-kind", default="ewma",
-                   choices=["ewma", "revin", "none"],
+                   choices=["ewma", "revin", "meanstd", "none"],
                    help="Reversible normalization variant. 'ewma' = "
                         "RevEWMNorm(span=32) (default); 'revin' = standard "
-                        "single-instance z-score; 'none' to disable.")
+                        "single-instance z-score; 'meanstd' = the mean/std "
+                        "scaling of Moirai 1.0 (#421): one loc and one scale "
+                        "per window, from the observed values before a split "
+                        "drawn as uni2ts MaskedPrediction draws it, and a "
+                        "loss on the values after the split only. Needs "
+                        "--value-space-objective. 'none' to disable.")
     p.add_argument("--rev-norm-span", type=int, default=32,
                    help="Span parameter for RevEWMNorm (ignored unless "
                         "--rev-norm-kind=ewma). Default 32 matches the "
@@ -1178,10 +1184,11 @@ def check_gift_pretrain(args):
     if args.hf_repo or args.hf_path:
         raise SystemExit("--gift-pretrain replaces --hf-repo and --hf-path. "
                          "Drop them.")
-    if args.rev_norm_kind != "ewma":
+    if args.rev_norm_kind not in ("ewma", "meanstd"):
         raise SystemExit("--gift-pretrain pads short series with zeros, and "
-                         "only the EWMA normaliser skips the padding. Use "
-                         "--rev-norm-kind ewma.")
+                         "only the EWMA normaliser and the mean/std scaling "
+                         "skip the padding. Use --rev-norm-kind ewma or "
+                         "meanstd.")
     gap = None if args.value_space_objective else gift_contrastive_gap(args)
     if gap:
         raise SystemExit(f"--gift-pretrain keeps the zero padding out of "
@@ -1204,6 +1211,19 @@ def gift_contrastive_gap(args):
     if args.subtract_contrastive_floor:
         return "--subtract-contrastive-floor"
     return None
+
+
+def check_mean_std(args):
+    """Refuse the mean/std scaling (#421) outside the value-space objective.
+
+    Its statistics read the context before a split, and only the value-space
+    objective draws one. A contrastive run would scale each window by its
+    whole length, future values included.
+    """
+    if args.rev_norm_kind == "meanstd" and not args.value_space_objective:
+        raise SystemExit("--rev-norm-kind meanstd takes its statistics from "
+                         "the context before a split that only "
+                         "--value-space-objective draws (#421). Add it.")
 
 
 def contrastive_padding(model, args):
@@ -1639,6 +1659,7 @@ def main():
     multi_patch_sizes = parse_multi_patch_sizes(args)
 
     check_gift_pretrain(args)
+    check_mean_std(args)
 
     # Distributed (opt-in, env-driven): launch with
     #   torchrun --nproc_per_node=N experiments/.../train.py ...
@@ -2017,6 +2038,12 @@ def main():
               f"patch size {multi_patch_sizes}. Each sample draws its size "
               f"from its frequency's range; a sample with no frequency label "
               f"draws from every size.")
+    if args.rev_norm_kind == "meanstd":
+        print("Scaling (#421): the mean/std scaling of Moirai 1.0. Each "
+              "window draws a target fraction r ~ U[0.15, 0.5] of its real "
+              "patches; loc and scale come from the observed values before "
+              "the split, and the loss counts only the patches after it. A "
+              "size needs two patches of real values (uni2ts GetPatchSize).")
     print(f"Training for {args.total_steps} steps, bs={args.batch_size}, "
           f"lr={args.lr}, T={args.t_raw}, C={args.n_channels}, "
           f"mix_ratio={args.mix_ratio}, "
@@ -2240,8 +2267,19 @@ def main():
             # is not rescaled by its own spread. The objective then runs the
             # cell once per depth on values, and returns depth 0's latents
             # for the diagnostics below.
-            x_norm = (model.rev_norm(x, mode='norm')
-                      if model.rev_norm is not None else x)
+            if args.rev_norm_kind == "meanstd":
+                # #421: the sizes, then one split per window. loc and scale
+                # read the context before the split, and the loss counts
+                # the patches after it only.
+                x_norm, sample_sizes, target_mask = mean_std_inputs(
+                    model, x, freq_ids, multi_patch_sizes)
+            else:
+                x_norm = (model.rev_norm(x, mode='norm')
+                          if model.rev_norm is not None else x)
+                sample_sizes = (draw_patch_sizes(freq_ids, multi_patch_sizes,
+                                                 x.shape[0])
+                                if multi_patch_sizes else None)
+                target_mask = None
             # #419: with zero left padding the normaliser marks the padded
             # values, and the objective skips them. None on every other run.
             pad_mask = getattr(model.rev_norm, "pad_mask", None)
@@ -2250,15 +2288,13 @@ def main():
                 # draws, and the batch trains one group per size.
                 value_loss, f_lat, o_lat, value_depths = \
                     multi_patch_value_objective(
-                        model, x_norm,
-                        draw_patch_sizes(freq_ids, multi_patch_sizes,
-                                         x.shape[0]),
+                        model, x_norm, sample_sizes,
                         depth=args.train_rollout_depth,
                         reduce=args.train_rollout_reduce,
                         freq_ids=freq_ids, freq_embs=freq_embs,
                         seasonality_ids=seasonality_ids,
                         seasonality_embs=seasonality_embs,
-                        pad_mask=pad_mask)
+                        pad_mask=pad_mask, target_mask=target_mask)
             else:
                 value_loss, f_lat, o_lat, value_depths = value_space_objective(
                     model, x_norm,
@@ -2267,7 +2303,7 @@ def main():
                     freq_ids=freq_ids, freq_embs=freq_embs,
                     seasonality_ids=seasonality_ids,
                     seasonality_embs=seasonality_embs,
-                    pad_mask=pad_mask)
+                    pad_mask=pad_mask, target_mask=target_mask)
             teacher_o_lat = None
             e_lat = None
         elif use_ema:
