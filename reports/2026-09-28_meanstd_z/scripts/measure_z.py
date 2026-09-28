@@ -13,10 +13,19 @@ Two views of the same batches:
              rows, crossfade triplets), after the sign flip and the mixup
              of the #419 Moirai command (p = 0.3, alpha = 0.2)
 
-Writes z_summary.json and z_quantiles.tsv, and z_per_window.tsv.gz.
+The transforms are the trainer's: mixup and the crossfade keep the union of
+the zero paddings (#421). results/before_fix holds the first measurement,
+made before that fix, when both wrote values into the padding.
+
+For each view the summary gives the quantiles of max |z| over the windows
+with a target, and the same after the z-filter at --z-max: the share of all
+windows it drops (the trainer's meanstd_dropped), and the quantiles of the
+windows it keeps.
+
+Writes z_summary.json, z_quantiles.tsv and z_per_window.tsv.gz.
 
 Usage (CPU only, data reading only):
-    HF_TOKEN=... CUDA_VISIBLE_DEVICES= python3 measure_z.py --batches 80 --out results
+    HF_TOKEN=... CUDA_VISIBLE_DEVICES= python3 measure_z.py --batches 80 --out results/after_fix
 """
 
 import argparse
@@ -38,7 +47,8 @@ from src.dataloader import create_mixed_forked_arma_dataloader  # noqa: E402
 from src.forecasting_head import mean_std_inputs  # noqa: E402
 from src.freq_embedding import FREQ_NAMES_V2  # noqa: E402
 from src.gift_pretrain import stream_factory  # noqa: E402
-from src.norm import MEAN_STD_MINIMUM_SCALE, RevMeanStdNorm  # noqa: E402
+from src.norm import (MEAN_STD_MINIMUM_SCALE, RevMeanStdNorm,  # noqa: E402
+                      zero_union_padding)
 
 SIZES = (8, 16, 32, 64, 128)
 FLOOR = MEAN_STD_MINIMUM_SCALE ** 0.5
@@ -66,12 +76,13 @@ def window_rows(x, freq_ids):
 
 
 def mixup(x, rng):
-    """The trainer's mixup on X at p = 0.3, alpha = 0.2 (maybe_mixup)."""
+    """The trainer's mixup on X at p = 0.3, alpha = 0.2 (maybe_mixup), with
+    the union of the two zero paddings kept at 0."""
     if rng.random() >= 0.3:
         return x, False
     a = float(rng.beta(0.2, 0.2))
-    perm = torch.from_numpy(rng.permutation(x.shape[0]))
-    return a * x + (1 - a) * x[perm], True
+    partner = x[torch.from_numpy(rng.permutation(x.shape[0]))]
+    return zero_union_padding(a * x + (1 - a) * partner, x, partner), True
 
 
 def loader(args):
@@ -81,21 +92,29 @@ def loader(args):
         repo_id=None, batch_size=256, C=1, mix_ratio=0.0078125,
         crossfade_ratio=0.0, cross_triplets=1, path_in_repo=None,
         split="train", skip_rows=0, T_raw=4096, seed=args.seed + 10_000,
-        emit_freq_ids=True, real_rows=real)
+        emit_freq_ids=True, real_rows=real, zero_padding=True)
 
 
-def summary(rows):
-    """Quantiles of max |z| and the shares of the windows with a target."""
+def quantiles(z, prefix=""):
+    """The quantiles and the max of ``z``, keyed with ``prefix``."""
+    out = {f"{prefix}p{100 * q:g}": float(np.quantile(z, q)) for q in QUANTILES}
+    out[f"{prefix}max"] = float(z.max())
+    return out
+
+
+def summary(rows, z_max):
+    """Quantiles of max |z| and shares, without and with the z-filter."""
     z = np.array([r[0] for r in rows], dtype=np.float64)
     scale = np.array([r[1] for r in rows], dtype=np.float64)
     has = ~np.isnan(z)
-    zt, st = z[has], scale[has]
+    zt = z[has]
     out = {"windows": int(len(z)), "with_target": int(has.sum()),
            "no_target_share": float(1 - has.mean()),
-           "floor_share": float(np.mean(st <= FLOOR * 1.01)),
-           "max": float(zt.max())}
-    out.update({f"p{100 * q:g}": float(np.quantile(zt, q)) for q in QUANTILES})
+           "floor_share": float(np.mean(scale[has] <= FLOOR * 1.01))}
+    out.update(quantiles(zt))
     out.update({f"above_{t}": float(np.mean(zt > t)) for t in SHARES_ABOVE})
+    out["dropped_share"] = float(np.sum(zt > z_max) / len(z))
+    out.update(quantiles(zt[zt <= z_max], prefix="kept_"))
     return out
 
 
@@ -127,14 +146,19 @@ def measure(args):
     return stream, trainer, mixed, time.time() - start
 
 
+VIEWS = ("stream", "trainer", "trainer_unmixed", "trainer_mixed")
+
+
 def write(args, stream, trainer, mixed, seconds):
     os.makedirs(args.out, exist_ok=True)
     unmixed = [r for r, m in zip(trainer, mixed) if not m]
     report = {"batches": args.batches, "seconds": round(seconds, 1),
-              "floor": FLOOR, "stream": summary(stream),
-              "trainer": summary(trainer),
-              "trainer_unmixed": summary(unmixed),
-              "trainer_mixed": summary([r for r, m in zip(trainer, mixed) if m]),
+              "floor": FLOOR, "z_max": args.z_max,
+              "stream": summary(stream, args.z_max),
+              "trainer": summary(trainer, args.z_max),
+              "trainer_unmixed": summary(unmixed, args.z_max),
+              "trainer_mixed": summary([r for r, m in zip(trainer, mixed) if m],
+                                       args.z_max),
               "stream_by_class_above_100": by_class(stream, 100)}
     with open(os.path.join(args.out, "z_summary.json"), "w") as f:
         json.dump(report, f, indent=1)
@@ -149,14 +173,14 @@ def write(args, stream, trainer, mixed, seconds):
 
 
 def write_table(out, report):
-    """One row per view: the quantiles and the shares."""
+    """One row per view: the quantiles and the shares, then the filter."""
     keys = (["windows", "with_target", "no_target_share", "floor_share"]
             + [f"p{100 * q:g}" for q in QUANTILES] + ["max"]
-            + [f"above_{t}" for t in SHARES_ABOVE])
-    views = ("stream", "trainer", "trainer_unmixed", "trainer_mixed")
+            + [f"above_{t}" for t in SHARES_ABOVE] + ["dropped_share"]
+            + [f"kept_p{100 * q:g}" for q in QUANTILES] + ["kept_max"])
     with open(os.path.join(out, "z_quantiles.tsv"), "w") as f:
         f.write("view\t" + "\t".join(keys) + "\n")
-        for v in views:
+        for v in VIEWS:
             f.write(v + "\t" + "\t".join(f"{report[v][k]:.6g}" for k in keys)
                     + "\n")
 
@@ -165,7 +189,10 @@ def main():
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument("--batches", type=int, default=80)
     p.add_argument("--seed", type=int, default=20260520)
-    p.add_argument("--out", default=os.path.join(HERE, "..", "results"))
+    p.add_argument("--z-max", type=float, default=100.0,
+                   help="The z-filter bound of the 'with the filter' columns.")
+    p.add_argument("--out", default=os.path.join(HERE, "..", "results",
+                                                 "after_fix"))
     p.add_argument("--index", default=None,
                    help="The record-batch index (default: the shipped one).")
     p.add_argument("--root", default=None,
@@ -173,9 +200,7 @@ def main():
                         "Hugging Face (tests).")
     args = p.parse_args()
     report = write(args, *measure(args))
-    print(json.dumps({k: report[k] for k in
-                      ("stream", "trainer", "trainer_unmixed", "trainer_mixed")},
-                     indent=1))
+    print(json.dumps({k: report[k] for k in VIEWS}, indent=1))
 
 
 if __name__ == "__main__":
