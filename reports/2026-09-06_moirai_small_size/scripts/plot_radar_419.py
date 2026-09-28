@@ -11,8 +11,8 @@ from radar_lib import RADAR, STUDY, draw
 NEW_DATA = [
     ("cf419_cos200k", "cos419_", "contrastive, cosine to 1e-6 by 200k", "#1a1a1a"),
     ("cf419_moirai_native", "moirai419_native", "value space, Moirai schedule, its own head", "#9a9a00"),
-    ("cf421z_moirai_native", "moirai421z_native",
-     "#421: patch heads and mean/std scaling, its own head", "#c51b7d"),
+    ("cf421f_moirai_native", "moirai421f_native",
+     "#421 in fp32: patch heads and mean/std scaling, its own head", "#1b9e77"),
 ]
 OLD_BEST = ("cyan665", "contrastive, cosine to 1e-6 by 200k, 665k, old data   1.1369", "#17becf")
 TITLE = ("Issues #419 and #421: each run on the new data at its best checkpoint,\n"
