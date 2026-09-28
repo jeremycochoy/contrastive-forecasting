@@ -24,7 +24,7 @@ import math
 import torch
 
 # The largest number of bisection passes one step may take. One culprit in
-# 256 rows takes 16, and 128 passes find about seven.
+# 257 rows takes 16 passes, two take 18 to 32, and eight at most 94.
 MAX_PASSES = 128
 
 # Steps skipped in a row after which the trainer stops: a fault that no row
