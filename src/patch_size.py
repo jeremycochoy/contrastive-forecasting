@@ -8,10 +8,11 @@ The frequency of a series picks the size:
 * At inference, each frequency has one fixed size.
 
 A frequency is a pandas or gluonts string ("H", "15T", "W-SUN", "YE-DEC"),
-or an id of the frequency-embedding vocabulary (``FREQ_NAMES``). Id 0 and
-None mean "no label". A sample with no label draws from every size. The
-pretraining corpus labels no window (its ``source_id`` is 0 on every row),
-so in practice every training window draws from all five sizes.
+or an id of the frequency-embedding vocabulary. v2 (#419) keeps the ten v1
+ids and adds "4s", "6h", "1M", "1Q" and "1Y", so one table
+(``FREQ_NAMES_V2``) reads the ids of both. Id 0 and None mean "no label".
+A sample with no label draws from every size. The GiftEvalPretrain stream
+(#419) labels each window with its v2 id; the synthetic rows carry no label.
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ import re
 
 import torch
 
-from .freq_embedding import FREQ_NAMES
+from .freq_embedding import FREQ_NAMES_V2
 
 PATCH_SIZES = (8, 16, 32, 64, 128)
 
@@ -60,7 +61,7 @@ def frequency_class(freq) -> str | None:
     if freq is None:
         return None
     if isinstance(freq, numbers.Integral):
-        freq = FREQ_NAMES[int(freq)]
+        freq = FREQ_NAMES_V2[int(freq)]
     match = re.fullmatch(r"\s*\d*\s*([A-Za-z]+)(?:-\w+)?\s*", str(freq))
     if match is None or match.group(1) in ("ms", "us", "ns"):
         return None
