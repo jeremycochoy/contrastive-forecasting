@@ -48,7 +48,8 @@ from src.dataloader import (
 from src.loss import (contrastive_latent_loss, cpc_infonce_aux_loss,
                       cpc_infonce_all_loss, align_loss, align_moco_loss,
                       sigreg_loss)
-from src.checkpoint import save_training_state, load_training_state
+from src.checkpoint import (gru_input_bound_of, load_training_state,
+                            save_training_state)
 from src.dist_utils import (
     setup_distributed,
     cleanup_distributed,
@@ -460,6 +461,16 @@ def build_parser():
                         "none of its values reaches the model. The default, "
                         "100, keeps 99.2%% of the GiftEvalPretrain windows "
                         "(reports/2026-09-28_meanstd_z). 0 turns it off.")
+    p.add_argument("--gru-input-bound", type=float, default=0.0,
+                   help="With c > 0 the GRU patch encoders read c*tanh(x/c) "
+                        "in place of the raw patch values x, and their skip "
+                        "layer keeps x (#421). On patches with values above "
+                        "about 20, the size-128 GRU of the #421z run "
+                        "multiplied the gradient by 1e7 to 1e13 in its "
+                        "backward pass, and the rollout compounded it to "
+                        "1e21. With inputs within 12 its gain stayed below "
+                        "0.5. The checkpoint records c. 0 (default): the "
+                        "raw values, as before.")
     p.add_argument("--rev-norm-span", type=int, default=32,
                    help="Span parameter for RevEWMNorm (ignored unless "
                         "--rev-norm-kind=ewma). Default 32 matches the "
@@ -1044,6 +1055,24 @@ def should_snapshot(step, save_every, extra_steps):
     return (step % save_every == 0) or (step in extra_steps)
 
 
+def resume_state(model, args):
+    """The state dict of --resume, ready for a strict load (#421).
+
+    A checkpoint from before --gru-input-bound holds no bound, so it takes
+    the bound this command names. A checkpoint that trained with a bound
+    must resume with the same one.
+    """
+    state = torch.load(args.resume, map_location=next(model.parameters()).device)
+    trained = gru_input_bound_of(state)
+    if trained and trained != args.gru_input_bound:
+        raise SystemExit(f"{args.resume} trained with --gru-input-bound "
+                         f"{trained:g}. Resume it with the same bound.")
+    for key, value in model.state_dict().items():
+        if key.endswith(".input_bound") and key not in state:
+            state[key] = value
+    return state
+
+
 def save_snapshot(model, optimizer, path, step, best_gap, best_gap_step,
                   best_loss, best_loss_step, ema_loss=None, ema_gap=None,
                   hf_rows_consumed=0, synth_rows_consumed=0,
@@ -1165,6 +1194,7 @@ VALUE_SPACE_FLAGS = frozenset((
     "residual_dtype", "attn_dtype", "ffn_dtype", "conv_dtype",
     "patch_emb_dtype", "rev_norm_kind", "rev_norm_span", "patch_stats",
     "freq_emb_dim", "seasonality_emb_dim", "freq_vocab", "meanstd_z_max",
+    "gru_input_bound",
     # The objective.
     "value_space_objective", "train_rollout_depth", "train_rollout_reduce",
     # One patch encoder and one value head per patch size (#417).
@@ -1254,6 +1284,11 @@ def check_mean_std(args):
                          "the flag.")
     if args.meanstd_z_max < 0:
         raise SystemExit("--meanstd-z-max is 0 (off) or a positive bound.")
+    if args.gru_input_bound < 0:
+        raise SystemExit("--gru-input-bound is 0 (off) or a positive bound.")
+    if args.gru_input_bound and args.encoder_type != "gru":
+        raise SystemExit("--gru-input-bound bounds the input of the GRU patch "
+                         "encoder. Use --encoder-type gru, or drop it.")
 
 
 def contrastive_padding(model, args):
@@ -1808,6 +1843,8 @@ def main():
     # #417: one patch encoder and one value head per size. Empty on every
     # other run, so the model is the one above, unchanged.
     model_config["multi_patch_sizes"] = multi_patch_sizes
+    # #421: the bound of the GRU input. 0 on every other run.
+    model_config["gru_input_bound"] = args.gru_input_bound
     model_config["qk_norm"] = bool(args.qk_norm)
     model_config["attn_out_norm"] = bool(args.attn_out_norm)
     model_config["log_attn_amplitude"] = bool(args.log_attn_amplitude)
@@ -1998,7 +2035,7 @@ def main():
     restored = {}
 
     if args.resume:
-        model.load_state_dict(torch.load(args.resume, map_location=device))
+        model.load_state_dict(resume_state(model, args))
         restored = load_training_state(optimizer, args.resume, device=device)
         start_step = restored["step"]
         # The schedule the checkpoint trained under (#414). A resume that

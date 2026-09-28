@@ -54,6 +54,10 @@ class ConfigurableModel(torch.nn.Module):
         ``'raw'`` — append centred mean and centred log_std as an ablation.
         Only meaningful with ``rev_norm_kind='ewma'``; with RevIN the
         per-step stats are constant and the diff/centred values are all 0.
+    gru_input_bound : float
+        #421. With c > 0 the GRU patch encoders read c * tanh(x / c) in place
+        of the raw patch values x, and their skip layer keeps x (see
+        ``GRUEncoder``). Default 0: every earlier model.
     rev_norm_skip_leading_zeros : bool
         #419. The EWMA normaliser treats the zeros before the first nonzero
         value as left padding (see ``RevEWMNorm``). Needs
@@ -94,6 +98,7 @@ class ConfigurableModel(torch.nn.Module):
                  cpc_infonce: bool = False,
                  value_head_quantiles: int = 0,
                  multi_patch_sizes: tuple = (),
+                 gru_input_bound: float = 0.0,
                  qk_norm: bool = False,
                  attn_out_norm: bool = False,
                  log_attn_amplitude: bool = False,
@@ -232,7 +237,8 @@ class ConfigurableModel(torch.nn.Module):
             transformer_depthwise_conv=enc_transformer_depthwise_conv,
             transformer_chunk_size=enc_transformer_chunk_size,
             transformer_use_grad_checkpoint=enc_transformer_use_grad_checkpoint,
-            patch_emb_dtype=patch_emb_dtype)
+            patch_emb_dtype=patch_emb_dtype,
+            gru_input_bound=gru_input_bound)
         if self.multi_patch_sizes:
             # #417: one patch encoder per size. The patch statistics read
             # the normaliser's whole batch, so they cannot follow a batch

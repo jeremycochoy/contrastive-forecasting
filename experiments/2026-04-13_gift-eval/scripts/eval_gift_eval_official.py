@@ -60,6 +60,7 @@ sys.path.insert(0, str(project_root))
 
 from src.models import ConfigurableModel
 from src.checkpoint import (
+    gru_input_bound_of,
     load_encoder_source,
     multi_patch_sizes_of,
     prepare_backbone_state_dict,
@@ -598,6 +599,11 @@ def load_models(args, device):
     # checkpoint names it. The flag picks among the kinds with no mark.
     if "rev_norm.mean_std_scaling" in sd:
         args.rev_norm_kind = "meanstd"
+    # #421: the bound of the GRU input, when the run trained with one.
+    BACKBONE_CONFIG["gru_input_bound"] = gru_input_bound_of(sd)
+    if BACKBONE_CONFIG["gru_input_bound"]:
+        print(f"  [eval] GRU input bound "
+              f"{BACKBONE_CONFIG['gru_input_bound']:g} from the checkpoint")
     BACKBONE_CONFIG["rev_norm_kind"] = args.rev_norm_kind
     if args.rev_norm_kind == "ewma":
         BACKBONE_CONFIG["rev_norm_span"] = args.rev_norm_span

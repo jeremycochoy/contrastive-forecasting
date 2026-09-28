@@ -75,9 +75,19 @@ class GRUEncoder(nn.Module):
     Captures temporal ordering within the patch.
     """
     def __init__(self, W, H, intermediate_dim=128, num_gru_layers=2,
-                 patch_emb_dtype: str = "fp32"):
+                 patch_emb_dtype: str = "fp32", input_bound: float = 0.0):
         super().__init__()
         self.W = W
+        # #421: with input_bound c > 0 the GRU reads c * tanh(x / c), and the
+        # skip layer keeps the raw x. On patches with values above about 20,
+        # the size-128 GRU of the #421z run multiplied the gradient by 1e7 to
+        # 1e13 in its backward pass. On inputs within 12 its gain stayed
+        # below 0.5. The buffer records c, so a loader rebuilds it.
+        if input_bound:
+            self.register_buffer("input_bound",
+                                 torch.tensor(float(input_bound)))
+        else:
+            self.input_bound = None
         # Dtype for the GRU compute path. fp32 = disabled autocast (no-op).
         # The GRU's W-step recurrence is sensitive to bf16 truncation. fp32
         # is the safe default. fp16 trades precision for ~25-30% speedup.
@@ -96,6 +106,8 @@ class GRUEncoder(nn.Module):
             # x: [B, T, C, W]
             shape = x.shape[:-1]  # [B, T, C]
             flat = x.reshape(-1, self.W, 1)  # [B*T*C, W, 1]
+            if self.input_bound is not None:
+                flat = self.input_bound * torch.tanh(flat / self.input_bound)
             # The GRU over B*T*C independent sequences is the patch-encoder's memory
             # wall at large batch. Optionally chunk it over the sequence dim and/or
             # gradient-checkpoint it (recompute in backward). Both are BYTE-IDENTICAL
@@ -294,14 +306,21 @@ def create_encoder(encoder_type, W, H, intermediate_dim=None,
                    transformer_depthwise_conv=3,
                    transformer_chunk_size=8192,
                    transformer_use_grad_checkpoint=True,
-                   patch_emb_dtype: str = "fp32"):
+                   patch_emb_dtype: str = "fp32",
+                   gru_input_bound: float = 0.0):
     """Factory function for encoder creation.
 
     ``patch_emb_dtype`` is wired into encoders whose forward compute is
     precision-sensitive (currently GRU). Other encoders accept-and-ignore
     the kwarg — they can opt in later by wrapping their forward in
     ``_autocast_ctx(self.patch_emb_dtype)``.
+
+    ``gru_input_bound`` (#421) bounds the values the GRU reads (see
+    :class:`GRUEncoder`). Only the GRU encoder takes it.
     """
+    if gru_input_bound and encoder_type != 'gru':
+        raise ValueError("gru_input_bound applies to the GRU encoder only, "
+                         f"not to encoder_type={encoder_type!r}")
     if encoder_type == 'mlp':
         return MLPEncoder(W, H, intermediate_dim=intermediate_dim or 64)
     elif encoder_type == 'mlp_wide':
@@ -310,7 +329,8 @@ def create_encoder(encoder_type, W, H, intermediate_dim=None,
         return ResidualSiLUEncoder(W, H, intermediate_dim=intermediate_dim)
     elif encoder_type == 'gru':
         return GRUEncoder(W, H, intermediate_dim=intermediate_dim or 128,
-                          patch_emb_dtype=patch_emb_dtype)
+                          patch_emb_dtype=patch_emb_dtype,
+                          input_bound=gru_input_bound)
     elif encoder_type == 'conv':
         return ConvEncoder(W, H, intermediate_dim=intermediate_dim or 128)
     elif encoder_type == 'transformer':
