@@ -1,14 +1,22 @@
-"""#419: the runs on all of GiftEvalPretrain against the best run on the old data.
+"""#419 and #421: each run on all of GiftEvalPretrain at its best checkpoint,
+against the best run on the old data.
 
-The contrastive arm shows its newest scored stop. The value-space arm shows its
-best native stop. A stop enters once its score file is in results/ and its
-per-config CSV is in results/per_config/radar.
+A stop enters once its score file is in results/ and its per-config CSV is in
+results/per_config/radar. The colours are those of the curves figure.
 """
 import re
 from radar_lib import RADAR, STUDY, draw
 
+# Run name in results/, CSV prefix in the radar folder, legend label, colour.
+NEW_DATA = [
+    ("cf419_cos200k", "cos419_", "contrastive, cosine to 1e-6 by 200k", "#1a1a1a"),
+    ("cf419_moirai_native", "moirai419_native", "value space, Moirai schedule, its own head", "#9a9a00"),
+    ("cf421z_moirai_native", "moirai421z_native",
+     "#421: patch heads and mean/std scaling, its own head", "#c51b7d"),
+]
 OLD_BEST = ("cyan665", "contrastive, cosine to 1e-6 by 200k, 665k, old data   1.1369", "#17becf")
-TITLE = ("Issue #419: the runs on the new data against the best run on the old data\n"
+TITLE = ("Issues #419 and #421: each run on the new data at its best checkpoint,\n"
+         "against the best run on the old data\n"
          "New data: all of GiftEvalPretrain. Old data: only its series of 4,096 points or more.\n"
          "Relative MASE per GIFT-Eval dataset, geometric mean over its configs.\n"
          "The green ring is 1.0, the seasonal-naive level. Inside it is better.")
@@ -25,15 +33,13 @@ def scored_stops(arm, csv_prefix):
 
 
 def new_data_arms():
-    """The newest contrastive stop and the best value-space stop, when they exist."""
-    arms, cos = [], scored_stops("cf419_cos200k", "cos419_")
-    moirai = scored_stops("cf419_moirai_native", "moirai419_native")
-    if cos:
-        k = max(cos)
-        arms.append((f"cos419_{k}k", f"contrastive, cosine to 1e-6 by 200k, {k}k, new data   {cos[k]:.4f}", "#1f77b4"))
-    if moirai:
-        k = min(moirai, key=moirai.get)
-        arms.append((f"moirai419_native{k}k", f"value space, Moirai schedule, {k}k, its own head, new data   {moirai[k]:.4f}", "#8c564b"))
+    """The best scored stop of each new-data run, when it has one."""
+    arms = []
+    for arm, prefix, label, colour in NEW_DATA:
+        stops = scored_stops(arm, prefix)
+        if stops:
+            k = min(stops, key=stops.get)
+            arms.append((f"{prefix}{k}k", f"{label}, {k}k, new data   {stops[k]:.4f}", colour))
     return arms
 
 
