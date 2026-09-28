@@ -73,6 +73,7 @@ from src.norm import patch_padding
 from src.forecasting_head import (QUANTILE_LEVELS,
                                   extract_encoder_latents,
                                   extract_teacher_encoder_latents,
+                                  drop_far_windows,
                                   mean_std_inputs,
                                   multi_patch_value_objective,
                                   rollout_forecaster_latents,
@@ -448,6 +449,15 @@ def build_parser():
                         "drawn as uni2ts MaskedPrediction draws it, and a "
                         "loss on the values after the split only. Needs "
                         "--value-space-objective. 'none' to disable.")
+    p.add_argument("--meanstd-z-max", type=float, default=100.0,
+                   help="With --rev-norm-kind meanstd (#421): drop from the "
+                        "batch each window whose target part lies more than "
+                        "this many scales from its context loc (max |z|), as "
+                        "Moirai 2.0 filters its samples (arXiv 2511.11698, "
+                        "Sec. 3). A dropped window adds no loss term, and "
+                        "none of its values reaches the model. The default, "
+                        "100, keeps 99.2%% of the GiftEvalPretrain windows "
+                        "(reports/2026-09-28_meanstd_z). 0 turns it off.")
     p.add_argument("--rev-norm-span", type=int, default=32,
                    help="Span parameter for RevEWMNorm (ignored unless "
                         "--rev-norm-kind=ewma). Default 32 matches the "
@@ -1141,7 +1151,7 @@ VALUE_SPACE_FLAGS = frozenset((
     "deprecated_depthwise_conv", "qk_norm", "attn_out_norm",
     "residual_dtype", "attn_dtype", "ffn_dtype", "conv_dtype",
     "patch_emb_dtype", "rev_norm_kind", "rev_norm_span", "patch_stats",
-    "freq_emb_dim", "seasonality_emb_dim", "freq_vocab",
+    "freq_emb_dim", "seasonality_emb_dim", "freq_vocab", "meanstd_z_max",
     # The objective.
     "value_space_objective", "train_rollout_depth", "train_rollout_reduce",
     # One patch encoder and one value head per patch size (#417).
@@ -1224,6 +1234,13 @@ def check_mean_std(args):
         raise SystemExit("--rev-norm-kind meanstd takes its statistics from "
                          "the context before a split that only "
                          "--value-space-objective draws (#421). Add it.")
+    if ("meanstd_z_max" in named_on_command_line()
+            and args.rev_norm_kind != "meanstd"):
+        raise SystemExit("--meanstd-z-max filters the windows of "
+                         "--rev-norm-kind meanstd (#421). Add it, or drop "
+                         "the flag.")
+    if args.meanstd_z_max < 0:
+        raise SystemExit("--meanstd-z-max is 0 (off) or a positive bound.")
 
 
 def contrastive_padding(model, args):
@@ -1267,8 +1284,14 @@ def safe_run_name(save_dir, run_name):
 
 class CSVLogger:
     def __init__(self, path, flush_every=100, tau_ref_column=True,
-                 rollout_depth=0, depth_column_prefix="cos_err_d"):
+                 rollout_depth=0, depth_column_prefix="cos_err_d",
+                 dropped_column=False):
         self.path = path
+        # dropped_column (#421): a trailing `meanstd_dropped` column, the
+        # share of the step's windows the mean/std filter dropped. Only a
+        # run with --meanstd-z-max on writes it, so every other CSV keeps
+        # its schema.
+        self.dropped_column = bool(dropped_column)
         self.flush_every = flush_every
         # rollout_depth (#373): k > 0 adds one `cos_err_dj` column per depth
         # j = 0..k, the per-depth forecast error 1 − cos(f^(j)_t, h_{t+1+j}).
@@ -1341,6 +1364,8 @@ class CSVLogger:
         if self.rollout_depth:
             header += [f"{self.depth_column_prefix}{j}"
                        for j in range(self.rollout_depth + 1)]
+        if self.dropped_column:
+            header += ["meanstd_dropped"]
         if os.path.getsize(path) == 0:
             self._writer.writerow(header)
             self._file.flush()
@@ -1375,7 +1400,7 @@ class CSVLogger:
             u_temporal_e=None, u_batch_e=None,
             u_batchtime=None, u_batchtime_e=None, ema_tau=None,
             rep_w=None, l_pred=None, l_rep=None, l_align=None,
-            cos_err_depths=None):
+            cos_err_depths=None, meanstd_dropped=None):
         if not self._enabled:
             return
         row = [step, loss]
@@ -1396,6 +1421,8 @@ class CSVLogger:
             depths = cos_err_depths or []
             row += [depths[j] if j < len(depths) else ''
                     for j in range(self.rollout_depth + 1)]
+        if self.dropped_column:
+            row.append('' if meanstd_dropped is None else meanstd_dropped)
         self._buffer.append(row)
         if len(self._buffer) >= self.flush_every:
             self.flush()
@@ -2045,6 +2072,11 @@ def main():
               "values before the split, and the loss counts only the patches "
               "after it. A size needs two whole patches of real values "
               "(uni2ts GetPatchSize).")
+        if args.meanstd_z_max > 0:
+            print(f"Window filter (#421, Moirai 2.0): a window whose target "
+                  f"part holds a |z| above {args.meanstd_z_max:g} leaves the "
+                  f"batch. The losses CSV logs the dropped share of each step "
+                  f"(meanstd_dropped).")
     print(f"Training for {args.total_steps} steps, bs={args.batch_size}, "
           f"lr={args.lr}, T={args.t_raw}, C={args.n_channels}, "
           f"mix_ratio={args.mix_ratio}, "
@@ -2065,7 +2097,9 @@ def main():
         # shape to be taken at and the per-depth columns hold a value error.
         tau_ref_column=not args.value_space_objective,
         depth_column_prefix=("val_err_d" if args.value_space_objective
-                             else "cos_err_d"))
+                             else "cos_err_d"),
+        dropped_column=(args.rev_norm_kind == "meanstd"
+                        and args.meanstd_z_max > 0))
     print(f"Loss CSV: {csv_path}")
 
     # Latent-drift probe (rank-0 only). Fixed ARMA batch drawn once and
@@ -2192,6 +2226,10 @@ def main():
     t_data_sum, t_fwd_sum, t_bwd_sum, t_step_sum = 0.0, 0.0, 0.0, 0.0
     timing_count = 0
     mixup_applied_count = 0
+    # #421: the share of windows the filter dropped, this step and summed
+    # since the last log line. None when the filter is off.
+    filter_on = args.rev_norm_kind == "meanstd" and args.meanstd_z_max > 0
+    dropped_share, dropped_sum = None, 0.0
 
     check_lr_schedule(args)
     cosine_steps = args.lr_cosine_steps or args.total_steps
@@ -2268,12 +2306,25 @@ def main():
             # is not rescaled by its own spread. The objective then runs the
             # cell once per depth on values, and returns depth 0's latents
             # for the diagnostics below.
+            # #419: with zero left padding the normaliser marks the padded
+            # values, and the objective skips them. None on every other run.
             if args.rev_norm_kind == "meanstd":
                 # #421: the sizes, then one split per window. loc and scale
                 # read the context before the split, and the loss counts
                 # the patches after it only.
                 x_norm, sample_sizes, target_mask = mean_std_inputs(
                     model, x, freq_ids, multi_patch_sizes)
+                pad_mask = model.rev_norm.pad_mask
+                if filter_on:
+                    # A window whose target part lies far from its context
+                    # leaves the batch, with every per-sample input.
+                    ((x_norm, target_mask, pad_mask, sample_sizes, freq_ids,
+                      freq_embs, seasonality_ids, seasonality_embs),
+                     dropped_share) = drop_far_windows(
+                        args.meanstd_z_max, x_norm, target_mask, pad_mask,
+                        sample_sizes, freq_ids, freq_embs, seasonality_ids,
+                        seasonality_embs)
+                    dropped_sum += dropped_share
             else:
                 x_norm = (model.rev_norm(x, mode='norm')
                           if model.rev_norm is not None else x)
@@ -2281,9 +2332,7 @@ def main():
                                                  x.shape[0])
                                 if multi_patch_sizes else None)
                 target_mask = None
-            # #419: with zero left padding the normaliser marks the padded
-            # values, and the objective skips them. None on every other run.
-            pad_mask = getattr(model.rev_norm, "pad_mask", None)
+                pad_mask = getattr(model.rev_norm, "pad_mask", None)
             if multi_patch_sizes:
                 # #417: each sample reads the patch size its frequency
                 # draws, and the batch trains one group per size.
@@ -2723,7 +2772,8 @@ def main():
                        l_pred=loss_terms.get('l_pred'),
                        l_rep=loss_terms.get('l_rep'),
                        l_align=loss_terms.get('l_align'),
-                       cos_err_depths=cos_err_depths)
+                       cos_err_depths=cos_err_depths,
+                       meanstd_dropped=dropped_share)
 
         if step % args.log_every == 0 and is_main_process():
             elapsed = time.time() - t0
@@ -2734,6 +2784,8 @@ def main():
                 tau_str = f"  τ={float(model.tau().detach()):.4f}"
             if args.cpc_infonce_weight > 0:
                 tau_str += f"  cpc={cpc_aux_val:.4f}"
+            if filter_on:
+                tau_str += f"  dropped={100 * dropped_sum / timing_count:.2f}%"
             print(f"[{step:>7d}] loss={loss_val:.4f}  ema_loss={ema_loss:.4f}  "
                   f"gap={gap_val:.4f}  ema_gap={ema_gap:.4f}  "
                   f"mixup={mixup_applied_count}/{timing_count}  "
@@ -2751,6 +2803,7 @@ def main():
             t_data_sum, t_fwd_sum, t_bwd_sum, t_step_sum = 0.0, 0.0, 0.0, 0.0
             timing_count = 0
             mixup_applied_count = 0
+            dropped_sum = 0.0
 
             if ema_gap > best_gap:
                 best_gap, best_gap_step = ema_gap, step

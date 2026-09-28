@@ -1165,6 +1165,45 @@ def mean_std_inputs(model, x, freq_ids=None, multi_patch_sizes=()):
     return x_norm, (sizes if multi_patch_sizes else None), t >= ends
 
 
+# ---------------------------------------------------------------------------
+# The window filter of Moirai 2.0 (arXiv 2511.11698, Sec. 3): a sample is
+# filtered out when its later segment deviates far from the segment its
+# statistics came from. Here the measure is the max |z| of the target part,
+# with z = (x - loc) / scale. A context value cannot pass sqrt(n) (at most
+# 32 for 1,024 values), so a kept window feeds the model no value above
+# max(32, z_max).
+# ---------------------------------------------------------------------------
+
+def window_max_z(x_norm, target_mask, pad_mask=None):
+    """``[B]``: per window, the max |z| over the observed values of its
+    target part. ``x_norm`` holds z there (#421). 0 for a window with no
+    target, NaN for a window with a NaN in its target part."""
+    real = target_mask if pad_mask is None else target_mask & ~pad_mask
+    return x_norm.detach().abs().masked_fill(~real, 0.0).amax(dim=(1, 2))
+
+
+def drop_far_windows(z_max, x_norm, target_mask, pad_mask, *per_sample):
+    """Drop each window whose target part lies more than ``z_max`` scales
+    from its context loc (#421).
+
+    A dropped window leaves the batch: it adds no loss term, and none of its
+    values reaches the model. ``per_sample`` holds the other per-sample
+    inputs of the step (tensors or None), cut to the same rows. When no
+    window is left, the batch stays whole but inert: zero inputs and no
+    target, so the step trains on nothing.
+
+    Returns ``((x_norm, target_mask, pad_mask, *per_sample), dropped share)``.
+    """
+    far = ~(window_max_z(x_norm, target_mask, pad_mask) <= z_max)
+    tensors = (x_norm, target_mask, pad_mask, *per_sample)
+    if bool(far.all()):
+        inert = (torch.zeros_like(x_norm), torch.zeros_like(target_mask))
+        return inert + tensors[2:], 1.0
+    keep = ~far
+    kept = tuple(None if t is None else t[keep.to(t.device)] for t in tensors)
+    return kept, far.float().mean().item()
+
+
 def _get_denorm_stats(backbone, C):
     """Extract last-timestep RevEWMNorm stats for denormalization."""
     if backbone.rev_norm is not None and backbone.rev_norm.mean is not None:
