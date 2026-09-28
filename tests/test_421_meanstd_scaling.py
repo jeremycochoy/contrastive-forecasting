@@ -17,6 +17,9 @@ Six groups, all on the CPU:
    stream with its frequency labels.
 7. The window filter of Moirai 2.0 (--meanstd-z-max): a far window leaves
    the batch, the loss stays finite, and the flag off keeps #421.
+8. The row transforms keep the zero padding: mixup and the crossfade give a
+   row the union of the paddings they read, the sign flip and the
+   synthetic rows add none, and a run without padding is unchanged.
 """
 
 from __future__ import annotations
@@ -879,3 +882,257 @@ def test_the_flag_off_keeps_the_421_run(unfiltered, trained):
     filtered = next(csv.reader(open(trained[0] / "m421_losses.csv")))
     assert "meanstd_dropped" not in header
     assert filtered == header + ["meanstd_dropped"]
+
+
+# ---------------------------------------------------------------------------
+# 8. The row transforms keep the zero padding
+# ---------------------------------------------------------------------------
+
+from src.dataloader import create_mixed_forked_arma_dataloader  # noqa: E402
+from src.norm import (RevEWMNorm, leading_zero_count,  # noqa: E402
+                      zero_union_padding)
+from src.synthetic_crossfade import (_sample_crossfade_weight,  # noqa: E402
+                                     _zscore_per_series,
+                                     generate_crossfade_triplets)
+from src.synthetic_forked_arma import generate_forked_arma_batch  # noqa: E402
+
+
+@pytest.fixture(scope="module")
+def trainer_module():
+    return load_script(TRAIN_PY, "train_421_transforms")
+
+
+class FixedBeta:
+    """A Beta draw that always gives 0.3, so a test knows the mixup weight."""
+
+    def __init__(self, *_):
+        pass
+
+    def sample(self):
+        return torch.tensor(0.3)
+
+
+def mix(trainer_module, monkeypatch, m, x, perm):
+    """The trainer's mixup at p = 1, weight 0.3, partner rows ``perm``."""
+    from types import SimpleNamespace
+    monkeypatch.setattr(torch.distributions, "Beta", FixedBeta)
+    monkeypatch.setattr(torch, "randperm",
+                        lambda n, device=None: torch.tensor(perm))
+    labels = ids(["1h"] * x.shape[0])
+    out = trainer_module.maybe_mixup(
+        x, labels["freq_ids"], labels["seasonality_ids"], m,
+        SimpleNamespace(mixup_p=1.0, mixup_alpha=0.2))
+    return out[0]
+
+
+def leading(x):
+    return leading_zero_count(x).view(-1).tolist()
+
+
+def test_a_padded_row_mixed_with_a_full_row_keeps_the_union_padding(
+        trainer_module, monkeypatch):
+    m = model()
+    x = windows([T - 600, T])
+    out = mix(trainer_module, monkeypatch, m, x, [1, 0])
+    assert leading(out) == [600, 600]
+    assert (out[:, :600] == 0).all()
+    assert torch.equal(out[:, 600:], (0.3 * x + 0.7 * x[[1, 0]])[:, 600:])
+    # The scaler's padding mask covers it, and so does the EWMA one.
+    m.rev_norm(out, "norm")
+    union = torch.arange(T).view(1, -1, 1) < 600
+    assert torch.equal(m.rev_norm.pad_mask, union.expand(2, T, 1))
+    ewma = RevEWMNorm(1, span=128, patch_size=16, skip_leading_zeros=True)
+    ewma(out, "norm")
+    assert torch.equal(ewma.pad_mask, m.rev_norm.pad_mask)
+
+
+def test_the_split_reads_the_mixed_padding(trainer_module, monkeypatch):
+    """The size draw and the split see T - 600 real values: every target
+    lies after the union padding and a whole patch of context."""
+    m = model()
+    x = windows([T - 600, T])
+    out = mix(trainer_module, monkeypatch, m, x, [1, 0])
+    for seed in range(20):
+        torch.manual_seed(seed)
+        _, sizes, target = mean_std_inputs(m, out, ids(["1h", "1h"])[
+            "freq_ids"], SIZES)
+        first = (~target).sum(dim=1).view(-1)
+        assert (first >= 600 + sizes).all()
+        assert not (target & m.rev_norm.pad_mask).any()
+
+
+def test_a_mix_of_two_padded_rows_takes_the_longer_padding(
+        trainer_module, monkeypatch):
+    x = windows([T - 300, T - 700])
+    out = mix(trainer_module, monkeypatch, model(), x, [1, 0])
+    assert leading(out) == [700, 700]
+    assert (out[:, :700] == 0).all() and (out[:, 700] != 0).all()
+
+
+def test_rows_with_no_padding_mix_as_before(trainer_module, monkeypatch):
+    """With the padding mode on, full rows mix byte for byte as before. With
+    it off (every run before #419), a row that starts with zeros mixes as
+    before too: nothing reads its zeros as padding."""
+    x = windows([T, T, T], seed=4)
+    before = 0.3 * x + 0.7 * x[[2, 0, 1]]
+    assert torch.equal(mix(trainer_module, monkeypatch, model(), x,
+                           [2, 0, 1]), before)
+    x[0, :100] = 0.0
+    plain = model("ewma", rev_norm_skip_leading_zeros=False)
+    assert torch.equal(mix(trainer_module, monkeypatch, plain, x, [2, 0, 1]),
+                       0.3 * x + 0.7 * x[[2, 0, 1]])
+
+
+def test_the_sign_flip_keeps_the_padding(trainer_module):
+    x = windows([T - 600, 300, T], seed=2)
+    torch.manual_seed(0)
+    flipped = trainer_module.random_sign_flip(x)
+    assert leading(flipped) == leading(x) == [600, 724, 0]
+    assert torch.equal(flipped.abs(), x.abs())
+
+
+def test_the_synthetic_rows_hold_no_padding():
+    rows = generate_forked_arma_batch(64, T_raw=T, C=1,
+                                      rng=np.random.default_rng(0))
+    assert leading(rows) == [0] * 64
+
+
+def old_triplets(real, n, rng):
+    """generate_crossfade_triplets as #419 (e9985049) wrote it."""
+    N, T_, C = real.shape
+    out = real.new_zeros((3 * n, T_, C))
+    for k in range(n):
+        ia = int(rng.integers(0, N))
+        ib = int(rng.integers(0, N - 1))
+        if ib >= ia:
+            ib += 1
+        a = _zscore_per_series(real[ia])
+        b = _zscore_per_series(real[ib])
+        s = torch.from_numpy(_sample_crossfade_weight(T_, rng)).unsqueeze(-1)
+        out[3 * k], out[3 * k + 1] = a, b
+        out[3 * k + 2] = (1.0 - s) * a + s * b
+    return out
+
+
+def test_the_crossfade_keeps_the_padding():
+    """Each parent z-scores its real values and keeps its padding at 0, and
+    the blend keeps the union. Before, both z-scored the padding too."""
+    real = windows([T - 600, T, T - 200], seed=6)
+    real[2, 200:] = 7.0                         # constant real values
+    new = generate_crossfade_triplets(real, 6, rng=np.random.default_rng(1),
+                                      zero_padding=True)
+    rng = np.random.default_rng(1)
+    pad = [T - n for n in (T - 600, T, T - 200)]
+    for k in range(6):
+        ia = int(rng.integers(0, 3))
+        ib = int(rng.integers(0, 2))
+        ib += ib >= ia
+        _sample_crossfade_weight(T, rng)
+        a, b, c = new[3 * k:3 * k + 3]
+        assert leading(a[None]) == [pad[ia]] and leading(b[None]) == [pad[ib]]
+        assert leading(c[None]) == [max(pad[ia], pad[ib])]
+        real_a = a[pad[ia]:]
+        if ia == 2:
+            assert torch.equal(real_a, real[2, 200:])    # kept, not zeroed
+        else:
+            assert abs(real_a.mean().item()) < 1e-4
+            assert real_a.std(unbiased=False).item() == pytest.approx(1, 1e-4)
+    old = old_triplets(real, 6, np.random.default_rng(1))
+    assert leading(old) == [0] * 18
+
+
+def test_the_crossfade_without_padding_is_unchanged():
+    padded = windows([T - 600, T, 300], seed=8)
+    full = windows([T, T, T], seed=9)
+    for real in (padded, full):
+        off = generate_crossfade_triplets(real, 4, rng=np.random.default_rng(3))
+        assert torch.equal(off, old_triplets(real, 4,
+                                             np.random.default_rng(3)))
+    on = generate_crossfade_triplets(full, 4, rng=np.random.default_rng(3),
+                                     zero_padding=True)
+    assert torch.equal(on, old_triplets(full, 4, np.random.default_rng(3)))
+
+
+def test_the_loader_hands_the_padding_mode_to_the_crossfade():
+    real = windows([T - 600, T - 500, T - 400, T - 300], seed=10)
+
+    def rows(batch_size, emit_labels):
+        freq = torch.full((batch_size,), V2["1h"])
+        return iter(lambda: (real, freq, freq.clone()), None)
+
+    def triplets(zero_padding):
+        loader = create_mixed_forked_arma_dataloader(
+            None, batch_size=4, C=1, mix_ratio=0.0, cross_triplets=2,
+            T_raw=T, seed=0, emit_freq_ids=True, real_rows=rows,
+            zero_padding=zero_padding)
+        return next(iter(loader))[0][4:]
+
+    assert min(leading(triplets(True))) >= 300
+    assert leading(triplets(False)) == [0] * 6
+
+
+def test_zero_union_padding_leaves_full_rows_alone():
+    x = windows([T, T], seed=12)
+    assert torch.equal(zero_union_padding(x.clone(), x, x[[1, 0]]), x)
+
+
+def git_tree(commit, tmp_path):
+    """The src and trainer of ``commit``, or a skip without git history."""
+    if subprocess.run(["git", "-C", str(REPO_ROOT), "cat-file", "-e",
+                       f"{commit}^{{commit}}"], capture_output=True).returncode:
+        pytest.skip(f"{commit} is not in this checkout's history")
+    tree = tmp_path / commit
+    tree.mkdir()
+    archive = subprocess.run(
+        ["git", "-C", str(REPO_ROOT), "archive", commit, "src",
+         "experiments/2026-04-27_freq-embedding/scripts"],
+        capture_output=True, check=True).stdout
+    subprocess.run(["tar", "-x", "-C", str(tree)], input=archive, check=True)
+    return tree
+
+
+def losses_csv(root, save_dir, flags):
+    """The losses CSV of a tiny run of the trainer in ``root``."""
+    env = dict(os.environ, PYTHONPATH=str(root), CUDA_VISIBLE_DEVICES="",
+               OMP_NUM_THREADS="4")
+    script = (root / "experiments" / "2026-04-27_freq-embedding" / "scripts"
+              / "train.py")
+    r = subprocess.run([sys.executable, str(script), "--device", "cpu",
+                        "--weight-decay", "0.1", *flags, "--save-dir",
+                        str(save_dir), "--run-name", "r"],
+                       capture_output=True, text=True, env=env, timeout=900)
+    assert r.returncode == 0, r.stdout[-2000:] + r.stderr[-2000:]
+    return (save_dir / "r_losses.csv").read_bytes()
+
+
+# Without padding: the synthetic periodic rows only, mixup at every step.
+NO_PADDING_RUN = (
+    "--value-space-objective", "--rev-norm-kind", "meanstd",
+    "--multi-patch-sizes", "8,16,32,64,128", "--t-raw", "512",
+    "--n-channels", "1", "--d-model", "16", "--n-heads", "2",
+    "--num-layers", "1", "--num-encoder-layers", "1", "--batch-size", "4",
+    "--mix-ratio", "1.0", "--synth-kind", "periodic", "--freq-emb-dim", "3",
+    "--seasonality-emb-dim", "3", "--mixup-p", "1.0",
+    "--train-rollout-depth", "2", "--log-every", "1",
+    "--save-every", "1000000", "--total-steps", "3")
+
+
+@pytest.mark.parametrize("case", ["no_padding", "stream_no_mixing"])
+def test_the_flag_off_writes_the_losses_csv_of_the_421_commit(case, tmp_path):
+    """With --meanstd-z-max 0, a run that no fix of this round touches
+    writes the losses CSV of #421 (e9985049) byte for byte: a run without
+    padding, and a run on the stream without mixup and triplets."""
+    old_root = git_tree("e9985049", tmp_path)
+    flags = list(NO_PADDING_RUN)
+    if case == "stream_no_mixing":
+        pytest.importorskip("pyarrow")
+        from tests.test_419_gift_pretrain import build_corpus, write_index
+        corpus, index, _ = build_corpus(tmp_path / "corpus")
+        flags = list(TINY_421_RUN) + [
+            "--mixup-p", "0", "--crossfade-triplets", "0",
+            "--total-steps", "3", "--gift-pretrain-root", str(corpus),
+            "--gift-pretrain-index", str(write_index(tmp_path, index))]
+    old = losses_csv(old_root, tmp_path / "old", flags)
+    new = losses_csv(REPO_ROOT, tmp_path / "new",
+                     flags + ["--meanstd-z-max", "0"])
+    assert new == old
