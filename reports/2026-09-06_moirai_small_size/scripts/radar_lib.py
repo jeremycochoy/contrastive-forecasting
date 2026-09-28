@@ -35,8 +35,22 @@ def per_dataset(mase, sn):
     return {d: math.exp(sum(x) / len(x)) for d, x in logs.items()}
 
 
+def bell_order(per_ds):
+    """Datasets by difficulty (the mean log value over the arms). The hardest
+    sits at the top, the next ones alternate right and left of it, and the
+    easiest meet at the bottom."""
+    names = set().union(*per_ds.values())
+    mean_log = {d: sum(math.log(v[d]) for v in per_ds.values() if d in v)
+                   / sum(d in v for v in per_ds.values()) for d in names}
+    ranked = sorted(names, key=mean_log.get, reverse=True)
+    return ranked[:1] + ranked[1::2] + ranked[2::2][::-1]
+
+
 def style_axes(ax, labels, ang):
-    """Dataset names round the rim, and a log radius from 0.55 to 9."""
+    """Dataset names round the rim, clockwise from the top, and a log radius
+    from 0.55 to 9."""
+    ax.set_theta_offset(math.pi / 2)
+    ax.set_theta_direction(-1)
     ax.set_xticks(ang[:-1])
     ax.set_xticklabels(labels, fontsize=9.5)
     ax.tick_params(axis="x", pad=12)
@@ -57,7 +71,7 @@ def load(arms):
 def draw(arms, title, out_png):
     """arms: [(CSV name in RADAR, legend label, colour)]. Returns {arm: {dataset: value}}."""
     per_ds = load(arms)
-    labels = sorted(set().union(*per_ds.values()))
+    labels = bell_order(per_ds)
     ang = [n / len(labels) * 2 * math.pi for n in range(len(labels))] + [0.0]
     fig, ax = plt.subplots(figsize=(11.5, 10.5), subplot_kw=dict(polar=True))
     for name, lab, col in arms:
@@ -67,7 +81,7 @@ def draw(arms, title, out_png):
     style_axes(ax, labels, ang)
     ax.set_title(title, fontsize=12, pad=28)
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.06), ncol=1, fontsize=10,
-              title="arm, stop, and its GM-Relative MASE")
+              title="run, checkpoint, GM-Relative MASE")
     fig.tight_layout()
     fig.savefig(out_png, dpi=130)
     return per_ds

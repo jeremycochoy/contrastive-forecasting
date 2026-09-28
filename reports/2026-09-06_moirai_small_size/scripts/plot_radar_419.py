@@ -9,17 +9,17 @@ from radar_lib import RADAR, STUDY, draw
 
 # Run name in results/, CSV prefix in the radar folder, legend label, colour.
 NEW_DATA = [
-    ("cf419_cos200k", "cos419_", "contrastive, cosine to 1e-6 by 200k", "#1a1a1a"),
-    ("cf419_moirai_native", "moirai419_native", "value space, Moirai schedule, its own head", "#9a9a00"),
-    ("cf421f_moirai_native", "moirai421f_native",
-     "#421 in fp32: patch heads and mean/std scaling, its own head", "#1b9e77"),
+    ("cf419_cos200k", "cos419_", "Ours", "#1a1a1a"),
+    ("cf419_moirai_native", "moirai419_native", "Moirai", "#9a9a00"),
+    ("cf421f_moirai_native", "moirai421f_native", "Moirai + patch heads + mean/std", "#1b9e77"),
+    ("cf421fb_moirai_native", "moirai421fb_native",
+     "Moirai + patch heads + mean/std + GRU bound", "#d4a017"),
 ]
-OLD_BEST = ("cyan665", "contrastive, cosine to 1e-6 by 200k, 665k, old data   1.1369", "#17becf")
-TITLE = ("Issues #419 and #421: each run on the new data at its best checkpoint,\n"
-         "against the best run on the old data\n"
-         "New data: all of GiftEvalPretrain. Old data: only its series of 4,096 points or more.\n"
-         "Relative MASE per GIFT-Eval dataset, geometric mean over its configs.\n"
-         "The green ring is 1.0, the seasonal-naive level. Inside it is better.")
+OLD_BEST = ("cyan665", "Ours, old data, 665k   1.1369", "#17becf")
+TITLE = ("Relative MASE per GIFT-Eval dataset (geometric mean over its configs), each run at its best checkpoint\n"
+         "Ours: our contrastive model. Moirai: our copy of Moirai.\n"
+         "New data: all of GiftEvalPretrain. Old data: its series of 4,096 points or more.\n"
+         "Green ring: seasonal naive (1.0). Inside is better. The hardest datasets are at the top.")
 
 
 def scored_stops(arm, csv_prefix):
@@ -39,7 +39,7 @@ def new_data_arms():
         stops = scored_stops(arm, prefix)
         if stops:
             k = min(stops, key=stops.get)
-            arms.append((f"{prefix}{k}k", f"{label}, {k}k, new data   {stops[k]:.4f}", colour))
+            arms.append((f"{prefix}{k}k", f"{label}, new data, {k}k   {stops[k]:.4f}", colour))
     return arms
 
 

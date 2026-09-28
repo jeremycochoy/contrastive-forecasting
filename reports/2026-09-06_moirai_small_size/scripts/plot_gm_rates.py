@@ -16,25 +16,28 @@ OUT = STUDY / "plots" / "gm_mase_rates.png"
 P = "k3_r100_09_lr56_fix09_dec10k"
 # arm, label, colour, line width, marker, line style
 SERIES = [
-    (P,               "5.6e-4",                        "#b0b0b0", 1.8, "o", "--"),
-    (P + "_lr10x",    "5.6e-5, seed a",                "#1f77b4", 3.4, "o", "-"),
-    (P + "_lr10xb",   "5.6e-5, seed b",                "#7fb8e0", 3.4, "s", "-"),
-    (P + "_lr30x",    "1.8e-5",                        "#d62728", 4.0, "o", "-"),
-    (P + "_lr100x",   "5.6e-6",                        "#ff9f40", 4.0, "^", "-"),
-    (P + "_cos665k",  "cosine 6e-5 to 1e-6 over 665k", "#9467bd", 4.0, "D", "-"),
-    (P + "_cos200k",  "cosine 5.6e-5 to 1e-6 by 200k, then 1e-6", "#17becf", 4.0, "v", "-"),
-    ("cf415_moirai",  "value space, Moirai schedule (#415)", "#8c564b", 3.2, "X", "-"),
-    ("cf415_moirai_native", "the same, scored with its own head (A2V)", "#8c564b", 2.4, "o", ":"),
-    ("b2cos",         "1.1M: #373 cell B2 with the same cosine as cyan", "#e377c2", 3.0, "P", "-."),
-    ("cf419_cos200k", "new data: cosine 5.6e-5 to 1e-6 by 200k", "#1a1a1a", 4.0, "*", "-"),
-    ("cf419_moirai_native", "new data: value space, Moirai schedule, its own head", "#9a9a00", 3.0, "o", "--"),
-    ("cf421z_moirai_native", "new data: #421 patch heads and mean/std scaling, its own head", "#c51b7d", 3.4, "D", "-"),
-    ("cf421f_moirai_native", "new data: #421 in fp32, its own head", "#1b9e77", 3.8, "X", "-"),
+    # Ours: our contrastive model.
+    (P,               "Ours, lr 5.6e-4",                         "#b0b0b0", 1.8, "o", "--"),
+    (P + "_lr10x",    "Ours, lr 5.6e-5, seed a",                 "#1f77b4", 3.4, "o", "-"),
+    (P + "_lr10xb",   "Ours, lr 5.6e-5, seed b",                 "#7fb8e0", 3.4, "s", "-"),
+    (P + "_lr30x",    "Ours, lr 1.8e-5",                         "#d62728", 4.0, "o", "-"),
+    (P + "_lr100x",   "Ours, lr 5.6e-6",                         "#ff9f40", 4.0, "^", "-"),
+    (P + "_cos665k",  "Ours, lr cosine 6e-5→1e-6 over 665k",     "#9467bd", 4.0, "D", "-"),
+    (P + "_cos200k",  "Ours, lr cosine 5.6e-5→1e-6 by 200k",     "#17becf", 4.0, "v", "-"),
+    ("b2cos",         "Ours 1.1M, lr cosine 5.6e-5→1e-6 by 200k", "#e377c2", 3.0, "P", "-."),
+    ("cf419_cos200k", "Ours, lr cosine by 200k, new data",       "#1a1a1a", 4.0, "*", "-"),
+    # Moirai: our copy of Moirai, trained on the values with its schedule.
+    ("cf415_moirai",  "Moirai, separate head (B4)",              "#8c564b", 3.2, "X", "-"),
+    ("cf415_moirai_native", "Moirai, own head",                  "#8c564b", 2.4, "o", ":"),
+    ("cf419_moirai_native", "Moirai, own head, new data",        "#9a9a00", 3.0, "o", "--"),
+    ("cf421z_moirai_native", "Moirai + patch heads + mean/std, fp16, new data", "#c51b7d", 3.4, "D", "-"),
+    ("cf421f_moirai_native", "Moirai + patch heads + mean/std, new data", "#1b9e77", 3.8, "X", "-"),
+    ("cf421fb_moirai_native", "Moirai + patch heads + mean/std + GRU bound, new data", "#d4a017", 3.8, "h", "-"),
 ]
-# The value-space runs train at batch 256: one of their steps holds the data
-# of four batch-64 steps.
+# Moirai trains at batch 256: one of its steps holds the data of four
+# batch-64 steps.
 XSCALE = {"cf415_moirai": 4, "cf415_moirai_native": 4, "cf419_moirai_native": 4,
-          "cf421z_moirai_native": 4, "cf421f_moirai_native": 4}
+          "cf421z_moirai_native": 4, "cf421f_moirai_native": 4, "cf421fb_moirai_native": 4}
 # Where the last score of a line prints, so two lines that end together part.
 END_LABEL_OFFSET = {P + "_lr100x": (9, 4), P + "_cos200k": (9, -12)}
 BEST, BAND, PROJECT_BEST = 1.1369, 0.008, 1.0651
@@ -73,12 +76,11 @@ def draw_series(ax, arm, label, colour, width, marker, style, points):
 def draw_references(ax):
     ax.axhline(BEST, color="#2ca02c", ls=":", lw=1.6, zorder=1)
     ax.axhspan(BEST - BAND, BEST + BAND, color="#2ca02c", alpha=0.10, zorder=0)
-    ax.text(42000, BEST - 0.016, f"{BEST}, the best score: cosine to 1e-6 "
-            "by 200k, at 665k.  Shaded: the seed band, 0.008",
-            fontsize=9.5, color="#2ca02c")
+    ax.text(42000, BEST - 0.016, f"{BEST}: best of ours, old data, 665k.  "
+            "Shaded: the seed band, 0.008", fontsize=9.5, color="#2ca02c")
     ax.axhline(PROJECT_BEST, color="#e8173c", ls="--", lw=1.4, zorder=1)
-    ax.text(42000, PROJECT_BEST + 0.005, f"{PROJECT_BEST}, the project best "
-            "(1.1M parameters, 200k steps)", fontsize=9.5, color="#e8173c")
+    ax.text(42000, PROJECT_BEST + 0.005, f"{PROJECT_BEST}: project best "
+            "(ours, 1.1M parameters, 200k steps)", fontsize=9.5, color="#e8173c")
     ax.axvline(665000, color="#555555", ls=":", lw=1.2, zorder=1)
     ax.text(675000, YMAX - 0.012, "one pass\nover the data", fontsize=9,
             color="#555555", va="top")
@@ -95,14 +97,14 @@ def main():
     ticks = [40000, 100000, 200000, 400000, 665000, 1000000]
     ax.set_xticks(ticks)
     ax.set_xticklabels(["40k", "100k", "200k", "400k", "665k", "1,000k"])
-    ax.set_xlabel("data seen, in batch-64 steps (log scale). The value-space "
-                  "runs train at batch 256, so each of their steps counts 4.")
+    ax.set_xlabel("Data seen, in batch-64 steps (log scale). Moirai trains at "
+                  "batch 256, so one of its steps counts 4.")
     ax.set_ylabel("GM-Relative MASE, 97-config GIFT-Eval (lower is better)")
-    ax.set_title("GM-Relative MASE against data seen, at 11.4M parameters unless marked\n"
-                 "The coloured lines change the backbone rate alone. The brown lines "
-                 "train the same body in value space.\n"
-                 "Old data: the GiftEvalPretrain series of 4,096 points or more. "
-                 "New data (#419): all of GiftEvalPretrain.")
+    ax.set_title("GM-Relative MASE against data seen. 11.4M parameters unless marked.\n"
+                 "Ours: our contrastive model. Moirai: our copy of Moirai, trained "
+                 "on the values with its schedule.\n"
+                 "Old data: GiftEvalPretrain series of 4,096 points or more. "
+                 "New data: all of GiftEvalPretrain.")
     ax.grid(alpha=0.3)
     ax.set_ylim(YMIN, YMAX)
     ax.legend(fontsize=10, loc="upper center", bbox_to_anchor=(0.5, -0.115),
