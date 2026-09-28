@@ -555,7 +555,7 @@ def load_models(args, device):
               f"{BACKBONE_CONFIG['num_encoder_layers']} from backbone checkpoint")
     # Auto-detect the b1024 collapse-fix norms (#322): QK-norm (q_norm/k_norm) and
     # attention-output RMSNorm (attn_out_rms) add per-layer params to encoder +
-    # forecaster layers; build with the matching flags so _qk_aon backbones load
+    # forecaster layers. Build with the matching flags so _qk_aon backbones load
     # cleanly. Absent keys -> flags stay False (older backbones unaffected).
     if any(k.endswith(".q_norm.weight") for k in sd):
         BACKBONE_CONFIG["qk_norm"] = True
@@ -675,7 +675,7 @@ def load_models(args, device):
     # A head decodes the latents of one encoder. Running a teacher head on
     # the student gives a number that looks fine and means nothing, so the
     # head's recorded source has the last word. Heads trained before #393
-    # carry no marker; those are student heads by construction and are left
+    # carry no marker. Those are student heads by construction and are left
     # to the caller.
     head_source = load_encoder_source(args.head_path)
     if head_source is not None and head_source != args.encoder_source:

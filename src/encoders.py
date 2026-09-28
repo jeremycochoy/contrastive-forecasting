@@ -79,7 +79,7 @@ class GRUEncoder(nn.Module):
         super().__init__()
         self.W = W
         # Dtype for the GRU compute path. fp32 = disabled autocast (no-op).
-        # The GRU's W-step recurrence is sensitive to bf16 truncation; fp32
+        # The GRU's W-step recurrence is sensitive to bf16 truncation. fp32
         # is the safe default. fp16 trades precision for ~25-30% speedup.
         self.patch_emb_dtype = patch_emb_dtype
         self.gru = nn.GRU(
@@ -183,7 +183,7 @@ class TransformerEncoder(nn.Module):
                  activation='gelu', use_grad_checkpoint=True,
                  chunk_size=8192):
         super().__init__()
-        # W is recorded only for diagnostics; the linear is per-scalar
+        # W is recorded only for diagnostics. The linear is per-scalar
         # (1 -> H), so the layer doesn't depend on patch width.
         self.W = W
         # Per-scalar upscale: each of the W' positions in a patch is treated

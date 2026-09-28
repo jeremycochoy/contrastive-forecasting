@@ -985,8 +985,8 @@ def parse_multi_patch_sizes(args):
     """--multi-patch-sizes as a sorted tuple of ints, or () when off (#417).
 
     Raises SystemExit when the run cannot train the sizes: without
-    --value-space-objective, which is the only objective with value heads;
-    with a set that leaves a frequency without a size; or with a window
+    --value-space-objective, which is the only objective with value heads,
+    with a set that leaves a frequency without a size, or with a window
     that holds too few patches of the largest size for the rollout.
     """
     if args.multi_patch_sizes is None:

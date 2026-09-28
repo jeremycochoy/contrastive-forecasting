@@ -150,7 +150,7 @@ def _detect_backbone_config(sd: dict, base_cfg: dict) -> dict:
     """Fill in ConfigurableModel kwargs from a state_dict.
 
     Mirrors the autodetect block in ``train_forecasting_head.py`` so both
-    the head trainer and out-of-loop consumers (e.g. the offline latent-
+    the head trainer and out-of-loop consumers (for example the offline latent-
     drift probe) build a backbone that strictly matches the checkpoint.
     ``base_cfg`` supplies the fields the state_dict cannot disambiguate:
     ``C``, ``H``, ``W``, ``nhead``, ``num_layers``, ``encoder_type``,
@@ -282,8 +282,8 @@ def prepare_backbone_state_dict(state_dict: dict,
     ``encoder_source='teacher'`` (#393) first copies the EMA teacher's patch
     embedding and encoder stack over the student's, so the ordinary
     downstream pipeline — head training, latent rollout, every forecast
-    strategy — reads the teacher. The teacher covers those two modules only;
-    the forecaster, the norms and the embedding tables stay the student's,
+    strategy — reads the teacher. The teacher covers those two modules only.
+    The forecaster, the norms and the embedding tables stay the student's,
     matching :meth:`ConfigurableModel.teacher_forward`'s fallback. A
     checkpoint whose teacher is partial (``--ema-embedding`` without
     ``--ema-encoder``, or the reverse) promotes the half it has.
@@ -340,7 +340,7 @@ def save_encoder_source(checkpoint_path: str, encoder_source: str) -> str:
 def load_encoder_source(checkpoint_path: str) -> str | None:
     """Encoder a head was trained on, or None when unrecorded.
 
-    Heads trained before #393 have no marker; they are student heads, but we
+    Heads trained before #393 have no marker. They are student heads, but we
     return None rather than assert it so the caller can say so.
     """
     path = encoder_source_marker_path(checkpoint_path)

@@ -12,7 +12,7 @@ or an id of the frequency-embedding vocabulary. v2 (#419) keeps the ten v1
 ids and adds "4s", "6h", "1M", "1Q" and "1Y", so one table
 (``FREQ_NAMES_V2``) reads the ids of both. Id 0 and None mean "no label".
 A sample with no label draws from every size. The GiftEvalPretrain stream
-(#419) labels each window with its v2 id; the synthetic rows carry no label.
+(#419) labels each window with its v2 id. The synthetic rows carry no label.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ PATCH_SIZES = (8, 16, 32, 64, 128)
 MIN_TIME_PATCHES = 2
 
 # Frequency class -> (smallest, largest) patch size in training. uni2ts gives
-# Q and Y the range 1 to 8; 8 is our smallest size. None is "no label".
+# Q and Y the range 1 to 8, and 8 is our smallest size. None is "no label".
 TRAIN_RANGE = {
     "S": (64, 128), "T": (32, 128), "H": (32, 64),
     "D": (16, 32), "B": (16, 32), "W": (16, 32),

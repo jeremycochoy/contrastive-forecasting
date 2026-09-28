@@ -94,7 +94,7 @@ class QuantileForecastingHead(nn.Module):
     Output: (B*C, T, num_quantiles, forecast_len)
 
     Trained with pinball loss averaged over quantiles. Median (q=0.5) gives
-    the point forecast comparable to the MSE head; other quantiles let the
+    the point forecast comparable to the MSE head. Other quantiles let the
     model express uncertainty (which the MSE head couldn't, leading to the
     amplitude-damping failure noted in the 2026-04-27_periodic-synth-mix report).
     """
@@ -156,7 +156,7 @@ class TransformerQuantileForecastingHead(nn.Module):
     Causality (``causal=True``, default) imposes a triangular mask so the
     head can't peek at future tokens — matches the backbone's
     training-time causality. With ``causal=False`` the head sees the full
-    sequence both directions; for predictions further than W=16 ahead
+    sequence both directions. For predictions further than W=16 ahead
     (``forecast_len > W``), the bidir variant is necessary so the head
     can use ``f_t, f_{t+1}, …, f_{t+k}`` to reconstruct multiple future
     patches from position t (the eval-time B1/B2/B3 strategies feed the
@@ -398,7 +398,7 @@ def quantile_loss(predicted, target, quantile_levels=QUANTILE_LEVELS):
     err = target - predicted                                 # (..., Q, L)
     q = predicted.new_tensor(list(quantile_levels)).view(
         *([1] * (predicted.dim() - 2)), -1, 1)               # (..., Q, 1)
-    # max(q*err, (q-1)*err) is the standard pinball form; equivalent to
+    # max(q*err, (q-1)*err) is the standard pinball form, equivalent to
     # q*relu(err) + (1-q)*relu(-err) when err ∈ R.
     return torch.maximum(q * err, (q - 1) * err).mean()
 
@@ -1447,7 +1447,7 @@ def forecast_B3(backbone, head, x_context, horizon, device, recon_mode=None):
 
     Sequence: [e[0], ..., e[k], f[k+1], ..., f[k+m]]
     Take FIRST position in each group of (output_len/W) tokens.
-    Position 0 → p[k+1..k+output_len/W], position stride → next block, etc.
+    Position 0 → p[k+1..k+output_len/W], position stride → next block, and so on.
     """
     W_bb = backbone.W
     output_len = head.forecast_len

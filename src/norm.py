@@ -67,8 +67,8 @@ def compute_patch_stats(mean: torch.Tensor, stdev: torch.Tensor,
           barely changes within a patch, so this is essentially the
           mid-patch value, but it is well-defined for any span.
         - When ``rev_norm`` is RevIN (single per-series mean/std),
-          ``mean`` and ``stdev`` are constant along T after broadcast;
-          the resulting diffs/centred values are all 0. This module
+          ``mean`` and ``stdev`` are constant along T after broadcast,
+          so the resulting diffs/centred values are all 0. This module
           therefore carries zero information for RevIN — callers should
           guard against that combination.
     """
@@ -89,7 +89,7 @@ def compute_patch_stats(mean: torch.Tensor, stdev: torch.Tensor,
     if kind == 'diff':
         # dmean[t] = (mean_p[t] - mean_p[t-1]) / std_p[t-1]
         dmean = (mean_p[:, 1:] - mean_p[:, :-1]) / std_p[:, :-1].clamp(min=eps)
-        # F.pad pads the trailing dims; for [B, T_p-1, C] we want to pad
+        # F.pad pads the trailing dims. For [B, T_p-1, C] we want to pad
         # the T axis (dim=1) on the LEFT with one zero row, leaving the
         # C axis untouched. The pad spec for dim=-2 is (left, right).
         dmean = F.pad(dmean, (0, 0, 1, 0), 'constant', 0.0)  # [B, T_p, C]
@@ -147,7 +147,7 @@ def leading_zero_count(x: torch.Tensor) -> torch.Tensor:
 def _masked_first_patch(xs: torch.Tensor, n_real: torch.Tensor, W: int):
     """Mean and variance of the first ``min(W, n_real)`` values of ``xs``.
 
-    ``xs`` is ``[B, T, C]`` with the real values first; ``n_real`` is
+    ``xs`` is ``[B, T, C]`` with the real values first, and ``n_real`` is
     ``[B, 1, C]``. A series with no real value gets mean 0 and variance 0,
     as the plain first patch of an all-zero series does.
     """
@@ -326,7 +326,7 @@ class RevEWMNorm(nn.Module):
         Each series is shifted left past its leading zeros, the plain
         first-patch EWMA runs on what remains, and the result is shifted
         back. A padded position keeps the statistics of the first real
-        value; its normalised value is 0 whatever they are.
+        value. Its normalised value is 0 whatever they are.
         """
         T = x.shape[1]
         z = leading_zero_count(x)                                # [B, 1, C]
@@ -357,7 +357,7 @@ class RevEWMNorm(nn.Module):
 
 
 class RevIN(nn.Module):
-    """Standard reversible instance normalisation (Kim et al., ICLR 2022).
+    """Standard reversible instance normalisation (Kim and others, ICLR 2022).
 
     A single per-instance, per-channel mean+std is computed over the entire
     context window, then subtracted/divided away before the backbone and
