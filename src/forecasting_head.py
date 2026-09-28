@@ -24,6 +24,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from .nan_debug import PROBE
 from .norm import RevMeanStdNorm, leading_zero_count
 from .patch_size import MIN_TIME_PATCHES, draw_patch_sizes, patch_size_choices
 
@@ -1029,10 +1030,14 @@ def value_space_objective(model, x_norm, *, depth=0, reduce="sum",
             f_lat0, o_lat0 = f_lat, o_lat
         per_depth.append(_depth_loss(v_hat, x_norm, P, j, keep,
                                      quantile_levels))
+        # CF_NAN_DEBUG (#421): the term, and the values the next depth
+        # reads. A no-op when off.
+        PROBE.note(f"loss P{P} depth {j}", per_depth[-1])
         if j < depth:
             x_in = value_patches_to_series(v_hat, q_index)
             if pad_mask is not None:
                 x_in = x_in.masked_fill(shift_pad(pad_mask, P, j + 1), 0.0)
+            PROBE.record(f"rollout feedback P{P} depth {j + 1}", x_in)
     loss = per_depth[0]
     for term in per_depth[1:]:
         loss = loss + term
@@ -1087,6 +1092,7 @@ def multi_patch_value_objective(model, x_norm, sample_sizes, *, depth=0,
         g_loss, f_lat, o_lat, g_depths = value_space_objective(
             model, _rows(x_norm, rows), depth=depth, reduce=reduce,
             quantile_levels=quantile_levels, patch_size=size, **part)
+        PROBE.note(f"group P{size}", {"rows": rows, "loss": g_loss})
         share = len(rows) / n
         loss = loss + share * g_loss
         per_depth = [a + share * b for a, b in zip(per_depth, g_depths)]

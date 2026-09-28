@@ -69,12 +69,14 @@ from src.metrics import (
     retrieval_auc_topk,
 )
 from src.freq_embedding import FREQ_VOCABS
+from src.nan_debug import EXIT_CODE as NAN_DEBUG_EXIT, NanDebug
 from src.norm import patch_padding, zero_union_padding
 from src.forecasting_head import (QUANTILE_LEVELS,
                                   extract_encoder_latents,
                                   extract_teacher_encoder_latents,
                                   drop_far_windows,
                                   mean_std_inputs,
+                                  window_max_z,
                                   multi_patch_value_objective,
                                   rollout_forecaster_latents,
                                   value_space_objective)
@@ -917,7 +919,7 @@ def forward_step(model, x, freq_ids=None, freq_embs=None,
     return f_lat, o_lat
 
 
-def maybe_mixup(x, freq_ids, seasonality_ids, model, args):
+def maybe_mixup(x, freq_ids, seasonality_ids, model, args, info=None):
     """With prob p, linearly interpolate X and label embeddings between
     randomly-paired batch items.
 
@@ -929,6 +931,9 @@ def maybe_mixup(x, freq_ids, seasonality_ids, model, args):
     With zero left padding (#419), a mixed row keeps the longer padding of
     its two rows at exactly 0, and its values exist only where both rows
     hold real values (#421). Without it, rows mix as before.
+
+    ``info`` (a dict, CF_NAN_DEBUG) receives the weight and the partner
+    rows of a mixup that applies.
     """
     no_freq = model.freq_embedding is None
     no_seas = model.seasonality_embedding is None
@@ -943,6 +948,8 @@ def maybe_mixup(x, freq_ids, seasonality_ids, model, args):
     x_mix = a * x + (1 - a) * x[idx]
     if getattr(model.rev_norm, "skip_leading_zeros", False):
         x_mix = zero_union_padding(x_mix, x, x[idx])
+    if info is not None:
+        info.update(weight=a, partner=idx)
 
     if not no_freq:
         emb_a = model.freq_embedding(freq_ids)
@@ -2229,6 +2236,22 @@ def main():
     data_iter = iter(data_loader)
     sys.stdout.flush()
 
+    # CF_NAN_DEBUG=1 (#421): the NaN diagnostic mode, src/nan_debug.py. None,
+    # and so inert, when the variable is unset.
+    nan_debug = NanDebug.from_env(
+        model, optimizer,
+        os.path.join(args.save_dir, f"{args.run_name}_nan_dump.pt"))
+    if nan_debug is not None:
+        print(f"NaN debug (CF_NAN_DEBUG=1): each step checks its loss, its "
+              f"gradients and its weights. The first non-finite value "
+              f"writes {nan_debug.dump_path} and stops the run with exit "
+              f"code {NAN_DEBUG_EXIT}.")
+        # The rows of a batch, in the order the loader stacks them.
+        row_kinds = (["real"] * hf_bs + [args.synth_kind] * synth_bs
+                     + ["crossfade"] * cross_bs
+                     + ["triplet A", "triplet B", "triplet C"]
+                     * args.crossfade_triplets)
+
     # -- Training loop --------------------------------------------------------
     t0 = time.time()
     t_data_sum, t_fwd_sum, t_bwd_sum, t_step_sum = 0.0, 0.0, 0.0, 0.0
@@ -2253,6 +2276,8 @@ def main():
                 group["lr"] = lr_now
         model.train()
         optimizer.zero_grad()
+        if nan_debug is not None:
+            nan_debug.start_step(step)
 
         t_data_start = time.perf_counter()
         try:
@@ -2275,12 +2300,21 @@ def main():
         hf_rows_consumed += hf_rows_per_step
         synth_rows_consumed += synth_rows_per_step
         x = x.to(device)
+        x_loaded = x
         x = random_sign_flip(x)
+        x_flipped = x
 
         # Optional mixup (X + freq + seasonality embeddings)
+        mixup_info = {} if nan_debug is not None else None
         (x, freq_ids, freq_embs,
          seasonality_ids, seasonality_embs) = maybe_mixup(
-            x, freq_ids, seasonality_ids, model, args)
+            x, freq_ids, seasonality_ids, model, args, info=mixup_info)
+        if nan_debug is not None:
+            nan_debug.note_batch(
+                values=x, loaded=x_loaded, row_kind=row_kinds[:x.shape[0]],
+                sign_flipped=(x_loaded != x_flipped).any(dim=1),
+                mixup=mixup_info, freq_ids=freq_ids,
+                seasonality_ids=seasonality_ids)
         mixup_applied = (freq_embs is not None or seasonality_embs is not None)
         if mixup_applied:
             mixup_applied_count += 1
@@ -2323,6 +2357,15 @@ def main():
                 x_norm, sample_sizes, target_mask = mean_std_inputs(
                     model, x, freq_ids, multi_patch_sizes)
                 pad_mask = model.rev_norm.pad_mask
+                if nan_debug is not None:
+                    max_z = window_max_z(x_norm, target_mask, pad_mask)
+                    nan_debug.note_batch(
+                        x_norm=x_norm, padding=pad_mask,
+                        patch_size=sample_sizes,
+                        split=(~target_mask).sum(dim=1),
+                        loc=model.rev_norm.mean, scale=model.rev_norm.stdev,
+                        max_z=max_z, kept=(max_z <= args.meanstd_z_max
+                                           if filter_on else None))
                 if filter_on:
                     # A window whose target part lies far from its context
                     # leaves the batch, with every per-sample input.
@@ -2341,6 +2384,12 @@ def main():
                                 if multi_patch_sizes else None)
                 target_mask = None
                 pad_mask = getattr(model.rev_norm, "pad_mask", None)
+                if nan_debug is not None:
+                    nan_debug.note_batch(
+                        x_norm=x_norm, padding=pad_mask,
+                        patch_size=sample_sizes,
+                        loc=getattr(model.rev_norm, "mean", None),
+                        scale=getattr(model.rev_norm, "stdev", None))
             if multi_patch_sizes:
                 # #417: each sample reads the patch size its frequency
                 # draws, and the batch trains one group per size.
@@ -2642,7 +2691,12 @@ def main():
             loss_tau_ref_val = loss_tau_ref.item()
         t_fwd_end = time.perf_counter()
 
+        if nan_debug is not None:
+            loss = nan_debug.injected(loss)
         loss_val = loss.item()
+        if nan_debug is not None and nan_debug.loss_is_bad(loss_val):
+            csv_logger.close()
+            sys.exit(NAN_DEBUG_EXIT)
         if math.isnan(loss_val) or math.isinf(loss_val):
             print(f"\n*** NaN/Inf DETECTED at step {step} ***")
             emerg_path = os.path.join(
@@ -2660,14 +2714,26 @@ def main():
             sys.exit(1)
 
         t_bwd_start = time.perf_counter()
+        if nan_debug is not None:
+            nan_debug.backward_starts()
         loss.backward()
         # DDP: all_reduce(SUM)/W the param grads (== DDP's averaging). With
         # the W× from DifferentiableAllGather.backward this yields exactly
         # the single-GPU full-batch gradient. No-op single-GPU.
         average_gradients(model)
+        # CF_NAN_DEBUG (#421): the gradients before the clip and the step.
+        if nan_debug is not None and nan_debug.grads_are_bad(loss_val):
+            csv_logger.close()
+            sys.exit(NAN_DEBUG_EXIT)
+        grad_norm = None
         if args.grad_clip is not None:
-            torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
+            grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(),
+                                                       args.grad_clip)
         optimizer.step()
+        if nan_debug is not None and nan_debug.weights_are_bad(loss_val,
+                                                               grad_norm):
+            csv_logger.close()
+            sys.exit(NAN_DEBUG_EXIT)
         # Clamp learnable τ after the step (CLIP convention). No-op when
         # learnable_tau=False.
         if args.learnable_tau:
