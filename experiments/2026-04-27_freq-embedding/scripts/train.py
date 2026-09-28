@@ -71,6 +71,9 @@ from src.metrics import (
 )
 from src.freq_embedding import FREQ_VOCABS
 from src.nan_debug import EXIT_CODE as NAN_DEBUG_EXIT, NanDebug
+from src.nan_skip import (MAX_SKIPPED_IN_A_ROW, find_culprits,
+                          is_finite_step, restore_rng, rng_state,
+                          weights_are_finite)
 from src.norm import patch_padding, zero_union_padding
 from src.forecasting_head import (QUANTILE_LEVELS,
                                   extract_encoder_latents,
@@ -461,6 +464,18 @@ def build_parser():
                         "none of its values reaches the model. The default, "
                         "100, keeps 99.2%% of the GiftEvalPretrain windows "
                         "(reports/2026-09-28_meanstd_z). 0 turns it off.")
+    p.add_argument("--skip-nan-samples", action="store_true",
+                   help="With --value-space-objective (#421): when a step "
+                        "gives a non-finite loss or gradient, find the rows "
+                        "that cause it by bisection, drop only them, and "
+                        "take the step on the other rows (src/nan_skip.py). "
+                        "Every pass restores the random state of the first, "
+                        "so each row draws the same split, patch size, mixup, "
+                        "dropout and DropKey masks. When no row alone "
+                        "explains it, the step is skipped. The losses CSV "
+                        "logs the dropped rows (nan_dropped, -1 for a "
+                        "skipped step), and each dropped row is written to "
+                        "<run>_nan_rows_<step>.pt. Default off.")
     p.add_argument("--gru-input-bound", type=float, default=0.0,
                    help="With c > 0 the GRU patch encoders read c*tanh(x/c) "
                         "in place of the raw patch values x, and their skip "
@@ -867,6 +882,130 @@ def parse_args(argv=None):
     return build_parser().parse_args(argv)
 
 
+def value_objective(model, inputs, args, multi_patch_sizes, active=None):
+    """The value-space objective of one step (#415, #417, #419, #421).
+
+    ``inputs`` holds the batch after every transform: ``x_norm``,
+    ``sample_sizes``, ``target_mask``, ``pad_mask`` and the label inputs.
+    ``active`` (bool, one per row) makes every other row inert for
+    --skip-nan-samples: zero inputs, no target, and no share of the loss.
+    None: every row.
+    """
+    x_norm, target = inputs["x_norm"], inputs["target_mask"]
+    freq_embs, seas_embs = inputs["freq_embs"], inputs["seasonality_embs"]
+    if active is not None:
+        rows = active.view(-1, 1, 1)
+        x_norm = x_norm.masked_fill(~rows, 0.0)
+        target = rows.expand_as(x_norm) if target is None else target & rows
+        if inputs.get("label_embs") is not None:
+            # The mixup embeddings again, on a new graph for this pass.
+            freq_embs, seas_embs = inputs["label_embs"]()
+    kw = dict(depth=args.train_rollout_depth, reduce=args.train_rollout_reduce,
+              freq_ids=inputs["freq_ids"], freq_embs=freq_embs,
+              seasonality_ids=inputs["seasonality_ids"],
+              seasonality_embs=seas_embs,
+              pad_mask=inputs["pad_mask"], target_mask=target)
+    if multi_patch_sizes:
+        return multi_patch_value_objective(
+            model, x_norm, inputs["sample_sizes"], active=active, **kw)
+    return value_space_objective(model, x_norm, **kw)
+
+
+def mixed_label_embeddings(model, mix, freq_ids, seasonality_ids, kept):
+    """A function that builds the mixup label embeddings of the kept rows
+    (#421 --skip-nan-samples).
+
+    maybe_mixup builds them from the model's tables, so they carry the
+    graph of the first pass, which its backward frees. Each later pass
+    builds them again, with the same weight and partners: the same values
+    on a new graph. ``kept`` maps the rows of the step to the rows of the
+    batch before the z-filter.
+    """
+    a, partner = mix["weight"], mix["partner"][kept]
+
+    def embs():
+        out = []
+        for table, ids in ((model.freq_embedding, freq_ids),
+                           (model.seasonality_embedding, seasonality_ids)):
+            out.append(None if table is None else
+                       a * table(ids[kept]) + (1 - a) * table(ids[partner]))
+        return tuple(out)
+    return embs
+
+
+def skip_nan_rows(model, inputs, args, multi_patch_sizes, rng, device):
+    """The step without the rows that make it non-finite (#421).
+
+    Bisection over the rows (src/nan_skip.py). Every pass restores ``rng``,
+    the random state from before the first pass, and keeps every row in
+    the batch. Returns ``(culprits, passes, result)``: the rows found (None
+    when no row alone explains the fault) and ``result``, the ``(loss,
+    f_lat, o_lat, per_depth)`` of the last pass, with the culprits inert,
+    whose gradients the model then holds. None: skip the step, and the
+    model holds no gradient.
+    """
+    B = inputs["x_norm"].shape[0]
+
+    def run(active):
+        model.zero_grad(set_to_none=True)
+        restore_rng(rng, device)
+        out = value_objective(model, inputs, args, multi_patch_sizes, active)
+        out[0].backward()
+        return out
+
+    def active_rows(rows):
+        active = torch.zeros(B, dtype=torch.bool, device=device)
+        active[list(rows)] = True
+        return active
+
+    def is_bad(rows):
+        return not is_finite_step(run(active_rows(rows))[0].item(), model)
+
+    culprits, passes = find_culprits(is_bad, range(B))
+    result = None
+    if culprits is not None and len(culprits) < B:
+        result = run(~active_rows(culprits))
+        passes += 1
+        if not is_finite_step(result[0].item(), model):
+            culprits, result = None, None
+    if result is None:
+        model.zero_grad(set_to_none=True)
+    return culprits, passes, result
+
+
+def nan_rows_report(step, culprits, meta, args):
+    """The log lines of the rows --skip-nan-samples dropped at ``step``,
+    and the file of their data (#421). ``meta`` holds the step's batch:
+    the rows as loaded and as the model reads them, and per row its kind,
+    labels, patch size, split and max |z|."""
+    names = FREQ_VOCABS[args.freq_vocab]
+    rows = [int(meta["kept"][r]) for r in culprits]
+    mix = meta["mixup"] or {}
+    lines = []
+    for r, row in zip(culprits, rows):
+        source = meta["row_kind"][row]
+        if "partner" in mix:
+            partner = int(mix["partner"][row])
+            source += (f", mixed {mix['weight']:.3g} with row {partner} "
+                       f"({meta['row_kind'][partner]})")
+        size = meta["patch_size"]
+        split = meta["split"]
+        lines.append(
+            f"  row {row}: {source}, freq {names[int(meta['freq_ids'][row])]}"
+            f", patch {int(size[r]) if size is not None else '-'}"
+            f", split {int(split[row]) if split is not None else '-'}"
+            f", max |z| "
+            f"{float(meta['max_z'][row]) if meta['max_z'] is not None else float('nan'):.4g}")
+    path = os.path.join(args.save_dir, f"{args.run_name}_nan_rows_{step}.pt")
+    torch.save({"step": step, "rows": rows, "lines": lines,
+                "loaded": meta["loaded"][rows].cpu(),
+                "values": meta["values"][rows].cpu(),
+                "x_norm": meta["x_norm"][list(culprits)].cpu(),
+                "mixup": {k: (v.cpu() if torch.is_tensor(v) else v)
+                          for k, v in mix.items()}}, path)
+    return lines, path
+
+
 def random_sign_flip(x):
     B, T, C = x.shape
     signs = torch.where(torch.rand(B, 1, C, device=x.device) < 0.5,
@@ -1194,7 +1333,7 @@ VALUE_SPACE_FLAGS = frozenset((
     "residual_dtype", "attn_dtype", "ffn_dtype", "conv_dtype",
     "patch_emb_dtype", "rev_norm_kind", "rev_norm_span", "patch_stats",
     "freq_emb_dim", "seasonality_emb_dim", "freq_vocab", "meanstd_z_max",
-    "gru_input_bound",
+    "gru_input_bound", "skip_nan_samples",
     # The objective.
     "value_space_objective", "train_rollout_depth", "train_rollout_reduce",
     # One patch encoder and one value head per patch size (#417).
@@ -1266,6 +1405,23 @@ def gift_contrastive_gap(args):
     return None
 
 
+def check_skip_nan(args):
+    """Refuse --skip-nan-samples where rows are not independent units."""
+    if not args.skip_nan_samples:
+        return
+    if not args.value_space_objective:
+        raise SystemExit("--skip-nan-samples drops single rows, and only the "
+                         "value-space objective reads each row on its own. "
+                         "Add --value-space-objective.")
+    if int(os.environ.get("WORLD_SIZE", "1")) > 1:
+        raise SystemExit("--skip-nan-samples runs extra passes on one rank "
+                         "only, and a distributed run waits for all ranks.")
+    if os.environ.get("CF_NAN_DEBUG") == "1":
+        raise SystemExit("CF_NAN_DEBUG=1 stops the run at the first NaN, and "
+                         "--skip-nan-samples goes on without the bad rows. "
+                         "Use one of them.")
+
+
 def check_mean_std(args):
     """Refuse the mean/std scaling (#421) outside the value-space objective.
 
@@ -1333,13 +1489,16 @@ def safe_run_name(save_dir, run_name):
 class CSVLogger:
     def __init__(self, path, flush_every=100, tau_ref_column=True,
                  rollout_depth=0, depth_column_prefix="cos_err_d",
-                 dropped_column=False):
+                 dropped_column=False, nan_column=False):
         self.path = path
         # dropped_column (#421): a trailing `meanstd_dropped` column, the
         # share of the step's windows the mean/std filter dropped. Only a
         # run with --meanstd-z-max on writes it, so every other CSV keeps
         # its schema.
         self.dropped_column = bool(dropped_column)
+        # nan_column (#421): a trailing `nan_dropped` column, the rows that
+        # --skip-nan-samples dropped at the step (-1: the step was skipped).
+        self.nan_column = bool(nan_column)
         self.flush_every = flush_every
         # rollout_depth (#373): k > 0 adds one `cos_err_dj` column per depth
         # j = 0..k, the per-depth forecast error 1 − cos(f^(j)_t, h_{t+1+j}).
@@ -1414,6 +1573,8 @@ class CSVLogger:
                        for j in range(self.rollout_depth + 1)]
         if self.dropped_column:
             header += ["meanstd_dropped"]
+        if self.nan_column:
+            header += ["nan_dropped"]
         if os.path.getsize(path) == 0:
             self._writer.writerow(header)
             self._file.flush()
@@ -1448,7 +1609,7 @@ class CSVLogger:
             u_temporal_e=None, u_batch_e=None,
             u_batchtime=None, u_batchtime_e=None, ema_tau=None,
             rep_w=None, l_pred=None, l_rep=None, l_align=None,
-            cos_err_depths=None, meanstd_dropped=None):
+            cos_err_depths=None, meanstd_dropped=None, nan_dropped=None):
         if not self._enabled:
             return
         row = [step, loss]
@@ -1471,6 +1632,8 @@ class CSVLogger:
                     for j in range(self.rollout_depth + 1)]
         if self.dropped_column:
             row.append('' if meanstd_dropped is None else meanstd_dropped)
+        if self.nan_column:
+            row.append('' if nan_dropped is None else nan_dropped)
         self._buffer.append(row)
         if len(self._buffer) >= self.flush_every:
             self.flush()
@@ -1735,6 +1898,7 @@ def main():
 
     check_gift_pretrain(args)
     check_mean_std(args)
+    check_skip_nan(args)
 
     # Distributed (opt-in, env-driven): launch with
     #   torchrun --nproc_per_node=N experiments/.../train.py ...
@@ -2149,7 +2313,8 @@ def main():
         depth_column_prefix=("val_err_d" if args.value_space_objective
                              else "cos_err_d"),
         dropped_column=(args.rev_norm_kind == "meanstd"
-                        and args.meanstd_z_max > 0))
+                        and args.meanstd_z_max > 0),
+        nan_column=args.skip_nan_samples)
     print(f"Loss CSV: {csv_path}")
 
     # Latent-drift probe (rank-0 only). Fixed ARMA batch drawn once and
@@ -2283,11 +2448,35 @@ def main():
               f"gradients and its weights. The first non-finite value "
               f"writes {nan_debug.dump_path} and stops the run with exit "
               f"code {NAN_DEBUG_EXIT}.")
-        # The rows of a batch, in the order the loader stacks them.
-        row_kinds = (["real"] * hf_bs + [args.synth_kind] * synth_bs
-                     + ["crossfade"] * cross_bs
-                     + ["triplet A", "triplet B", "triplet C"]
-                     * args.crossfade_triplets)
+    if args.skip_nan_samples:
+        print("Skip NaN samples (#421): a step with a non-finite loss or "
+              "gradient drops only the rows that cause it, found by "
+              "bisection, and takes the step on the other rows. The losses "
+              "CSV logs the dropped rows (nan_dropped).")
+    # The rows of a batch, in the order the loader stacks them.
+    row_kinds = (["real"] * hf_bs + [args.synth_kind] * synth_bs
+                 + ["crossfade"] * cross_bs
+                 + ["triplet A", "triplet B", "triplet C"]
+                 * args.crossfade_triplets)
+
+    def stop_on_nan(step, why=""):
+        """Save the EMERGENCY snapshot and stop the run."""
+        print(f"\n*** NaN/Inf DETECTED at step {step} ***{why}")
+        emerg_path = os.path.join(
+            args.save_dir, f"{args.run_name}_EMERGENCY_{step}.pth")
+        save_snapshot(model, optimizer, emerg_path, step,
+                      best_gap, best_gap_step, best_loss, best_loss_step,
+                      ema_loss=ema_loss, ema_gap=ema_gap,
+                      hf_rows_consumed=hf_rows_consumed,
+                      synth_rows_consumed=synth_rows_consumed,
+                      lr_schedule=lr_schedule)
+        csv_logger.close()
+        if attn_amp_csv is not None:
+            attn_amp_csv.close()
+        sys.stdout.flush()
+        sys.exit(1)
+
+    skipped_in_a_row = 0
 
     # -- Training loop --------------------------------------------------------
     t0 = time.time()
@@ -2342,10 +2531,17 @@ def main():
         x_flipped = x
 
         # Optional mixup (X + freq + seasonality embeddings)
-        mixup_info = {} if nan_debug is not None else None
+        mixup_info = ({} if nan_debug is not None or args.skip_nan_samples
+                      else None)
         (x, freq_ids, freq_embs,
          seasonality_ids, seasonality_embs) = maybe_mixup(
             x, freq_ids, seasonality_ids, model, args, info=mixup_info)
+        if args.skip_nan_samples:
+            skip_meta = dict(
+                values=x, loaded=x_loaded, row_kind=row_kinds[:x.shape[0]],
+                mixup=mixup_info, freq_ids=freq_ids,
+                seasonality_ids=seasonality_ids, max_z=None, split=None,
+                kept=torch.arange(x.shape[0], device=x.device))
         if nan_debug is not None:
             nan_debug.note_batch(
                 values=x, loaded=x_loaded, row_kind=row_kinds[:x.shape[0]],
@@ -2394,6 +2590,16 @@ def main():
                 x_norm, sample_sizes, target_mask = mean_std_inputs(
                     model, x, freq_ids, multi_patch_sizes)
                 pad_mask = model.rev_norm.pad_mask
+                if args.skip_nan_samples:
+                    # #421: the rows as the step reads them, for the report
+                    # of a row that --skip-nan-samples drops.
+                    max_z = window_max_z(x_norm, target_mask, pad_mask)
+                    far = ~(max_z <= args.meanstd_z_max) if filter_on else None
+                    skip_meta.update(
+                        max_z=max_z, split=(~target_mask).sum(dim=(1, 2)),
+                        kept=(torch.arange(len(max_z), device=x.device)
+                              if far is None or bool(far.all())
+                              else (~far).nonzero().view(-1)))
                 if nan_debug is not None:
                     max_z = window_max_z(x_norm, target_mask, pad_mask)
                     nan_debug.note_batch(
@@ -2427,27 +2633,25 @@ def main():
                         patch_size=sample_sizes,
                         loc=getattr(model.rev_norm, "mean", None),
                         scale=getattr(model.rev_norm, "stdev", None))
-            if multi_patch_sizes:
-                # #417: each sample reads the patch size its frequency
-                # draws, and the batch trains one group per size.
-                value_loss, f_lat, o_lat, value_depths = \
-                    multi_patch_value_objective(
-                        model, x_norm, sample_sizes,
-                        depth=args.train_rollout_depth,
-                        reduce=args.train_rollout_reduce,
-                        freq_ids=freq_ids, freq_embs=freq_embs,
-                        seasonality_ids=seasonality_ids,
-                        seasonality_embs=seasonality_embs,
-                        pad_mask=pad_mask, target_mask=target_mask)
-            else:
-                value_loss, f_lat, o_lat, value_depths = value_space_objective(
-                    model, x_norm,
-                    depth=args.train_rollout_depth,
-                    reduce=args.train_rollout_reduce,
-                    freq_ids=freq_ids, freq_embs=freq_embs,
-                    seasonality_ids=seasonality_ids,
-                    seasonality_embs=seasonality_embs,
-                    pad_mask=pad_mask, target_mask=target_mask)
+            # #417: with several patch sizes each sample reads the size its
+            # frequency draws, and the batch trains one group per size.
+            value_inputs = dict(
+                x_norm=x_norm, sample_sizes=sample_sizes,
+                target_mask=target_mask, pad_mask=pad_mask,
+                freq_ids=freq_ids, freq_embs=freq_embs,
+                seasonality_ids=seasonality_ids,
+                seasonality_embs=seasonality_embs)
+            if args.skip_nan_samples:
+                # #421: the random state a pass without some rows replays.
+                skip_rng = rng_state(device)
+                skip_meta.update(x_norm=x_norm,
+                                 patch_size=sample_sizes)
+                if "partner" in mixup_info:
+                    value_inputs["label_embs"] = mixed_label_embeddings(
+                        model, mixup_info, skip_meta["freq_ids"],
+                        skip_meta["seasonality_ids"], skip_meta["kept"])
+            value_loss, f_lat, o_lat, value_depths = value_objective(
+                model, value_inputs, args, multi_patch_sizes)
             teacher_o_lat = None
             e_lat = None
         elif use_ema:
@@ -2734,21 +2938,9 @@ def main():
         if nan_debug is not None and nan_debug.loss_is_bad(loss_val):
             csv_logger.close()
             sys.exit(NAN_DEBUG_EXIT)
-        if math.isnan(loss_val) or math.isinf(loss_val):
-            print(f"\n*** NaN/Inf DETECTED at step {step} ***")
-            emerg_path = os.path.join(
-                args.save_dir, f"{args.run_name}_EMERGENCY_{step}.pth")
-            save_snapshot(model, optimizer, emerg_path, step,
-                          best_gap, best_gap_step, best_loss, best_loss_step,
-                          ema_loss=ema_loss, ema_gap=ema_gap,
-                          hf_rows_consumed=hf_rows_consumed,
-                          synth_rows_consumed=synth_rows_consumed,
-                          lr_schedule=lr_schedule)
-            csv_logger.close()
-            if attn_amp_csv is not None:
-                attn_amp_csv.close()
-            sys.stdout.flush()
-            sys.exit(1)
+        if (math.isnan(loss_val) or math.isinf(loss_val)) \
+                and not args.skip_nan_samples:
+            stop_on_nan(step)
 
         t_bwd_start = time.perf_counter()
         if nan_debug is not None:
@@ -2762,11 +2954,45 @@ def main():
         if nan_debug is not None and nan_debug.grads_are_bad(loss_val):
             csv_logger.close()
             sys.exit(NAN_DEBUG_EXIT)
+        # #421 --skip-nan-samples: a non-finite step drops its bad rows.
+        nan_dropped, step_skipped = 0, False
+        if args.skip_nan_samples and not is_finite_step(loss_val, model):
+            if not weights_are_finite(model):
+                stop_on_nan(step, " The weights are not finite, so no row "
+                            "to drop can help.")
+            t_skip = time.perf_counter()
+            culprits, passes, result = skip_nan_rows(
+                model, value_inputs, args, multi_patch_sizes, skip_rng, device)
+            seconds = time.perf_counter() - t_skip
+            if result is None:
+                nan_dropped, step_skipped = -1, True
+                why = ("every row gives a non-finite pass on its own"
+                       if culprits else "no row alone explains it")
+                print(f"[skip-nan] step {step}: the step is not finite, and "
+                      f"{why} ({passes} passes, {seconds:.1f} s). The step "
+                      f"is skipped.", flush=True)
+                skipped_in_a_row += 1
+                if skipped_in_a_row == MAX_SKIPPED_IN_A_ROW:
+                    stop_on_nan(step, f" {skipped_in_a_row} steps in a row "
+                                f"were skipped.")
+            else:
+                loss, f_lat, o_lat, value_depths = result
+                loss_val, nan_dropped = loss.item(), len(culprits)
+                f1_lat, o_lat = f_lat.float(), o_lat.float()
+                lines, path = nan_rows_report(step, culprits, skip_meta, args)
+                print(f"[skip-nan] step {step}: {len(culprits)} of "
+                      f"{value_inputs['x_norm'].shape[0]} rows dropped after "
+                      f"{passes} passes ({seconds:.1f} s), loss "
+                      f"{loss_val:.4f} without them. Rows: {path}")
+                print("\n".join(lines), flush=True)
+        if not step_skipped:
+            skipped_in_a_row = 0
         grad_norm = None
-        if args.grad_clip is not None:
+        if args.grad_clip is not None and not step_skipped:
             grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(),
                                                        args.grad_clip)
-        optimizer.step()
+        if not step_skipped:
+            optimizer.step()
         if nan_debug is not None and nan_debug.weights_are_bad(loss_val,
                                                                grad_norm):
             csv_logger.close()
@@ -2854,7 +3080,9 @@ def main():
         # produce inf in the CSV.
         gap_ratio_val = (1.0 - val_ff) / max(1e-6, 1.0 - val_fp)
 
-        if ema_loss is None:
+        if step_skipped:
+            pass  # #421: a skipped step leaves the running means alone.
+        elif ema_loss is None:
             ema_loss = loss_val; ema_gap = gap_val
         else:
             d = args.ema_decay
@@ -2884,7 +3112,9 @@ def main():
                        l_rep=loss_terms.get('l_rep'),
                        l_align=loss_terms.get('l_align'),
                        cos_err_depths=cos_err_depths,
-                       meanstd_dropped=dropped_share)
+                       meanstd_dropped=dropped_share,
+                       nan_dropped=(nan_dropped if args.skip_nan_samples
+                                    else None))
 
         if step % args.log_every == 0 and is_main_process():
             elapsed = time.time() - t0

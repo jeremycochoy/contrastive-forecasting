@@ -1067,7 +1067,7 @@ def _diagnostic_latents(latents, base_size):
 
 def multi_patch_value_objective(model, x_norm, sample_sizes, *, depth=0,
                                 reduce="sum", quantile_levels=QUANTILE_LEVELS,
-                                **conditioning):
+                                active=None, **conditioning):
     """:func:`value_space_objective` when each sample has its own patch size.
 
     The batch splits by patch size (#417). Each group runs the objective at
@@ -1081,11 +1081,15 @@ def multi_patch_value_objective(model, x_norm, sample_sizes, *, depth=0,
     :func:`value_space_objective`: ``freq_*``, ``seasonality_*``, the
     ``pad_mask`` of #419 and the ``target_mask`` of #421, one row per sample.
 
+    ``active`` (bool, one per sample, #421 --skip-nan-samples) counts only
+    the active samples in the group weights. The trainer makes the other
+    samples inert. None: every sample counts.
+
     Returns ``(loss, f_lat, o_lat, per_depth)``. The trainer's diagnostics
     read one sequence length, so the latents are those of the base size
     W's group, or of the largest group when no sample reads W.
     """
-    n = x_norm.shape[0]
+    n = x_norm.shape[0] if active is None else int(active.sum())
     loss, per_depth, latents = 0.0, [0.0] * (depth + 1), {}
     for size, rows in patch_size_groups(sample_sizes).items():
         part = {k: _rows(v, rows) for k, v in conditioning.items()}
@@ -1093,7 +1097,8 @@ def multi_patch_value_objective(model, x_norm, sample_sizes, *, depth=0,
             model, _rows(x_norm, rows), depth=depth, reduce=reduce,
             quantile_levels=quantile_levels, patch_size=size, **part)
         PROBE.note(f"group P{size}", {"rows": rows, "loss": g_loss})
-        share = len(rows) / n
+        share = (len(rows) if active is None
+                 else int(active[rows.to(active.device)].sum())) / n
         loss = loss + share * g_loss
         per_depth = [a + share * b for a, b in zip(per_depth, g_depths)]
         latents[size] = (len(rows), f_lat, o_lat)
