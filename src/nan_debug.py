@@ -69,7 +69,9 @@ class Probe:
 
     def _on_grad(self, tag):
         def hook(grad):
-            if self.active:
+            # A tensor that no loss term reaches gets None on the GPU path
+            # with activation checkpointing.
+            if self.active and grad is not None:
                 self.backward.append((tag, grad.detach().abs().amax()))
         return hook
 
