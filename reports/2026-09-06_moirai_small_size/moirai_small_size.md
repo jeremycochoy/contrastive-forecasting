@@ -32,8 +32,8 @@ after one pass: 1.2072 with its own value head, against 1.1369.
 ![GM-Relative MASE against data seen, one line per run](plots/gm_mase_rates.png)
 
 Each constant rate falls to a lowest score and then climbs. The smaller the
-rate, the later the turn: 40,000 steps at 5.6e-4, 240,000 at 5.6e-5 and
-300,000 at 1.8e-5. At 5.6e-6 the score still falls at 1,000,000 steps.
+rate, the later the turn: 40,000 steps at 5.6e-4 (the table below lists this
+run), 240,000 at 5.6e-5 and 300,000 at 1.8e-5. At 5.6e-6 the score still falls at 1,000,000 steps.
 
 The cosine anneal to 1e-6 by step 200,000 has no turn in one pass. Its lowest
 score, 1.1369, is its 665,000-step score. A second pass at 1e-6 stays inside

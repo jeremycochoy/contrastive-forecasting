@@ -16,8 +16,8 @@ OUT = STUDY / "plots" / "gm_mase_rates.png"
 P = "k3_r100_09_lr56_fix09_dec10k"
 # arm, label, colour, line width, marker, line style
 SERIES = [
-    # Ours: our contrastive model.
-    (P,               "Ours, lr 5.6e-4",                         "#b0b0b0", 1.8, "o", "--"),
+    # Ours: our contrastive model. The lr 5.6e-4 run (arm P) keeps its scores in
+    # results/gm_trajectories.tsv; the owner took it off this figure.
     (P + "_lr10x",    "Ours, lr 5.6e-5, seed a",                 "#1f77b4", 3.4, "o", "-"),
     (P + "_lr10xb",   "Ours, lr 5.6e-5, seed b",                 "#7fb8e0", 3.4, "s", "-"),
     (P + "_lr30x",    "Ours, lr 1.8e-5",                         "#d62728", 4.0, "o", "-"),
