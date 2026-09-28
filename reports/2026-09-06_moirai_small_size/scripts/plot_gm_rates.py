@@ -28,10 +28,12 @@ SERIES = [
     ("b2cos",         "1.1M: #373 cell B2 with the same cosine as cyan", "#e377c2", 3.0, "P", "-."),
     ("cf419_cos200k", "new data: cosine 5.6e-5 to 1e-6 by 200k", "#1a1a1a", 4.0, "*", "-"),
     ("cf419_moirai_native", "new data: value space, Moirai schedule, its own head", "#9a9a00", 3.0, "o", "--"),
+    ("cf421z_moirai_native", "new data: #421 patch heads and mean/std scaling, its own head", "#c51b7d", 3.4, "D", "-"),
 ]
 # The value-space runs train at batch 256: one of their steps holds the data
 # of four batch-64 steps.
-XSCALE = {"cf415_moirai": 4, "cf415_moirai_native": 4, "cf419_moirai_native": 4}
+XSCALE = {"cf415_moirai": 4, "cf415_moirai_native": 4, "cf419_moirai_native": 4,
+          "cf421z_moirai_native": 4}
 # Where the last score of a line prints, so two lines that end together part.
 END_LABEL_OFFSET = {P + "_lr100x": (9, 4), P + "_cos200k": (9, -12)}
 BEST, BAND, PROJECT_BEST = 1.1369, 0.008, 1.0651
