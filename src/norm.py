@@ -144,6 +144,22 @@ def leading_zero_count(x: torch.Tensor) -> torch.Tensor:
     return torch.where(nonzero.any(dim=1, keepdim=True), first, full)
 
 
+def zero_union_padding(values: torch.Tensor,
+                       *sources: torch.Tensor) -> torch.Tensor:
+    """``values`` with the leading padding of each row set to exactly 0.
+    The padding of a row is the longest padding of that row in ``sources``,
+    their union (#421).
+
+    A transform that builds a row from several rows (mixup, a crossfade)
+    calls it, so it never writes values into padding: its values exist only
+    where every source row holds real values. All tensors are ``[B, T, C]``.
+    A row with no padding in any source keeps its values.
+    """
+    z = torch.stack([leading_zero_count(s) for s in sources]).amax(dim=0)
+    t = torch.arange(values.shape[1], device=values.device).view(1, -1, 1)
+    return values.masked_fill(t < z, 0.0)
+
+
 def _masked_first_patch(xs: torch.Tensor, n_real: torch.Tensor, W: int):
     """Mean and variance of the first ``min(W, n_real)`` values of ``xs``.
 

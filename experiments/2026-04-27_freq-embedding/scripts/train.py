@@ -69,7 +69,7 @@ from src.metrics import (
     retrieval_auc_topk,
 )
 from src.freq_embedding import FREQ_VOCABS
-from src.norm import patch_padding
+from src.norm import patch_padding, zero_union_padding
 from src.forecasting_head import (QUANTILE_LEVELS,
                                   extract_encoder_latents,
                                   extract_teacher_encoder_latents,
@@ -923,8 +923,12 @@ def maybe_mixup(x, freq_ids, seasonality_ids, model, args):
 
     Returns ``(x, freq_ids, freq_embs, seasonality_ids, seasonality_embs)``.
     ``*_embs`` are None when no mixup applies (caller passes ids directly to
-    the model so it does its own lookup); when mixup applies, ``*_embs``
+    the model so it does its own lookup). When mixup applies, ``*_embs``
     are pre-mixed tensors and ids are unused by the model lookup.
+
+    With zero left padding (#419), a mixed row keeps the longer padding of
+    its two rows at exactly 0, and its values exist only where both rows
+    hold real values (#421). Without it, rows mix as before.
     """
     no_freq = model.freq_embedding is None
     no_seas = model.seasonality_embedding is None
@@ -937,6 +941,8 @@ def maybe_mixup(x, freq_ids, seasonality_ids, model, args):
     B = x.shape[0]
     idx = torch.randperm(B, device=x.device)
     x_mix = a * x + (1 - a) * x[idx]
+    if getattr(model.rev_norm, "skip_leading_zeros", False):
+        x_mix = zero_union_padding(x_mix, x, x[idx])
 
     if not no_freq:
         emb_a = model.freq_embedding(freq_ids)
@@ -2196,6 +2202,8 @@ def main():
             skip_rows=hf_rows_consumed, T_raw=args.t_raw, seed=synth_seed,
             emit_freq_ids=(args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0),
             real_rows=real_rows,
+            # #421: the stream pads with zeros, and the crossfade keeps them.
+            zero_padding=args.gift_pretrain,
         )
     else:
         data_loader = create_mixed_periodic_dataloader(

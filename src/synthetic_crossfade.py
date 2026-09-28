@@ -8,8 +8,8 @@ sub-batch) with a per-sample monotone crossfade s(t):
            (t-l)/(l'-l)   l < t < l'
            1              t >= l'
 
-A and B are z-normalised per series (channel) before blending; one s(t) per
-sample, shared across channels. Because A and B stay in the batch as their own
+A and B are z-normalised per series (channel) before blending, with one s(t)
+per sample, shared across channels. Because A and B stay in the batch as their own
 rows, C shares A's past and B's future with batch-mates — a hard-negative
 signal for the contrastive loss that position alone cannot satisfy.
 
@@ -20,12 +20,19 @@ Sampling (T = window length):
 
 A blend of two real windows has no single canonical frequency/seasonality, so
 the labels are the sentinel 0 ("unknown"), matching the forked-ARMA stream.
+
+With ``zero_padding`` (the GiftEvalPretrain stream, #419), a parent z-scores
+over its real values only and keeps its left padding at exactly 0, and the
+blend keeps the union of the two paddings (#421). Without it, nothing
+changes.
 """
 from __future__ import annotations
 
 import numpy as np
 import torch
 from numpy.random import Generator
+
+from .norm import leading_zero_count, zero_union_padding
 
 _EPS = 1e-6
 
@@ -35,6 +42,38 @@ def _zscore_per_series(window: torch.Tensor) -> torch.Tensor:
     mean = window.mean(dim=0, keepdim=True)
     std = window.std(dim=0, unbiased=False, keepdim=True)
     return (window - mean) / std.clamp_min(_EPS)
+
+
+def _zscore_real(window: torch.Tensor) -> torch.Tensor:
+    """:func:`_zscore_per_series` over the real values of each channel of a
+    ``[T, C]`` window, the values after its left zero padding (#419, #421).
+
+    The padding stays exactly 0. A channel whose real values are all equal
+    keeps them: their z-score would be all 0, and a 0 at the start reads as
+    padding.
+    """
+    out = torch.zeros_like(window)
+    first = leading_zero_count(window.unsqueeze(0))[0, 0].tolist()
+    for c, z in enumerate(first):
+        real = window[z:, c:c + 1]
+        varies = len(real) > 0 and bool((real != real[0]).any())
+        out[z:, c:c + 1] = _zscore_per_series(real) if varies else real
+    return out
+
+
+def _parents(real, ia, ib, zero_padding):
+    """The two z-normalised parents of a blend."""
+    zscore = _zscore_real if zero_padding else _zscore_per_series
+    return zscore(real[ia]), zscore(real[ib])
+
+
+def _blend(a, b, s, real, ia, ib, zero_padding):
+    """``(1 - s)·a + s·b``. With ``zero_padding`` its padding is the union
+    of the two parents' paddings, at exactly 0."""
+    c = (1.0 - s) * a + s * b
+    if zero_padding:
+        c = zero_union_padding(c[None], real[ia][None], real[ib][None])[0]
+    return c
 
 
 def _sample_crossfade_weight(T: int, rng: Generator) -> np.ndarray:
@@ -58,6 +97,7 @@ def generate_crossfade_batch(
     *,
     rng: Generator,
     return_labels: bool = False,
+    zero_padding: bool = False,
 ):
     """Build ``n_out`` regime-crossfade rows from a real sub-batch.
 
@@ -69,6 +109,8 @@ def generate_crossfade_batch(
         rng: numpy ``Generator`` (drives source choice, midpoint, width).
         return_labels: also return ``(freq_ids, seas_ids)``, both the sentinel
             ``0`` as ``[n_out]`` int64.
+        zero_padding: the real rows carry left zero padding (#419). The
+            padding stays 0 (#421, see the module docstring).
 
     Returns:
         ``[n_out, T, C]`` float32 (plus labels if requested). An empty tensor
@@ -90,10 +132,9 @@ def generate_crossfade_batch(
         ib = int(rng.integers(0, N - 1))   # draw B != A uniformly over the rest
         if ib >= ia:
             ib += 1
-        a = _zscore_per_series(real[ia])
-        b = _zscore_per_series(real[ib])
+        a, b = _parents(real, ia, ib, zero_padding)
         s = torch.from_numpy(_sample_crossfade_weight(T, rng)).unsqueeze(-1)  # [T, 1]
-        out[k] = (1.0 - s) * a + s * b
+        out[k] = _blend(a, b, s, real, ia, ib, zero_padding)
 
     if return_labels:
         z = torch.zeros(n_out, dtype=torch.int64)
@@ -107,6 +148,7 @@ def generate_crossfade_triplets(
     *,
     rng: Generator,
     return_labels: bool = False,
+    zero_padding: bool = False,
 ):
     """Build ``n_triplets`` explicit (A_norm, B_norm, C) crossfade triplets (#328).
 
@@ -123,6 +165,8 @@ def generate_crossfade_triplets(
         n_triplets: number of (A_norm, B_norm, C) triplets to produce.
         rng: numpy ``Generator`` (drives source choice, midpoint, width).
         return_labels: also return ``(freq_ids, seas_ids)``, both the sentinel 0.
+        zero_padding: the real rows carry left zero padding (#419). The
+            padding stays 0 (#421, see the module docstring).
 
     Returns:
         ``[3 * n_triplets, T, C]`` float32, rows ordered
@@ -144,12 +188,11 @@ def generate_crossfade_triplets(
         ib = int(rng.integers(0, N - 1))   # draw B != A uniformly over the rest
         if ib >= ia:
             ib += 1
-        a = _zscore_per_series(real[ia])
-        b = _zscore_per_series(real[ib])
+        a, b = _parents(real, ia, ib, zero_padding)
         s = torch.from_numpy(_sample_crossfade_weight(T, rng)).unsqueeze(-1)  # [T, 1]
         out[3 * k] = a
         out[3 * k + 1] = b
-        out[3 * k + 2] = (1.0 - s) * a + s * b
+        out[3 * k + 2] = _blend(a, b, s, real, ia, ib, zero_padding)
 
     if return_labels:
         z = torch.zeros(3 * n_triplets, dtype=torch.int64)
