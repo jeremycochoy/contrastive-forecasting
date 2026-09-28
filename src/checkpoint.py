@@ -163,8 +163,15 @@ def _detect_backbone_config(sd: dict, base_cfg: dict) -> dict:
     sizes = multi_patch_sizes_of(sd)
     if sizes:
         cfg["multi_patch_sizes"] = sizes
+    # #419 and #421: two buffers name the normaliser's padding mode and the
+    # mean/std scaling, and the frequency table's rows name the vocabulary.
+    if "rev_norm.mean_std_scaling" in sd:
+        cfg["rev_norm_kind"] = "meanstd"
+    cfg["rev_norm_skip_leading_zeros"] = "rev_norm.leading_zero_pad" in sd
     w = sd.get("freq_embedding.embedding.weight")
     cfg["freq_emb_dim"] = int(w.shape[1]) if w is not None else 0
+    if w is not None:
+        cfg["num_freqs"] = int(w.shape[0])
     w = sd.get("seasonality_embedding.embedding.weight")
     cfg["seasonality_emb_dim"] = int(w.shape[1]) if w is not None else 0
     if "log_inv_tau" in sd:
@@ -373,7 +380,9 @@ def load_backbone_from_checkpoint(
     ``seasonality_emb_dim``, ``num_encoder_layers``, ``qk_norm``,
     ``attn_out_norm``, ``forecaster_kind`` (transformer / cpc /
     linear_cpc) with ``cpc_k_steps`` and ``forecaster_d_model``,
-    ``learnable_tau``, ``patch_stats_kind``, ``multi_patch_sizes``.
+    ``learnable_tau``, ``patch_stats_kind``, ``multi_patch_sizes``,
+    ``num_freqs``, ``rev_norm_skip_leading_zeros`` and the ``'meanstd'``
+    kind of ``rev_norm_kind`` (#421).
 
     Non-load state_dict keys (``cpc_w1.*`` from the CPC-InfoNCE
     auxiliary, ``teacher_*`` from the EMA-target teacher, ``value_head.*``

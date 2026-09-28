@@ -13,7 +13,8 @@ import torch.nn.functional as F
 from .arma import generate_arma_batch
 from .encoders import PatchEncoderBank, create_encoder
 from .blocks import TransformerBlock, Simple_channel_mixing_module, AttentionChannelMixing
-from .norm import RevEWMNorm, RevIN, compute_patch_stats, PATCH_STATS_DIM
+from .norm import (RevEWMNorm, RevIN, RevMeanStdNorm, compute_patch_stats,
+                   PATCH_STATS_DIM)
 from .freq_embedding import (
     FrequencyEmbedding, SeasonalityEmbedding,
     NUM_FREQS, NUM_SEASONALITIES,
@@ -56,7 +57,8 @@ class ConfigurableModel(torch.nn.Module):
     rev_norm_skip_leading_zeros : bool
         #419. The EWMA normaliser treats the zeros before the first nonzero
         value as left padding (see ``RevEWMNorm``). Needs
-        ``rev_norm_kind='ewma'``. Default False: every earlier model.
+        ``rev_norm_kind='ewma'`` or ``'meanstd'``. Default False: every
+        earlier model.
     """
     def __init__(self, C, H, W, encoder_type='mlp', intermediate_dim=None,
                  num_layers=12, nhead=4, ffn_mult=2, dropout=0.1,
@@ -158,19 +160,25 @@ class ConfigurableModel(torch.nn.Module):
             self.value_head = torch.nn.Linear(
                 H, self.value_head_quantiles * W)
 
-        # Reversible normalization (optional). Two kinds:
-        #   ewma  → RevEWMNorm(span=rev_norm_span)  (default, dynamic)
-        #   revin → RevIN()                         (single per-instance z-score)
-        # rev_norm_span is only used by ewma. revin ignores it.
+        # Reversible normalization (optional). Three kinds:
+        #   ewma    → RevEWMNorm(span=rev_norm_span)  (default, dynamic)
+        #   revin   → RevIN()                         (single per-instance z-score)
+        #   meanstd → RevMeanStdNorm()  (#421: Moirai 1.0, context values only)
+        # rev_norm_span is only used by ewma. revin and meanstd ignore it.
         if rev_norm_skip_leading_zeros and not (
-                rev_norm_kind == 'ewma' and rev_norm_span is not None):
+                rev_norm_kind == 'meanstd' or (
+                    rev_norm_kind == 'ewma' and rev_norm_span is not None)):
             raise ValueError(
                 "rev_norm_skip_leading_zeros needs rev_norm_kind='ewma' "
-                "and a rev_norm_span")
+                "and a rev_norm_span, or rev_norm_kind='meanstd'")
         if rev_norm_kind == 'ewma' and rev_norm_span is not None:
             self.rev_norm = RevEWMNorm(
                 num_features=C, span=rev_norm_span, patch_size=W,
                 patch_emb_dtype=patch_emb_dtype,
+                skip_leading_zeros=rev_norm_skip_leading_zeros)
+        elif rev_norm_kind == 'meanstd':
+            self.rev_norm = RevMeanStdNorm(
+                num_features=C,
                 skip_leading_zeros=rev_norm_skip_leading_zeros)
         elif rev_norm_kind == 'revin':
             self.rev_norm = RevIN(num_features=C)
@@ -178,7 +186,8 @@ class ConfigurableModel(torch.nn.Module):
             self.rev_norm = None
         else:
             raise ValueError(
-                f"Unknown rev_norm_kind={rev_norm_kind!r} (expected 'ewma', 'revin', or 'none')")
+                f"Unknown rev_norm_kind={rev_norm_kind!r} (expected 'ewma', "
+                f"'revin', 'meanstd' or 'none')")
         self.rev_norm_kind = rev_norm_kind
 
         if patch_stats_kind not in {'none', 'diff', 'raw'}:
@@ -186,13 +195,15 @@ class ConfigurableModel(torch.nn.Module):
         if patch_stats_kind != 'none' and self.rev_norm is None:
             raise ValueError(
                 "patch_stats_kind requires a reversible normaliser; got rev_norm=None")
-        if patch_stats_kind != 'none' and rev_norm_kind == 'revin':
+        if patch_stats_kind != 'none' and rev_norm_kind in ('revin', 'meanstd'):
             # RevIN's mean/std are time-invariant: per-patch diffs are
             # identically zero. Refuse rather than silently waste capacity.
+            # The same holds for the one loc and scale of meanstd (#421).
             raise ValueError(
-                "patch_stats_kind incompatible with rev_norm_kind='revin' "
-                "(per-patch stats are constant under RevIN, so the feature "
-                "carries zero information).")
+                f"patch_stats_kind incompatible with rev_norm_kind="
+                f"{rev_norm_kind!r} (per-patch stats are constant under "
+                f"RevIN and meanstd, so the feature carries zero "
+                f"information).")
         self.patch_stats_kind = patch_stats_kind
         patch_stats_dim = PATCH_STATS_DIM if patch_stats_kind != 'none' else 0
 
