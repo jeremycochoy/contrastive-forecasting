@@ -1,5 +1,6 @@
 """GM-Relative MASE against data seen: each backbone rate, the two cosine
-anneals, and the value-space reference of #415. Reads
+anneals, the value-space reference of #415, and the #419 runs on all of
+GiftEvalPretrain. Reads
 results/gm_trajectories.tsv (scripts/gm_trajectories.py writes it)."""
 from collections import defaultdict
 from pathlib import Path
@@ -25,10 +26,12 @@ SERIES = [
     ("cf415_moirai",  "value space, Moirai schedule (#415)", "#8c564b", 3.2, "X", "-"),
     ("cf415_moirai_native", "the same, scored with its own head (A2V)", "#8c564b", 2.4, "o", ":"),
     ("b2cos",         "1.1M: #373 cell B2 with the same cosine as cyan", "#e377c2", 3.0, "P", "-."),
+    ("cf419_cos200k", "new data: cosine 5.6e-5 to 1e-6 by 200k", "#1a1a1a", 4.0, "*", "-"),
+    ("cf419_moirai_native", "new data: value space, Moirai schedule, its own head", "#9a9a00", 3.0, "o", "--"),
 ]
-# The value-space run trains at batch 256: one of its steps holds the data of
-# four batch-64 steps.
-XSCALE = {"cf415_moirai": 4, "cf415_moirai_native": 4}
+# The value-space runs train at batch 256: one of their steps holds the data
+# of four batch-64 steps.
+XSCALE = {"cf415_moirai": 4, "cf415_moirai_native": 4, "cf419_moirai_native": 4}
 # Where the last score of a line prints, so two lines that end together part.
 END_LABEL_OFFSET = {P + "_lr100x": (9, 4), P + "_cos200k": (9, -12)}
 BEST, BAND, PROJECT_BEST = 1.1369, 0.008, 1.0651
@@ -90,11 +93,13 @@ def main():
     ax.set_xticks(ticks)
     ax.set_xticklabels(["40k", "100k", "200k", "400k", "665k", "1,000k"])
     ax.set_xlabel("data seen, in batch-64 steps (log scale). The value-space "
-                  "run trains at batch 256, so each of its steps counts 4.")
+                  "runs train at batch 256, so each of their steps counts 4.")
     ax.set_ylabel("GM-Relative MASE, 97-config GIFT-Eval (lower is better)")
     ax.set_title("GM-Relative MASE against data seen, at 11.4M parameters unless marked\n"
-                 "The coloured lines change the backbone rate alone. The brown line "
-                 "trains the same body in value space.")
+                 "The coloured lines change the backbone rate alone. The brown lines "
+                 "train the same body in value space.\n"
+                 "Old data: the GiftEvalPretrain series of 4,096 points or more. "
+                 "New data (#419): all of GiftEvalPretrain.")
     ax.grid(alpha=0.3)
     ax.set_ylim(YMIN, YMAX)
     ax.legend(fontsize=10, loc="upper center", bbox_to_anchor=(0.5, -0.115),
