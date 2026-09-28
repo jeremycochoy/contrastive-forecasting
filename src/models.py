@@ -11,7 +11,7 @@ import torch
 import torch.nn.functional as F
 
 from .arma import generate_arma_batch
-from .encoders import create_encoder
+from .encoders import PatchEncoderBank, create_encoder
 from .blocks import TransformerBlock, Simple_channel_mixing_module, AttentionChannelMixing
 from .norm import RevEWMNorm, RevIN, compute_patch_stats, PATCH_STATS_DIM
 from .freq_embedding import (
@@ -39,6 +39,12 @@ class ConfigurableModel(torch.nn.Module):
         ``seasonality_emb_dim``. Default 0 (disabled).
     num_seasonalities : int
         Number of seasonality classes (only used when ``seasonality_emb_dim > 0``).
+    multi_patch_sizes : tuple of int
+        Empty (default): one patch size, ``W``, and one patch encoder. The
+        model and its checkpoints are unchanged. Non-empty (#417): one patch
+        encoder and one value head per size in the tuple, and one shared
+        body. ``W`` must be one of the sizes. It stays the default size and
+        the reversible normaliser's first-patch window.
     patch_stats_kind : str
         ``'none'`` (default) — backwards compatible, no extra features.
         ``'diff'`` — append two per-patch scale-free diff stats from the
@@ -85,6 +91,7 @@ class ConfigurableModel(torch.nn.Module):
                  cpc_k_steps: int = 12,
                  cpc_infonce: bool = False,
                  value_head_quantiles: int = 0,
+                 multi_patch_sizes: tuple = (),
                  qk_norm: bool = False,
                  attn_out_norm: bool = False,
                  log_attn_amplitude: bool = False,
@@ -133,12 +140,23 @@ class ConfigurableModel(torch.nn.Module):
         # `prepare_backbone_state_dict` strips `value_head.*`. Default 0 ⇒
         # the parameter is not created and every prior checkpoint is
         # byte-for-byte unchanged.
+        #
+        # A multi-patch model (#417) has one value head per patch size in
+        # `value_heads`, keyed by the size, and no `value_head`.
+        self.multi_patch_sizes = tuple(sorted(int(p) for p in multi_patch_sizes))
+        if self.multi_patch_sizes and W not in self.multi_patch_sizes:
+            raise ValueError(f"multi_patch_sizes={self.multi_patch_sizes} must "
+                             f"hold the base patch size W={W}")
         self.value_head_quantiles = int(value_head_quantiles)
-        if self.value_head_quantiles > 0:
+        self.value_head = None
+        self.value_heads = None
+        if self.value_head_quantiles > 0 and self.multi_patch_sizes:
+            self.value_heads = torch.nn.ModuleDict({
+                str(p): torch.nn.Linear(H, self.value_head_quantiles * p)
+                for p in self.multi_patch_sizes})
+        elif self.value_head_quantiles > 0:
             self.value_head = torch.nn.Linear(
                 H, self.value_head_quantiles * W)
-        else:
-            self.value_head = None
 
         # Reversible normalization (optional). Two kinds:
         #   ewma  → RevEWMNorm(span=rev_norm_span)  (default, dynamic)
@@ -195,8 +213,7 @@ class ConfigurableModel(torch.nn.Module):
 
         # Encoder input width: W (patch values) + patch_stats + freq + seasonality.
         encoder_input = W + patch_stats_dim + freq_emb_dim + seasonality_emb_dim
-        self.encoder = create_encoder(
-            encoder_type, encoder_input, H, intermediate_dim,
+        encoder_kwargs = dict(
             transformer_num_layers=enc_transformer_num_layers,
             transformer_nhead=enc_transformer_nhead,
             transformer_ffn_mult=enc_transformer_ffn_mult,
@@ -205,6 +222,21 @@ class ConfigurableModel(torch.nn.Module):
             transformer_chunk_size=enc_transformer_chunk_size,
             transformer_use_grad_checkpoint=enc_transformer_use_grad_checkpoint,
             patch_emb_dtype=patch_emb_dtype)
+        if self.multi_patch_sizes:
+            # #417: one patch encoder per size. The patch statistics read
+            # the normaliser's whole batch, so they cannot follow a batch
+            # that splits by size.
+            if patch_stats_kind != 'none':
+                raise ValueError("multi_patch_sizes needs patch_stats_kind='none'")
+            tail = encoder_input - W
+            self.encoder = PatchEncoderBank({
+                p: create_encoder(encoder_type, p + tail, H, intermediate_dim,
+                                  **encoder_kwargs)
+                for p in self.multi_patch_sizes}, tail)
+        else:
+            self.encoder = create_encoder(
+                encoder_type, encoder_input, H, intermediate_dim,
+                **encoder_kwargs)
 
         # Forecaster bottleneck (#286 follow-up, v13). When
         # `forecaster_d_model` is None, the forecaster runs at the encoder's
@@ -403,23 +435,46 @@ class ConfigurableModel(torch.nn.Module):
         if getattr(self, 'learnable_tau', False):
             self.log_inv_tau.data.clamp_(0.0, math.log(100.0))
 
-    def value_forward(self, f_lat):
-        """Decode forecaster latents into the next patch's values (#415).
+    @property
+    def patch_sizes(self):
+        """The patch sizes this model reads: ``(W,)``, or the multi-patch set."""
+        return getattr(self, 'multi_patch_sizes', ()) or (self.W,)
 
-        ``f_lat``: ``[B, T, C, H]`` — the forecaster output of
-        :meth:`forward`. Returns ``[B, T, C, Q, W]``: at position t, the Q
-        quantiles of the W values of patch t + 1.
+    def _patch_size(self, patch_size):
+        """``patch_size``, or W when it is None. Raises on a size with no encoder."""
+        size = self.W if patch_size is None else int(patch_size)
+        if size not in self.patch_sizes:
+            raise ValueError(f"patch size {size} is not one of this model's "
+                             f"sizes {self.patch_sizes}")
+        return size
+
+    def value_head_for(self, patch_size=None):
+        """The value head that decodes patches of ``patch_size`` values.
 
         Raises RuntimeError on a model built without a value head. A silent
         fallback would train the objective on nothing.
         """
-        if self.value_head is None:
+        if self.value_head_quantiles <= 0:
             raise RuntimeError(
                 "value_forward needs a value head; build the model with "
                 "value_head_quantiles > 0 (--value-space-objective).")
+        size = self._patch_size(patch_size)
+        if getattr(self, 'value_heads', None) is not None:
+            return self.value_heads[str(size)]
+        return self.value_head
+
+    def value_forward(self, f_lat, patch_size=None):
+        """Decode forecaster latents into the next patch's values (#415).
+
+        ``f_lat``: ``[B, T, C, H]`` — the forecaster output of
+        :meth:`forward`. Returns ``[B, T, C, Q, P]``: at position t, the Q
+        quantiles of the P values of patch t + 1. P is ``patch_size``, W by
+        default.
+        """
+        head = self.value_head_for(patch_size)
         B, T, C, _ = f_lat.shape
-        return self.value_head(f_lat).reshape(
-            B, T, C, self.value_head_quantiles, self.W)
+        return head(f_lat).reshape(
+            B, T, C, self.value_head_quantiles, self._patch_size(patch_size))
 
     def _apply_freq_embedding(self, x_patch, freq_ids=None, freq_embs=None):
         """Widen the per-patch time axis with a broadcast freq embedding.
@@ -465,7 +520,8 @@ class ConfigurableModel(torch.nn.Module):
         return torch.cat([x_patch, emb_b], dim=-1)
 
     def prepare_encoder_input(self, x_norm, freq_ids=None, freq_embs=None,
-                               seasonality_ids=None, seasonality_embs=None):
+                               seasonality_ids=None, seasonality_embs=None,
+                               patch_size=None):
         """Build the per-patch encoder input from an *already-normalised* series.
 
         Output shape: ``[B, T_patches, C, W + patch_stats + freq_emb + seasonality_emb]``.
@@ -474,9 +530,12 @@ class ConfigurableModel(torch.nn.Module):
         assumes ``x_norm = rev_norm(x, 'norm')``. We split it out so that
         downstream code (``extract_*_latents`` in :mod:`src.forecasting_head`)
         can reuse the exact same patching pipeline as the train-time forward.
+
+        ``patch_size`` cuts the series into patches of that size instead of
+        W (#417). Only a multi-patch model has encoders for other sizes.
         """
         B, T_raw, C = x_norm.shape
-        W = self.W
+        W = self._patch_size(patch_size)
         assert T_raw % W == 0, f"T_raw={T_raw} must be a multiple of W={W}"
         T = T_raw // W
 
@@ -499,9 +558,10 @@ class ConfigurableModel(torch.nn.Module):
         return x
 
     def forward(self, x, freq_ids=None, freq_embs=None,
-                 seasonality_ids=None, seasonality_embs=None):
+                 seasonality_ids=None, seasonality_embs=None,
+                 patch_size=None):
         B, T_raw, C = x.shape
-        W = self.W
+        W = self._patch_size(patch_size)
         H = self.H
         assert T_raw % W == 0
         T = T_raw // W
@@ -512,7 +572,8 @@ class ConfigurableModel(torch.nn.Module):
 
         x = self.prepare_encoder_input(
             x, freq_ids=freq_ids, freq_embs=freq_embs,
-            seasonality_ids=seasonality_ids, seasonality_embs=seasonality_embs)
+            seasonality_ids=seasonality_ids, seasonality_embs=seasonality_embs,
+            patch_size=W)
         x, x_original = self.transformer(x)
         x = x.reshape(B, C, T, H).permute(0, 2, 1, 3).reshape(B, T, C * H)
         x_original = x_original.reshape(B, C, T, H).permute(0, 2, 1, 3)

@@ -263,6 +263,31 @@ class TransformerEncoder(nn.Module):
         return out.reshape(B, T, C, H)                          # [B, T, C, H]
 
 
+class PatchEncoderBank(nn.Module):
+    """One patch encoder per patch size (#417).
+
+    A patch of P values reaches the encoder as P + ``tail`` features: the
+    values, then the patch statistics and the label embeddings. The width
+    of the input therefore names its patch size, and the bank hands the
+    patch to that size's encoder. So every caller that runs
+    ``transformer(prepare_encoder_input(x, patch_size=P))`` reads size P
+    with no other change.
+    """
+
+    def __init__(self, encoders: dict, tail: int):
+        super().__init__()
+        self.tail = int(tail)
+        self.encoders = nn.ModuleDict(
+            {str(size): encoders[size] for size in sorted(encoders)})
+
+    def forward(self, x):
+        size = str(x.shape[-1] - self.tail)
+        if size not in self.encoders:
+            raise ValueError(f"no patch encoder for patch size {size}; the "
+                             f"bank holds {list(self.encoders)}")
+        return self.encoders[size](x)
+
+
 def create_encoder(encoder_type, W, H, intermediate_dim=None,
                    transformer_num_layers=4, transformer_nhead=6,
                    transformer_ffn_mult=4, transformer_dropout=0.0,

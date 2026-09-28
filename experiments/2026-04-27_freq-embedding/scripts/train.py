@@ -73,8 +73,10 @@ from src.norm import patch_padding
 from src.forecasting_head import (QUANTILE_LEVELS,
                                   extract_encoder_latents,
                                   extract_teacher_encoder_latents,
+                                  multi_patch_value_objective,
                                   rollout_forecaster_latents,
                                   value_space_objective)
+from src.patch_size import check_patch_sizes, draw_patch_sizes
 
 # -- Tiny architecture (identical to v3c) -----------------------------------
 # C and T_raw can be overridden at runtime via --n-channels / --t-raw to
@@ -668,6 +670,14 @@ def build_parser():
                         "there is one copy and the two agree exactly, so "
                         "every published run reproduces under either. "
                         "docs/train_rollout_depth.md.")
+    p.add_argument("--multi-patch-sizes", default=None,
+                   help="One GRU patch encoder and one value head per patch "
+                        "size, e.g. 8,16,32,64,128 (#417). The body stays "
+                        "shared. Each sample draws its size from its "
+                        "frequency's range, as Moirai 1.0 does "
+                        "(src/patch_size.py), and a batch trains one group "
+                        "per size. Needs --value-space-objective. Default "
+                        "off: one patch size, W.")
     p.add_argument("--ema-embedding", action="store_true",
                    help="BYOL/JEPA EMA-teacher copy of the patch-embedding "
                         "(--encoder-type's input_to_latent). Non-trained; "
@@ -965,6 +975,39 @@ def parse_extra_save_steps(spec):
     return frozenset(vals)
 
 
+def parse_multi_patch_sizes(args):
+    """--multi-patch-sizes as a sorted tuple of ints, or () when off (#417).
+
+    Raises SystemExit when the run cannot train the sizes: without
+    --value-space-objective, which is the only objective with value heads;
+    with a set that leaves a frequency without a size; or with a window
+    that holds too few patches of the largest size for the rollout.
+    """
+    if args.multi_patch_sizes is None:
+        return ()
+    if not args.value_space_objective:
+        raise SystemExit("--multi-patch-sizes gives each patch size its own "
+                         "value head, and only --value-space-objective "
+                         "trains one (#417).")
+    try:
+        sizes = tuple(sorted({int(s) for s in args.multi_patch_sizes.split(",")}))
+        check_patch_sizes(sizes, base_size=MODEL_CONFIG["W"])
+    except ValueError as e:
+        raise SystemExit(f"--multi-patch-sizes {args.multi_patch_sizes}: {e}")
+    check_window_holds_patches(args, sizes)
+    return sizes
+
+
+def check_window_holds_patches(args, sizes):
+    """A rollout of depth k supervises patch t + 1 + k, so a window needs
+    k + 2 whole patches at every size (#417)."""
+    need = args.train_rollout_depth + 2
+    if any(args.t_raw % p or args.t_raw // p < need for p in sizes):
+        raise SystemExit(f"--multi-patch-sizes: --t-raw {args.t_raw} must hold "
+                         f"a whole number of patches, and at least {need}, "
+                         f"at every size of {sizes}.")
+
+
 def should_snapshot(step, save_every, extra_steps):
     """True at step > 0 if step matches --save-every or is in the extras set."""
     if step <= 0:
@@ -1095,6 +1138,8 @@ VALUE_SPACE_FLAGS = frozenset((
     "freq_emb_dim", "seasonality_emb_dim", "freq_vocab",
     # The objective.
     "value_space_objective", "train_rollout_depth", "train_rollout_reduce",
+    # One patch encoder and one value head per patch size (#417).
+    "multi_patch_sizes",
 ))
 
 
@@ -1591,6 +1636,7 @@ def main():
             raise SystemExit(
                 "--value-space-objective needs the single-step transformer "
                 f"forecaster; got --forecaster-kind {args.forecaster_kind}.")
+    multi_patch_sizes = parse_multi_patch_sizes(args)
 
     check_gift_pretrain(args)
 
@@ -1698,6 +1744,9 @@ def main():
     # 0 on every other run, so the model is the cell's unchanged.
     model_config["value_head_quantiles"] = (
         len(QUANTILE_LEVELS) if args.value_space_objective else 0)
+    # #417: one patch encoder and one value head per size. Empty on every
+    # other run, so the model is the one above, unchanged.
+    model_config["multi_patch_sizes"] = multi_patch_sizes
     model_config["qk_norm"] = bool(args.qk_norm)
     model_config["attn_out_norm"] = bool(args.attn_out_norm)
     model_config["log_attn_amplitude"] = bool(args.log_attn_amplitude)
@@ -1963,6 +2012,11 @@ def main():
               f"depth {args.train_rollout_depth} in value space, "
               f"reduce={args.train_rollout_reduce}. No teacher, no EMA, no "
               f"L_rep, no L_align, no CPC, no SIGReg.")
+    if multi_patch_sizes:
+        print(f"Multi-patch (#417): one patch encoder and one value head per "
+              f"patch size {multi_patch_sizes}. Each sample draws its size "
+              f"from its frequency's range; a sample with no frequency label "
+              f"draws from every size.")
     print(f"Training for {args.total_steps} steps, bs={args.batch_size}, "
           f"lr={args.lr}, T={args.t_raw}, C={args.n_channels}, "
           f"mix_ratio={args.mix_ratio}, "
@@ -2190,14 +2244,30 @@ def main():
                       if model.rev_norm is not None else x)
             # #419: with zero left padding the normaliser marks the padded
             # values, and the objective skips them. None on every other run.
-            value_loss, f_lat, o_lat, value_depths = value_space_objective(
-                model, x_norm,
-                depth=args.train_rollout_depth,
-                reduce=args.train_rollout_reduce,
-                freq_ids=freq_ids, freq_embs=freq_embs,
-                seasonality_ids=seasonality_ids,
-                seasonality_embs=seasonality_embs,
-                pad_mask=getattr(model.rev_norm, "pad_mask", None))
+            pad_mask = getattr(model.rev_norm, "pad_mask", None)
+            if multi_patch_sizes:
+                # #417: each sample reads the patch size its frequency
+                # draws, and the batch trains one group per size.
+                value_loss, f_lat, o_lat, value_depths = \
+                    multi_patch_value_objective(
+                        model, x_norm,
+                        draw_patch_sizes(freq_ids, multi_patch_sizes,
+                                         x.shape[0]),
+                        depth=args.train_rollout_depth,
+                        reduce=args.train_rollout_reduce,
+                        freq_ids=freq_ids, freq_embs=freq_embs,
+                        seasonality_ids=seasonality_ids,
+                        seasonality_embs=seasonality_embs,
+                        pad_mask=pad_mask)
+            else:
+                value_loss, f_lat, o_lat, value_depths = value_space_objective(
+                    model, x_norm,
+                    depth=args.train_rollout_depth,
+                    reduce=args.train_rollout_reduce,
+                    freq_ids=freq_ids, freq_embs=freq_embs,
+                    seasonality_ids=seasonality_ids,
+                    seasonality_embs=seasonality_embs,
+                    pad_mask=pad_mask)
             teacher_o_lat = None
             e_lat = None
         elif use_ema:
