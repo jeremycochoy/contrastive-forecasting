@@ -379,12 +379,29 @@ def test_the_split_falls_on_a_patch_of_each_sample_size(size):
     lengths = torch.randint(2 * size, T + 1, (500, 1, 1))
     ends = draw_context_ends(lengths, torch.full((500,), size), T)
     assert (ends % size == 0).all()
-    n_real = (lengths + size - 1) // size
     targets = (T - ends) // size
     assert (targets >= 1).all()
-    # The context keeps at least one patch of real values: P or more.
-    assert (n_real - targets >= 1).all()
+    assert (targets <= (lengths // size // 2).clamp(min=1)).all()
+    # The context keeps at least one whole patch of real values.
     assert (ends - (T - lengths) >= size).all()
+
+
+def test_the_split_counts_whole_patches_only():
+    """uni2ts crops a series to whole patches. 3 whole patches and one
+    value more give one target patch at every r below 0.5."""
+    torch.manual_seed(0)
+    lengths = torch.full((2000, 1, 1), 3 * 16 + 1)
+    ends = draw_context_ends(lengths, torch.full((2000,), 16), T)
+    assert (ends == T - 16).all()
+
+
+def test_the_channels_of_a_sample_share_one_ratio():
+    """uni2ts draws one ratio per sample, for all its variates."""
+    torch.manual_seed(0)
+    ends = draw_context_ends(torch.full((300, 1, 2), T),
+                             torch.full((300,), 8), T)
+    assert torch.equal(ends[:, :, 0], ends[:, :, 1])
+    assert len(ends.unique()) > 10
 
 
 def test_a_sample_draws_a_size_that_fits_two_patches():

@@ -2040,10 +2040,11 @@ def main():
               f"draws from every size.")
     if args.rev_norm_kind == "meanstd":
         print("Scaling (#421): the mean/std scaling of Moirai 1.0. Each "
-              "window draws a target fraction r ~ U[0.15, 0.5] of its real "
-              "patches; loc and scale come from the observed values before "
-              "the split, and the loss counts only the patches after it. A "
-              "size needs two patches of real values (uni2ts GetPatchSize).")
+              "window draws a target fraction r ~ U[0.15, 0.5] of its whole "
+              "patches of real values. loc and scale come from the observed "
+              "values before the split, and the loss counts only the patches "
+              "after it. A size needs two whole patches of real values "
+              "(uni2ts GetPatchSize).")
     print(f"Training for {args.total_steps} steps, bs={args.batch_size}, "
           f"lr={args.lr}, T={args.t_raw}, C={args.n_channels}, "
           f"mix_ratio={args.mix_ratio}, "

@@ -1114,11 +1114,13 @@ def draw_context_ends(real_lengths, sample_sizes, T_raw):
 
     ``real_lengths`` (``[B, 1, C]``) counts the real values of each window,
     its length after the left padding. ``sample_sizes`` (``[B]``) is the
-    patch size P of each sample. Per window, as uni2ts ``MaskedPrediction``
-    does on the n patches that hold a real value: r ~ U[0.15, 0.5], and the
-    last max(1, round(r n)) of them are the target. A window with fewer
-    than two patches of real values (length < 2 P) has no target: its
-    context ends at ``T_raw``, and the loss counts none of its terms.
+    patch size P of each sample. As uni2ts ``MaskedPrediction`` does, each
+    sample draws one r ~ U[0.15, 0.5], and the last max(1, round(r n)) of
+    the n whole patches of real values are the target. uni2ts crops a
+    series to whole patches, so n does not count a first patch that holds
+    padding too. That patch stays in the context. A window with fewer than
+    two whole patches (length < 2 P) has no target: its context ends at
+    ``T_raw``, and the loss counts none of its terms.
 
     Returns a CPU LongTensor ``[B, 1, C]``: the index of the first value
     after the context, a multiple of P. The draw uses torch's CPU generator.
@@ -1126,10 +1128,9 @@ def draw_context_ends(real_lengths, sample_sizes, T_raw):
     lengths = real_lengths.detach().cpu().long()
     P = sample_sizes.detach().cpu().long().view(-1, 1, 1)
     low, high = TARGET_RATIO_RANGE
-    ratio = low + (high - low) * torch.rand(lengths.shape,
+    ratio = low + (high - low) * torch.rand((lengths.shape[0], 1, 1),
                                             dtype=torch.float64)
-    n_real = (lengths + P - 1) // P
-    targets = torch.round(n_real * ratio).long().clamp(min=1)
+    targets = torch.round(lengths // P * ratio).long().clamp(min=1)
     ends = (T_raw // P - targets) * P
     return torch.where(lengths < MIN_TIME_PATCHES * P, T_raw, ends)
 
