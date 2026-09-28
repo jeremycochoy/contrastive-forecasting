@@ -24,7 +24,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from .patch_size import patch_size_choices
+from .norm import RevMeanStdNorm, leading_zero_count
+from .patch_size import MIN_TIME_PATCHES, draw_patch_sizes, patch_size_choices
 
 
 W = 16  # Patch size (must match backbone)
@@ -403,7 +404,8 @@ def quantile_loss(predicted, target, quantile_levels=QUANTILE_LEVELS):
 
 
 def extract_forecaster_latents(backbone, x, freq_ids=None,
-                                seasonality_ids=None, patch_size=None):
+                                seasonality_ids=None, patch_size=None,
+                                normalised=False):
     """Extract f_lat from backbone for forecasting head input.
 
     Applies RevEWMNorm, patches the input (incl. patch-stats, freq-emb,
@@ -420,10 +422,12 @@ def extract_forecaster_latents(backbone, x, freq_ids=None,
             (unknown) if missing.
         patch_size: the patch size a multi-patch backbone reads (#417).
             None reads the backbone's one size, W.
+        normalised: True when ``x`` is already normalised (#421): the
+            normaliser does not run, and its statistics stay as they are.
     """
     size_kwarg = {} if patch_size is None else {"patch_size": patch_size}
     with torch.no_grad():
-        if backbone.rev_norm is not None:
+        if backbone.rev_norm is not None and not normalised:
             x_norm = backbone.rev_norm(x, mode='norm')
         else:
             x_norm = x
@@ -953,14 +957,23 @@ def shift_pad(pad_mask, W, j):
     return out
 
 
-def _depth_loss(v_hat, x_norm, W, j, pad_mask, quantile_levels):
-    """The pinball term of depth j, over the real target values only when
-    ``pad_mask`` marks left padding."""
-    targets, t_valid = patch_value_targets(x_norm, W, shift=j)
+def target_keep(pad_mask, target_mask):
+    """``[B, T_raw, C]`` bool: the values a loss term may predict. A value
+    counts when it is not left padding (#419) and lies after its window's
+    split (#421). None when every value counts."""
     if pad_mask is None:
+        return target_mask
+    return ~pad_mask if target_mask is None else ~pad_mask & target_mask
+
+
+def _depth_loss(v_hat, x_norm, W, j, keep, quantile_levels):
+    """The pinball term of depth j, over the kept target values only when
+    ``keep`` (:func:`target_keep`) marks them."""
+    targets, t_valid = patch_value_targets(x_norm, W, shift=j)
+    if keep is None:
         return quantile_loss(v_hat[:, :t_valid], targets, quantile_levels)
-    keep, _ = patch_value_targets(~pad_mask, W, shift=j)
-    return masked_quantile_loss(v_hat[:, :t_valid], targets, keep,
+    kept, _ = patch_value_targets(keep, W, shift=j)
+    return masked_quantile_loss(v_hat[:, :t_valid], targets, kept,
                                 quantile_levels)
 
 
@@ -968,7 +981,7 @@ def value_space_objective(model, x_norm, *, depth=0, reduce="sum",
                           quantile_levels=QUANTILE_LEVELS,
                           freq_ids=None, freq_embs=None,
                           seasonality_ids=None, seasonality_embs=None,
-                          patch_size=None, pad_mask=None):
+                          patch_size=None, pad_mask=None, target_mask=None):
     """Pinball loss on the actual future values, rolled out in value space.
 
     Depth 0 predicts patch t + 1 from position t. Depth j re-runs the whole
@@ -993,11 +1006,17 @@ def value_space_objective(model, x_norm, *, depth=0, reduce="sum",
     ``RevEWMNorm(skip_leading_zeros=True)`` leaves it after the norm call.
     A padded value is no target, and each rolled input keeps its padding at
     0, as the context of the eval rollout does. None: every value counts.
+
+    ``target_mask`` (#421), ``[B, T_raw, C]``, marks the values after the
+    split of each window (:func:`mean_std_inputs`). A loss term counts only
+    when its predicted patch lies there, at every depth. None: every
+    position trains, as before.
     """
     if reduce not in ("sum", "mean"):
         raise ValueError(f"reduce must be 'sum' or 'mean'; got {reduce!r}")
     q_index = median_quantile_index(quantile_levels)
     P = model.W if patch_size is None else int(patch_size)
+    keep = target_keep(pad_mask, target_mask)
     x_in = x_norm
     f_lat0 = o_lat0 = None
     per_depth = []
@@ -1008,7 +1027,7 @@ def value_space_objective(model, x_norm, *, depth=0, reduce="sum",
             seasonality_embs=seasonality_embs, patch_size=P)
         if j == 0:
             f_lat0, o_lat0 = f_lat, o_lat
-        per_depth.append(_depth_loss(v_hat, x_norm, P, j, pad_mask,
+        per_depth.append(_depth_loss(v_hat, x_norm, P, j, keep,
                                      quantile_levels))
         if j < depth:
             x_in = value_patches_to_series(v_hat, q_index)
@@ -1054,8 +1073,8 @@ def multi_patch_value_objective(model, x_norm, sample_sizes, *, depth=0,
 
     ``sample_sizes`` is a LongTensor of one size per sample.
     ``conditioning`` takes the per-sample inputs of
-    :func:`value_space_objective`: ``freq_*``, ``seasonality_*`` and the
-    ``pad_mask`` of #419, one row per sample.
+    :func:`value_space_objective`: ``freq_*``, ``seasonality_*``, the
+    ``pad_mask`` of #419 and the ``target_mask`` of #421, one row per sample.
 
     Returns ``(loss, f_lat, o_lat, per_depth)``. The trainer's diagnostics
     read one sequence length, so the latents are those of the base size
@@ -1074,6 +1093,75 @@ def multi_patch_value_objective(model, x_norm, sample_sizes, *, depth=0,
         latents[size] = (len(rows), f_lat, o_lat)
     f_lat, o_lat = _diagnostic_latents(latents, model.W)
     return loss, f_lat, o_lat, per_depth
+
+
+# ---------------------------------------------------------------------------
+# The mean/std scaling of Moirai 1.0 (#421): the split of a training window
+#
+# uni2ts `MaskedPrediction` (min_mask_ratio 0.15, max_mask_ratio 0.5 in
+# moirai_{small,base,large}.yaml) draws r ~ U[0.15, 0.5] per sample. The
+# last max(1, round(r * patches)) patches are the prediction range, and
+# `PackedStdScaler` reads the observed values before it. The model here
+# predicts the next patch at every position, so the split only decides
+# which values the statistics read and which predictions the loss counts.
+# ---------------------------------------------------------------------------
+
+TARGET_RATIO_RANGE = (0.15, 0.5)
+
+
+def draw_context_ends(real_lengths, sample_sizes, T_raw):
+    """Where the context of each series window ends (#421).
+
+    ``real_lengths`` (``[B, 1, C]``) counts the real values of each window,
+    its length after the left padding. ``sample_sizes`` (``[B]``) is the
+    patch size P of each sample. Per window, as uni2ts ``MaskedPrediction``
+    does on the n patches that hold a real value: r ~ U[0.15, 0.5], and the
+    last max(1, round(r n)) of them are the target. A window with fewer
+    than two patches of real values (length < 2 P) has no target: its
+    context ends at ``T_raw``, and the loss counts none of its terms.
+
+    Returns a CPU LongTensor ``[B, 1, C]``: the index of the first value
+    after the context, a multiple of P. The draw uses torch's CPU generator.
+    """
+    lengths = real_lengths.detach().cpu().long()
+    P = sample_sizes.detach().cpu().long().view(-1, 1, 1)
+    low, high = TARGET_RATIO_RANGE
+    ratio = low + (high - low) * torch.rand(lengths.shape,
+                                            dtype=torch.float64)
+    n_real = (lengths + P - 1) // P
+    targets = torch.round(n_real * ratio).long().clamp(min=1)
+    ends = (T_raw // P - targets) * P
+    return torch.where(lengths < MIN_TIME_PATCHES * P, T_raw, ends)
+
+
+def mean_std_inputs(model, x, freq_ids=None, multi_patch_sizes=()):
+    """``(x_norm, sample_sizes, target_mask)`` of one value-space step under
+    the mean/std scaling (#421).
+
+    1. Each sample draws its patch size from its frequency's range, among
+       the sizes that cut its real values into two patches (uni2ts
+       ``GetPatchSize``). A single-patch model reads W.
+    2. Each window draws its split in patches of that size
+       (:func:`draw_context_ends`).
+    3. loc and scale come from the observed values before the split and
+       normalise the whole window. No value after the split enters them.
+
+    ``target_mask`` (``[B, T_raw, C]``) marks the values after the split.
+    ``sample_sizes`` is None for a single-patch model.
+    """
+    B, T_raw, C = x.shape
+    if model.rev_norm.skip_leading_zeros:
+        lengths = T_raw - leading_zero_count(x).cpu()
+    else:
+        lengths = torch.full((B, 1, C), T_raw)
+    sizes = torch.full((B,), model.W)
+    if multi_patch_sizes:
+        sizes = draw_patch_sizes(freq_ids, multi_patch_sizes, B,
+                                 lengths=lengths.amax(dim=(1, 2)))
+    ends = draw_context_ends(lengths, sizes, T_raw).to(x.device)
+    x_norm = model.rev_norm(x, mode='norm', context_end=ends)
+    t = torch.arange(T_raw, device=x.device).view(1, -1, 1)
+    return x_norm, (sizes if multi_patch_sizes else None), t >= ends
 
 
 def _get_denorm_stats(backbone, C):
@@ -1179,9 +1267,16 @@ def forecast_A2(backbone, head, x_context, horizon, device):
     A head with a ``patch_size`` (the value head of a multi-patch backbone,
     #417) makes the backbone read the context in patches of that size, and
     the rollout then slides by that size.
+
+    A backbone with the mean/std scaling (#421) takes loc and scale from the
+    observed values of the full context, once. The rollout then feeds the
+    normalised median back, as the training rollout does, so loc and scale
+    stay fixed over the whole horizon, and every forecast is de-normalised
+    with them.
     """
     forecast_len = head.forecast_len  # should be W (16)
     patch_size = getattr(head, "patch_size", None)
+    fixed_scale = isinstance(backbone.rev_norm, RevMeanStdNorm)
 
     if x_context.dim() == 2:
         x_context = x_context.unsqueeze(0)
@@ -1191,11 +1286,16 @@ def forecast_A2(backbone, head, x_context, horizon, device):
     all_preds = []
     remaining = horizon
     current_context = x_context.clone()
+    if fixed_scale:
+        # From here on the context is in normalised units (#421).
+        with torch.no_grad():
+            current_context = backbone.rev_norm(current_context, mode='norm')
 
     while remaining > 0:
         with torch.no_grad():
-            f_bc, x_norm = extract_forecaster_latents(
-                backbone, current_context, patch_size=patch_size)
+            f_bc, _ = extract_forecaster_latents(
+                backbone, current_context, patch_size=patch_size,
+                normalised=fixed_scale)
             pred_last = _last_forecast(head, f_bc)  # (C, L) or (C, Q, L)
 
             mean_c, stdev_c = _get_denorm_stats(backbone, C)
@@ -1216,6 +1316,12 @@ def forecast_A2(backbone, head, x_context, horizon, device):
             remaining -= n_take
 
             if remaining > 0:
+                if fixed_scale:
+                    # #421: the normalised median rolls forward.
+                    rolled = pred_last
+                    if rolled.dim() == 3:
+                        rolled = rolled[:, median_quantile_index(
+                            head.quantile_levels)]
                 new_values = rolled[:, :forecast_len].T.unsqueeze(0)
                 current_context = torch.cat([
                     current_context[:, forecast_len:, :],

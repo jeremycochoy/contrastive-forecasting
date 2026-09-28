@@ -26,6 +26,9 @@ from .freq_embedding import FREQ_NAMES_V2
 
 PATCH_SIZES = (8, 16, 32, 64, 128)
 
+# uni2ts GetPatchSize / PatchCrop: a sample holds at least two patches.
+MIN_TIME_PATCHES = 2
+
 # Frequency class -> (smallest, largest) patch size in training. uni2ts gives
 # Q and Y the range 1 to 8; 8 is our smallest size. None is "no label".
 TRAIN_RANGE = {
@@ -108,12 +111,18 @@ def check_patch_sizes(sizes, base_size=16):
             raise ValueError(f"frequency {cls} reads at {size}, not in {sizes}")
 
 
-def draw_patch_sizes(freq_ids, sizes, n) -> torch.Tensor:
+def draw_patch_sizes(freq_ids, sizes, n, lengths=None) -> torch.Tensor:
     """One patch size per sample: uniform over its frequency's range.
 
     ``freq_ids`` is the batch's LongTensor of frequency ids, or None for a
     batch with no labels. Returns a CPU LongTensor of ``n`` sizes. The draw
     uses torch's CPU generator, so a seeded run draws the same sizes.
+
+    ``lengths`` (#421) is a LongTensor of the real values of each sample,
+    its length after the left padding. A size P must then cut them into at
+    least two patches (length >= 2 P), as uni2ts ``GetPatchSize`` asks with
+    ``min_time_patches = 2``. A sample that no size of its range fits draws
+    from the whole range. None: every size of the range, as #417 draws.
     """
     ids = (torch.zeros(n, dtype=torch.long) if freq_ids is None
            else freq_ids.detach().cpu().long())
@@ -121,5 +130,18 @@ def draw_patch_sizes(freq_ids, sizes, n) -> torch.Tensor:
     for freq_id in ids.unique().tolist():
         rows = (ids == freq_id).nonzero().squeeze(1)
         choices = torch.tensor(patch_size_choices(int(freq_id), sizes))
-        out[rows] = choices[torch.randint(len(choices), (len(rows),))]
+        if lengths is None:
+            out[rows] = choices[torch.randint(len(choices), (len(rows),))]
+        else:
+            out[rows] = _draw_fitting(choices, lengths.detach().cpu()[rows])
     return out
+
+
+def _draw_fitting(choices, lengths):
+    """Per row, a uniform draw among the ``choices`` P with ``2 P <= length``,
+    or among all of them when none fits."""
+    fits = MIN_TIME_PATCHES * choices.view(1, -1) <= lengths.view(-1, 1)
+    fits[~fits.any(dim=1)] = True
+    pick = (torch.rand(len(lengths)) * fits.sum(dim=1)).long()
+    nth = fits.long().cumsum(dim=1) - 1
+    return choices[((nth == pick.view(-1, 1)) & fits).long().argmax(dim=1)]
