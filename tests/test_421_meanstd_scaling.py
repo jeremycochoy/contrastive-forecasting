@@ -15,6 +15,8 @@ Six groups, all on the CPU:
    and the backbone loader read the kind from the checkpoint.
 6. The trainer: its refusal, and one step plus one A2V forecast on the
    stream with its frequency labels.
+7. The window filter of Moirai 2.0 (--meanstd-z-max): a far window leaves
+   the batch, the loss stays finite, and the flag off keeps #421.
 """
 
 from __future__ import annotations
@@ -39,6 +41,7 @@ from src.forecasting_head import (  # noqa: E402
     QUANTILE_LEVELS,
     TARGET_RATIO_RANGE,
     draw_context_ends,
+    drop_far_windows,
     forecast_A2,
     mean_std_inputs,
     median_quantile_index,
@@ -700,3 +703,179 @@ def test_an_a2v_forecast_of_the_trained_model(trained):
     forecast = predictor.predict_item(item)
     assert forecast.forecast_array.shape == (Q + 1, 48)
     assert np.isfinite(forecast.forecast_array).all()
+
+
+# ---------------------------------------------------------------------------
+# 7. The window filter
+# ---------------------------------------------------------------------------
+
+Z_MAX = 100.0
+
+
+def jumped(x, rows, jump):
+    """``x`` with ``jump`` added to the last 8 values of ``rows``. They lie in
+    the target part, which holds one patch of 8 or more values."""
+    x = x.clone()
+    x[rows, -8:] += jump
+    return x
+
+
+def meanstd_step(m, x, freqs, z_max, seed=11, depth=2):
+    """The trainer's meanstd step: the split, the scaler, the filter when
+    ``z_max`` > 0, then the objective. Returns (loss, dropped share)."""
+    torch.manual_seed(seed)
+    x_norm, sizes, target = mean_std_inputs(m, x, freqs["freq_ids"], SIZES)
+    pad, fid, sid = (m.rev_norm.pad_mask, freqs["freq_ids"],
+                     freqs["seasonality_ids"])
+    share = 0.0
+    if z_max > 0:
+        (x_norm, target, pad, sizes, fid, sid), share = drop_far_windows(
+            z_max, x_norm, target, pad, sizes, fid, sid)
+    loss = multi_patch_value_objective(
+        m, x_norm, sizes, depth=depth, pad_mask=pad, target_mask=target,
+        freq_ids=fid, seasonality_ids=sid)[0]
+    return loss, share
+
+
+def test_a_far_window_adds_no_loss_term_and_never_reaches_the_model(
+        monkeypatch):
+    torch.manual_seed(0)
+    m = model().eval()
+    x = jumped(windows([T, 600, 300]), [1], 1e6)
+    freqs = ids(["1h", "1h", "1d"])
+    with torch.no_grad():
+        torch.manual_seed(11)
+        x_norm, sizes, target = mean_std_inputs(m, x, freqs["freq_ids"],
+                                                SIZES)
+        rest = torch.tensor([0, 2])
+        want = multi_patch_value_objective(
+            m, x_norm[rest], sizes[rest], depth=2,
+            pad_mask=m.rev_norm.pad_mask[rest], target_mask=target[rest],
+            freq_ids=freqs["freq_ids"][rest],
+            seasonality_ids=freqs["seasonality_ids"][rest])[0]
+        seen, real = [], fh.value_space_forward
+
+        def spy(model, x_in, **kw):
+            seen.append(x_in.detach().clone())
+            return real(model, x_in, **kw)
+
+        monkeypatch.setattr(fh, "value_space_forward", spy)
+        loss, share = meanstd_step(m, x, freqs, Z_MAX)
+    assert share == pytest.approx(1 / 3)
+    assert torch.allclose(loss, want)
+    # Each kept window reaches the model once per depth, the far one never.
+    assert sum(x_in.shape[0] for x_in in seen) == 2 * 3
+    assert max(x_in.abs().max().item() for x_in in seen) <= Z_MAX
+
+
+def test_the_loss_stays_finite_with_a_floor_scale_window_and_a_jump():
+    """A constant window scales at the floor sqrt(1e-5). A jump of 1e4 in its
+    target part is then a z of about 3e6: without the filter it rules the
+    loss, and with it the window leaves the batch."""
+    torch.manual_seed(0)
+    m = model()
+    x = windows([T, T, 500])
+    x[0] = 7.0
+    x = jumped(x, [0], 1e4)
+    freqs = ids(["1h", "5min", "1d"])
+    loss_off, _ = meanstd_step(m, x, freqs, 0.0)
+    assert m.rev_norm.stdev[0].item() == pytest.approx(
+        MEAN_STD_MINIMUM_SCALE ** 0.5)
+    loss_on, share = meanstd_step(m, x, freqs, Z_MAX)
+    loss_on.backward()
+    assert share == pytest.approx(1 / 3)
+    assert loss_off.item() > 1e3
+    assert torch.isfinite(loss_on) and loss_on.item() < 10
+    grads = [p.grad for p in m.parameters() if p.grad is not None]
+    assert grads and all(torch.isfinite(g).all() for g in grads)
+
+
+def test_an_infinite_bound_keeps_the_421_step():
+    """No window lies beyond an infinite bound, so the filter hands the
+    batch back as it came, and the loss is the #421 loss."""
+    torch.manual_seed(0)
+    m = model().eval()
+    x = jumped(windows([T, 600, 300]), [1], 1e6)
+    freqs = ids(["1h", "1h", "1d"])
+    with torch.no_grad():
+        plain, _ = meanstd_step(m, x, freqs, 0.0)
+        kept, share = meanstd_step(m, x, freqs, float("inf"))
+    assert share == 0.0 and torch.equal(plain, kept)
+
+
+def test_a_batch_with_no_near_window_trains_on_nothing():
+    x_norm = torch.full((2, 64, 1), 1e6)
+    target = torch.zeros(2, 64, 1, dtype=torch.bool)
+    target[:, 48:] = True
+    (x_in, t_in, pad, ids_in), share = drop_far_windows(
+        Z_MAX, x_norm, target, None, torch.tensor([3, 4]))
+    assert share == 1.0 and (x_in == 0).all() and not t_in.any()
+    assert pad is None and ids_in.tolist() == [3, 4]
+
+
+def test_a_nan_in_the_target_drops_the_window():
+    x_norm = torch.zeros(2, 64, 1)
+    x_norm[1, 60, 0] = float("nan")
+    target = torch.zeros(2, 64, 1, dtype=torch.bool)
+    target[:, 48:] = True
+    (x_in, _, _), share = drop_far_windows(Z_MAX, x_norm, target, None)
+    assert share == 0.5 and x_in.shape[0] == 1 and torch.isfinite(x_in).all()
+
+
+def test_the_flag_is_on_the_value_space_allowlist():
+    train_py = load_script(TRAIN_PY, "train_421_allowlist")
+    assert "meanstd_z_max" in train_py.VALUE_SPACE_FLAGS
+    args = train_py.parse_args(["--weight-decay", "0.1"])
+    assert args.meanstd_z_max == Z_MAX
+
+
+@pytest.mark.parametrize("extra,why", [
+    (("--meanstd-z-max", "50", "--value-space-objective"),
+     "--rev-norm-kind meanstd"),
+    (("--meanstd-z-max", "-1", "--value-space-objective",
+      "--rev-norm-kind", "meanstd"), "0 (off) or a positive bound"),
+])
+def test_the_trainer_refuses_a_bound_it_cannot_use(tmp_path, extra, why):
+    never = tmp_path / "never"
+    r = run_trainer(*extra, "--total-steps", "1", "--save-dir", str(never))
+    assert r.returncode != 0 and why in r.stdout + r.stderr
+    assert not never.exists()
+
+
+def test_the_filtered_run_logs_its_dropped_share(trained):
+    import csv
+    root, r = trained
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    assert "Window filter (#421, Moirai 2.0)" in r.stdout
+    assert all("dropped=" in line for line in r.stdout.splitlines()
+               if line.startswith("["))
+    rows = list(csv.DictReader(open(root / "m421_losses.csv")))
+    assert len(rows) == 2
+    assert all(0.0 <= float(row["meanstd_dropped"]) <= 1.0 for row in rows)
+
+
+@pytest.fixture(scope="module")
+def unfiltered(tmp_path_factory):
+    """The run of ``trained`` with the filter off."""
+    pytest.importorskip("pyarrow")
+    from tests.test_419_gift_pretrain import build_corpus, write_index
+    root = tmp_path_factory.mktemp("gep421off")
+    corpus, index, _ = build_corpus(root / "corpus")
+    result = run_trainer(*TINY_421_RUN, "--meanstd-z-max", "0",
+                         "--total-steps", "2",
+                         "--gift-pretrain-root", str(corpus),
+                         "--gift-pretrain-index", str(write_index(root, index)),
+                         "--save-dir", str(root), "--run-name", "m421off")
+    return root, result
+
+
+def test_the_flag_off_keeps_the_421_run(unfiltered, trained):
+    """Off, the run writes the #421 schema and log line: no dropped share."""
+    import csv
+    root, r = unfiltered
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    assert "Window filter" not in r.stdout and "dropped=" not in r.stdout
+    header = next(csv.reader(open(root / "m421off_losses.csv")))
+    filtered = next(csv.reader(open(trained[0] / "m421_losses.csv")))
+    assert "meanstd_dropped" not in header
+    assert filtered == header + ["meanstd_dropped"]
