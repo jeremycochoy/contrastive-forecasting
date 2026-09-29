@@ -120,15 +120,19 @@ def test_non_finite_weights_are_seen():
     assert not weights_are_finite(m)
 
 
-def test_the_spike_guard_waits_for_its_history_and_scales_with_the_rows():
-    guard = SpikeGuard(10.0)
-    for _ in range(49):
-        guard.record(1.0)
-    assert not guard.is_spike(1e9, 256)
-    guard.record(1.0)
-    assert guard.median() == 1.0
+def test_the_spike_guard_starts_from_the_clip_norm_and_scales_with_the_rows():
+    """After a resume the guard has no history: it compares with the clip
+    norm, so the first spikes cannot set its median."""
+    guard = SpikeGuard(10.0, prior=1.0)
     assert guard.is_spike(10.5, 256) and not guard.is_spike(9.5, 256)
-    assert guard.threshold(64, 256) == pytest.approx(20.0)
+    assert guard.is_spike(float("inf"), 256)
+    for _ in range(49):
+        guard.record(0.5)
+    assert guard.reference() == 1.0
+    guard.record(0.5)
+    assert guard.reference() == 0.5
+    assert guard.is_spike(5.5, 256) and not guard.is_spike(4.5, 256)
+    assert guard.threshold(64, 256) == pytest.approx(10.0)
     guard.record(float("inf"))
     assert len(guard.norms) == 50
 
@@ -329,7 +333,7 @@ def test_a_spike_row_is_dropped_and_the_rest_steps(train_py, monkeypatch):
     inputs = batch(m)
     loss_and_grads(train_py, m, inputs)
     clean = train_py.total_grad_norm(m)
-    guard = SpikeGuard(10.0)
+    guard = SpikeGuard(10.0, prior=1.0)
     for _ in range(50):
         guard.record(clean)
     monkeypatch.setattr(train_py, "value_objective", objective)
@@ -488,6 +492,22 @@ def test_a_run_with_poisoned_rows_goes_on_without_them(tmp_path, mixup):
     else:
         partners = saved["mixup"]["partner"][saved["rows"]]
         assert "mixed" in r.stdout and len(partners) == len(saved["rows"])
+
+
+def test_a_run_with_the_spike_guard_drops_the_poisoned_rows(tmp_path):
+    """--skip-spike-samples on: the guard starts from the clip norm, and
+    the run goes on without the poisoned rows. The CSV logs grad_norm."""
+    data = corpus(tmp_path, poisoned=True)
+    r = run(REPO_ROOT, tmp_path / "save", "--skip-nan-samples",
+            "--skip-spike-samples", "10", "--grad-clip", "1.0",
+            "--meanstd-z-max", "0", "--mixup-p", "0", "--total-steps", "4",
+            *data)
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    rows = list(csv.DictReader(open(tmp_path / "save" / "r_losses.csv")))
+    assert len(rows) == 4
+    assert all(np.isfinite(float(row["loss"])) for row in rows)
+    assert all(np.isfinite(float(row["grad_norm"])) for row in rows)
+    assert max(int(row["nan_dropped"]) for row in rows) >= 1
 
 
 def test_with_a_clean_stream_the_flag_changes_no_loss(tmp_path):

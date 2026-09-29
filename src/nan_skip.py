@@ -89,23 +89,26 @@ def total_grad_norm(model):
 
 class SpikeGuard:
     """--skip-spike-samples: a step is a spike when its gradient norm is above
-    ``factor`` times the median of the last HISTORY clean steps. A pass with
-    n of the B rows active has a noisier mean gradient, so its threshold grows
+    ``factor`` times the reference: the median of the last HISTORY clean
+    steps. Until the guard holds MIN_HISTORY of them, the reference is
+    ``prior``, the clip norm. After a resume the guard has no history, and
+    without a prior the first spikes would set the median. A pass with n of
+    the B rows active has a noisier mean gradient, so its threshold grows
     with sqrt(B / n)."""
 
-    def __init__(self, factor):
-        self.factor, self.norms = factor, []
+    def __init__(self, factor, prior):
+        self.factor, self.prior, self.norms = factor, prior, []
 
-    def median(self):
+    def reference(self):
         if len(self.norms) < MIN_HISTORY:
-            return None
+            return self.prior
         return sorted(self.norms)[len(self.norms) // 2]
 
     def threshold(self, active, total):
-        return self.factor * self.median() * math.sqrt(total / active)
+        return self.factor * self.reference() * math.sqrt(total / active)
 
     def is_spike(self, norm, total):
-        return self.median() is not None and norm > self.threshold(total, total)
+        return not math.isfinite(norm) or norm > self.threshold(total, total)
 
     def record(self, norm):
         if math.isfinite(norm):

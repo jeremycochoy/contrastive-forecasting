@@ -482,7 +482,9 @@ def build_parser():
                    help="With --skip-nan-samples and a factor k > 0 (#421): "
                         "a step whose gradient norm before the clip is above "
                         "k times the median of the last 200 steps drops the "
-                        "rows that cause it, found by the same search. A "
+                        "rows that cause it, found by the same search. Until "
+                        "the guard holds 50 norms, as after a resume, the "
+                        "clip norm stands for the median. A "
                         "pass with n of the B rows active compares its norm "
                         "with k * median * sqrt(B / n). The losses CSV logs "
                         "the rows (spike_dropped), and each dropped row is "
@@ -2534,7 +2536,7 @@ def main():
         sys.exit(1)
 
     skipped_in_a_row = 0
-    spike_guard = (SpikeGuard(args.skip_spike_samples)
+    spike_guard = (SpikeGuard(args.skip_spike_samples, args.grad_clip or 1.0)
                    if args.skip_spike_samples > 0 else None)
 
     # -- Training loop --------------------------------------------------------
@@ -3043,8 +3045,8 @@ def main():
             if (spike_guard is not None
                     and spike_guard.is_spike(step_grad_norm, rows_now)):
                 t_skip = time.perf_counter()
-                extra = (f", grad norm {step_grad_norm:.3g} against a median "
-                         f"of {spike_guard.median():.3g}")
+                extra = (f", grad norm {step_grad_norm:.3g} against a "
+                         f"reference of {spike_guard.reference():.3g}")
                 found = skip_spike_rows(model, value_inputs, args,
                                         multi_patch_sizes, skip_rng, device,
                                         spike_guard,
