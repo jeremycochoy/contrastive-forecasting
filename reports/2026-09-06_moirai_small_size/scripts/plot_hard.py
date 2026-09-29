@@ -22,7 +22,8 @@ def per_ds(p):
             g[k.split("/")[0]].append(math.log(v / sn[k]))
     return {d: math.exp(sum(x) / len(x)) for d, x in g.items()}
 
-ARMS = [("blue", "5.6e-5", "#1f77b4"), ("yellow", "5.6e-6", "#ff9f40")]
+from run_style import P, colour
+ARMS = [("blue", "5.6e-5", colour(P + "_lr10x")), ("yellow", "5.6e-6", colour(P + "_lr100x"))]
 curves = {}
 for arm, _, _ in ARMS:
     stops = sorted(int(os.path.basename(f).split("_")[1].split(".")[0])

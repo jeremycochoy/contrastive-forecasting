@@ -6,18 +6,21 @@ results/per_config/radar. The colours are those of the curves figure.
 """
 import re
 from radar_lib import RADAR, STUDY, draw
+from run_style import P, colour, line
 
-# Run name in results/, CSV prefix in the radar folder, legend label, colour.
+# Run name in results/, CSV prefix in the radar folder, legend label. The
+# colour and the line style come from run_style.py.
 NEW_DATA = [
-    ("cf419_cos200k", "cos419_", "Ours", "#1a1a1a"),
-    ("cf419_moirai_native", "moirai419_native", "Moirai", "#9a9a00"),
-    ("cf421f_moirai_native", "moirai421f_native", "Moirai + patch heads + mean/std", "#1b9e77"),
+    ("cf419_cos200k", "cos419_", "Ours"),
+    ("cf419_moirai_native", "moirai419_native", "Moirai"),
+    ("cf421f_moirai_native", "moirai421f_native", "Moirai + patch heads + mean/std"),
     ("cf421fb_moirai_native", "moirai421fb_native",
-     "Moirai + patch heads + mean/std + GRU bound", "#d4a017"),
+     "Moirai + patch heads + mean/std + GRU bound"),
 ]
-OLD_BEST = ("cyan665", "Ours, old data, 665k   1.1369", "#17becf")
+OLD_BEST = ("cyan665", "Ours, old data, 665k   1.1369",
+            colour(P + "_cos200k"), line(P + "_cos200k"))
 TITLE = ("Relative MASE per GIFT-Eval dataset (geometric mean over its configs), each run at its best checkpoint\n"
-         "Ours: our contrastive model. Moirai: our copy of Moirai.\n"
+         "Solid lines, Ours: our contrastive model. Dashed lines, Moirai: our copy of Moirai.\n"
          "New data: all of GiftEvalPretrain. Old data: its series of 4,096 points or more.\n"
          "Green ring: seasonal naive (1.0). Inside is better. The hardest datasets are at the top.")
 
@@ -35,11 +38,12 @@ def scored_stops(arm, csv_prefix):
 def new_data_arms():
     """The best scored stop of each new-data run, when it has one."""
     arms = []
-    for arm, prefix, label, colour in NEW_DATA:
+    for arm, prefix, label in NEW_DATA:
         stops = scored_stops(arm, prefix)
         if stops:
             k = min(stops, key=stops.get)
-            arms.append((f"{prefix}{k}k", f"{label}, new data, {k}k   {stops[k]:.4f}", colour))
+            arms.append((f"{prefix}{k}k", f"{label}, new data, {k}k   {stops[k]:.4f}",
+                         colour(arm), line(arm)))
     return arms
 
 

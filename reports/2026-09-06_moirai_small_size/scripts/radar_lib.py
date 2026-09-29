@@ -69,14 +69,16 @@ def load(arms):
 
 
 def draw(arms, title, out_png):
-    """arms: [(CSV name in RADAR, legend label, colour)]. Returns {arm: {dataset: value}}."""
+    """arms: [(CSV name in RADAR, legend label, colour, line style)].
+    Returns {arm: {dataset: value}}."""
     per_ds = load(arms)
     labels = bell_order(per_ds)
     ang = [n / len(labels) * 2 * math.pi for n in range(len(labels))] + [0.0]
     fig, ax = plt.subplots(figsize=(11.5, 10.5), subplot_kw=dict(polar=True))
-    for name, lab, col in arms:
+    for name, lab, col, ls in arms:
         vals = [per_ds[name].get(d, float("nan")) for d in labels]
-        ax.plot(ang, vals + vals[:1], "-o", color=col, lw=2.4, ms=5, label=lab, zorder=3)
+        ax.plot(ang, vals + vals[:1], ls, marker="o", color=col, lw=2.4, ms=5,
+                label=lab, zorder=3)
     ax.plot(ang, [1.0] * len(ang), color="#2ca02c", ls="--", lw=1.8, zorder=4)
     style_axes(ax, labels, ang)
     ax.set_title(title, fontsize=12, pad=28)

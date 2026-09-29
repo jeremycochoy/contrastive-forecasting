@@ -9,31 +9,35 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+from run_style import P, colour, line
+
 STUDY = Path(__file__).resolve().parent.parent
 TSV = STUDY / "results" / "gm_trajectories.tsv"
 OUT = STUDY / "plots" / "gm_mase_rates.png"
 
-P = "k3_r100_09_lr56_fix09_dec10k"
-# arm, label, colour, line width, marker, line style
-SERIES = [
+# arm, label, line width, marker. The colour and the line style come from
+# run_style.py, so a run looks the same in every figure.
+RUNS = [
     # Ours: our contrastive model. The lr 5.6e-4 run (arm P) keeps its scores in
     # results/gm_trajectories.tsv; the owner took it off this figure.
-    (P + "_lr10x",    "Ours, lr 5.6e-5, seed a",                 "#1f77b4", 3.4, "o", "-"),
-    (P + "_lr10xb",   "Ours, lr 5.6e-5, seed b",                 "#7fb8e0", 3.4, "s", "-"),
-    (P + "_lr30x",    "Ours, lr 1.8e-5",                         "#d62728", 4.0, "o", "-"),
-    (P + "_lr100x",   "Ours, lr 5.6e-6",                         "#ff9f40", 4.0, "^", "-"),
-    (P + "_cos665k",  "Ours, lr cosine 6e-5→1e-6 over 665k",     "#9467bd", 4.0, "D", "-"),
-    (P + "_cos200k",  "Ours, lr cosine 5.6e-5→1e-6 by 200k",     "#17becf", 4.0, "v", "-"),
-    ("b2cos",         "Ours 1.1M, lr cosine 5.6e-5→1e-6 by 200k", "#e377c2", 3.0, "P", "-."),
-    ("cf419_cos200k", "Ours, lr cosine by 200k, new data",       "#1a1a1a", 4.0, "*", "-"),
+    (P + "_lr10x",    "Ours, lr 5.6e-5, seed a",                  3.4, "o"),
+    (P + "_lr10xb",   "Ours, lr 5.6e-5, seed b",                  3.4, "s"),
+    (P + "_lr30x",    "Ours, lr 1.8e-5",                          4.0, "o"),
+    (P + "_lr100x",   "Ours, lr 5.6e-6",                          4.0, "^"),
+    (P + "_cos665k",  "Ours, lr cosine 6e-5→1e-6 over 665k",      4.0, "D"),
+    (P + "_cos200k",  "Ours, lr cosine 5.6e-5→1e-6 by 200k",      4.0, "v"),
+    ("b2cos",         "Ours 1.1M, lr cosine 5.6e-5→1e-6 by 200k", 3.0, "P"),
+    ("cf419_cos200k", "Ours, lr cosine by 200k, new data",        4.0, "*"),
     # Moirai: our copy of Moirai, trained on the values with its schedule.
-    ("cf415_moirai",  "Moirai, separate head (B4)",              "#8c564b", 3.2, "X", "-"),
-    ("cf415_moirai_native", "Moirai, own head",                  "#8c564b", 2.4, "o", ":"),
-    ("cf419_moirai_native", "Moirai, own head, new data",        "#9a9a00", 3.0, "o", "--"),
-    ("cf421z_moirai_native", "Moirai + patch heads + mean/std, fp16, new data", "#c51b7d", 3.4, "D", "-"),
-    ("cf421f_moirai_native", "Moirai + patch heads + mean/std, new data", "#1b9e77", 3.8, "X", "-"),
-    ("cf421fb_moirai_native", "Moirai + patch heads + mean/std + GRU bound, new data", "#d4a017", 3.8, "h", "-"),
+    ("cf415_moirai",  "Moirai, separate head (B4)",               3.2, "X"),
+    ("cf415_moirai_native", "Moirai, own head",                   2.4, "o"),
+    ("cf419_moirai_native", "Moirai, own head, new data",         3.0, "o"),
+    ("cf421z_moirai_native", "Moirai + patch heads + mean/std, fp16, new data", 3.4, "D"),
+    ("cf421f_moirai_native", "Moirai + patch heads + mean/std, new data", 4.4, "X"),
+    ("cf421fb_moirai_native", "Moirai + patch heads + mean/std + GRU bound, new data", 3.8, "h"),
 ]
+SERIES = [(arm, label, colour(arm), width, marker, line(arm))
+          for arm, label, width, marker in RUNS]
 # Moirai trains at batch 256: one of its steps holds the data of four
 # batch-64 steps.
 XSCALE = {"cf415_moirai": 4, "cf415_moirai_native": 4, "cf419_moirai_native": 4,
@@ -78,9 +82,9 @@ def draw_references(ax):
     ax.axhspan(BEST - BAND, BEST + BAND, color="#2ca02c", alpha=0.10, zorder=0)
     ax.text(42000, BEST - 0.016, f"{BEST}: best of ours, old data, 665k.  "
             "Shaded: the seed band, 0.008", fontsize=9.5, color="#2ca02c")
-    ax.axhline(PROJECT_BEST, color="#e8173c", ls="--", lw=1.4, zorder=1)
+    ax.axhline(PROJECT_BEST, color="#555555", ls="-.", lw=1.4, zorder=1)
     ax.text(110000, PROJECT_BEST + 0.005, f"{PROJECT_BEST}: best of ours at 1.1M parameters, "
-            "200k steps", fontsize=9.5, color="#e8173c")
+            "200k steps", fontsize=9.5, color="#555555")
     ax.axvline(665000, color="#555555", ls=":", lw=1.2, zorder=1)
     ax.text(675000, YMAX - 0.012, "one pass\nover the data", fontsize=9,
             color="#555555", va="top")
@@ -101,8 +105,8 @@ def main():
                   "batch 256, so one of its steps counts 4.")
     ax.set_ylabel("GM-Relative MASE, 97-config GIFT-Eval (lower is better)")
     ax.set_title("GM-Relative MASE against data seen. 11.4M parameters unless marked.\n"
-                 "Ours: our contrastive model. Moirai: our copy of Moirai, trained "
-                 "on the values with its schedule.\n"
+                 "Solid lines, Ours: our contrastive model. Dashed lines, Moirai: "
+                 "our copy of Moirai, trained on the values with its schedule.\n"
                  "Old data: GiftEvalPretrain series of 4,096 points or more. "
                  "New data: all of GiftEvalPretrain.")
     ax.grid(alpha=0.3)
