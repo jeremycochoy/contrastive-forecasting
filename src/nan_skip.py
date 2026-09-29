@@ -34,8 +34,9 @@ MAX_SKIPPED_IN_A_ROW = 10
 # median, and the guard waits for MIN_HISTORY of them.
 HISTORY, MIN_HISTORY = 200, 50
 
-# The search first drops the 1, 2, 4, ... MAX_RANKED most suspect rows.
-MAX_RANKED = 16
+# The search first drops the 1, 2, 4, ... MAX_RANKED most suspect rows. On
+# the #421f resume, steps near 21,850 held 7 to 16 bad rows.
+MAX_RANKED = 64
 
 
 def rng_state(device):
