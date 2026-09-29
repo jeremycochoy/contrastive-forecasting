@@ -39,7 +39,7 @@ from src.forecasting_head import mean_std_inputs  # noqa: E402
 from src.freq_embedding import FREQ_NAMES_V2  # noqa: E402
 from src.models import ConfigurableModel  # noqa: E402
 from src.nan_skip import (SpikeGuard, find_culprits,  # noqa: E402
-                          is_finite_step, restore_rng, rng_state,
+                          is_finite_step, rank_rows, restore_rng, rng_state,
                           weights_are_finite)
 
 TRAIN_PY = (REPO_ROOT / "experiments" / "2026-04-27_freq-embedding"
@@ -72,6 +72,26 @@ def test_the_bisection_finds_the_culprits(culprits):
     found, passes, clean = find_culprits(bad_rows(culprits), range(32))
     assert found == culprits and clean
     assert passes <= 2 * 5 * len(culprits) + 1
+
+
+@pytest.mark.parametrize("position", [0, 2, 9, 31])
+def test_a_ranking_orders_the_passes_and_finds_the_same_culprit(position):
+    """Culprit 17 at a given place of the ranking: first, it takes one pass;
+    later, the search finds it with the ranked rows, or with every row."""
+    ranked = [r for r in range(32) if r != 17]
+    ranked.insert(position, 17)
+    found, passes, clean = find_culprits(bad_rows([17]), range(32), ranked)
+    assert found == [17] and clean
+    if position == 0:
+        assert passes == 1
+    if position == 2:
+        assert passes <= 3 + 2 * 2 + 1
+
+
+def test_a_wrong_ranking_drops_no_innocent_row():
+    ranked = list(range(32))
+    found, _, clean = find_culprits(bad_rows([30, 31]), range(32), ranked)
+    assert sorted(found) == [30, 31] and clean
 
 
 def test_a_fault_that_needs_two_rows_at_once_drops_one_of_them():
@@ -186,6 +206,23 @@ def test_the_poisonous_rows_are_dropped(train_py, culprits):
     assert torch.allclose(loss, want, rtol=1e-5, atol=1e-7)
     for name, grad in want_grads.items():
         assert torch.allclose(got[name], grad, rtol=1e-4, atol=1e-7), name
+
+
+def test_the_input_gradient_ranks_the_poisoned_row_first(train_py):
+    """The trainer asks for the input gradient in the first pass. The row
+    that overflows ranks first, and one pass without it finds it."""
+    m = model()
+    inputs = poison(batch(m), 3)
+    inputs["x_norm"] = inputs["x_norm"].detach().requires_grad_(True)
+    rng = rng_state(CPU)
+    loss, _ = loss_and_grads(train_py, m, inputs)
+    assert not is_finite_step(loss.item(), m)
+    ranked = rank_rows(inputs["x_norm"].grad)
+    assert ranked[0] == 3
+    found, passes, result = train_py.skip_nan_rows(
+        m, inputs, ARGS, SIZES, rng, CPU, ranked)
+    assert found == [3] and passes == 1 and result is not None
+    assert is_finite_step(result[0].item(), m)
 
 
 def test_a_nan_gradient_behind_a_finite_loss_is_found(train_py, monkeypatch):

@@ -34,6 +34,9 @@ MAX_SKIPPED_IN_A_ROW = 10
 # median, and the guard waits for MIN_HISTORY of them.
 HISTORY, MIN_HISTORY = 200, 50
 
+# The search first drops the 1, 2, 4, ... MAX_RANKED most suspect rows.
+MAX_RANKED = 16
+
 
 def rng_state(device):
     """The CPU and device random state, to replay a pass with the same draws."""
@@ -62,6 +65,18 @@ def is_finite_step(loss_value, model):
     flags = [torch.isfinite(p.grad).all() for p in model.parameters()
              if p.grad is not None]
     return bool(torch.stack(flags).all()) if flags else True
+
+
+def rank_rows(input_grad):
+    """The rows by the norm of their input gradient, the largest first. A
+    non-finite norm counts as the largest. An exploding gradient in a
+    patch encoder shows in the input gradient of its row."""
+    if input_grad is None:
+        return []
+    norms = torch.linalg.vector_norm(
+        input_grad.detach().flatten(1).double(), dim=1)
+    norms = torch.nan_to_num(norms, nan=float("inf"))
+    return norms.argsort(descending=True).tolist()
 
 
 def total_grad_norm(model):
@@ -96,7 +111,7 @@ class SpikeGuard:
             self.norms = (self.norms + [norm])[-HISTORY:]
 
 
-def find_culprits(is_bad, rows):
+def find_culprits(is_bad, rows, ranked=()):
     """The rows to drop so that the pass with the other rows is clean.
 
     ``is_bad(active)`` runs one pass with exactly the rows of ``active``, and
@@ -104,10 +119,17 @@ def find_culprits(is_bad, rows):
     is split again, down to single rows. When both halves are clean on their
     own, the fault needs rows of both, so the second half is searched with the
     first one active. After the rows found are dropped, one more pass checks
-    the rest, and a bad rest is searched again. Returns ``(culprits, passes,
-    clean)``: ``clean`` is True when the last pass, with the culprits out,
-    was clean, and the model then holds its gradients. It is False only
-    when every row was dropped.
+    the rest, and a bad rest is searched again.
+
+    ``ranked`` lists the rows from the most suspect (rank_rows). The search
+    first tries the passes without the top 1, 2, 4, ... MAX_RANKED of them.
+    When such a pass is clean, it looks for the culprits among these rows
+    only, with the other rows active. The ranking only sets the order of the
+    passes: a row is dropped only when the pass without it is clean.
+
+    Returns ``(culprits, passes, clean)``: ``clean`` is True when the last
+    pass, with the culprits out, was clean, and the model then holds its
+    gradients. It is False only when every row was dropped.
     """
     passes = 0
 
@@ -130,8 +152,20 @@ def find_culprits(is_bad, rows):
                 + (search(second, context) if second_bad else []))
 
     kept, culprits = list(rows), []
+    part, context = kept, []
+    ranked = [r for r in ranked if r in set(rows)]
+    k = 1
+    while k <= min(MAX_RANKED, len(ranked), len(kept) - 1):
+        top = set(ranked[:k])
+        rest = [r for r in kept if r not in top]
+        if not bad(rest):
+            if k == 1:
+                return ranked[:1], passes, True
+            part, context = ranked[:k], rest
+            break
+        k *= 2
     while True:
-        found = search(kept, [])
+        found = search(part, context)
         culprits += found
         dropped = set(found)
         kept = [r for r in kept if r not in dropped]
@@ -139,3 +173,4 @@ def find_culprits(is_bad, rows):
             return culprits, passes, False
         if not bad(kept):
             return culprits, passes, True
+        part, context = kept, []
