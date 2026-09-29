@@ -19,22 +19,20 @@ OUT = STUDY / "plots" / "gm_mase_rates.png"
 # run_style.py, so a run looks the same in every figure.
 RUNS = [
     # Ours: our contrastive model. The lr 5.6e-4 run (arm P) keeps its scores in
-    # results/gm_trajectories.tsv; the owner took it off this figure.
+    # results/gm_trajectories.tsv; the owner took it off this figure. So do
+    # the stopped runs b2cos (1.1M, the wrong width), cf419_moirai_native,
+    # cf421z_moirai_native (fp16) and cf421fb_moirai_native (GRU bound).
     (P + "_lr10x",    "Ours, lr 5.6e-5, seed a",                  3.4, "o"),
     (P + "_lr10xb",   "Ours, lr 5.6e-5, seed b",                  3.4, "s"),
     (P + "_lr30x",    "Ours, lr 1.8e-5",                          4.0, "o"),
     (P + "_lr100x",   "Ours, lr 5.6e-6",                          4.0, "^"),
     (P + "_cos665k",  "Ours, lr cosine 6e-5→1e-6 over 665k",      4.0, "D"),
     (P + "_cos200k",  "Ours, lr cosine 5.6e-5→1e-6 by 200k",      4.0, "v"),
-    ("b2cos",         "Ours 1.1M, lr cosine 5.6e-5→1e-6 by 200k", 3.0, "P"),
     ("cf419_cos200k", "Ours, lr cosine by 200k, new data",        4.0, "*"),
     # Moirai: our copy of Moirai, trained on the values with its schedule.
     ("cf415_moirai",  "Moirai, separate head (B4)",               3.2, "X"),
     ("cf415_moirai_native", "Moirai, own head",                   2.4, "o"),
-    ("cf419_moirai_native", "Moirai, own head, new data",         3.0, "o"),
-    ("cf421z_moirai_native", "Moirai + patch heads + mean/std, fp16, new data", 3.4, "D"),
     ("cf421f_moirai_native", "Moirai + patch heads + mean/std, new data", 4.4, "X"),
-    ("cf421fb_moirai_native", "Moirai + patch heads + mean/std + GRU bound, new data", 3.8, "h"),
 ]
 SERIES = [(arm, label, colour(arm), width, marker, line(arm))
           for arm, label, width, marker in RUNS]

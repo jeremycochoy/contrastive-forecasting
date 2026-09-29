@@ -10,12 +10,11 @@ from run_style import P, colour, line
 
 # Run name in results/, CSV prefix in the radar folder, legend label. The
 # colour and the line style come from run_style.py.
+# The stopped runs cf419_moirai_native and cf421fb_moirai_native keep their
+# CSVs in the radar folder; the owner took them off this figure.
 NEW_DATA = [
     ("cf419_cos200k", "cos419_", "Ours"),
-    ("cf419_moirai_native", "moirai419_native", "Moirai"),
     ("cf421f_moirai_native", "moirai421f_native", "Moirai + patch heads + mean/std"),
-    ("cf421fb_moirai_native", "moirai421fb_native",
-     "Moirai + patch heads + mean/std + GRU bound"),
 ]
 OLD_BEST = ("cyan665", "Ours, old data, 665k   1.1369",
             colour(P + "_cos200k"), line(P + "_cos200k"))
