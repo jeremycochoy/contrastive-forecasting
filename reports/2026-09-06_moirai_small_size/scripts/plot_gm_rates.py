@@ -41,7 +41,7 @@ XSCALE = {"cf415_moirai": 4, "cf415_moirai_native": 4, "cf419_moirai_native": 4,
 # Where the last score of a line prints, so two lines that end together part.
 END_LABEL_OFFSET = {P + "_lr100x": (9, 4), P + "_cos200k": (9, -12)}
 BEST, BAND, PROJECT_BEST = 1.1369, 0.008, 1.0651
-YMIN, YMAX = 1.05, 1.66
+YMIN, YMAX = 1.02, 1.66
 
 
 def load_points():
@@ -79,8 +79,8 @@ def draw_references(ax):
     ax.text(42000, BEST - 0.016, f"{BEST}: best of ours, old data, 665k.  "
             "Shaded: the seed band, 0.008", fontsize=9.5, color="#2ca02c")
     ax.axhline(PROJECT_BEST, color="#e8173c", ls="--", lw=1.4, zorder=1)
-    ax.text(42000, PROJECT_BEST + 0.005, f"{PROJECT_BEST}: project best "
-            "(ours, 1.1M parameters, 200k steps)", fontsize=9.5, color="#e8173c")
+    ax.text(110000, PROJECT_BEST + 0.005, f"{PROJECT_BEST}: best of ours at 1.1M parameters, "
+            "200k steps", fontsize=9.5, color="#e8173c")
     ax.axvline(665000, color="#555555", ls=":", lw=1.2, zorder=1)
     ax.text(675000, YMAX - 0.012, "one pass\nover the data", fontsize=9,
             color="#555555", va="top")
