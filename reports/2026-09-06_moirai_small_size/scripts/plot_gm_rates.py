@@ -33,13 +33,15 @@ RUNS = [
     # Moirai: our copy of Moirai, trained on the values with its schedule.
     ("cf415_moirai_native", "Moirai, own head",                   2.4, "o"),
     ("cf421f_moirai_native", "Moirai + patch heads + mean/std, new data", 4.4, "X"),
+    ("cf421n_moirai_native", "Moirai + patch heads + mean/std + RMS term, new data", 3.6, "P"),
 ]
 SERIES = [(arm, label, colour(arm), width, marker, line(arm))
           for arm, label, width, marker in RUNS]
 # Moirai trains at batch 256: one of its steps holds the data of four
 # batch-64 steps.
 XSCALE = {"cf415_moirai": 4, "cf415_moirai_native": 4, "cf419_moirai_native": 4,
-          "cf421z_moirai_native": 4, "cf421f_moirai_native": 4, "cf421fb_moirai_native": 4}
+          "cf421z_moirai_native": 4, "cf421f_moirai_native": 4, "cf421fb_moirai_native": 4,
+          "cf421n_moirai_native": 4}
 # Where the last score of a line prints, so two lines that end together part.
 END_LABEL_OFFSET = {P + "_lr100x": (9, 4), P + "_cos200k": (9, -12)}
 BEST, BAND, PROJECT_BEST = 1.1369, 0.008, 1.0651

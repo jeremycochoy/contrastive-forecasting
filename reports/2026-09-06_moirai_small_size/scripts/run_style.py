@@ -22,6 +22,7 @@ STYLE = {
     "cf421z_moirai_native": ("#c51b7d", MOIRAI),
     "cf421f_moirai_native": ("#d62728", MOIRAI),
     "cf421fb_moirai_native": ("#d4a017", MOIRAI),
+    "cf421n_moirai_native": ("#e7298a", MOIRAI),
 }
 
 

@@ -15,6 +15,7 @@ from run_style import P, colour, line
 NEW_DATA = [
     ("cf419_cos200k", "cos419_", "Ours"),
     ("cf421f_moirai_native", "moirai421f_native", "Moirai + patch heads + mean/std"),
+    ("cf421n_moirai_native", "moirai421n_native", "Moirai + patch heads + mean/std + RMS term"),
 ]
 OLD_BEST = ("cyan665", "Ours, old data, 665k   1.1369",
             colour(P + "_cos200k"), line(P + "_cos200k"))
