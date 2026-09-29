@@ -71,9 +71,9 @@ from src.metrics import (
 )
 from src.freq_embedding import FREQ_VOCABS
 from src.nan_debug import EXIT_CODE as NAN_DEBUG_EXIT, NanDebug
-from src.nan_skip import (MAX_SKIPPED_IN_A_ROW, find_culprits,
+from src.nan_skip import (MAX_SKIPPED_IN_A_ROW, SpikeGuard, find_culprits,
                           is_finite_step, restore_rng, rng_state,
-                          weights_are_finite)
+                          total_grad_norm, weights_are_finite)
 from src.norm import patch_padding, zero_union_padding
 from src.forecasting_head import (QUANTILE_LEVELS,
                                   extract_encoder_latents,
@@ -471,11 +471,23 @@ def build_parser():
                         "take the step on the other rows (src/nan_skip.py). "
                         "Every pass restores the random state of the first, "
                         "so each row draws the same split, patch size, mixup, "
-                        "dropout and DropKey masks. When no row alone "
-                        "explains it, the step is skipped. The losses CSV "
-                        "logs the dropped rows (nan_dropped, -1 for a "
-                        "skipped step), and each dropped row is written to "
-                        "<run>_nan_rows_<step>.pt. Default off.")
+                        "dropout and DropKey masks. The search always ends: "
+                        "a fault that needs two rows drops one of them, and "
+                        "the step is skipped only when every row is bad. The "
+                        "losses CSV logs the dropped rows (nan_dropped, -1 "
+                        "for a skipped step) and the gradient norm before "
+                        "the clip (grad_norm), and each dropped row is "
+                        "written to <run>_nan_rows_<step>.pt. Default off.")
+    p.add_argument("--skip-spike-samples", type=float, default=0.0,
+                   help="With --skip-nan-samples and a factor k > 0 (#421): "
+                        "a step whose gradient norm before the clip is above "
+                        "k times the median of the last 200 steps drops the "
+                        "rows that cause it, found by the same search. A "
+                        "pass with n of the B rows active compares its norm "
+                        "with k * median * sqrt(B / n). The losses CSV logs "
+                        "the rows (spike_dropped), and each dropped row is "
+                        "written to <run>_spike_rows_<step>.pt. 0 (the "
+                        "default) turns it off.")
     p.add_argument("--gru-input-bound", type=float, default=0.0,
                    help="With c > 0 the GRU patch encoders read c*tanh(x/c) "
                         "in place of the raw patch values x, and their skip "
@@ -933,18 +945,21 @@ def mixed_label_embeddings(model, mix, freq_ids, seasonality_ids, kept):
     return embs
 
 
-def skip_nan_rows(model, inputs, args, multi_patch_sizes, rng, device):
-    """The step without the rows that make it non-finite (#421).
+def drop_bad_rows(model, inputs, args, multi_patch_sizes, rng, device,
+                  pass_is_bad):
+    """The step without the rows that make it bad (#421).
 
-    Bisection over the rows (src/nan_skip.py). Every pass restores ``rng``,
-    the random state from before the first pass, and keeps every row in
-    the batch. Returns ``(culprits, passes, result)``: the rows found (None
-    when no row alone explains the fault) and ``result``, the ``(loss,
-    f_lat, o_lat, per_depth)`` of the last pass, with the culprits inert,
-    whose gradients the model then holds. None: skip the step, and the
-    model holds no gradient.
+    ``pass_is_bad(loss_value, active_count)`` judges one pass while the model
+    holds its gradients. The search (src/nan_skip.py) runs passes with some
+    rows active and the others inert. Every pass restores ``rng``, the random
+    state from before the first pass, and keeps every row in the batch.
+    Returns ``(culprits, passes, result)``: ``result`` is the ``(loss, f_lat,
+    o_lat, per_depth)`` of the last pass, with the culprits inert, whose
+    gradients the model then holds. None when every row is bad: skip the
+    step, and the model holds no gradient.
     """
     B = inputs["x_norm"].shape[0]
+    last = {}
 
     def run(active):
         model.zero_grad(set_to_none=True)
@@ -953,31 +968,44 @@ def skip_nan_rows(model, inputs, args, multi_patch_sizes, rng, device):
         out[0].backward()
         return out
 
-    def active_rows(rows):
+    def is_bad(rows):
         active = torch.zeros(B, dtype=torch.bool, device=device)
         active[list(rows)] = True
-        return active
+        last["out"] = run(active)
+        return pass_is_bad(last["out"][0].item(), len(rows))
 
-    def is_bad(rows):
-        return not is_finite_step(run(active_rows(rows))[0].item(), model)
-
-    culprits, passes = find_culprits(is_bad, range(B))
-    result = None
-    if culprits is not None and len(culprits) < B:
-        result = run(~active_rows(culprits))
-        passes += 1
-        if not is_finite_step(result[0].item(), model):
-            culprits, result = None, None
-    if result is None:
+    culprits, passes, clean = find_culprits(is_bad, range(B))
+    if not clean:
         model.zero_grad(set_to_none=True)
-    return culprits, passes, result
+        return culprits, passes, None
+    return culprits, passes, last["out"]
 
 
-def nan_rows_report(step, culprits, meta, args):
-    """The log lines of the rows --skip-nan-samples dropped at ``step``,
-    and the file of their data (#421). ``meta`` holds the step's batch:
-    the rows as loaded and as the model reads them, and per row its kind,
-    labels, patch size, split and max |z|."""
+def skip_nan_rows(model, inputs, args, multi_patch_sizes, rng, device):
+    """--skip-nan-samples: drop the rows of a non-finite step."""
+    return drop_bad_rows(model, inputs, args, multi_patch_sizes, rng, device,
+                         lambda loss, n: not is_finite_step(loss, model))
+
+
+def skip_spike_rows(model, inputs, args, multi_patch_sizes, rng, device,
+                    guard):
+    """--skip-spike-samples: drop the rows of a step whose gradient norm is a
+    spike, and every non-finite row with them."""
+    B = inputs["x_norm"].shape[0]
+
+    def bad(loss, n):
+        return (not is_finite_step(loss, model)
+                or total_grad_norm(model) > guard.threshold(n, B))
+    return drop_bad_rows(model, inputs, args, multi_patch_sizes, rng, device,
+                         bad)
+
+
+def nan_rows_report(step, culprits, meta, args, kind="nan"):
+    """The log lines of the rows --skip-nan-samples (kind "nan") or
+    --skip-spike-samples (kind "spike") dropped at ``step``, and the file of
+    their data (#421). ``meta`` holds the step's batch: the rows as loaded
+    and as the model reads them, and per row its kind, labels, patch size,
+    split and max |z|."""
     names = FREQ_VOCABS[args.freq_vocab]
     rows = [int(meta["kept"][r]) for r in culprits]
     mix = meta["mixup"] or {}
@@ -996,7 +1024,7 @@ def nan_rows_report(step, culprits, meta, args):
             f", split {int(split[row]) if split is not None else '-'}"
             f", max |z| "
             f"{float(meta['max_z'][row]) if meta['max_z'] is not None else float('nan'):.4g}")
-    path = os.path.join(args.save_dir, f"{args.run_name}_nan_rows_{step}.pt")
+    path = os.path.join(args.save_dir, f"{args.run_name}_{kind}_rows_{step}.pt")
     torch.save({"step": step, "rows": rows, "lines": lines,
                 "loaded": meta["loaded"][rows].cpu(),
                 "values": meta["values"][rows].cpu(),
@@ -1004,6 +1032,26 @@ def nan_rows_report(step, culprits, meta, args):
                 "mixup": {k: (v.cpu() if torch.is_tensor(v) else v)
                           for k, v in mix.items()}}, path)
     return lines, path
+
+
+def announce_dropped(kind, step, found, seconds, meta, args, extra=""):
+    """Print the rows a --skip-nan-samples or --skip-spike-samples search
+    dropped at ``step`` and save their data. ``found`` is the ``(culprits,
+    passes, result)`` of the search. Returns the count for the losses CSV:
+    the rows dropped, or -1 for a skipped step."""
+    culprits, passes, result = found
+    total = meta["x_norm"].shape[0]
+    tag = f"[skip-{kind}] step {step}:"
+    if result is None:
+        print(f"{tag} every row is bad ({passes} passes, {seconds:.1f} s). "
+              f"The step is skipped.", flush=True)
+        return -1
+    lines, path = nan_rows_report(step, culprits, meta, args, kind)
+    print(f"{tag} {len(culprits)} of {total} rows dropped after {passes} "
+          f"passes ({seconds:.1f} s){extra}, loss {result[0].item():.4f} "
+          f"without them. Rows: {path}")
+    print("\n".join(lines), flush=True)
+    return len(culprits)
 
 
 def random_sign_flip(x):
@@ -1407,6 +1455,9 @@ def gift_contrastive_gap(args):
 
 def check_skip_nan(args):
     """Refuse --skip-nan-samples where rows are not independent units."""
+    if args.skip_spike_samples > 0 and not args.skip_nan_samples:
+        raise SystemExit("--skip-spike-samples uses the row search of "
+                         "--skip-nan-samples. Add --skip-nan-samples.")
     if not args.skip_nan_samples:
         return
     if not args.value_space_objective:
@@ -1574,7 +1625,7 @@ class CSVLogger:
         if self.dropped_column:
             header += ["meanstd_dropped"]
         if self.nan_column:
-            header += ["nan_dropped"]
+            header += ["nan_dropped", "spike_dropped", "grad_norm"]
         if os.path.getsize(path) == 0:
             self._writer.writerow(header)
             self._file.flush()
@@ -1609,7 +1660,8 @@ class CSVLogger:
             u_temporal_e=None, u_batch_e=None,
             u_batchtime=None, u_batchtime_e=None, ema_tau=None,
             rep_w=None, l_pred=None, l_rep=None, l_align=None,
-            cos_err_depths=None, meanstd_dropped=None, nan_dropped=None):
+            cos_err_depths=None, meanstd_dropped=None, nan_dropped=None,
+            spike_dropped=None, grad_norm=None):
         if not self._enabled:
             return
         row = [step, loss]
@@ -1633,7 +1685,8 @@ class CSVLogger:
         if self.dropped_column:
             row.append('' if meanstd_dropped is None else meanstd_dropped)
         if self.nan_column:
-            row.append('' if nan_dropped is None else nan_dropped)
+            row += ['' if v is None else v
+                    for v in (nan_dropped, spike_dropped, grad_norm)]
         self._buffer.append(row)
         if len(self._buffer) >= self.flush_every:
             self.flush()
@@ -2477,6 +2530,8 @@ def main():
         sys.exit(1)
 
     skipped_in_a_row = 0
+    spike_guard = (SpikeGuard(args.skip_spike_samples)
+                   if args.skip_spike_samples > 0 else None)
 
     # -- Training loop --------------------------------------------------------
     t0 = time.time()
@@ -2955,37 +3010,54 @@ def main():
             csv_logger.close()
             sys.exit(NAN_DEBUG_EXIT)
         # #421 --skip-nan-samples: a non-finite step drops its bad rows.
-        nan_dropped, step_skipped = 0, False
+        nan_dropped, spike_dropped, step_skipped = 0, 0, False
+        step_grad_norm = None
         if args.skip_nan_samples and not is_finite_step(loss_val, model):
             if not weights_are_finite(model):
                 stop_on_nan(step, " The weights are not finite, so no row "
                             "to drop can help.")
             t_skip = time.perf_counter()
-            culprits, passes, result = skip_nan_rows(
-                model, value_inputs, args, multi_patch_sizes, skip_rng, device)
-            seconds = time.perf_counter() - t_skip
-            if result is None:
-                nan_dropped, step_skipped = -1, True
-                why = ("every row gives a non-finite pass on its own"
-                       if culprits else "no row alone explains it")
-                print(f"[skip-nan] step {step}: the step is not finite, and "
-                      f"{why} ({passes} passes, {seconds:.1f} s). The step "
-                      f"is skipped.", flush=True)
-                skipped_in_a_row += 1
-                if skipped_in_a_row == MAX_SKIPPED_IN_A_ROW:
-                    stop_on_nan(step, f" {skipped_in_a_row} steps in a row "
-                                f"were skipped.")
-            else:
-                loss, f_lat, o_lat, value_depths = result
-                loss_val, nan_dropped = loss.item(), len(culprits)
+            found = skip_nan_rows(model, value_inputs, args,
+                                  multi_patch_sizes, skip_rng, device)
+            nan_dropped = announce_dropped(
+                "nan", step, found, time.perf_counter() - t_skip, skip_meta,
+                args)
+            step_skipped = found[2] is None
+            if not step_skipped:
+                loss, f_lat, o_lat, value_depths = found[2]
+                loss_val = loss.item()
                 f1_lat, o_lat = f_lat.float(), o_lat.float()
-                lines, path = nan_rows_report(step, culprits, skip_meta, args)
-                print(f"[skip-nan] step {step}: {len(culprits)} of "
-                      f"{value_inputs['x_norm'].shape[0]} rows dropped after "
-                      f"{passes} passes ({seconds:.1f} s), loss "
-                      f"{loss_val:.4f} without them. Rows: {path}")
-                print("\n".join(lines), flush=True)
-        if not step_skipped:
+        # #421 --skip-spike-samples: a step whose gradient norm is a spike
+        # drops the rows that cause it.
+        if args.skip_nan_samples and not step_skipped:
+            step_grad_norm = total_grad_norm(model)
+            rows_now = value_inputs["x_norm"].shape[0]
+            if (spike_guard is not None
+                    and spike_guard.is_spike(step_grad_norm, rows_now)):
+                t_skip = time.perf_counter()
+                extra = (f", grad norm {step_grad_norm:.3g} against a median "
+                         f"of {spike_guard.median():.3g}")
+                found = skip_spike_rows(model, value_inputs, args,
+                                        multi_patch_sizes, skip_rng, device,
+                                        spike_guard)
+                spike_dropped = announce_dropped(
+                    "spike", step, found, time.perf_counter() - t_skip,
+                    skip_meta, args, extra)
+                step_skipped = found[2] is None
+                step_grad_norm = None
+                if not step_skipped:
+                    loss, f_lat, o_lat, value_depths = found[2]
+                    loss_val = loss.item()
+                    f1_lat, o_lat = f_lat.float(), o_lat.float()
+                    step_grad_norm = total_grad_norm(model)
+            if spike_guard is not None and step_grad_norm is not None:
+                spike_guard.record(step_grad_norm)
+        if step_skipped:
+            skipped_in_a_row += 1
+            if skipped_in_a_row == MAX_SKIPPED_IN_A_ROW:
+                stop_on_nan(step, f" {skipped_in_a_row} steps in a row were "
+                            f"skipped, each with every row bad.")
+        else:
             skipped_in_a_row = 0
         grad_norm = None
         if args.grad_clip is not None and not step_skipped:
@@ -3114,7 +3186,10 @@ def main():
                        cos_err_depths=cos_err_depths,
                        meanstd_dropped=dropped_share,
                        nan_dropped=(nan_dropped if args.skip_nan_samples
-                                    else None))
+                                    else None),
+                       spike_dropped=(spike_dropped
+                                      if args.skip_spike_samples > 0 else None),
+                       grad_norm=step_grad_norm)
 
         if step % args.log_every == 0 and is_main_process():
             elapsed = time.time() - t0

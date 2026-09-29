@@ -38,8 +38,9 @@ import src.forecasting_head as fh  # noqa: E402
 from src.forecasting_head import mean_std_inputs  # noqa: E402
 from src.freq_embedding import FREQ_NAMES_V2  # noqa: E402
 from src.models import ConfigurableModel  # noqa: E402
-from src.nan_skip import (find_culprits, is_finite_step,  # noqa: E402
-                          restore_rng, rng_state, weights_are_finite)
+from src.nan_skip import (SpikeGuard, find_culprits,  # noqa: E402
+                          is_finite_step, restore_rng, rng_state,
+                          weights_are_finite)
 
 TRAIN_PY = (REPO_ROOT / "experiments" / "2026-04-27_freq-embedding"
             / "scripts" / "train.py")
@@ -68,15 +69,25 @@ def bad_rows(culprits):
 
 @pytest.mark.parametrize("culprits", [[5], [0], [31], [3, 17], [8, 9]])
 def test_the_bisection_finds_the_culprits(culprits):
-    found, passes = find_culprits(bad_rows(culprits), range(32))
-    assert found == culprits
-    assert passes <= 2 * 5 * len(culprits)
+    found, passes, clean = find_culprits(bad_rows(culprits), range(32))
+    assert found == culprits and clean
+    assert passes <= 2 * 5 * len(culprits) + 1
 
 
-def test_a_fault_that_needs_two_rows_at_once_finds_no_culprit():
+def test_a_fault_that_needs_two_rows_at_once_drops_one_of_them():
     def both(rows):
         return 3 in rows and 20 in rows
-    assert find_culprits(both, range(32))[0] is None
+    found, _, clean = find_culprits(both, range(32))
+    assert found == [20] and clean
+
+
+@pytest.mark.parametrize("culprits", [list(range(0, 32, 2)), list(range(40))])
+def test_many_culprits_are_all_found(culprits):
+    """The search has no pass budget: 20 bad rows of 40 are all found."""
+    rows = range(40)
+    found, _, clean = find_culprits(bad_rows(culprits), rows)
+    assert sorted(found) == sorted(culprits)
+    assert clean == (len(culprits) < 40)
 
 
 def test_non_finite_weights_are_seen():
@@ -89,10 +100,17 @@ def test_non_finite_weights_are_seen():
     assert not weights_are_finite(m)
 
 
-def test_the_bisection_stops_at_its_pass_budget():
-    found, passes = find_culprits(bad_rows(range(32)), range(32),
-                                  max_passes=10)
-    assert found is None and passes == 10
+def test_the_spike_guard_waits_for_its_history_and_scales_with_the_rows():
+    guard = SpikeGuard(10.0)
+    for _ in range(49):
+        guard.record(1.0)
+    assert not guard.is_spike(1e9, 256)
+    guard.record(1.0)
+    assert guard.median() == 1.0
+    assert guard.is_spike(10.5, 256) and not guard.is_spike(9.5, 256)
+    assert guard.threshold(64, 256) == pytest.approx(20.0)
+    guard.record(float("inf"))
+    assert len(guard.norms) == 50
 
 
 # ---------------------------------------------------------------------------
@@ -229,9 +247,10 @@ def test_a_clean_batch_runs_no_bisection_and_is_unchanged(train_py):
                for n in grads)
 
 
-def test_a_fault_that_no_row_explains_skips_the_step(train_py, monkeypatch):
+def test_a_fault_of_two_rows_drops_one_of_them(train_py, monkeypatch):
     """A loss that is NaN only while rows 2 and 5 are both active: each
-    half of the batch is clean, so no row alone explains it."""
+    half of the batch is clean, so the search looks in the second half with
+    the first one active, and drops row 5."""
     real = train_py.value_objective
 
     def objective(model_, inputs, args, sizes, active=None):
@@ -243,8 +262,53 @@ def test_a_fault_that_no_row_explains_skips_the_step(train_py, monkeypatch):
     monkeypatch.setattr(train_py, "value_objective", objective)
     m = model()
     found, passes, result = resolve(train_py, m, batch(m))
-    assert found is None and result is None and passes == 2
+    assert found == [5] and result is not None
+    assert is_finite_step(result[0].item(), m)
+
+
+def test_a_batch_of_bad_rows_only_skips_the_step(train_py):
+    m = model()
+    inputs = batch(m)
+    for row in range(8):
+        inputs = poison(inputs, row)
+    found, _, result = resolve(train_py, m, inputs)
+    assert sorted(found) == list(range(8)) and result is None
     assert all(p.grad is None for p in m.parameters())
+
+
+def test_a_spike_row_is_dropped_and_the_rest_steps(train_py, monkeypatch):
+    """Row 6 multiplies the loss by 1e4 while it is active: a finite spike.
+    The guard's search drops it, and the model holds the gradients of the
+    other rows."""
+    real = train_py.value_objective
+
+    def objective(model_, inputs, args, sizes, active=None):
+        out = real(model_, inputs, args, sizes, active)
+        if active is None or bool(active[6]):
+            out = (out[0] * 1e4,) + tuple(out[1:])
+        return out
+
+    m = model()
+    inputs = batch(m)
+    loss_and_grads(train_py, m, inputs)
+    clean = train_py.total_grad_norm(m)
+    guard = SpikeGuard(10.0)
+    for _ in range(50):
+        guard.record(clean)
+    monkeypatch.setattr(train_py, "value_objective", objective)
+    rng = rng_state(CPU)
+    loss_and_grads(train_py, m, inputs)
+    assert guard.is_spike(train_py.total_grad_norm(m), 8)
+    found, _, result = train_py.skip_spike_rows(
+        m, inputs, ARGS, SIZES, rng, CPU, guard)
+    assert found == [6] and result is not None
+    got = {n: p.grad.clone() for n, p in m.named_parameters()
+           if p.grad is not None}
+    monkeypatch.setattr(train_py, "value_objective", real)
+    rest = [r for r in range(8) if r != 6]
+    _, want = loss_and_grads(train_py, m, rows_of(inputs, rest))
+    for name, grad in want.items():
+        assert torch.allclose(got[name], grad, rtol=1e-4, atol=1e-7), name
 
 
 # ---------------------------------------------------------------------------
