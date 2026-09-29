@@ -72,8 +72,9 @@ from src.metrics import (
 from src.freq_embedding import FREQ_VOCABS
 from src.nan_debug import EXIT_CODE as NAN_DEBUG_EXIT, NanDebug
 from src.nan_skip import (MAX_SKIPPED_IN_A_ROW, SpikeGuard, find_culprits,
-                          is_finite_step, rank_rows, restore_rng, rng_state,
-                          total_grad_norm, weights_are_finite)
+                          is_finite_step, outlier_rows, rank_rows,
+                          restore_rng, rng_state, total_grad_norm,
+                          weights_are_finite)
 from src.norm import patch_padding, zero_union_padding
 from src.forecasting_head import (QUANTILE_LEVELS,
                                   extract_encoder_latents,
@@ -948,7 +949,7 @@ def mixed_label_embeddings(model, mix, freq_ids, seasonality_ids, kept):
 
 
 def drop_bad_rows(model, inputs, args, multi_patch_sizes, rng, device,
-                  pass_is_bad, ranked=()):
+                  pass_is_bad, input_grad=None):
     """The step without the rows that make it bad (#421).
 
     ``pass_is_bad(loss_value, active_count)`` judges one pass while the model
@@ -958,8 +959,9 @@ def drop_bad_rows(model, inputs, args, multi_patch_sizes, rng, device,
     Returns ``(culprits, passes, result)``: ``result`` is the ``(loss, f_lat,
     o_lat, per_depth)`` of the last pass, with the culprits inert, whose
     gradients the model then holds. None when every row is bad: skip the
-    step, and the model holds no gradient. ``ranked`` orders the rows from
-    the most suspect (rank_rows): the search tries them first.
+    step, and the model holds no gradient. ``input_grad``, the gradient of
+    the first pass with respect to each row's values, gives the outlier
+    rows and the ranking the search tries first.
     """
     B = inputs["x_norm"].shape[0]
     inputs = dict(inputs, x_norm=inputs["x_norm"].detach())
@@ -978,7 +980,8 @@ def drop_bad_rows(model, inputs, args, multi_patch_sizes, rng, device,
         last["out"] = run(active)
         return pass_is_bad(last["out"][0].item(), len(rows))
 
-    culprits, passes, clean = find_culprits(is_bad, range(B), ranked)
+    culprits, passes, clean = find_culprits(
+        is_bad, range(B), rank_rows(input_grad), outlier_rows(input_grad))
     if not clean:
         model.zero_grad(set_to_none=True)
         return culprits, passes, None
@@ -986,15 +989,15 @@ def drop_bad_rows(model, inputs, args, multi_patch_sizes, rng, device,
 
 
 def skip_nan_rows(model, inputs, args, multi_patch_sizes, rng, device,
-                  ranked=()):
+                  input_grad=None):
     """--skip-nan-samples: drop the rows of a non-finite step."""
     return drop_bad_rows(model, inputs, args, multi_patch_sizes, rng, device,
                          lambda loss, n: not is_finite_step(loss, model),
-                         ranked)
+                         input_grad)
 
 
 def skip_spike_rows(model, inputs, args, multi_patch_sizes, rng, device,
-                    guard, ranked=()):
+                    guard, input_grad=None):
     """--skip-spike-samples: drop the rows of a step whose gradient norm is a
     spike, and every non-finite row with them."""
     B = inputs["x_norm"].shape[0]
@@ -1003,7 +1006,7 @@ def skip_spike_rows(model, inputs, args, multi_patch_sizes, rng, device,
         return (not is_finite_step(loss, model)
                 or total_grad_norm(model) > guard.threshold(n, B))
     return drop_bad_rows(model, inputs, args, multi_patch_sizes, rng, device,
-                         bad, ranked)
+                         bad, input_grad)
 
 
 def nan_rows_report(step, culprits, meta, args, kind="nan"):
@@ -3028,7 +3031,7 @@ def main():
             t_skip = time.perf_counter()
             found = skip_nan_rows(model, value_inputs, args,
                                   multi_patch_sizes, skip_rng, device,
-                                  rank_rows(value_inputs["x_norm"].grad))
+                                  value_inputs["x_norm"].grad)
             nan_dropped = announce_dropped(
                 "nan", step, found, time.perf_counter() - t_skip, skip_meta,
                 args)
@@ -3050,7 +3053,7 @@ def main():
                 found = skip_spike_rows(model, value_inputs, args,
                                         multi_patch_sizes, skip_rng, device,
                                         spike_guard,
-                                        rank_rows(value_inputs["x_norm"].grad))
+                                        value_inputs["x_norm"].grad)
                 spike_dropped = announce_dropped(
                     "spike", step, found, time.perf_counter() - t_skip,
                     skip_meta, args, extra)

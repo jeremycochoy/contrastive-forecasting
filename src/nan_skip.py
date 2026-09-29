@@ -38,6 +38,12 @@ HISTORY, MIN_HISTORY = 200, 50
 # the #421f resume, steps near 21,850 held 7 to 16 bad rows.
 MAX_RANKED = 64
 
+# A row whose input gradient is above OUTLIER_FACTOR times the median row's
+# is an outlier. The search first tries the pass without every outlier. On
+# the #421f resume near step 21,850, 40 to 60 rows of a step exploded, and
+# a search one row at a time took about 100 passes.
+OUTLIER_FACTOR = 100.0
+
 
 def rng_state(device):
     """The CPU and device random state, to replay a pass with the same draws."""
@@ -68,16 +74,29 @@ def is_finite_step(loss_value, model):
     return bool(torch.stack(flags).all()) if flags else True
 
 
-def rank_rows(input_grad):
-    """The rows by the norm of their input gradient, the largest first. A
-    non-finite norm counts as the largest. An exploding gradient in a
-    patch encoder shows in the input gradient of its row."""
-    if input_grad is None:
-        return []
+def row_grad_norms(input_grad):
+    """The norm of each row's input gradient, in float64. A non-finite norm
+    is inf. An exploding gradient in a patch encoder shows in it."""
     norms = torch.linalg.vector_norm(
         input_grad.detach().flatten(1).double(), dim=1)
-    norms = torch.nan_to_num(norms, nan=float("inf"))
-    return norms.argsort(descending=True).tolist()
+    return torch.nan_to_num(norms, nan=float("inf"))
+
+
+def rank_rows(input_grad):
+    """The rows by the norm of their input gradient, the largest first."""
+    if input_grad is None:
+        return []
+    return row_grad_norms(input_grad).argsort(descending=True).tolist()
+
+
+def outlier_rows(input_grad, factor=OUTLIER_FACTOR):
+    """The rows whose input gradient norm is above ``factor`` times the
+    median row's, or not finite."""
+    if input_grad is None:
+        return []
+    norms = row_grad_norms(input_grad)
+    limit = factor * norms.median()
+    return (~(norms <= limit)).nonzero().view(-1).tolist()
 
 
 def total_grad_norm(model):
@@ -115,7 +134,7 @@ class SpikeGuard:
             self.norms = (self.norms + [norm])[-HISTORY:]
 
 
-def find_culprits(is_bad, rows, ranked=()):
+def find_culprits(is_bad, rows, ranked=(), outliers=()):
     """The rows to drop so that the pass with the other rows is clean.
 
     ``is_bad(active)`` runs one pass with exactly the rows of ``active``, and
@@ -130,6 +149,10 @@ def find_culprits(is_bad, rows, ranked=()):
     When such a pass is clean, it looks for the culprits among these rows
     only, with the other rows active. The ranking only sets the order of the
     passes: a row is dropped only when the pass without it is clean.
+
+    ``outliers`` lists the rows whose input gradient is far above the
+    median row's (outlier_rows). The search first tries the pass without
+    all of them. When it is clean, they are the culprits: one pass.
 
     Returns ``(culprits, passes, clean)``: ``clean`` is True when the last
     pass, with the culprits out, was clean, and the model then holds its
@@ -157,6 +180,11 @@ def find_culprits(is_bad, rows, ranked=()):
 
     kept, culprits = list(rows), []
     part, context = kept, []
+    outliers = [r for r in outliers if r in set(rows)]
+    if outliers and len(outliers) < len(kept):
+        rest = [r for r in kept if r not in set(outliers)]
+        if not bad(rest):
+            return outliers, passes, True
     ranked = [r for r in ranked if r in set(rows)]
     k = 1
     while k <= min(MAX_RANKED, len(ranked), len(kept) - 1):

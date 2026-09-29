@@ -39,8 +39,8 @@ from src.forecasting_head import mean_std_inputs  # noqa: E402
 from src.freq_embedding import FREQ_NAMES_V2  # noqa: E402
 from src.models import ConfigurableModel  # noqa: E402
 from src.nan_skip import (SpikeGuard, find_culprits,  # noqa: E402
-                          is_finite_step, rank_rows, restore_rng, rng_state,
-                          weights_are_finite)
+                          is_finite_step, outlier_rows, rank_rows,
+                          restore_rng, rng_state, weights_are_finite)
 
 TRAIN_PY = (REPO_ROOT / "experiments" / "2026-04-27_freq-embedding"
             / "scripts" / "train.py")
@@ -86,6 +86,27 @@ def test_a_ranking_orders_the_passes_and_finds_the_same_culprit(position):
         assert passes == 1
     if position == 2:
         assert passes <= 3 + 2 * 2 + 1
+
+
+def test_the_outliers_go_in_one_pass():
+    found, passes, clean = find_culprits(
+        bad_rows([4, 9, 20]), range(32), outliers=[4, 9, 20])
+    assert sorted(found) == [4, 9, 20] and passes == 1 and clean
+
+
+def test_outliers_that_miss_a_culprit_fall_back_to_the_search():
+    found, _, clean = find_culprits(
+        bad_rows([4, 9, 20]), range(32), outliers=[4, 9])
+    assert sorted(found) == [4, 9, 20] and clean
+
+
+def test_the_outlier_rows_are_the_rows_far_above_the_median():
+    grad = torch.ones(6, 10, 1)
+    grad[1] *= 1e4
+    grad[4] = float("nan")
+    grad[5] *= 50.0
+    assert outlier_rows(grad) == [1, 4]
+    assert rank_rows(grad)[:2] in ([1, 4], [4, 1])
 
 
 def test_a_wrong_ranking_drops_no_innocent_row():
@@ -221,10 +242,10 @@ def test_the_input_gradient_ranks_the_poisoned_row_first(train_py):
     rng = rng_state(CPU)
     loss, _ = loss_and_grads(train_py, m, inputs)
     assert not is_finite_step(loss.item(), m)
-    ranked = rank_rows(inputs["x_norm"].grad)
-    assert ranked[0] == 3
+    assert rank_rows(inputs["x_norm"].grad)[0] == 3
+    assert outlier_rows(inputs["x_norm"].grad) == [3]
     found, passes, result = train_py.skip_nan_rows(
-        m, inputs, ARGS, SIZES, rng, CPU, ranked)
+        m, inputs, ARGS, SIZES, rng, CPU, inputs["x_norm"].grad)
     assert found == [3] and passes == 1 and result is not None
     assert is_finite_step(result[0].item(), m)
 
