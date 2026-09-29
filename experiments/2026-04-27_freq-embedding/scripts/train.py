@@ -479,6 +479,16 @@ def build_parser():
                         "for a skipped step) and the gradient norm before "
                         "the clip (grad_norm), and each dropped row is "
                         "written to <run>_nan_rows_<step>.pt. Default off.")
+    p.add_argument("--patch-rms-weight", type=float, default=0.0,
+                   help="With --value-space-objective, --multi-patch-sizes "
+                        "and the GRU encoder (#421): adds this weight times "
+                        "the mean over the real patches of (RMS(v) - 1)^2, "
+                        "where v is the vector each patch encoder feeds its "
+                        "LayerNorm (the projection of the GRU state plus the "
+                        "skip of the patch). The owner asked for a small term "
+                        "that keeps it near the unit scale. The losses CSV "
+                        "logs the mean RMS (patch_rms). 0 (the default) "
+                        "turns it off.")
     p.add_argument("--skip-spike-samples", type=float, default=0.0,
                    help="With --skip-nan-samples and a factor k > 0 (#421): "
                         "a step whose gradient norm before the clip is above "
@@ -922,7 +932,8 @@ def value_objective(model, inputs, args, multi_patch_sizes, active=None):
               pad_mask=inputs["pad_mask"], target_mask=target)
     if multi_patch_sizes:
         return multi_patch_value_objective(
-            model, x_norm, inputs["sample_sizes"], active=active, **kw)
+            model, x_norm, inputs["sample_sizes"], active=active,
+            rms_weight=args.patch_rms_weight, **kw)
     return value_space_objective(model, x_norm, **kw)
 
 
@@ -1391,6 +1402,7 @@ VALUE_SPACE_FLAGS = frozenset((
     "patch_emb_dtype", "rev_norm_kind", "rev_norm_span", "patch_stats",
     "freq_emb_dim", "seasonality_emb_dim", "freq_vocab", "meanstd_z_max",
     "gru_input_bound", "skip_nan_samples", "skip_spike_samples",
+    "patch_rms_weight",
     # The objective.
     "value_space_objective", "train_rollout_depth", "train_rollout_reduce",
     # One patch encoder and one value head per patch size (#417).
@@ -1460,6 +1472,21 @@ def gift_contrastive_gap(args):
     if args.subtract_contrastive_floor:
         return "--subtract-contrastive-floor"
     return None
+
+
+def check_patch_rms(args):
+    """Refuse --patch-rms-weight where no GRU patch encoder bank runs."""
+    if args.patch_rms_weight == 0:
+        return
+    if args.patch_rms_weight < 0:
+        raise SystemExit("--patch-rms-weight is a weight: 0 or more.")
+    if not (args.value_space_objective and args.multi_patch_sizes
+            and args.encoder_type == "gru" and args.n_channels == 1):
+        raise SystemExit("--patch-rms-weight reads the GRU patch encoders of "
+                         "the multi-patch value-space objective, on one "
+                         "channel (#421). Add --value-space-objective, "
+                         "--multi-patch-sizes, --encoder-type gru and "
+                         "--n-channels 1.")
 
 
 def check_skip_nan(args):
@@ -1549,7 +1576,7 @@ def safe_run_name(save_dir, run_name):
 class CSVLogger:
     def __init__(self, path, flush_every=100, tau_ref_column=True,
                  rollout_depth=0, depth_column_prefix="cos_err_d",
-                 dropped_column=False, nan_column=False):
+                 dropped_column=False, nan_column=False, rms_column=False):
         self.path = path
         # dropped_column (#421): a trailing `meanstd_dropped` column, the
         # share of the step's windows the mean/std filter dropped. Only a
@@ -1559,6 +1586,9 @@ class CSVLogger:
         # nan_column (#421): a trailing `nan_dropped` column, the rows that
         # --skip-nan-samples dropped at the step (-1: the step was skipped).
         self.nan_column = bool(nan_column)
+        # rms_column (#421): a trailing `patch_rms` column, the mean RMS of
+        # the vectors the patch encoders feed their LayerNorm.
+        self.rms_column = bool(rms_column)
         self.flush_every = flush_every
         # rollout_depth (#373): k > 0 adds one `cos_err_dj` column per depth
         # j = 0..k, the per-depth forecast error 1 − cos(f^(j)_t, h_{t+1+j}).
@@ -1635,6 +1665,8 @@ class CSVLogger:
             header += ["meanstd_dropped"]
         if self.nan_column:
             header += ["nan_dropped", "spike_dropped", "grad_norm"]
+        if self.rms_column:
+            header += ["patch_rms"]
         if os.path.getsize(path) == 0:
             self._writer.writerow(header)
             self._file.flush()
@@ -1670,7 +1702,7 @@ class CSVLogger:
             u_batchtime=None, u_batchtime_e=None, ema_tau=None,
             rep_w=None, l_pred=None, l_rep=None, l_align=None,
             cos_err_depths=None, meanstd_dropped=None, nan_dropped=None,
-            spike_dropped=None, grad_norm=None):
+            spike_dropped=None, grad_norm=None, patch_rms=None):
         if not self._enabled:
             return
         row = [step, loss]
@@ -1696,6 +1728,8 @@ class CSVLogger:
         if self.nan_column:
             row += ['' if v is None else v
                     for v in (nan_dropped, spike_dropped, grad_norm)]
+        if self.rms_column:
+            row.append('' if patch_rms is None else patch_rms)
         self._buffer.append(row)
         if len(self._buffer) >= self.flush_every:
             self.flush()
@@ -1961,6 +1995,7 @@ def main():
     check_gift_pretrain(args)
     check_mean_std(args)
     check_skip_nan(args)
+    check_patch_rms(args)
 
     # Distributed (opt-in, env-driven): launch with
     #   torchrun --nproc_per_node=N experiments/.../train.py ...
@@ -2376,7 +2411,8 @@ def main():
                              else "cos_err_d"),
         dropped_column=(args.rev_norm_kind == "meanstd"
                         and args.meanstd_z_max > 0),
-        nan_column=args.skip_nan_samples)
+        nan_column=args.skip_nan_samples,
+        rms_column=args.patch_rms_weight > 0)
     print(f"Loss CSV: {csv_path}")
 
     # Latent-drift probe (rank-0 only). Fixed ARMA batch drawn once and
@@ -3203,7 +3239,9 @@ def main():
                                     else None),
                        spike_dropped=(spike_dropped
                                       if args.skip_spike_samples > 0 else None),
-                       grad_norm=step_grad_norm)
+                       grad_norm=step_grad_norm,
+                       patch_rms=(getattr(model, "last_patch_rms", None)
+                                  if args.patch_rms_weight > 0 else None))
 
         if step % args.log_every == 0 and is_main_process():
             elapsed = time.time() - t0
@@ -3216,6 +3254,9 @@ def main():
                 tau_str += f"  cpc={cpc_aux_val:.4f}"
             if filter_on:
                 tau_str += f"  dropped={100 * dropped_sum / timing_count:.2f}%"
+            if args.patch_rms_weight > 0:
+                tau_str += (f"  patch_rms="
+                            f"{getattr(model, 'last_patch_rms', float('nan')):.3f}")
             print(f"[{step:>7d}] loss={loss_val:.4f}  ema_loss={ema_loss:.4f}  "
                   f"gap={gap_val:.4f}  ema_gap={ema_gap:.4f}  "
                   f"mixup={mixup_applied_count}/{timing_count}  "

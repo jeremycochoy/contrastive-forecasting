@@ -20,6 +20,7 @@ takes the step on the other rows. Five groups, all on the CPU:
 from __future__ import annotations
 
 import csv
+import math
 import importlib.util
 import os
 import subprocess
@@ -47,7 +48,8 @@ TRAIN_PY = (REPO_ROOT / "experiments" / "2026-04-27_freq-embedding"
 SIZES = (8, 16, 32, 64, 128)
 T = 1024
 CPU = torch.device("cpu")
-ARGS = SimpleNamespace(train_rollout_depth=2, train_rollout_reduce="sum")
+ARGS = SimpleNamespace(train_rollout_depth=2, train_rollout_reduce="sum",
+                       patch_rms_weight=0.0)
 
 
 @pytest.fixture(scope="module")
@@ -601,3 +603,54 @@ def test_the_flag_refuses_the_nan_debug_mode(tmp_path):
 def test_the_flag_is_on_the_value_space_allowlist(train_py):
     assert "skip_nan_samples" in train_py.VALUE_SPACE_FLAGS
     assert "skip_spike_samples" in train_py.VALUE_SPACE_FLAGS
+
+
+# ---------------------------------------------------------------------------
+# 5. The patch RMS term (--patch-rms-weight)
+# ---------------------------------------------------------------------------
+
+def test_the_rms_term_is_zero_at_unit_rms_and_leaves_padding_out():
+    v = torch.ones(2, 4, 1, 8)
+    v[1, 0] *= 3.0
+    pad = torch.zeros(2, 4, 1, dtype=torch.bool)
+    penalty, rms = fh.patch_rms_terms(v, pad, 2)
+    assert float(penalty[0]) == 0.0
+    assert float(penalty[1]) == pytest.approx(4.0 / 4)
+    pad[1, 0] = True
+    penalty, rms = fh.patch_rms_terms(v, pad, 2)
+    assert float(penalty[1]) == 0.0 and float(rms[1]) == pytest.approx(1.0)
+
+
+def test_the_rms_term_is_off_by_default_and_on_reaches_the_gru(train_py):
+    m = model()
+    inputs = batch(m)
+    off = train_py.value_objective(m, inputs, ARGS, SIZES)[0]
+    assert all(e.pre_norm_sink is None for e in m.encoder.encoders.values())
+    m.zero_grad(set_to_none=True)
+    off.backward()
+    g_off = {n: p.grad.clone() for n, p in m.named_parameters()
+             if ".gru." in n and p.grad is not None}
+    heavy = SimpleNamespace(**dict(vars(ARGS), patch_rms_weight=10.0))
+    on = train_py.value_objective(m, inputs, heavy, SIZES)[0]
+    assert float(on) > float(off)
+    assert math.isfinite(m.last_patch_rms) and m.last_patch_rms > 0
+    assert all(e.pre_norm_sink is None for e in m.encoder.encoders.values())
+    m.zero_grad(set_to_none=True)
+    on.backward()
+    changed = [n for n, g in g_off.items()
+               if not torch.allclose(dict(m.named_parameters())[n].grad, g)]
+    assert changed
+
+
+def test_a_run_with_the_rms_term_logs_patch_rms(tmp_path):
+    data = corpus(tmp_path, poisoned=False)
+    r = run(REPO_ROOT, tmp_path / "save", "--patch-rms-weight", "0.01",
+            "--skip-nan-samples", "--total-steps", "3", *data)
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    rows = list(csv.DictReader(open(tmp_path / "save" / "r_losses.csv")))
+    assert len(rows) == 3
+    assert all(math.isfinite(float(row["patch_rms"])) for row in rows)
+    assert "patch_rms=" in r.stdout
+    refused = run(REPO_ROOT, tmp_path / "never", "--patch-rms-weight", "-1",
+                  "--total-steps", "1", *data)
+    assert refused.returncode != 0 and "is a weight" in (refused.stdout + refused.stderr)

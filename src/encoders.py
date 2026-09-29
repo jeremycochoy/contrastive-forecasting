@@ -100,6 +100,9 @@ class GRUEncoder(nn.Module):
         self.proj = nn.Linear(intermediate_dim * 2, H)  # bidirectional
         self.skip = nn.Linear(W, H)
         self.layer_norm = nn.LayerNorm(H)
+        # --patch-rms-weight (#421): a list the forward appends the vector
+        # before the LayerNorm to. None: nothing is kept.
+        self.pre_norm_sink = None
 
     def forward(self, x):
         with _autocast_ctx(self.patch_emb_dtype):
@@ -138,7 +141,10 @@ class GRUEncoder(nn.Module):
             h = self.proj(h)  # [B*T*C, H]
             h = h.reshape(*shape, -1)  # [B, T, C, H]
             s = self.skip(x)
-            return self.layer_norm(h + s)
+            pre = h + s
+            if self.pre_norm_sink is not None:
+                self.pre_norm_sink.append(pre)
+            return self.layer_norm(pre)
 
 
 class ConvEncoder(nn.Module):

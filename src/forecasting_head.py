@@ -25,7 +25,7 @@ import torch
 import torch.nn as nn
 
 from .nan_debug import PROBE
-from .norm import RevMeanStdNorm, leading_zero_count
+from .norm import RevMeanStdNorm, leading_zero_count, patch_padding
 from .patch_size import MIN_TIME_PATCHES, draw_patch_sizes, patch_size_choices
 
 
@@ -1065,9 +1065,27 @@ def _diagnostic_latents(latents, base_size):
     return latents[size][1:]
 
 
+def patch_rms_terms(pre_norm, patch_pad, n):
+    """--patch-rms-weight (#421), for n rows: the mean over each row's real
+    patches of (RMS(v) - 1)^2, with gradient, and the mean RMS, without.
+    v is the vector a patch encoder feeds its LayerNorm (one per patch).
+    ``patch_pad`` (``[n, T, C]``, True on a padded patch) leaves padding out;
+    None counts every patch. One channel: ``pre_norm`` and ``patch_pad``
+    hold the patches of a row in the same order."""
+    rms = pre_norm.float().pow(2).mean(-1).sqrt().reshape(n, -1)
+    if patch_pad is None:
+        keep = torch.ones_like(rms)
+    else:
+        assert patch_pad.numel() == rms.numel(), "one channel only"
+        keep = (~patch_pad).reshape(n, -1).to(rms.dtype)
+    count = keep.sum(1).clamp(min=1.0)
+    penalty = (((rms - 1.0) ** 2) * keep).sum(1) / count
+    return penalty, (rms.detach() * keep).sum(1) / count
+
+
 def multi_patch_value_objective(model, x_norm, sample_sizes, *, depth=0,
                                 reduce="sum", quantile_levels=QUANTILE_LEVELS,
-                                active=None, **conditioning):
+                                active=None, rms_weight=0.0, **conditioning):
     """:func:`value_space_objective` when each sample has its own patch size.
 
     The batch splits by patch size (#417). Each group runs the objective at
@@ -1085,17 +1103,40 @@ def multi_patch_value_objective(model, x_norm, sample_sizes, *, depth=0,
     the active samples in the group weights. The trainer makes the other
     samples inert. None: every sample counts.
 
+    ``rms_weight`` (#421 --patch-rms-weight) adds, per group, rms_weight
+    times the mean over its active samples of patch_rms_terms on the depth-0
+    patches: the vector each GRU patch encoder feeds its LayerNorm keeps an
+    RMS near 1. ``model.last_patch_rms`` then holds the mean RMS.
+
     Returns ``(loss, f_lat, o_lat, per_depth)``. The trainer's diagnostics
     read one sequence length, so the latents are those of the base size
     W's group, or of the largest group when no sample reads W.
     """
     n = x_norm.shape[0] if active is None else int(active.sum())
     loss, per_depth, latents = 0.0, [0.0] * (depth + 1), {}
+    rms_sum, rms_rows = 0.0, 0
     for size, rows in patch_size_groups(sample_sizes).items():
         part = {k: _rows(v, rows) for k, v in conditioning.items()}
-        g_loss, f_lat, o_lat, g_depths = value_space_objective(
-            model, _rows(x_norm, rows), depth=depth, reduce=reduce,
-            quantile_levels=quantile_levels, patch_size=size, **part)
+        encoder = model.encoder.encoders[str(size)] if rms_weight else None
+        if encoder is not None:
+            encoder.pre_norm_sink = []
+        try:
+            g_loss, f_lat, o_lat, g_depths = value_space_objective(
+                model, _rows(x_norm, rows), depth=depth, reduce=reduce,
+                quantile_levels=quantile_levels, patch_size=size, **part)
+            pre_norm = encoder.pre_norm_sink[0] if encoder is not None else None
+        finally:
+            if encoder is not None:
+                encoder.pre_norm_sink = None
+        if pre_norm is not None:
+            pad = part.get("pad_mask")
+            pad = None if pad is None else patch_padding(pad, size)
+            penalty, row_rms = patch_rms_terms(pre_norm, pad, len(rows))
+            on = (torch.ones_like(penalty) if active is None
+                  else active[rows.to(active.device)].to(penalty.dtype))
+            g_loss = g_loss + rms_weight * (penalty * on).sum() / on.sum().clamp(min=1.0)
+            rms_sum += float((row_rms * on).sum())
+            rms_rows += int(on.sum())
         PROBE.note(f"group P{size}", {"rows": rows, "loss": g_loss})
         share = (len(rows) if active is None
                  else int(active[rows.to(active.device)].sum())) / n
@@ -1103,6 +1144,8 @@ def multi_patch_value_objective(model, x_norm, sample_sizes, *, depth=0,
         per_depth = [a + share * b for a, b in zip(per_depth, g_depths)]
         latents[size] = (len(rows), f_lat, o_lat)
     f_lat, o_lat = _diagnostic_latents(latents, model.W)
+    if rms_weight:
+        model.last_patch_rms = rms_sum / max(rms_rows, 1)
     return loss, f_lat, o_lat, per_depth
 
 
