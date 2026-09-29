@@ -21,7 +21,8 @@ RUNS = [
     # Ours: our contrastive model. The lr 5.6e-4 run (arm P) keeps its scores in
     # results/gm_trajectories.tsv; the owner took it off this figure. So do
     # the stopped runs b2cos (1.1M, the wrong width), cf419_moirai_native,
-    # cf421z_moirai_native (fp16) and cf421fb_moirai_native (GRU bound).
+    # cf421z_moirai_native (fp16), cf421fb_moirai_native (GRU bound) and
+    # cf415_moirai (a separate head, a mistake).
     (P + "_lr10x",    "Ours, lr 5.6e-5, seed a",                  3.4, "o"),
     (P + "_lr10xb",   "Ours, lr 5.6e-5, seed b",                  3.4, "s"),
     (P + "_lr30x",    "Ours, lr 1.8e-5",                          4.0, "o"),
@@ -30,7 +31,6 @@ RUNS = [
     (P + "_cos200k",  "Ours, lr cosine 5.6e-5→1e-6 by 200k",      4.0, "v"),
     ("cf419_cos200k", "Ours, lr cosine by 200k, new data",        4.0, "*"),
     # Moirai: our copy of Moirai, trained on the values with its schedule.
-    ("cf415_moirai",  "Moirai, separate head (B4)",               3.2, "X"),
     ("cf415_moirai_native", "Moirai, own head",                   2.4, "o"),
     ("cf421f_moirai_native", "Moirai + patch heads + mean/std, new data", 4.4, "X"),
 ]
@@ -43,7 +43,7 @@ XSCALE = {"cf415_moirai": 4, "cf415_moirai_native": 4, "cf419_moirai_native": 4,
 # Where the last score of a line prints, so two lines that end together part.
 END_LABEL_OFFSET = {P + "_lr100x": (9, 4), P + "_cos200k": (9, -12)}
 BEST, BAND, PROJECT_BEST = 1.1369, 0.008, 1.0651
-YMIN, YMAX = 1.02, 1.66
+YMIN, YMAX = 1.02, 1.32
 
 
 def load_points():
