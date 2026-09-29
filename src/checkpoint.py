@@ -150,7 +150,7 @@ def _detect_backbone_config(sd: dict, base_cfg: dict) -> dict:
     """Fill in ConfigurableModel kwargs from a state_dict.
 
     Mirrors the autodetect block in ``train_forecasting_head.py`` so both
-    the head trainer and out-of-loop consumers (e.g. the offline latent-
+    the head trainer and out-of-loop consumers (for example the offline latent-
     drift probe) build a backbone that strictly matches the checkpoint.
     ``base_cfg`` supplies the fields the state_dict cannot disambiguate:
     ``C``, ``H``, ``W``, ``nhead``, ``num_layers``, ``encoder_type``,
@@ -160,8 +160,19 @@ def _detect_backbone_config(sd: dict, base_cfg: dict) -> dict:
     """
     from src.norm import PATCH_STATS_DIM
     cfg = dict(base_cfg)
+    sizes = multi_patch_sizes_of(sd)
+    if sizes:
+        cfg["multi_patch_sizes"] = sizes
+    # #419 and #421: two buffers name the normaliser's padding mode and the
+    # mean/std scaling, and the frequency table's rows name the vocabulary.
+    if "rev_norm.mean_std_scaling" in sd:
+        cfg["rev_norm_kind"] = "meanstd"
+    cfg["rev_norm_skip_leading_zeros"] = "rev_norm.leading_zero_pad" in sd
+    cfg["gru_input_bound"] = gru_input_bound_of(sd)
     w = sd.get("freq_embedding.embedding.weight")
     cfg["freq_emb_dim"] = int(w.shape[1]) if w is not None else 0
+    if w is not None:
+        cfg["num_freqs"] = int(w.shape[0])
     w = sd.get("seasonality_embedding.embedding.weight")
     cfg["seasonality_emb_dim"] = int(w.shape[1]) if w is not None else 0
     if "log_inv_tau" in sd:
@@ -241,8 +252,27 @@ _TEACHER_PROMOTIONS = {
 # CPC-InfoNCE auxiliary (#344), `teacher_*` from the EMA teacher (#353),
 # `value_head.*` from the value-space objective (#415). The head trainer
 # trains its OWN forecasting head on the frozen backbone, so the pretraining
-# value head has no consumer and its keys would break the strict load.
+# value head has no consumer and its keys would break the strict load. The
+# prefix also covers `value_heads.*`, the per-size heads of #417.
 _PRETRAIN_ONLY_PREFIXES = ("cpc_w1", "teacher_", "value_head")
+
+
+def gru_input_bound_of(state_dict: dict) -> float:
+    """The GRU input bound a checkpoint recorded (#421), or 0 when it has
+    none. Read off the buffer ``encoder[.encoders.<P>].input_bound``."""
+    for key, value in state_dict.items():
+        if re.fullmatch(r"encoder(\.encoders\.\d+)?\.input_bound", key):
+            return float(value)
+    return 0.0
+
+
+def multi_patch_sizes_of(state_dict: dict) -> tuple:
+    """The patch sizes of a multi-patch checkpoint (#417), or () for one
+    with a single patch encoder. Read off the encoder bank's keys,
+    ``encoder.encoders.<P>.*``."""
+    found = re.compile(r"encoder\.encoders\.(\d+)\.")
+    return tuple(sorted({int(m.group(1)) for k in state_dict
+                         if (m := found.match(k))}))
 
 
 def has_teacher_weights(state_dict: dict) -> bool:
@@ -262,8 +292,8 @@ def prepare_backbone_state_dict(state_dict: dict,
     ``encoder_source='teacher'`` (#393) first copies the EMA teacher's patch
     embedding and encoder stack over the student's, so the ordinary
     downstream pipeline — head training, latent rollout, every forecast
-    strategy — reads the teacher. The teacher covers those two modules only;
-    the forecaster, the norms and the embedding tables stay the student's,
+    strategy — reads the teacher. The teacher covers those two modules only.
+    The forecaster, the norms and the embedding tables stay the student's,
     matching :meth:`ConfigurableModel.teacher_forward`'s fallback. A
     checkpoint whose teacher is partial (``--ema-embedding`` without
     ``--ema-encoder``, or the reverse) promotes the half it has.
@@ -320,7 +350,7 @@ def save_encoder_source(checkpoint_path: str, encoder_source: str) -> str:
 def load_encoder_source(checkpoint_path: str) -> str | None:
     """Encoder a head was trained on, or None when unrecorded.
 
-    Heads trained before #393 have no marker; they are student heads, but we
+    Heads trained before #393 have no marker. They are student heads, but we
     return None rather than assert it so the caller can say so.
     """
     path = encoder_source_marker_path(checkpoint_path)
@@ -360,7 +390,9 @@ def load_backbone_from_checkpoint(
     ``seasonality_emb_dim``, ``num_encoder_layers``, ``qk_norm``,
     ``attn_out_norm``, ``forecaster_kind`` (transformer / cpc /
     linear_cpc) with ``cpc_k_steps`` and ``forecaster_d_model``,
-    ``learnable_tau``, ``patch_stats_kind``.
+    ``learnable_tau``, ``patch_stats_kind``, ``multi_patch_sizes``,
+    ``num_freqs``, ``rev_norm_skip_leading_zeros``, the ``'meanstd'``
+    kind of ``rev_norm_kind`` and ``gru_input_bound`` (#421).
 
     Non-load state_dict keys (``cpc_w1.*`` from the CPC-InfoNCE
     auxiliary, ``teacher_*`` from the EMA-target teacher, ``value_head.*``

@@ -7,6 +7,8 @@ import torch.utils.checkpoint
 from typing import Union, Callable, Optional
 from torch import Tensor
 
+from .nan_debug import PROBE
+
 
 # --- Attention-amplitude diagnostic (opt-in, zero-overhead when off) ---------
 # A process-global singleton the transformer layers append to during forward
@@ -51,7 +53,7 @@ ATTN_AMP_DIAG = _AttnAmpDiag()
 # --- Centralized precision API -----------------------------------------------
 # Four independent dtype knobs for the transformer body:
 #   * residual_dtype : outer-most precision (residual stream + LayerNorm).
-#                      fp32 = safe default; bf16 unstable in our
+#                      fp32 = safe default. bf16 unstable in our
 #                      high-aligned-cos-sim regime.
 #   * attn_dtype     : dtype for SA-block matmuls (Q/K/V proj, scores,
 #                      softmax, output proj). Independent of residual_dtype.
@@ -121,7 +123,7 @@ class DecoderOnlyTransformerLayer(nn.Module):
         # The residual stream + LayerNorm run in `residual_dtype`; the SA
         # matmuls run in `attn_dtype`; the FFN matmuls run in `ffn_dtype`;
         # the depthwise conv runs in `conv_dtype` (None → inherit
-        # residual_dtype, i.e. the legacy behaviour). When an inner block
+        # residual_dtype, that is the legacy behaviour). When an inner block
         # dtype differs from residual_dtype, its output is cast back to
         # residual_dtype before the residual ADD so the residual stream
         # stays uniform.
@@ -161,7 +163,7 @@ class DecoderOnlyTransformerLayer(nn.Module):
         # #322). OFF (default) → byte-identical to the nn.MultiheadAttention path
         # above. ON → _sa_block runs an SDPA forward that REUSES this MHA's
         # in_proj/out_proj weights (so ON = OFF + q/k RMSNorm only) plus the two
-        # small RMSNorm γ vectors below; same fused kernel, ~no perf cost.
+        # small RMSNorm γ vectors below. Same fused kernel, ~no perf cost.
         self.qk_norm = bool(qk_norm)
         # Sandwich norm on the ATTENTION OUTPUT only (Gemma2-style post-sublayer
         # RMSNorm): bounds sa_out — #322's residual-runaway driver — before it
@@ -194,7 +196,7 @@ class DecoderOnlyTransformerLayer(nn.Module):
         # the NEW (Conformer-style, conv feeds SA-branch input only) and the
         # LEGACY (in-place on residual, all-prior-runs behaviour). Use the
         # legacy mode only when resuming an old checkpoint trained with that
-        # graph. Both modes use a single `self.depthwise_conv` module; the
+        # graph. Both modes use a single `self.depthwise_conv` module, and the
         # placement is dispatched in forward() via `depthwise_conv_placement`.
         if depthwise_conv > 0 and deprecated_depthwise_conv > 0:
             raise ValueError(
@@ -271,7 +273,7 @@ class DecoderOnlyTransformerLayer(nn.Module):
             x = x + self._ff_block(self.norm2(x))
             self._record_attn_amplitude(x)
         else:
-            # norm-last path — preserve legacy semantics; current runs use
+            # norm-last path — preserve legacy semantics. Current runs use
             # norm_first=True, so this branch is for completeness.
             if self.depthwise_conv is not None and self.depthwise_conv_placement == "sa_input":
                 y = self._conv_block(x)
@@ -298,7 +300,7 @@ class DecoderOnlyTransformerLayer(nn.Module):
         the conv runs under its own autocast and the output is cast back to
         residual_dtype before it re-enters the residual stream. When equal
         (the default, conv_dtype inherits residual_dtype) it is a
-        byte-identical no-op vs. the pre-conv_dtype code path.
+        byte-identical no-op compared to the pre-conv_dtype code path.
         """
         if self.conv_dtype != self.residual_dtype:
             with _autocast_ctx(self.conv_dtype):
@@ -348,7 +350,7 @@ class DecoderOnlyTransformerLayer(nn.Module):
         kernel nn.MultiheadAttention dispatches to (no perf regression).
         DropKey/causal additive mask (B*nhead,T,T) → reshaped to (B,nhead,T,T).
         key_padding_mask unused here (fixed-length) — asserted None. Returns the RAW
-        attention output in residual_dtype; the caller does the amplitude logging,
+        attention output in residual_dtype. The caller does the amplitude logging,
         optional attention-output-norm, and dropout."""
         assert key_padding_mask is None, "qk-norm path: key_padding_mask unsupported"
         mha = self.self_attn
@@ -357,8 +359,12 @@ class DecoderOnlyTransformerLayer(nn.Module):
         d = W.shape[1]
         B, T, _ = x.shape
         hd = d // self.nhead
+        # CF_NAN_DEBUG (#421): the functional attention path has no module of
+        # its own, so the probe records its tensors. A no-op when off.
+        tag = f"{self.attn_amp_block_tag}{self.attn_amp_layer_idx} attention"
         with _autocast_ctx(self.attn_dtype):
             qkv = torch.nn.functional.linear(x, W, bsum)          # [B, T, 3d]
+            PROBE.record(f"{tag} qkv", qkv)
             q, k, v = qkv.split(d, dim=-1)
             q = q.view(B, T, self.nhead, hd).transpose(1, 2)      # [B, nhead, T, hd]
             k = k.view(B, T, self.nhead, hd).transpose(1, 2)
@@ -378,8 +384,10 @@ class DecoderOnlyTransformerLayer(nn.Module):
                 q, k, v, attn_mask=am,
                 dropout_p=(self._attn_dropout_p if self.training else 0.0),
                 is_causal=(is_causal and am is None))
+            PROBE.record(f"{tag} sdpa", out)
             out = out.transpose(1, 2).reshape(B, T, d)             # [B, T, d]
             out = torch.nn.functional.linear(out, mha.out_proj.weight, mha.out_proj.bias)
+            PROBE.record(f"{tag} out_proj", out)
         return out.to(_DTYPE_MAP[self.residual_dtype])
 
     def _maybe_log_attn_amplitude(self, sa_in: Tensor, sa_out: Tensor) -> None:
@@ -439,7 +447,7 @@ class DecoderOnlyTransformerLayer(nn.Module):
             qk_logit_maxabs = float(logits.abs().max().item())
             sa_in_maxabs = float(xin.abs().max().item())
             sa_out_maxabs = float(sa_out.detach().abs().max().item())
-            # Stash partial; _forward_impl finalizes with resid_maxabs
+            # Stash partial. _forward_impl finalizes with resid_maxabs
             # (it owns the residual tensor after the SA add).
             self._attn_amp_pending = (
                 qk_logit_maxabs, sa_in_maxabs, sa_out_maxabs)
@@ -741,7 +749,7 @@ class TransformerBlock(nn.Module):
     def forecaster_forward(self, x, fp32_tail=True, cache_mask=True):
         """Run the forecaster stack on a [B*C, T, H] latent sequence.
 
-        `fcst_down_proj` → causal decoder layers → `fcst_up_proj`, i.e. the
+        `fcst_down_proj` → causal decoder layers → `fcst_up_proj`, that is the
         forecaster operator F on its own. Three callers compose the SAME
         entry point, so they cannot drift apart: :meth:`forward` applies it
         to the encoder output, the eval rollout
@@ -762,13 +770,13 @@ class TransformerBlock(nn.Module):
           #373 changes the training objective only, so it keeps it.
 
         `cache_mask=False` keeps the causal mask off the module — see
-        :meth:`causal_mask_for`. The eval rollout takes it; the callers that
+        :meth:`causal_mask_for`. The eval rollout takes it. The callers that
         run at a fixed T keep the cache.
         """
         causal_mask = self.causal_mask_for(x, cache=cache_mask)
         # Forecaster bottleneck (#286 follow-up, v13). When configured
         # smaller than `dimension_e`, `fcst_down_proj` is a Linear that
-        # shrinks per-token; otherwise it's nn.Identity (no-op). The
+        # shrinks per-token. Otherwise it's nn.Identity (no-op). The
         # projection is per-token, so it commutes with the causal mask.
         x = self.fcst_down_proj(x)
 
@@ -789,7 +797,7 @@ class TransformerBlock(nn.Module):
         # Follows `fp32_tail` for the same reason `bb_ckpt` does: checkpointing
         # is a training-memory knob, and the eval policy runs every layer flat.
         # `rollout_latent` runs under `no_grad`, so `x.requires_grad` holds it
-        # off there already; the policy is what pins it, not the caller.
+        # off there already. The policy is what pins it, not the caller.
         fcst_ckpt = (fp32_tail and os.environ.get("FCST_GRAD_CKPT", "0") == "1"
                      and self.training and x.requires_grad)
         for i, layer in enumerate(self.layers):
@@ -820,7 +828,7 @@ class TransformerBlock(nn.Module):
         outside and captured here, so it is the same tensor on forward and
         recompute (no RNG dependence); any layer-internal dropout is matched by
         checkpoint's preserve_rng_state. Env-gated (BACKBONE_CKPT=1, training
-        only) so the default path is unchanged; lets global batch 2048 fit the
+        only) so the default path is unchanged. It lets global batch 2048 fit the
         backbone-transformer forward on one 24 GB card (the GRU-encoder path's
         main transformer is otherwise not checkpointed)."""
         if ckpt:
@@ -970,7 +978,7 @@ class TransformerBlock(nn.Module):
             given row see the same mask. Drops variance by ~num_heads×
             and forces heads to disagree on which positions they attend
             to (rather than cooperating to count). Used after attempt-2
-            divergence; this is the user-pre-authorized fallback.
+            divergence. This is the user-pre-authorized fallback.
         """
         causal = TransformerBlock._generate_square_subsequent_mask(T).to(
             device=device, dtype=dtype)

@@ -59,12 +59,18 @@ project_root = script_dir.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.models import ConfigurableModel
-from src.checkpoint import load_encoder_source, prepare_backbone_state_dict
+from src.checkpoint import (
+    gru_input_bound_of,
+    load_encoder_source,
+    multi_patch_sizes_of,
+    prepare_backbone_state_dict,
+)
 from src.forecasting_head import (
     ForecastingHead,
     FORECAST_LEN,
     forecast_autoregressive,
     forecast_with_strategy,
+    native_value_head,
 )
 
 
@@ -420,7 +426,10 @@ def parse_args():
                    choices=["ewma", "revin", "none"],
                    help="Reversible norm variant — MUST match the backbone's "
                         "training-time choice. Both have 0 params so state_dict "
-                        "doesn't disambiguate. Default 'ewma'.")
+                        "doesn't disambiguate. Default 'ewma'. A checkpoint "
+                        "with the mean/std scaling (#421) names it with the "
+                        "buffer rev_norm.mean_std_scaling, and the eval "
+                        "reads that kind whatever this flag says.")
     p.add_argument("--rev-norm-span", type=int, default=32,
                    help="Span for RevEWMNorm (only used when "
                         "--rev-norm-kind=ewma). Must match training-time value.")
@@ -500,6 +509,17 @@ def load_models(args, device):
     # Auto-detect freq_emb_dim and seasonality_emb_dim so backbones
     # trained with either / both axes load cleanly without CLI flags.
     sd = torch.load(args.backbone_path, map_location=device, weights_only=True)
+    # A multi-patch backbone (#417) holds one patch encoder and one value
+    # head per patch size. Only its own value heads can score it: no
+    # separate head was trained on it.
+    patch_sizes = multi_patch_sizes_of(sd)
+    if patch_sizes and not args.native_value_head:
+        raise SystemExit(f"{args.backbone_path} has one patch encoder per "
+                         f"patch size {patch_sizes}; score it with "
+                         f"--native-value-head (A2V).")
+    BACKBONE_CONFIG["multi_patch_sizes"] = patch_sizes
+    if patch_sizes:
+        print(f"  [eval] auto-detected multi-patch sizes {patch_sizes}")
     w = sd.get("freq_embedding.embedding.weight")
     BACKBONE_CONFIG["freq_emb_dim"] = (w.shape[1] if w is not None else 0)
     # #419: the row count of the frequency table is the vocabulary (10 rows:
@@ -536,7 +556,7 @@ def load_models(args, device):
               f"{BACKBONE_CONFIG['num_encoder_layers']} from backbone checkpoint")
     # Auto-detect the b1024 collapse-fix norms (#322): QK-norm (q_norm/k_norm) and
     # attention-output RMSNorm (attn_out_rms) add per-layer params to encoder +
-    # forecaster layers; build with the matching flags so _qk_aon backbones load
+    # forecaster layers. Build with the matching flags so _qk_aon backbones load
     # cleanly. Absent keys -> flags stay False (older backbones unaffected).
     if any(k.endswith(".q_norm.weight") for k in sd):
         BACKBONE_CONFIG["qk_norm"] = True
@@ -575,6 +595,15 @@ def load_models(args, device):
         print(f"  [eval] auto-detected cpc forecaster "
               f"(K={BACKBONE_CONFIG['cpc_k_steps']}, "
               f"d={BACKBONE_CONFIG.get('forecaster_d_model')}) from checkpoint")
+    # #421: a buffer marks the mean/std scaling of Moirai 1.0, so the
+    # checkpoint names it. The flag picks among the kinds with no mark.
+    if "rev_norm.mean_std_scaling" in sd:
+        args.rev_norm_kind = "meanstd"
+    # #421: the bound of the GRU input, when the run trained with one.
+    BACKBONE_CONFIG["gru_input_bound"] = gru_input_bound_of(sd)
+    if BACKBONE_CONFIG["gru_input_bound"]:
+        print(f"  [eval] GRU input bound "
+              f"{BACKBONE_CONFIG['gru_input_bound']:g} from the checkpoint")
     BACKBONE_CONFIG["rev_norm_kind"] = args.rev_norm_kind
     if args.rev_norm_kind == "ewma":
         BACKBONE_CONFIG["rev_norm_span"] = args.rev_norm_span
@@ -593,6 +622,8 @@ def load_models(args, device):
         ref = sd.get("encoder.skip.weight")
         if ref is None:
             ref = sd.get("encoder.linear1.weight")
+        if ref is None:
+            ref = sd.get(f"encoder.encoders.{W}.skip.weight")
         if ref is None:
             args.patch_stats = "none"
         else:
@@ -613,11 +644,13 @@ def load_models(args, device):
         print(f"  [eval] auto-detected patch_stats={args.patch_stats}")
     BACKBONE_CONFIG["patch_stats_kind"] = args.patch_stats
     if args.native_value_head:
-        vh = sd.get("value_head.weight")
+        W = BACKBONE_CONFIG["W"]
+        vh = sd.get(f"value_heads.{W}.weight" if patch_sizes
+                    else "value_head.weight")
         if vh is None:
             raise SystemExit(f"--native-value-head: {args.backbone_path} has "
                              f"no value head (train with --value-space-objective)")
-        BACKBONE_CONFIG["value_head_quantiles"] = vh.shape[0] // BACKBONE_CONFIG["W"]
+        BACKBONE_CONFIG["value_head_quantiles"] = vh.shape[0] // W
     backbone = ConfigurableModel(**BACKBONE_CONFIG)
     # Drops the pretraining-only branches (CPC-InfoNCE `cpc_w1.*`, the EMA
     # teacher's `teacher_*`) so the strict load matches the eval-time
@@ -640,12 +673,15 @@ def load_models(args, device):
         head = ValueHeadForecaster(backbone).to(device).eval()
         print(f"  [eval] native value head: {head.num_quantiles} quantiles of "
               f"the next {head.forecast_len} values, no separate head")
+        if patch_sizes:
+            print(f"  [eval] each config reads its frequency's patch size "
+                  f"from {patch_sizes}, with that size's value head")
         return backbone, head
 
     # A head decodes the latents of one encoder. Running a teacher head on
     # the student gives a number that looks fine and means nothing, so the
     # head's recorded source has the last word. Heads trained before #393
-    # carry no marker; those are student heads by construction and are left
+    # carry no marker. Those are student heads by construction and are left
     # to the caller.
     head_source = load_encoder_source(args.head_path)
     if head_source is not None and head_source != args.encoder_source:
@@ -821,6 +857,12 @@ def main():
                 backbone._eval_freq_id = freq_to_id(
                     dataset.freq, backbone._freq_vocab)
                 backbone._eval_seasonality_id = seasonality_to_id(season_length)
+                # The model's own value head for this config (#417): a
+                # multi-patch model reads it at its frequency's patch size.
+                # A single-patch model gets the head it always had.
+                if args.native_value_head:
+                    head = native_value_head(
+                        backbone, dataset.freq).to(device).eval()
 
                 # Create predictor for this dataset
                 predictor = ContrastiveForecasterPredictor(

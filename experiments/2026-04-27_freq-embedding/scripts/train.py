@@ -48,7 +48,8 @@ from src.dataloader import (
 from src.loss import (contrastive_latent_loss, cpc_infonce_aux_loss,
                       cpc_infonce_all_loss, align_loss, align_moco_loss,
                       sigreg_loss)
-from src.checkpoint import save_training_state, load_training_state
+from src.checkpoint import (gru_input_bound_of, load_training_state,
+                            save_training_state)
 from src.dist_utils import (
     setup_distributed,
     cleanup_distributed,
@@ -69,12 +70,22 @@ from src.metrics import (
     retrieval_auc_topk,
 )
 from src.freq_embedding import FREQ_VOCABS
-from src.norm import patch_padding
+from src.nan_debug import EXIT_CODE as NAN_DEBUG_EXIT, NanDebug
+from src.nan_skip import (MAX_SKIPPED_IN_A_ROW, SpikeGuard, find_culprits,
+                          is_finite_step, outlier_rows, rank_rows,
+                          restore_rng, rng_state, total_grad_norm,
+                          weights_are_finite)
+from src.norm import patch_padding, zero_union_padding
 from src.forecasting_head import (QUANTILE_LEVELS,
                                   extract_encoder_latents,
                                   extract_teacher_encoder_latents,
+                                  drop_far_windows,
+                                  mean_std_inputs,
+                                  window_max_z,
+                                  multi_patch_value_objective,
                                   rollout_forecaster_latents,
                                   value_space_objective)
+from src.patch_size import check_patch_sizes, draw_patch_sizes
 
 # -- Tiny architecture (identical to v3c) -----------------------------------
 # C and T_raw can be overridden at runtime via --n-channels / --t-raw to
@@ -436,10 +447,70 @@ def build_parser():
     p.add_argument("--mixup-alpha", type=float, default=0.2,
                    help="Beta(alpha, alpha) parameter for mixup lambda.")
     p.add_argument("--rev-norm-kind", default="ewma",
-                   choices=["ewma", "revin", "none"],
+                   choices=["ewma", "revin", "meanstd", "none"],
                    help="Reversible normalization variant. 'ewma' = "
                         "RevEWMNorm(span=32) (default); 'revin' = standard "
-                        "single-instance z-score; 'none' to disable.")
+                        "single-instance z-score; 'meanstd' = the mean/std "
+                        "scaling of Moirai 1.0 (#421): one loc and one scale "
+                        "per window, from the observed values before a split "
+                        "drawn as uni2ts MaskedPrediction draws it, and a "
+                        "loss on the values after the split only. Needs "
+                        "--value-space-objective. 'none' to disable.")
+    p.add_argument("--meanstd-z-max", type=float, default=100.0,
+                   help="With --rev-norm-kind meanstd (#421): drop from the "
+                        "batch each window whose target part lies more than "
+                        "this many scales from its context loc (max |z|), as "
+                        "Moirai 2.0 filters its samples (arXiv 2511.11698, "
+                        "Sec. 3). A dropped window adds no loss term, and "
+                        "none of its values reaches the model. The default, "
+                        "100, keeps 99.2%% of the GiftEvalPretrain windows "
+                        "(reports/2026-09-28_meanstd_z). 0 turns it off.")
+    p.add_argument("--skip-nan-samples", action="store_true",
+                   help="With --value-space-objective (#421): when a step "
+                        "gives a non-finite loss or gradient, find the rows "
+                        "that cause it by bisection, drop only them, and "
+                        "take the step on the other rows (src/nan_skip.py). "
+                        "Every pass restores the random state of the first, "
+                        "so each row draws the same split, patch size, mixup, "
+                        "dropout and DropKey masks. The search always ends: "
+                        "a fault that needs two rows drops one of them, and "
+                        "the step is skipped only when every row is bad. The "
+                        "losses CSV logs the dropped rows (nan_dropped, -1 "
+                        "for a skipped step) and the gradient norm before "
+                        "the clip (grad_norm), and each dropped row is "
+                        "written to <run>_nan_rows_<step>.pt. Default off.")
+    p.add_argument("--patch-rms-weight", type=float, default=0.0,
+                   help="With --value-space-objective, --multi-patch-sizes "
+                        "and the GRU encoder (#421): adds this weight times "
+                        "the mean over the real patches of (RMS(v) - 1)^2, "
+                        "where v is the vector each patch encoder feeds its "
+                        "LayerNorm (the projection of the GRU state plus the "
+                        "skip of the patch). The owner asked for a small term "
+                        "that keeps it near the unit scale. The losses CSV "
+                        "logs the mean RMS (patch_rms). 0 (the default) "
+                        "turns it off.")
+    p.add_argument("--skip-spike-samples", type=float, default=0.0,
+                   help="With --skip-nan-samples and a factor k > 0 (#421): "
+                        "a step whose gradient norm before the clip is above "
+                        "k times the median of the last 200 steps drops the "
+                        "rows that cause it, found by the same search. Until "
+                        "the guard holds 50 norms, as after a resume, the "
+                        "clip norm stands for the median. A "
+                        "pass with n of the B rows active compares its norm "
+                        "with k * median * sqrt(B / n). The losses CSV logs "
+                        "the rows (spike_dropped), and each dropped row is "
+                        "written to <run>_spike_rows_<step>.pt. 0 (the "
+                        "default) turns it off.")
+    p.add_argument("--gru-input-bound", type=float, default=0.0,
+                   help="With c > 0 the GRU patch encoders read c*tanh(x/c) "
+                        "in place of the raw patch values x, and their skip "
+                        "layer keeps x (#421). On patches with values above "
+                        "about 20, the size-128 GRU of the #421z run "
+                        "multiplied the gradient by 1e7 to 1e13 in its "
+                        "backward pass, and the rollout compounded it to "
+                        "1e21. With inputs within 12 its gain stayed below "
+                        "0.5. The checkpoint records c. 0 (default): the "
+                        "raw values, as before.")
     p.add_argument("--rev-norm-span", type=int, default=32,
                    help="Span parameter for RevEWMNorm (ignored unless "
                         "--rev-norm-kind=ewma). Default 32 matches the "
@@ -668,6 +739,14 @@ def build_parser():
                         "there is one copy and the two agree exactly, so "
                         "every published run reproduces under either. "
                         "docs/train_rollout_depth.md.")
+    p.add_argument("--multi-patch-sizes", default=None,
+                   help="One GRU patch encoder and one value head per patch "
+                        "size, e.g. 8,16,32,64,128 (#417). The body stays "
+                        "shared. Each sample draws its size from its "
+                        "frequency's range, as Moirai 1.0 does "
+                        "(src/patch_size.py), and a batch trains one group "
+                        "per size. Needs --value-space-objective. Default "
+                        "off: one patch size, W.")
     p.add_argument("--ema-embedding", action="store_true",
                    help="BYOL/JEPA EMA-teacher copy of the patch-embedding "
                         "(--encoder-type's input_to_latent). Non-trained; "
@@ -828,6 +907,173 @@ def parse_args(argv=None):
     return build_parser().parse_args(argv)
 
 
+def value_objective(model, inputs, args, multi_patch_sizes, active=None):
+    """The value-space objective of one step (#415, #417, #419, #421).
+
+    ``inputs`` holds the batch after every transform: ``x_norm``,
+    ``sample_sizes``, ``target_mask``, ``pad_mask`` and the label inputs.
+    ``active`` (bool, one per row) makes every other row inert for
+    --skip-nan-samples: zero inputs, no target, and no share of the loss.
+    None: every row.
+    """
+    x_norm, target = inputs["x_norm"], inputs["target_mask"]
+    freq_embs, seas_embs = inputs["freq_embs"], inputs["seasonality_embs"]
+    if active is not None:
+        rows = active.view(-1, 1, 1)
+        x_norm = x_norm.masked_fill(~rows, 0.0)
+        target = rows.expand_as(x_norm) if target is None else target & rows
+        if inputs.get("label_embs") is not None:
+            # The mixup embeddings again, on a new graph for this pass.
+            freq_embs, seas_embs = inputs["label_embs"]()
+    kw = dict(depth=args.train_rollout_depth, reduce=args.train_rollout_reduce,
+              freq_ids=inputs["freq_ids"], freq_embs=freq_embs,
+              seasonality_ids=inputs["seasonality_ids"],
+              seasonality_embs=seas_embs,
+              pad_mask=inputs["pad_mask"], target_mask=target)
+    if multi_patch_sizes:
+        return multi_patch_value_objective(
+            model, x_norm, inputs["sample_sizes"], active=active,
+            rms_weight=args.patch_rms_weight, **kw)
+    return value_space_objective(model, x_norm, **kw)
+
+
+def mixed_label_embeddings(model, mix, freq_ids, seasonality_ids, kept):
+    """A function that builds the mixup label embeddings of the kept rows
+    (#421 --skip-nan-samples).
+
+    maybe_mixup builds them from the model's tables, so they carry the
+    graph of the first pass, which its backward frees. Each later pass
+    builds them again, with the same weight and partners: the same values
+    on a new graph. ``kept`` maps the rows of the step to the rows of the
+    batch before the z-filter.
+    """
+    a, partner = mix["weight"], mix["partner"][kept]
+
+    def embs():
+        out = []
+        for table, ids in ((model.freq_embedding, freq_ids),
+                           (model.seasonality_embedding, seasonality_ids)):
+            out.append(None if table is None else
+                       a * table(ids[kept]) + (1 - a) * table(ids[partner]))
+        return tuple(out)
+    return embs
+
+
+def drop_bad_rows(model, inputs, args, multi_patch_sizes, rng, device,
+                  pass_is_bad, input_grad=None):
+    """The step without the rows that make it bad (#421).
+
+    ``pass_is_bad(loss_value, active_count)`` judges one pass while the model
+    holds its gradients. The search (src/nan_skip.py) runs passes with some
+    rows active and the others inert. Every pass restores ``rng``, the random
+    state from before the first pass, and keeps every row in the batch.
+    Returns ``(culprits, passes, result)``: ``result`` is the ``(loss, f_lat,
+    o_lat, per_depth)`` of the last pass, with the culprits inert, whose
+    gradients the model then holds. None when every row is bad: skip the
+    step, and the model holds no gradient. ``input_grad``, the gradient of
+    the first pass with respect to each row's values, gives the outlier
+    rows and the ranking the search tries first.
+    """
+    B = inputs["x_norm"].shape[0]
+    inputs = dict(inputs, x_norm=inputs["x_norm"].detach())
+    last = {}
+
+    def run(active):
+        model.zero_grad(set_to_none=True)
+        restore_rng(rng, device)
+        out = value_objective(model, inputs, args, multi_patch_sizes, active)
+        out[0].backward()
+        return out
+
+    def is_bad(rows):
+        active = torch.zeros(B, dtype=torch.bool, device=device)
+        active[list(rows)] = True
+        last["out"] = run(active)
+        return pass_is_bad(last["out"][0].item(), len(rows))
+
+    culprits, passes, clean = find_culprits(
+        is_bad, range(B), rank_rows(input_grad), outlier_rows(input_grad))
+    if not clean:
+        model.zero_grad(set_to_none=True)
+        return culprits, passes, None
+    return culprits, passes, last["out"]
+
+
+def skip_nan_rows(model, inputs, args, multi_patch_sizes, rng, device,
+                  input_grad=None):
+    """--skip-nan-samples: drop the rows of a non-finite step."""
+    return drop_bad_rows(model, inputs, args, multi_patch_sizes, rng, device,
+                         lambda loss, n: not is_finite_step(loss, model),
+                         input_grad)
+
+
+def skip_spike_rows(model, inputs, args, multi_patch_sizes, rng, device,
+                    guard, input_grad=None):
+    """--skip-spike-samples: drop the rows of a step whose gradient norm is a
+    spike, and every non-finite row with them."""
+    B = inputs["x_norm"].shape[0]
+
+    def bad(loss, n):
+        return (not is_finite_step(loss, model)
+                or total_grad_norm(model) > guard.threshold(n, B))
+    return drop_bad_rows(model, inputs, args, multi_patch_sizes, rng, device,
+                         bad, input_grad)
+
+
+def nan_rows_report(step, culprits, meta, args, kind="nan"):
+    """The log lines of the rows --skip-nan-samples (kind "nan") or
+    --skip-spike-samples (kind "spike") dropped at ``step``, and the file of
+    their data (#421). ``meta`` holds the step's batch: the rows as loaded
+    and as the model reads them, and per row its kind, labels, patch size,
+    split and max |z|."""
+    names = FREQ_VOCABS[args.freq_vocab]
+    rows = [int(meta["kept"][r]) for r in culprits]
+    mix = meta["mixup"] or {}
+    lines = []
+    for r, row in zip(culprits, rows):
+        source = meta["row_kind"][row]
+        if "partner" in mix:
+            partner = int(mix["partner"][row])
+            source += (f", mixed {mix['weight']:.3g} with row {partner} "
+                       f"({meta['row_kind'][partner]})")
+        size = meta["patch_size"]
+        split = meta["split"]
+        lines.append(
+            f"  row {row}: {source}, freq {names[int(meta['freq_ids'][row])]}"
+            f", patch {int(size[r]) if size is not None else '-'}"
+            f", split {int(split[row]) if split is not None else '-'}"
+            f", max |z| "
+            f"{float(meta['max_z'][row]) if meta['max_z'] is not None else float('nan'):.4g}")
+    path = os.path.join(args.save_dir, f"{args.run_name}_{kind}_rows_{step}.pt")
+    torch.save({"step": step, "rows": rows, "lines": lines,
+                "loaded": meta["loaded"][rows].cpu(),
+                "values": meta["values"][rows].cpu(),
+                "x_norm": meta["x_norm"][list(culprits)].cpu(),
+                "mixup": {k: (v.cpu() if torch.is_tensor(v) else v)
+                          for k, v in mix.items()}}, path)
+    return lines, path
+
+
+def announce_dropped(kind, step, found, seconds, meta, args, extra=""):
+    """Print the rows a --skip-nan-samples or --skip-spike-samples search
+    dropped at ``step`` and save their data. ``found`` is the ``(culprits,
+    passes, result)`` of the search. Returns the count for the losses CSV:
+    the rows dropped, or -1 for a skipped step."""
+    culprits, passes, result = found
+    total = meta["x_norm"].shape[0]
+    tag = f"[skip-{kind}] step {step}:"
+    if result is None:
+        print(f"{tag} every row is bad ({passes} passes, {seconds:.1f} s). "
+              f"The step is skipped.", flush=True)
+        return -1
+    lines, path = nan_rows_report(step, culprits, meta, args, kind)
+    print(f"{tag} {len(culprits)} of {total} rows dropped after {passes} "
+          f"passes ({seconds:.1f} s){extra}, loss {result[0].item():.4f} "
+          f"without them. Rows: {path}")
+    print("\n".join(lines), flush=True)
+    return len(culprits)
+
+
 def random_sign_flip(x):
     B, T, C = x.shape
     signs = torch.where(torch.rand(B, 1, C, device=x.device) < 0.5,
@@ -891,14 +1137,21 @@ def forward_step(model, x, freq_ids=None, freq_embs=None,
     return f_lat, o_lat
 
 
-def maybe_mixup(x, freq_ids, seasonality_ids, model, args):
+def maybe_mixup(x, freq_ids, seasonality_ids, model, args, info=None):
     """With prob p, linearly interpolate X and label embeddings between
     randomly-paired batch items.
 
     Returns ``(x, freq_ids, freq_embs, seasonality_ids, seasonality_embs)``.
     ``*_embs`` are None when no mixup applies (caller passes ids directly to
-    the model so it does its own lookup); when mixup applies, ``*_embs``
+    the model so it does its own lookup). When mixup applies, ``*_embs``
     are pre-mixed tensors and ids are unused by the model lookup.
+
+    With zero left padding (#419), a mixed row keeps the longer padding of
+    its two rows at exactly 0, and its values exist only where both rows
+    hold real values (#421). Without it, rows mix as before.
+
+    ``info`` (a dict, CF_NAN_DEBUG) receives the weight and the partner
+    rows of a mixup that applies.
     """
     no_freq = model.freq_embedding is None
     no_seas = model.seasonality_embedding is None
@@ -911,6 +1164,10 @@ def maybe_mixup(x, freq_ids, seasonality_ids, model, args):
     B = x.shape[0]
     idx = torch.randperm(B, device=x.device)
     x_mix = a * x + (1 - a) * x[idx]
+    if getattr(model.rev_norm, "skip_leading_zeros", False):
+        x_mix = zero_union_padding(x_mix, x, x[idx])
+    if info is not None:
+        info.update(weight=a, partner=idx)
 
     if not no_freq:
         emb_a = model.freq_embedding(freq_ids)
@@ -965,11 +1222,62 @@ def parse_extra_save_steps(spec):
     return frozenset(vals)
 
 
+def parse_multi_patch_sizes(args):
+    """--multi-patch-sizes as a sorted tuple of ints, or () when off (#417).
+
+    Raises SystemExit when the run cannot train the sizes: without
+    --value-space-objective, which is the only objective with value heads,
+    with a set that leaves a frequency without a size, or with a window
+    that holds too few patches of the largest size for the rollout.
+    """
+    if args.multi_patch_sizes is None:
+        return ()
+    if not args.value_space_objective:
+        raise SystemExit("--multi-patch-sizes gives each patch size its own "
+                         "value head, and only --value-space-objective "
+                         "trains one (#417).")
+    try:
+        sizes = tuple(sorted({int(s) for s in args.multi_patch_sizes.split(",")}))
+        check_patch_sizes(sizes, base_size=MODEL_CONFIG["W"])
+    except ValueError as e:
+        raise SystemExit(f"--multi-patch-sizes {args.multi_patch_sizes}: {e}")
+    check_window_holds_patches(args, sizes)
+    return sizes
+
+
+def check_window_holds_patches(args, sizes):
+    """A rollout of depth k supervises patch t + 1 + k, so a window needs
+    k + 2 whole patches at every size (#417)."""
+    need = args.train_rollout_depth + 2
+    if any(args.t_raw % p or args.t_raw // p < need for p in sizes):
+        raise SystemExit(f"--multi-patch-sizes: --t-raw {args.t_raw} must hold "
+                         f"a whole number of patches, and at least {need}, "
+                         f"at every size of {sizes}.")
+
+
 def should_snapshot(step, save_every, extra_steps):
     """True at step > 0 if step matches --save-every or is in the extras set."""
     if step <= 0:
         return False
     return (step % save_every == 0) or (step in extra_steps)
+
+
+def resume_state(model, args):
+    """The state dict of --resume, ready for a strict load (#421).
+
+    A checkpoint from before --gru-input-bound holds no bound, so it takes
+    the bound this command names. A checkpoint that trained with a bound
+    must resume with the same one.
+    """
+    state = torch.load(args.resume, map_location=next(model.parameters()).device)
+    trained = gru_input_bound_of(state)
+    if trained and trained != args.gru_input_bound:
+        raise SystemExit(f"{args.resume} trained with --gru-input-bound "
+                         f"{trained:g}. Resume it with the same bound.")
+    for key, value in model.state_dict().items():
+        if key.endswith(".input_bound") and key not in state:
+            state[key] = value
+    return state
 
 
 def save_snapshot(model, optimizer, path, step, best_gap, best_gap_step,
@@ -1092,9 +1400,13 @@ VALUE_SPACE_FLAGS = frozenset((
     "deprecated_depthwise_conv", "qk_norm", "attn_out_norm",
     "residual_dtype", "attn_dtype", "ffn_dtype", "conv_dtype",
     "patch_emb_dtype", "rev_norm_kind", "rev_norm_span", "patch_stats",
-    "freq_emb_dim", "seasonality_emb_dim", "freq_vocab",
+    "freq_emb_dim", "seasonality_emb_dim", "freq_vocab", "meanstd_z_max",
+    "gru_input_bound", "skip_nan_samples", "skip_spike_samples",
+    "patch_rms_weight",
     # The objective.
     "value_space_objective", "train_rollout_depth", "train_rollout_reduce",
+    # One patch encoder and one value head per patch size (#417).
+    "multi_patch_sizes",
 ))
 
 
@@ -1133,10 +1445,11 @@ def check_gift_pretrain(args):
     if args.hf_repo or args.hf_path:
         raise SystemExit("--gift-pretrain replaces --hf-repo and --hf-path. "
                          "Drop them.")
-    if args.rev_norm_kind != "ewma":
+    if args.rev_norm_kind not in ("ewma", "meanstd"):
         raise SystemExit("--gift-pretrain pads short series with zeros, and "
-                         "only the EWMA normaliser skips the padding. Use "
-                         "--rev-norm-kind ewma.")
+                         "only the EWMA normaliser and the mean/std scaling "
+                         "skip the padding. Use --rev-norm-kind ewma or "
+                         "meanstd.")
     gap = None if args.value_space_objective else gift_contrastive_gap(args)
     if gap:
         raise SystemExit(f"--gift-pretrain keeps the zero padding out of "
@@ -1159,6 +1472,66 @@ def gift_contrastive_gap(args):
     if args.subtract_contrastive_floor:
         return "--subtract-contrastive-floor"
     return None
+
+
+def check_patch_rms(args):
+    """Refuse --patch-rms-weight where no GRU patch encoder bank runs."""
+    if args.patch_rms_weight == 0:
+        return
+    if args.patch_rms_weight < 0:
+        raise SystemExit("--patch-rms-weight is a weight: 0 or more.")
+    if not (args.value_space_objective and args.multi_patch_sizes
+            and args.encoder_type == "gru" and args.n_channels == 1):
+        raise SystemExit("--patch-rms-weight reads the GRU patch encoders of "
+                         "the multi-patch value-space objective, on one "
+                         "channel (#421). Add --value-space-objective, "
+                         "--multi-patch-sizes, --encoder-type gru and "
+                         "--n-channels 1.")
+
+
+def check_skip_nan(args):
+    """Refuse --skip-nan-samples where rows are not independent units."""
+    if args.skip_spike_samples > 0 and not args.skip_nan_samples:
+        raise SystemExit("--skip-spike-samples uses the row search of "
+                         "--skip-nan-samples. Add --skip-nan-samples.")
+    if not args.skip_nan_samples:
+        return
+    if not args.value_space_objective:
+        raise SystemExit("--skip-nan-samples drops single rows, and only the "
+                         "value-space objective reads each row on its own. "
+                         "Add --value-space-objective.")
+    if int(os.environ.get("WORLD_SIZE", "1")) > 1:
+        raise SystemExit("--skip-nan-samples runs extra passes on one rank "
+                         "only, and a distributed run waits for all ranks.")
+    if os.environ.get("CF_NAN_DEBUG") == "1":
+        raise SystemExit("CF_NAN_DEBUG=1 stops the run at the first NaN, and "
+                         "--skip-nan-samples goes on without the bad rows. "
+                         "Use one of them.")
+
+
+def check_mean_std(args):
+    """Refuse the mean/std scaling (#421) outside the value-space objective.
+
+    Its statistics read the context before a split, and only the value-space
+    objective draws one. A contrastive run would scale each window by its
+    whole length, future values included.
+    """
+    if args.rev_norm_kind == "meanstd" and not args.value_space_objective:
+        raise SystemExit("--rev-norm-kind meanstd takes its statistics from "
+                         "the context before a split that only "
+                         "--value-space-objective draws (#421). Add it.")
+    if ("meanstd_z_max" in named_on_command_line()
+            and args.rev_norm_kind != "meanstd"):
+        raise SystemExit("--meanstd-z-max filters the windows of "
+                         "--rev-norm-kind meanstd (#421). Add it, or drop "
+                         "the flag.")
+    if args.meanstd_z_max < 0:
+        raise SystemExit("--meanstd-z-max is 0 (off) or a positive bound.")
+    if args.gru_input_bound < 0:
+        raise SystemExit("--gru-input-bound is 0 (off) or a positive bound.")
+    if args.gru_input_bound and args.encoder_type != "gru":
+        raise SystemExit("--gru-input-bound bounds the input of the GRU patch "
+                         "encoder. Use --encoder-type gru, or drop it.")
 
 
 def contrastive_padding(model, args):
@@ -1202,8 +1575,20 @@ def safe_run_name(save_dir, run_name):
 
 class CSVLogger:
     def __init__(self, path, flush_every=100, tau_ref_column=True,
-                 rollout_depth=0, depth_column_prefix="cos_err_d"):
+                 rollout_depth=0, depth_column_prefix="cos_err_d",
+                 dropped_column=False, nan_column=False, rms_column=False):
         self.path = path
+        # dropped_column (#421): a trailing `meanstd_dropped` column, the
+        # share of the step's windows the mean/std filter dropped. Only a
+        # run with --meanstd-z-max on writes it, so every other CSV keeps
+        # its schema.
+        self.dropped_column = bool(dropped_column)
+        # nan_column (#421): a trailing `nan_dropped` column, the rows that
+        # --skip-nan-samples dropped at the step (-1: the step was skipped).
+        self.nan_column = bool(nan_column)
+        # rms_column (#421): a trailing `patch_rms` column, the mean RMS of
+        # the vectors the patch encoders feed their LayerNorm.
+        self.rms_column = bool(rms_column)
         self.flush_every = flush_every
         # rollout_depth (#373): k > 0 adds one `cos_err_dj` column per depth
         # j = 0..k, the per-depth forecast error 1 − cos(f^(j)_t, h_{t+1+j}).
@@ -1276,6 +1661,12 @@ class CSVLogger:
         if self.rollout_depth:
             header += [f"{self.depth_column_prefix}{j}"
                        for j in range(self.rollout_depth + 1)]
+        if self.dropped_column:
+            header += ["meanstd_dropped"]
+        if self.nan_column:
+            header += ["nan_dropped", "spike_dropped", "grad_norm"]
+        if self.rms_column:
+            header += ["patch_rms"]
         if os.path.getsize(path) == 0:
             self._writer.writerow(header)
             self._file.flush()
@@ -1310,7 +1701,8 @@ class CSVLogger:
             u_temporal_e=None, u_batch_e=None,
             u_batchtime=None, u_batchtime_e=None, ema_tau=None,
             rep_w=None, l_pred=None, l_rep=None, l_align=None,
-            cos_err_depths=None):
+            cos_err_depths=None, meanstd_dropped=None, nan_dropped=None,
+            spike_dropped=None, grad_norm=None, patch_rms=None):
         if not self._enabled:
             return
         row = [step, loss]
@@ -1331,6 +1723,13 @@ class CSVLogger:
             depths = cos_err_depths or []
             row += [depths[j] if j < len(depths) else ''
                     for j in range(self.rollout_depth + 1)]
+        if self.dropped_column:
+            row.append('' if meanstd_dropped is None else meanstd_dropped)
+        if self.nan_column:
+            row += ['' if v is None else v
+                    for v in (nan_dropped, spike_dropped, grad_norm)]
+        if self.rms_column:
+            row.append('' if patch_rms is None else patch_rms)
         self._buffer.append(row)
         if len(self._buffer) >= self.flush_every:
             self.flush()
@@ -1591,8 +1990,12 @@ def main():
             raise SystemExit(
                 "--value-space-objective needs the single-step transformer "
                 f"forecaster; got --forecaster-kind {args.forecaster_kind}.")
+    multi_patch_sizes = parse_multi_patch_sizes(args)
 
     check_gift_pretrain(args)
+    check_mean_std(args)
+    check_skip_nan(args)
+    check_patch_rms(args)
 
     # Distributed (opt-in, env-driven): launch with
     #   torchrun --nproc_per_node=N experiments/.../train.py ...
@@ -1698,6 +2101,11 @@ def main():
     # 0 on every other run, so the model is the cell's unchanged.
     model_config["value_head_quantiles"] = (
         len(QUANTILE_LEVELS) if args.value_space_objective else 0)
+    # #417: one patch encoder and one value head per size. Empty on every
+    # other run, so the model is the one above, unchanged.
+    model_config["multi_patch_sizes"] = multi_patch_sizes
+    # #421: the bound of the GRU input. 0 on every other run.
+    model_config["gru_input_bound"] = args.gru_input_bound
     model_config["qk_norm"] = bool(args.qk_norm)
     model_config["attn_out_norm"] = bool(args.attn_out_norm)
     model_config["log_attn_amplitude"] = bool(args.log_attn_amplitude)
@@ -1888,7 +2296,7 @@ def main():
     restored = {}
 
     if args.resume:
-        model.load_state_dict(torch.load(args.resume, map_location=device))
+        model.load_state_dict(resume_state(model, args))
         restored = load_training_state(optimizer, args.resume, device=device)
         start_step = restored["step"]
         # The schedule the checkpoint trained under (#414). A resume that
@@ -1963,6 +2371,23 @@ def main():
               f"depth {args.train_rollout_depth} in value space, "
               f"reduce={args.train_rollout_reduce}. No teacher, no EMA, no "
               f"L_rep, no L_align, no CPC, no SIGReg.")
+    if multi_patch_sizes:
+        print(f"Multi-patch (#417): one patch encoder and one value head per "
+              f"patch size {multi_patch_sizes}. Each sample draws its size "
+              f"from its frequency's range; a sample with no frequency label "
+              f"draws from every size.")
+    if args.rev_norm_kind == "meanstd":
+        print("Scaling (#421): the mean/std scaling of Moirai 1.0. Each "
+              "window draws a target fraction r ~ U[0.15, 0.5] of its whole "
+              "patches of real values. loc and scale come from the observed "
+              "values before the split, and the loss counts only the patches "
+              "after it. A size needs two whole patches of real values "
+              "(uni2ts GetPatchSize).")
+        if args.meanstd_z_max > 0:
+            print(f"Window filter (#421, Moirai 2.0): a window whose target "
+                  f"part holds a |z| above {args.meanstd_z_max:g} leaves the "
+                  f"batch. The losses CSV logs the dropped share of each step "
+                  f"(meanstd_dropped).")
     print(f"Training for {args.total_steps} steps, bs={args.batch_size}, "
           f"lr={args.lr}, T={args.t_raw}, C={args.n_channels}, "
           f"mix_ratio={args.mix_ratio}, "
@@ -1983,7 +2408,11 @@ def main():
         # shape to be taken at and the per-depth columns hold a value error.
         tau_ref_column=not args.value_space_objective,
         depth_column_prefix=("val_err_d" if args.value_space_objective
-                             else "cos_err_d"))
+                             else "cos_err_d"),
+        dropped_column=(args.rev_norm_kind == "meanstd"
+                        and args.meanstd_z_max > 0),
+        nan_column=args.skip_nan_samples,
+        rms_column=args.patch_rms_weight > 0)
     print(f"Loss CSV: {csv_path}")
 
     # Latent-drift probe (rank-0 only). Fixed ARMA batch drawn once and
@@ -2080,6 +2509,8 @@ def main():
             skip_rows=hf_rows_consumed, T_raw=args.t_raw, seed=synth_seed,
             emit_freq_ids=(args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0),
             real_rows=real_rows,
+            # #421: the stream pads with zeros, and the crossfade keeps them.
+            zero_padding=args.gift_pretrain,
         )
     else:
         data_loader = create_mixed_periodic_dataloader(
@@ -2105,11 +2536,57 @@ def main():
     data_iter = iter(data_loader)
     sys.stdout.flush()
 
+    # CF_NAN_DEBUG=1 (#421): the NaN diagnostic mode, src/nan_debug.py. None,
+    # and so inert, when the variable is unset.
+    nan_debug = NanDebug.from_env(
+        model, optimizer,
+        os.path.join(args.save_dir, f"{args.run_name}_nan_dump.pt"))
+    if nan_debug is not None:
+        print(f"NaN debug (CF_NAN_DEBUG=1): each step checks its loss, its "
+              f"gradients and its weights. The first non-finite value "
+              f"writes {nan_debug.dump_path} and stops the run with exit "
+              f"code {NAN_DEBUG_EXIT}.")
+    if args.skip_nan_samples:
+        print("Skip NaN samples (#421): a step with a non-finite loss or "
+              "gradient drops only the rows that cause it, found by "
+              "bisection, and takes the step on the other rows. The losses "
+              "CSV logs the dropped rows (nan_dropped).")
+    # The rows of a batch, in the order the loader stacks them.
+    row_kinds = (["real"] * hf_bs + [args.synth_kind] * synth_bs
+                 + ["crossfade"] * cross_bs
+                 + ["triplet A", "triplet B", "triplet C"]
+                 * args.crossfade_triplets)
+
+    def stop_on_nan(step, why=""):
+        """Save the EMERGENCY snapshot and stop the run."""
+        print(f"\n*** NaN/Inf DETECTED at step {step} ***{why}")
+        emerg_path = os.path.join(
+            args.save_dir, f"{args.run_name}_EMERGENCY_{step}.pth")
+        save_snapshot(model, optimizer, emerg_path, step,
+                      best_gap, best_gap_step, best_loss, best_loss_step,
+                      ema_loss=ema_loss, ema_gap=ema_gap,
+                      hf_rows_consumed=hf_rows_consumed,
+                      synth_rows_consumed=synth_rows_consumed,
+                      lr_schedule=lr_schedule)
+        csv_logger.close()
+        if attn_amp_csv is not None:
+            attn_amp_csv.close()
+        sys.stdout.flush()
+        sys.exit(1)
+
+    skipped_in_a_row = 0
+    spike_guard = (SpikeGuard(args.skip_spike_samples, args.grad_clip or 1.0)
+                   if args.skip_spike_samples > 0 else None)
+
     # -- Training loop --------------------------------------------------------
     t0 = time.time()
     t_data_sum, t_fwd_sum, t_bwd_sum, t_step_sum = 0.0, 0.0, 0.0, 0.0
     timing_count = 0
     mixup_applied_count = 0
+    # #421: the share of windows the filter dropped, this step and summed
+    # since the last log line. None when the filter is off.
+    filter_on = args.rev_norm_kind == "meanstd" and args.meanstd_z_max > 0
+    dropped_share, dropped_sum = None, 0.0
 
     check_lr_schedule(args)
     cosine_steps = args.lr_cosine_steps or args.total_steps
@@ -2125,6 +2602,8 @@ def main():
                 group["lr"] = lr_now
         model.train()
         optimizer.zero_grad()
+        if nan_debug is not None:
+            nan_debug.start_step(step)
 
         t_data_start = time.perf_counter()
         try:
@@ -2147,12 +2626,28 @@ def main():
         hf_rows_consumed += hf_rows_per_step
         synth_rows_consumed += synth_rows_per_step
         x = x.to(device)
+        x_loaded = x
         x = random_sign_flip(x)
+        x_flipped = x
 
         # Optional mixup (X + freq + seasonality embeddings)
+        mixup_info = ({} if nan_debug is not None or args.skip_nan_samples
+                      else None)
         (x, freq_ids, freq_embs,
          seasonality_ids, seasonality_embs) = maybe_mixup(
-            x, freq_ids, seasonality_ids, model, args)
+            x, freq_ids, seasonality_ids, model, args, info=mixup_info)
+        if args.skip_nan_samples:
+            skip_meta = dict(
+                values=x, loaded=x_loaded, row_kind=row_kinds[:x.shape[0]],
+                mixup=mixup_info, freq_ids=freq_ids,
+                seasonality_ids=seasonality_ids, max_z=None, split=None,
+                kept=torch.arange(x.shape[0], device=x.device))
+        if nan_debug is not None:
+            nan_debug.note_batch(
+                values=x, loaded=x_loaded, row_kind=row_kinds[:x.shape[0]],
+                sign_flipped=(x_loaded != x_flipped).any(dim=1),
+                mixup=mixup_info, freq_ids=freq_ids,
+                seasonality_ids=seasonality_ids)
         mixup_applied = (freq_embs is not None or seasonality_embs is not None)
         if mixup_applied:
             mixup_applied_count += 1
@@ -2186,18 +2681,80 @@ def main():
             # is not rescaled by its own spread. The objective then runs the
             # cell once per depth on values, and returns depth 0's latents
             # for the diagnostics below.
-            x_norm = (model.rev_norm(x, mode='norm')
-                      if model.rev_norm is not None else x)
             # #419: with zero left padding the normaliser marks the padded
             # values, and the objective skips them. None on every other run.
-            value_loss, f_lat, o_lat, value_depths = value_space_objective(
-                model, x_norm,
-                depth=args.train_rollout_depth,
-                reduce=args.train_rollout_reduce,
+            if args.rev_norm_kind == "meanstd":
+                # #421: the sizes, then one split per window. loc and scale
+                # read the context before the split, and the loss counts
+                # the patches after it only.
+                x_norm, sample_sizes, target_mask = mean_std_inputs(
+                    model, x, freq_ids, multi_patch_sizes)
+                pad_mask = model.rev_norm.pad_mask
+                if args.skip_nan_samples:
+                    # #421: the rows as the step reads them, for the report
+                    # of a row that --skip-nan-samples drops.
+                    max_z = window_max_z(x_norm, target_mask, pad_mask)
+                    far = ~(max_z <= args.meanstd_z_max) if filter_on else None
+                    skip_meta.update(
+                        max_z=max_z, split=(~target_mask).sum(dim=(1, 2)),
+                        kept=(torch.arange(len(max_z), device=x.device)
+                              if far is None or bool(far.all())
+                              else (~far).nonzero().view(-1)))
+                if nan_debug is not None:
+                    max_z = window_max_z(x_norm, target_mask, pad_mask)
+                    nan_debug.note_batch(
+                        x_norm=x_norm, padding=pad_mask,
+                        patch_size=sample_sizes,
+                        split=(~target_mask).sum(dim=1),
+                        loc=model.rev_norm.mean, scale=model.rev_norm.stdev,
+                        max_z=max_z, kept=(max_z <= args.meanstd_z_max
+                                           if filter_on else None))
+                if filter_on:
+                    # A window whose target part lies far from its context
+                    # leaves the batch, with every per-sample input.
+                    ((x_norm, target_mask, pad_mask, sample_sizes, freq_ids,
+                      freq_embs, seasonality_ids, seasonality_embs),
+                     dropped_share) = drop_far_windows(
+                        args.meanstd_z_max, x_norm, target_mask, pad_mask,
+                        sample_sizes, freq_ids, freq_embs, seasonality_ids,
+                        seasonality_embs)
+                    dropped_sum += dropped_share
+            else:
+                x_norm = (model.rev_norm(x, mode='norm')
+                          if model.rev_norm is not None else x)
+                sample_sizes = (draw_patch_sizes(freq_ids, multi_patch_sizes,
+                                                 x.shape[0])
+                                if multi_patch_sizes else None)
+                target_mask = None
+                pad_mask = getattr(model.rev_norm, "pad_mask", None)
+                if nan_debug is not None:
+                    nan_debug.note_batch(
+                        x_norm=x_norm, padding=pad_mask,
+                        patch_size=sample_sizes,
+                        loc=getattr(model.rev_norm, "mean", None),
+                        scale=getattr(model.rev_norm, "stdev", None))
+            # #417: with several patch sizes each sample reads the size its
+            # frequency draws, and the batch trains one group per size.
+            value_inputs = dict(
+                x_norm=x_norm, sample_sizes=sample_sizes,
+                target_mask=target_mask, pad_mask=pad_mask,
                 freq_ids=freq_ids, freq_embs=freq_embs,
                 seasonality_ids=seasonality_ids,
-                seasonality_embs=seasonality_embs,
-                pad_mask=getattr(model.rev_norm, "pad_mask", None))
+                seasonality_embs=seasonality_embs)
+            if args.skip_nan_samples:
+                # #421: the input gradient of each row ranks the rows of a
+                # bad step (rank_rows).
+                value_inputs["x_norm"] = x_norm.detach().requires_grad_(True)
+                # #421: the random state a pass without some rows replays.
+                skip_rng = rng_state(device)
+                skip_meta.update(x_norm=x_norm,
+                                 patch_size=sample_sizes)
+                if "partner" in mixup_info:
+                    value_inputs["label_embs"] = mixed_label_embeddings(
+                        model, mixup_info, skip_meta["freq_ids"],
+                        skip_meta["seasonality_ids"], skip_meta["kept"])
+            value_loss, f_lat, o_lat, value_depths = value_objective(
+                model, value_inputs, args, multi_patch_sizes)
             teacher_o_lat = None
             e_lat = None
         elif use_ema:
@@ -2478,32 +3035,90 @@ def main():
             loss_tau_ref_val = loss_tau_ref.item()
         t_fwd_end = time.perf_counter()
 
+        if nan_debug is not None:
+            loss = nan_debug.injected(loss)
         loss_val = loss.item()
-        if math.isnan(loss_val) or math.isinf(loss_val):
-            print(f"\n*** NaN/Inf DETECTED at step {step} ***")
-            emerg_path = os.path.join(
-                args.save_dir, f"{args.run_name}_EMERGENCY_{step}.pth")
-            save_snapshot(model, optimizer, emerg_path, step,
-                          best_gap, best_gap_step, best_loss, best_loss_step,
-                          ema_loss=ema_loss, ema_gap=ema_gap,
-                          hf_rows_consumed=hf_rows_consumed,
-                          synth_rows_consumed=synth_rows_consumed,
-                          lr_schedule=lr_schedule)
+        if nan_debug is not None and nan_debug.loss_is_bad(loss_val):
             csv_logger.close()
-            if attn_amp_csv is not None:
-                attn_amp_csv.close()
-            sys.stdout.flush()
-            sys.exit(1)
+            sys.exit(NAN_DEBUG_EXIT)
+        if (math.isnan(loss_val) or math.isinf(loss_val)) \
+                and not args.skip_nan_samples:
+            stop_on_nan(step)
 
         t_bwd_start = time.perf_counter()
+        if nan_debug is not None:
+            nan_debug.backward_starts()
         loss.backward()
         # DDP: all_reduce(SUM)/W the param grads (== DDP's averaging). With
         # the W× from DifferentiableAllGather.backward this yields exactly
         # the single-GPU full-batch gradient. No-op single-GPU.
         average_gradients(model)
-        if args.grad_clip is not None:
-            torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
-        optimizer.step()
+        # CF_NAN_DEBUG (#421): the gradients before the clip and the step.
+        if nan_debug is not None and nan_debug.grads_are_bad(loss_val):
+            csv_logger.close()
+            sys.exit(NAN_DEBUG_EXIT)
+        # #421 --skip-nan-samples: a non-finite step drops its bad rows.
+        nan_dropped, spike_dropped, step_skipped = 0, 0, False
+        step_grad_norm = None
+        if args.skip_nan_samples and not is_finite_step(loss_val, model):
+            if not weights_are_finite(model):
+                stop_on_nan(step, " The weights are not finite, so no row "
+                            "to drop can help.")
+            t_skip = time.perf_counter()
+            found = skip_nan_rows(model, value_inputs, args,
+                                  multi_patch_sizes, skip_rng, device,
+                                  value_inputs["x_norm"].grad)
+            nan_dropped = announce_dropped(
+                "nan", step, found, time.perf_counter() - t_skip, skip_meta,
+                args)
+            step_skipped = found[2] is None
+            if not step_skipped:
+                loss, f_lat, o_lat, value_depths = found[2]
+                loss_val = loss.item()
+                f1_lat, o_lat = f_lat.float(), o_lat.float()
+        # #421 --skip-spike-samples: a step whose gradient norm is a spike
+        # drops the rows that cause it.
+        if args.skip_nan_samples and not step_skipped:
+            step_grad_norm = total_grad_norm(model)
+            rows_now = value_inputs["x_norm"].shape[0]
+            if (spike_guard is not None
+                    and spike_guard.is_spike(step_grad_norm, rows_now)):
+                t_skip = time.perf_counter()
+                extra = (f", grad norm {step_grad_norm:.3g} against a "
+                         f"reference of {spike_guard.reference():.3g}")
+                found = skip_spike_rows(model, value_inputs, args,
+                                        multi_patch_sizes, skip_rng, device,
+                                        spike_guard,
+                                        value_inputs["x_norm"].grad)
+                spike_dropped = announce_dropped(
+                    "spike", step, found, time.perf_counter() - t_skip,
+                    skip_meta, args, extra)
+                step_skipped = found[2] is None
+                step_grad_norm = None
+                if not step_skipped:
+                    loss, f_lat, o_lat, value_depths = found[2]
+                    loss_val = loss.item()
+                    f1_lat, o_lat = f_lat.float(), o_lat.float()
+                    step_grad_norm = total_grad_norm(model)
+            if spike_guard is not None and step_grad_norm is not None:
+                spike_guard.record(step_grad_norm)
+        if step_skipped:
+            skipped_in_a_row += 1
+            if skipped_in_a_row == MAX_SKIPPED_IN_A_ROW:
+                stop_on_nan(step, f" {skipped_in_a_row} steps in a row were "
+                            f"skipped, each with every row bad.")
+        else:
+            skipped_in_a_row = 0
+        grad_norm = None
+        if args.grad_clip is not None and not step_skipped:
+            grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(),
+                                                       args.grad_clip)
+        if not step_skipped:
+            optimizer.step()
+        if nan_debug is not None and nan_debug.weights_are_bad(loss_val,
+                                                               grad_norm):
+            csv_logger.close()
+            sys.exit(NAN_DEBUG_EXIT)
         # Clamp learnable τ after the step (CLIP convention). No-op when
         # learnable_tau=False.
         if args.learnable_tau:
@@ -2587,7 +3202,9 @@ def main():
         # produce inf in the CSV.
         gap_ratio_val = (1.0 - val_ff) / max(1e-6, 1.0 - val_fp)
 
-        if ema_loss is None:
+        if step_skipped:
+            pass  # #421: a skipped step leaves the running means alone.
+        elif ema_loss is None:
             ema_loss = loss_val; ema_gap = gap_val
         else:
             d = args.ema_decay
@@ -2616,7 +3233,15 @@ def main():
                        l_pred=loss_terms.get('l_pred'),
                        l_rep=loss_terms.get('l_rep'),
                        l_align=loss_terms.get('l_align'),
-                       cos_err_depths=cos_err_depths)
+                       cos_err_depths=cos_err_depths,
+                       meanstd_dropped=dropped_share,
+                       nan_dropped=(nan_dropped if args.skip_nan_samples
+                                    else None),
+                       spike_dropped=(spike_dropped
+                                      if args.skip_spike_samples > 0 else None),
+                       grad_norm=step_grad_norm,
+                       patch_rms=(getattr(model, "last_patch_rms", None)
+                                  if args.patch_rms_weight > 0 else None))
 
         if step % args.log_every == 0 and is_main_process():
             elapsed = time.time() - t0
@@ -2627,6 +3252,11 @@ def main():
                 tau_str = f"  τ={float(model.tau().detach()):.4f}"
             if args.cpc_infonce_weight > 0:
                 tau_str += f"  cpc={cpc_aux_val:.4f}"
+            if filter_on:
+                tau_str += f"  dropped={100 * dropped_sum / timing_count:.2f}%"
+            if args.patch_rms_weight > 0:
+                tau_str += (f"  patch_rms="
+                            f"{getattr(model, 'last_patch_rms', float('nan')):.3f}")
             print(f"[{step:>7d}] loss={loss_val:.4f}  ema_loss={ema_loss:.4f}  "
                   f"gap={gap_val:.4f}  ema_gap={ema_gap:.4f}  "
                   f"mixup={mixup_applied_count}/{timing_count}  "
@@ -2644,6 +3274,7 @@ def main():
             t_data_sum, t_fwd_sum, t_bwd_sum, t_step_sum = 0.0, 0.0, 0.0, 0.0
             timing_count = 0
             mixup_applied_count = 0
+            dropped_sum = 0.0
 
             if ema_gap > best_gap:
                 best_gap, best_gap_step = ema_gap, step

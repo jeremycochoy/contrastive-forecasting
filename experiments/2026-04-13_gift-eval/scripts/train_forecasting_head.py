@@ -30,7 +30,8 @@ import torch
 import torch.optim as optim
 
 from src.models import ConfigurableModel, count_parameters
-from src.checkpoint import prepare_backbone_state_dict, save_encoder_source
+from src.checkpoint import (gru_input_bound_of, prepare_backbone_state_dict,
+                            save_encoder_source)
 from src.dataloader import create_hf_dataloader, create_mixed_periodic_dataloader
 from src.freq_embedding import vocab_of_rows
 from src.loss import masked_mean
@@ -405,6 +406,8 @@ def main():
         BACKBONE_CONFIG["num_freqs"] = freq_w.shape[0]
     zero_pad = "rev_norm.leading_zero_pad" in sd
     BACKBONE_CONFIG["rev_norm_skip_leading_zeros"] = zero_pad
+    # #421: the bound of the GRU input, when the backbone trained with one.
+    BACKBONE_CONFIG["gru_input_bound"] = gru_input_bound_of(sd)
     freq_vocab = vocab_of_rows(freq_w.shape[0]) if freq_w is not None else "v1"
     if zero_pad and (args.reconstruction or args.mixed_rollout > 0):
         raise SystemExit(
@@ -422,7 +425,7 @@ def main():
               f"τ={float((-sd['log_inv_tau']).exp()):.4f}) from backbone checkpoint")
     # Auto-detect num_encoder_layers from transformer.encoder_layers.<N>.* keys.
     # Encoder-forecaster backbones (2026-05-10) prepend N causal layers before
-    # the forecaster; their state_dict has the matching keys. Old backbones
+    # the forecaster, and their state_dict has the matching keys. Old backbones
     # have an empty encoder stack and the keys are absent → defaults to 0.
     enc_layer_idxs = set()
     for k in sd:
@@ -437,7 +440,7 @@ def main():
               f"{BACKBONE_CONFIG['num_encoder_layers']} from backbone checkpoint")
     # Auto-detect the b1024 collapse-fix norms (#322): QK-norm (q_norm/k_norm) and
     # attention-output RMSNorm (attn_out_rms) add per-layer params to encoder +
-    # forecaster layers; build with the matching flags so _qk_aon backbones load
+    # forecaster layers. Build with the matching flags so _qk_aon backbones load
     # cleanly. Absent keys -> flags stay False (older backbones unaffected).
     if any(k.endswith(".q_norm.weight") for k in sd):
         BACKBONE_CONFIG["qk_norm"] = True
@@ -448,8 +451,8 @@ def main():
     # Auto-detect a CPC multi-step forecaster (#316). Two families:
     #   transformer.cpc_layers.<N>.*  → 'cpc'        (K transformer-1L heads, #1)
     #   transformer.cpc_heads.<N>.*   → 'linear_cpc' (K linear heads, #2/#3)
-    # Build with the matching forecaster_kind + K so load_state_dict succeeds;
-    # for 'cpc' the bottleneck dim is read from cpc_down.0.weight. Either way
+    # Build with the matching forecaster_kind + K so load_state_dict succeeds.
+    # For 'cpc' the bottleneck dim is read from cpc_down.0.weight. Either way
     # extract_forecaster_latents returns the next-step (k=1) head.
     lin_idxs = set()
     for k in sd:
@@ -722,7 +725,7 @@ def main():
 
         # AMP autocast wraps the (frozen) backbone forward + head forward +
         # loss. No GradScaler — matches the contrastive trainer's convention
-        # (bf16's range matches fp32; for fp16 we skip the scaler too).
+        # (bf16's range matches fp32, and for fp16 we skip the scaler too).
         # Pinball / Gaussian-NLL / MSE losses don't have F.normalize-style
         # fp32 promotion, so no `to(amp_dtype)` cast trick is needed here
         # (unlike the contrastive trainer's `f_lat.to(amp_dtype)`).
@@ -804,7 +807,7 @@ def main():
                 if args.head_train_input == "e_then_f":
                     # Match the eval-time [e_ctx, rolled_f] layout: feed the
                     # head [e_0..e_{T-1}, f_0..f_{T-1}] (length 2T). The
-                    # head's outputs at positions T..(T+T_valid-1) — i.e. the
+                    # head's outputs at positions T..(T+T_valid-1) — that is the
                     # f-half — get the loss against `targets`.
                     #
                     # Custom mask prevents the head from peeking at e_{p_f+1}
