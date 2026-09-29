@@ -522,3 +522,4 @@ def test_the_flag_refuses_the_nan_debug_mode(tmp_path):
 
 def test_the_flag_is_on_the_value_space_allowlist(train_py):
     assert "skip_nan_samples" in train_py.VALUE_SPACE_FLAGS
+    assert "skip_spike_samples" in train_py.VALUE_SPACE_FLAGS

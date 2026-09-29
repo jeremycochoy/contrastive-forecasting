@@ -1381,7 +1381,7 @@ VALUE_SPACE_FLAGS = frozenset((
     "residual_dtype", "attn_dtype", "ffn_dtype", "conv_dtype",
     "patch_emb_dtype", "rev_norm_kind", "rev_norm_span", "patch_stats",
     "freq_emb_dim", "seasonality_emb_dim", "freq_vocab", "meanstd_z_max",
-    "gru_input_bound", "skip_nan_samples",
+    "gru_input_bound", "skip_nan_samples", "skip_spike_samples",
     # The objective.
     "value_space_objective", "train_rollout_depth", "train_rollout_reduce",
     # One patch encoder and one value head per patch size (#417).
