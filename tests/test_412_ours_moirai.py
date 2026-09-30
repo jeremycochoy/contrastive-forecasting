@@ -169,6 +169,24 @@ def test_the_cyan_run_writes_the_losses_csv_of_the_base_commit(tmp_path):
             == (tmp_path / "old" / "r_losses.csv").read_bytes())
 
 
+def test_the_objective_by_row_with_one_group_trains_as_before(tmp_path):
+    """--skip-nan-samples alone sends the cyan run through the objective by
+    row, as one group of size 16. On a clean stream it writes the losses and
+    the terms of the path it replaces."""
+    data = corpus(tmp_path)
+    old = run(REPO_ROOT, tmp_path / "old", *CYAN_EWMA, *data)
+    new = run(REPO_ROOT, tmp_path / "new", *CYAN_EWMA, "--skip-nan-samples",
+              *data)
+    assert old.returncode == 0, old.stdout[-2000:] + old.stderr[-2000:]
+    assert new.returncode == 0, new.stdout[-2000:] + new.stderr[-2000:]
+    assert "Objective (#412)" in new.stdout
+    columns = ("loss", "loss_tau_ref", "l_rep", "l_align", "sigreg_e",
+               "sigreg_h", "gap", "cos_err_d3")
+    a, b = losses(tmp_path / "old"), losses(tmp_path / "new")
+    assert [[r[c] for c in columns] for r in a] == \
+        [[r[c] for c in columns] for r in b]
+
+
 # ---------------------------------------------------------------------------
 # Unit helpers: the run's objective on a model the CPU trains at once
 # ---------------------------------------------------------------------------
@@ -453,6 +471,26 @@ def test_the_partner_of_a_poisoned_row_stays(train_py):
     assert found == [2] and passes == 1 and result is not None
 
 
+def test_a_teacher_forward_that_is_not_finite_is_a_fault(train_py):
+    """The MoCo keys and the L_align target read the teacher, so a row whose
+    teacher forward is not finite is a fault too."""
+    args = run_args(train_py)
+    m = model()
+    inputs = batch(m, ALL_SIZES)
+    groups = train_py.size_groups(inputs["sample_sizes"], 16)
+    labels = dict(freq_ids=inputs["freq_ids"], freq_embs=None,
+                  seasonality_ids=inputs["seasonality_ids"],
+                  seasonality_embs=None)
+    lats = {size: train_py.group_forward(
+                m, inputs["x_norm"][rows],
+                {k: train_py.take_rows(v, rows) for k, v in labels.items()},
+                size, args) for size, rows in groups.items()}
+    assert not train_py.forward_faults(lats, groups, 8, CPU).any()
+    lats[32].teacher[1] = float("nan")          # row 7, second at size 32
+    faults = train_py.forward_faults(lats, groups, 8, CPU)
+    assert faults.nonzero().view(-1).tolist() == [7]
+
+
 def test_the_search_order_reads_the_faults_first():
     grad = torch.ones(6, 4)
     grad[1] = float("nan")          # a partner of a fault
@@ -627,6 +665,35 @@ def test_with_a_clean_stream_the_row_drop_changes_no_loss(tmp_path):
     assert b.returncode == 0, b.stdout[-3000:] + b.stderr[-3000:]
     loss = [row["loss"] for row in losses(tmp_path / "off")]
     assert loss == [row["loss"] for row in losses(tmp_path / "on")]
+
+
+def long_corpus(root):
+    """A corpus of long hourly series only, so every window has a target."""
+    pytest.importorskip("pyarrow")
+    from tests.test_419_gift_pretrain import (index_sources, write_index,
+                                              write_source)
+    folder = root / "long"
+    rng = np.random.default_rng(0)
+    rows = [{"target": (50.0 + rng.standard_normal(1100).cumsum())
+             .astype(np.float32)} for _ in range(6)]
+    write_source(folder, "long_hourly", rows, "H")
+    index = index_sources(folder, {"long_hourly": 1.0})
+    return ("--gift-pretrain-root", str(folder),
+            "--gift-pretrain-index", str(write_index(root, index)))
+
+
+def test_a_step_whose_every_window_is_far_is_skipped(tmp_path):
+    """With a bound no target meets, the filter drops every window: the
+    steps skip, and no weight of the student or of the teacher moves."""
+    r = run(REPO_ROOT, tmp_path / "save", *FULL_RUN, "--meanstd-z-max",
+            "1e-9", "--traj-save-every", "1", "--total-steps", "2",
+            *long_corpus(tmp_path))
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    rows = losses(tmp_path / "save")
+    assert [float(row["meanstd_dropped"]) for row in rows] == [1.0, 1.0]
+    one = torch.load(tmp_path / "save" / "r_step1.pth", weights_only=True)
+    two = torch.load(tmp_path / "save" / "r_step2.pth", weights_only=True)
+    assert all(torch.equal(one[k], two[k]) for k in one)
 
 
 @pytest.mark.parametrize("flag", [
@@ -868,6 +935,19 @@ def test_the_eval_forecasts_with_the_bank(head_run, monkeypatch):
     forecast = predictor.predict_item(item)
     assert forecast.forecast_array.shape == (1 + Q, 48)
     assert np.isfinite(forecast.forecast_array).all()
+
+
+def test_the_eval_scores_a_bank_under_b4_only(head_run, monkeypatch):
+    """The other rollouts read the context at size 16, and head P decodes
+    the latents of size P."""
+    source, bb, out, r = head_run
+    assert r.returncode == 0, r.stderr[-3000:]
+    module = load_eval_module()
+    args = eval_args(module, monkeypatch, "--backbone-path", str(bb),
+                     "--head-path", str(out / "qhead_final.pth"),
+                     "--encoder-source", source, "--strategy", "A2")
+    with pytest.raises(SystemExit, match="scores under --strategy B4"):
+        module.load_models(args, CPU)
 
 
 def test_the_eval_refuses_a_bank_of_other_sizes(tmp_path, monkeypatch,

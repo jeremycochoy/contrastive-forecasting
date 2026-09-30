@@ -53,11 +53,18 @@ On the contrastive objective:
   whole objective of the run on its own rows. Its negatives, its MoCo keys
   and its SIGReg statistics come from the group.
 - The group losses add up with weights equal to each group's share of the
-  rows.
+  rows. Each group loss is a mean over its own positions. So a row of size
+  8 (127 anchors) and a row of size 128 (7 anchors) weigh the same. The
+  per-term columns of the losses CSV (`l_rep`, `l_align`, `sigreg_*`) add
+  up the same way.
 - The EMA teacher copies the encoder of each size and updates by EMA.
 - The rollout depth advances P values per depth at size P.
 - The diagnostics read one sequence length, so they read the group of the
-  base size 16. With no row at 16 they read the largest group.
+  base size 16. With no row at 16 they read the largest group. Only rows of
+  the classes D, B, W and M, and rows with no frequency label, can draw the
+  size 16. So `gap`, `auc`, `r2_*`, `cos_err_d*` and `loss_tau_ref` read
+  those rows, and `<run>_best_gap.pth` selects on them. `loss_tau_ref`
+  then pools fewer negatives than on a run of one group.
 
 ## `--rev-norm-kind meanstd` and `--meanstd-z-max Z`
 
@@ -72,8 +79,8 @@ values before that split, so no value after the split enters them.
 
 `--meanstd-z-max Z` (default 100) drops each window whose target part holds
 a value more than Z scales from its context loc. 0 turns the filter off.
-When the filter drops every window of a step, the contrastive step reads no
-row and trains on nothing.
+The filter can drop every window of a step. The contrastive step then reads
+no row, and the trainer skips it: no weight moves and the teacher waits.
 
 ## `--skip-nan-samples` and `--skip-spike-samples K`
 
@@ -87,6 +94,14 @@ On the contrastive objective, a dropped row leaves every term: as an anchor,
 a key, a positive, and a sample of the SIGReg statistics. The step after the
 drop then equals the step on the batch without the row. A skipped step does
 not update the teacher.
+
+The search reads the forward of each row on the contrastive objective. One
+row whose forward is not finite makes the input gradient of every row of its
+size group NaN, through the coupled terms. So the rows with a non-finite
+forward (student or teacher) are the outliers that the search drops first.
+A row with only a non-finite input gradient ranks high, and the search
+checks it on its own before it drops it. Every pass of the search runs the
+forward of each group, so a NaN step costs one full step per pass.
 
 ## The scoring head
 
@@ -108,7 +123,8 @@ from the backbone checkpoint. For such a backbone it trains a head bank:
 backbone's, and gives each config the head of its frequency's inference
 size. Strategy B4 reads the context at that size and rolls out one latent per
 patch of P values. The forecast is unscaled with the loc and the scale of the
-whole context.
+whole context. The script refuses a bank under another strategy: those read
+the context at the base size.
 
 `head_eval_bb.sh` and `eval_local.sh` need no new argument. `CF_BB_SHAPE`
 gives the backbone shape, as before.

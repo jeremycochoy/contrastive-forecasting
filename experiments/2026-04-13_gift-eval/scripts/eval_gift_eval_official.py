@@ -500,6 +500,11 @@ def build_head_bank(head_sd, bank_sizes, backbone_sizes, args):
     if bank_sizes != tuple(backbone_sizes):
         raise SystemExit(f"the head bank holds the sizes {bank_sizes}, and "
                          f"the backbone reads {tuple(backbone_sizes)}")
+    if args.strategy != "B4":
+        # The other rollouts read the context at the backbone's base size,
+        # and head P decodes the latents of size P.
+        raise SystemExit(f"a head bank (#412) scores under --strategy B4, "
+                         f"not {args.strategy}")
     heads = {}
     for size in bank_sizes:
         prefix = f"heads.{size}."

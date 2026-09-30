@@ -1006,7 +1006,7 @@ def group_forward(model, x_norm, labels, size, args):
                if args.ema_embedding or args.ema_encoder else None)
     return SimpleNamespace(
         f=f, o=o, teacher=teacher, e=out[2].float() if want_embed else None,
-        rollout=rollout_forecaster_latents(model, f, args.train_rollout_depth))
+        rollout=forecaster_depths(model, f, args))
 
 
 def group_padding(pad_mask, rows, size, active, shape):
@@ -1076,8 +1076,8 @@ def forward_faults(lats, groups, n_rows, device):
     row's own. The row search reads it (``search_order``)."""
     faults = torch.zeros(n_rows, dtype=torch.bool, device=device)
     for size, lat in lats.items():
-        parts = [lat.f, lat.o, *lat.rollout] + ([] if lat.e is None
-                                                 else [lat.e])
+        parts = [lat.f, lat.o, *lat.rollout] + [
+            t for t in (lat.e, lat.teacher) if t is not None]
         bad = torch.stack([~torch.isfinite(t.detach()).flatten(1).all(1)
                            for t in parts]).any(0)
         rows = groups[size]
@@ -1814,6 +1814,13 @@ def contrastive_padding(model, args):
     return patch_padding(model.rev_norm.pad_mask, model.W)
 
 
+def forecaster_depths(model, f_lat, args):
+    """f^(1) .. f^(k) of the forward output ``f_lat`` (#373): the one place
+    the trainer composes the forecaster on its own output, for the whole
+    batch and for each patch-size group (#412)."""
+    return rollout_forecaster_latents(model, f_lat, args.train_rollout_depth)
+
+
 def real_positions(latent, pad_patches):
     """The ``[N, H]`` vectors of the real positions of a ``[B, T, C, H]``
     latent (#419), or the latent itself when nothing is padded."""
@@ -1854,38 +1861,37 @@ def tau_reference(f_lat, o_lat, pad_patches, args):
 def configure_loss_spec(args):
     """Set the run-level keys of ``LOSS_SPEC`` from the command line
     (LOSS_SPEC is a module-level default)."""
-    cfg = LOSS_SPEC.train_configuration
-    cfg["loss_shape"] = args.loss_shape
-    cfg["include_positive_in_denominator"] = args.pos_in_denominator
-    cfg["stopgrad_positive_h"] = args.stopgrad_positive_h
-    cfg["align_loss_weight"] = args.align_loss_weight
-    cfg["align_target"] = args.align_target
-    cfg["subtract_contrastive_floor"] = args.subtract_contrastive_floor
-    cfg["moco_negatives"] = args.moco_negatives
-    cfg["moco_rep_keys"] = args.moco_rep_keys
-    cfg["pred_loss_weight"] = args.pred_loss_weight
-    cfg["rep_loss_weight"] = args.rep_loss_weight
-    cfg["train_rollout_depth"] = args.train_rollout_depth
-    cfg["train_rollout_reduce"] = args.train_rollout_reduce
+    LOSS_SPEC.train_configuration["loss_shape"] = args.loss_shape
+    LOSS_SPEC.train_configuration["include_positive_in_denominator"] = args.pos_in_denominator
+    LOSS_SPEC.train_configuration["stopgrad_positive_h"] = args.stopgrad_positive_h
+    LOSS_SPEC.train_configuration["align_loss_weight"] = args.align_loss_weight
+    LOSS_SPEC.train_configuration["align_target"] = args.align_target
+    LOSS_SPEC.train_configuration["subtract_contrastive_floor"] = args.subtract_contrastive_floor
+    LOSS_SPEC.train_configuration["moco_negatives"] = args.moco_negatives
+    LOSS_SPEC.train_configuration["moco_rep_keys"] = args.moco_rep_keys
+    LOSS_SPEC.train_configuration["pred_loss_weight"] = args.pred_loss_weight
+    LOSS_SPEC.train_configuration["rep_loss_weight"] = args.rep_loss_weight
+    LOSS_SPEC.train_configuration["train_rollout_depth"] = args.train_rollout_depth
+    LOSS_SPEC.train_configuration["train_rollout_reduce"] = args.train_rollout_reduce
     if args.tau is not None:
-        cfg["contrastive_divergence_temperature"] = args.tau
+        LOSS_SPEC.train_configuration["contrastive_divergence_temperature"] = args.tau
     if args.tau_rep is not None:
         # #379 — separate temperature for the L_rep term of split shapes.
         # When unset the loss code falls back to `tau` (see src/loss.py's
         # split_pred_rep / rep_only branches), preserving historical
         # objectives byte-for-byte.
-        cfg["contrastive_divergence_temperature_rep"] = args.tau_rep
+        LOSS_SPEC.train_configuration["contrastive_divergence_temperature_rep"] = args.tau_rep
 
 
-def main_contrastive_term(lat, args, rep_w, tau, pad_patches, terms):
+def main_contrastive_term(lat, args, rep_w_now, tau, pad_patches, terms):
     """The main contrastive loss of one forward, or L_align alone under
-    --no-main-contrastive-loss. ``terms`` receives the unweighted terms the
-    loss computes (#409)."""
+    --no-main-contrastive-loss. ``rep_w_now`` is the L_rep weight of the
+    step (#409). ``terms`` receives the unweighted terms the loss computes."""
     if not args.no_main_contrastive_loss:
         return contrastive_latent_loss(
             (lat.f, lat.o), validation=False, spec=LOSS_SPEC,
             tau_override=tau, teacher_original_latent=lat.teacher,
-            rollout_latents=lat.rollout, rep_loss_weight=rep_w,
+            rollout_latents=lat.rollout, rep_loss_weight=rep_w_now,
             term_out=terms, pad_patches=pad_patches)
     loss = lat.f.new_zeros(())
     if args.align_loss_weight <= 0:
@@ -3268,8 +3274,7 @@ def main():
         elif rows_contrastive:
             rollout_lats = row_extra.rollout
         else:
-            rollout_lats = rollout_forecaster_latents(
-                model, f_lat, args.train_rollout_depth)
+            rollout_lats = forecaster_depths(model, f_lat, args)
         # DDP: gather latents across ranks so the contrastive loss pools
         # negatives over the GLOBAL (W*B) batch — 2-GPU @ B/2 == 1-GPU @ B.
         # Strict no-op single-GPU. Done on the fp32 latents so loss,
@@ -3382,6 +3387,11 @@ def main():
         # #421 --skip-nan-samples: a non-finite step drops its bad rows.
         nan_dropped, spike_dropped, step_skipped = 0, 0, False
         step_grad_norm = None
+        if rows_contrastive and "active" in step_inputs:
+            # #412: every window of the step is far from its context. No
+            # term reads a row, so the step is skipped: no weight moves, the
+            # teacher waits, and the spike guard records no norm.
+            step_skipped = True
         # The last pass of a row search: the step trains on it, and every
         # diagnostic below reads it.
         adopted = None
@@ -3601,8 +3611,12 @@ def main():
             if args.patch_rms_weight > 0:
                 tau_str += (f"  patch_rms="
                             f"{getattr(model, 'last_patch_rms', float('nan')):.3f}")
-            print(f"[{step:>7d}] loss={loss_val:.4f}  ema_loss={ema_loss:.4f}  "
-                  f"gap={gap_val:.4f}  ema_gap={ema_gap:.4f}  "
+            # A run whose first steps were all skipped (#421, #412) holds
+            # no running mean yet.
+            ema_loss_str = "-" if ema_loss is None else f"{ema_loss:.4f}"
+            ema_gap_str = "-" if ema_gap is None else f"{ema_gap:.4f}"
+            print(f"[{step:>7d}] loss={loss_val:.4f}  ema_loss={ema_loss_str}  "
+                  f"gap={gap_val:.4f}  ema_gap={ema_gap_str}  "
                   f"mixup={mixup_applied_count}/{timing_count}  "
                   f"{sps:.1f} sps  ETA {eta:.1f}h{tau_str}")
             print(f"              R²_rand={r2_random_val:.4f}  "
@@ -3620,7 +3634,7 @@ def main():
             mixup_applied_count = 0
             dropped_sum = 0.0
 
-            if ema_gap > best_gap:
+            if ema_gap is not None and ema_gap > best_gap:
                 best_gap, best_gap_step = ema_gap, step
                 path = os.path.join(args.save_dir, f"{args.run_name}_best_gap.pth")
                 save_snapshot(model, optimizer, path, step,
@@ -3629,7 +3643,7 @@ def main():
                               hf_rows_consumed=hf_rows_consumed,
                               synth_rows_consumed=synth_rows_consumed,
                           lr_schedule=lr_schedule)
-            if ema_loss < best_loss:
+            if ema_loss is not None and ema_loss < best_loss:
                 best_loss, best_loss_step = ema_loss, step
                 path = os.path.join(args.save_dir, f"{args.run_name}_best_loss.pth")
                 save_snapshot(model, optimizer, path, step,
