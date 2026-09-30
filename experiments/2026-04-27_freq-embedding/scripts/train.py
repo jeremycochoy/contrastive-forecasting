@@ -455,9 +455,12 @@ def build_parser():
                         "single-instance z-score; 'meanstd' = the mean/std "
                         "scaling of Moirai 1.0 (#421): one loc and one scale "
                         "per window, from the observed values before a split "
-                        "drawn as uni2ts MaskedPrediction draws it, and a "
-                        "loss on the values after the split only. Needs "
-                        "--value-space-objective. 'none' to disable.")
+                        "drawn as uni2ts MaskedPrediction draws it. The "
+                        "value-space objective counts the values after the "
+                        "split only; the contrastive objective (#412) keeps "
+                        "every real position, and needs terms that take a "
+                        "row mask (the rep_only shape and its add-ons). "
+                        "'none' to disable.")
     p.add_argument("--meanstd-z-max", type=float, default=100.0,
                    help="With --rev-norm-kind meanstd (#421): drop from the "
                         "batch each window whose target part lies more than "
@@ -468,7 +471,9 @@ def build_parser():
                         "100, keeps 99.2%% of the GiftEvalPretrain windows "
                         "(reports/2026-09-28_meanstd_z). 0 turns it off.")
     p.add_argument("--skip-nan-samples", action="store_true",
-                   help="With --value-space-objective (#421): when a step "
+                   help="With --value-space-objective (#421), or a "
+                        "contrastive objective whose terms take a row mask "
+                        "(#412): when a step "
                         "gives a non-finite loss or gradient, find the rows "
                         "that cause it by bisection, drop only them, and "
                         "take the step on the other rows (src/nan_skip.py). "
@@ -476,7 +481,10 @@ def build_parser():
                         "so each row draws the same split, patch size, mixup, "
                         "dropout and DropKey masks. The search always ends: "
                         "a fault that needs two rows drops one of them, and "
-                        "the step is skipped only when every row is bad. The "
+                        "the step is skipped only when every row is bad. A "
+                        "contrastive row leaves every term: it reads zeros "
+                        "and counts as padding, as an anchor, a key, a "
+                        "positive and a sample of SIGReg. The "
                         "losses CSV logs the dropped rows (nan_dropped, -1 "
                         "for a skipped step) and the gradient norm before "
                         "the clip (grad_norm), and each dropped row is "
@@ -742,13 +750,18 @@ def build_parser():
                         "every published run reproduces under either. "
                         "docs/train_rollout_depth.md.")
     p.add_argument("--multi-patch-sizes", default=None,
-                   help="One GRU patch encoder and one value head per patch "
-                        "size, e.g. 8,16,32,64,128 (#417). The body stays "
+                   help="One GRU patch encoder per patch size, e.g. "
+                        "8,16,32,64,128 (#417), and one value head per size "
+                        "under --value-space-objective. The body stays "
                         "shared. Each sample draws its size from its "
                         "frequency's range, as Moirai 1.0 does "
                         "(src/patch_size.py), and a batch trains one group "
-                        "per size. Needs --value-space-objective. Default "
-                        "off: one patch size, W.")
+                        "per size. The contrastive objective (#412) runs "
+                        "every term on each group's own rows, adds the group "
+                        "losses by their share of the rows, and needs terms "
+                        "that take a row mask; the EMA teacher copies the "
+                        "encoder of each size. Default off: one patch size, "
+                        "W.")
     p.add_argument("--ema-embedding", action="store_true",
                    help="BYOL/JEPA EMA-teacher copy of the patch-embedding "
                         "(--encoder-type's input_to_latent). Non-trained; "
@@ -1750,7 +1763,7 @@ def check_mean_std(args):
 
     Its statistics read the context before a split. The value-space
     objective and the contrastive objective by row (#412) draw one per
-    window; every other contrastive run would scale each window by its
+    window. Every other contrastive run would scale each window by its
     whole length, future values included.
     """
     if args.rev_norm_kind == "meanstd":
@@ -3090,7 +3103,7 @@ def main():
             if args.rev_norm_kind == "meanstd":
                 # #421: the sizes, then one split per window. loc and scale
                 # read the context before the split. The value loss counts
-                # the patches after it only; the contrastive terms keep
+                # the patches after it only. The contrastive terms keep
                 # every real position (#412).
                 x_norm, sample_sizes, target_mask = mean_std_inputs(
                     model, x, freq_ids, multi_patch_sizes)

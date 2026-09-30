@@ -1074,8 +1074,8 @@ def patch_rms_terms(pre_norm, patch_pad, n):
     """--patch-rms-weight (#421), for n rows: the mean over each row's real
     patches of (RMS(v) - 1)^2, with gradient, and the mean RMS, without.
     v is the vector a patch encoder feeds its LayerNorm (one per patch).
-    ``patch_pad`` (``[n, T, C]``, True on a padded patch) leaves padding out;
-    None counts every patch. One channel: ``pre_norm`` and ``patch_pad``
+    ``patch_pad`` (``[n, T, C]``, True on a padded patch) leaves padding
+    out. None counts every patch. One channel: ``pre_norm`` and ``patch_pad``
     hold the patches of a row in the same order."""
     rms = pre_norm.float().pow(2).mean(-1).sqrt().reshape(n, -1)
     if patch_pad is None:

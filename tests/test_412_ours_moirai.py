@@ -709,7 +709,7 @@ def test_b4_reads_the_context_at_the_heads_size(monkeypatch, freq, size):
 
 def test_the_forecast_is_unscaled_with_the_context_statistics():
     """The forecast is the head's normalised output times the context scale
-    plus its loc; taking them off again gives the head's output back. An
+    plus its loc. Taking them off again gives the head's output back. An
     affine change of the context moves the forecast the same way."""
     m = model().eval()
     head = bank_of().head_for(32).eval()
@@ -733,7 +733,7 @@ def test_the_forecast_is_unscaled_with_the_context_statistics():
 
 # The flags head_eval_bb.sh gives the head trainer, with the tiny backbone
 # shape (CF_BB_SHAPE) and the CPU. The protocol names --rev-norm-kind ewma
-# and --forecast-len 16; the checkpoint's scaling and sizes win.
+# and --forecast-len 16. The checkpoint's scaling and sizes win.
 BB_SHAPE = ("--d-model", "16", "--n-heads", "2", "--num-layers", "1")
 HEAD_PROTOCOL = (
     "--device", "cpu", "--quantile-head", "--grad-clip", "1.0",
