@@ -48,8 +48,8 @@ from src.forecasting_head import (ForecastingHeadBank,  # noqa: E402
                                   mean_std_inputs)
 from src.freq_embedding import FREQ_NAMES_V2  # noqa: E402
 from src.models import ConfigurableModel  # noqa: E402
-from src.nan_skip import (is_finite_step, restore_rng,  # noqa: E402
-                          rng_state)
+from src.nan_skip import (is_finite_step, outlier_rows,  # noqa: E402
+                          restore_rng, rng_state, search_order)
 
 TRAIN_PY = (REPO_ROOT / "experiments" / "2026-04-27_freq-embedding"
             / "scripts" / "train.py")
@@ -387,25 +387,36 @@ def test_values_after_the_split_leave_loc_and_scale_alone(train_py):
 # 4. The row drop with coupled terms
 # ---------------------------------------------------------------------------
 
+def first_pass(train_py, m, inputs, args):
+    """The trainer's first pass: its loss, the input gradient of each row,
+    and the rows whose forward is not finite."""
+    inputs = dict(inputs, x_norm=inputs["x_norm"].detach().requires_grad_(True))
+    m.zero_grad(set_to_none=True)
+    out = train_py.step_objective(args, 1.0)(m, inputs, args, SIZES)
+    out[0].backward()
+    return inputs, out[0], inputs["x_norm"].grad, out[3].faults
+
+
 def drop_and_compare(train_py, inputs, culprits):
-    """The trainer's search after a bad first pass, and the step on the
-    batch without the culprits from the same random state."""
+    """The trainer's search after a bad first pass, called as the trainer
+    calls it, and the step on the batch without the culprits from the same
+    random state."""
     args = run_args(train_py)
     m = model()
     objective = train_py.step_objective(args, 1.0)
     rng = rng_state(CPU)
-    loss, _ = loss_and_grads(objective, m, inputs, args)
+    inputs, loss, grad, faults = first_pass(train_py, m, inputs, args)
     assert not is_finite_step(loss.item(), m)
     found, _, result = train_py.skip_nan_rows(
-        m, inputs, args, SIZES, rng, CPU, objective=objective)
+        m, inputs, args, SIZES, rng, CPU, grad, objective, faults)
     assert sorted(found) == sorted(culprits) and result is not None
     got = {n: p.grad.clone() for n, p in m.named_parameters()
            if p.grad is not None}
     assert is_finite_step(result[0].item(), m)
     restore_rng(rng, CPU)
     rest = [r for r in range(len(LENGTHS)) if r not in culprits]
-    want, want_grads = loss_and_grads(objective, m, rows_of(inputs, rest),
-                                      args)
+    rest_inputs = rows_of(dict(inputs, x_norm=inputs["x_norm"].detach()), rest)
+    want, want_grads = loss_and_grads(objective, m, rest_inputs, args)
     assert torch.allclose(result[0], want, rtol=1e-5, atol=1e-6)
     assert set(got) == set(want_grads)
     for name, grad in want_grads.items():
@@ -422,6 +433,36 @@ def test_the_step_after_the_drop_equals_the_batch_without_the_rows(
     for row in culprits:
         inputs = poison(inputs, row)
     drop_and_compare(train_py, inputs, culprits)
+
+
+def test_the_partner_of_a_poisoned_row_stays(train_py):
+    """Row 2's forward overflows. Through the coupled terms of its group,
+    the input gradient of its partner, row 7, is NaN too, so the gradient
+    names both. The forward names row 2 alone: the search drops it in one
+    pass, and row 7 trains."""
+    args = run_args(train_py)
+    m = model()
+    inputs = poison(batch(m, ALL_SIZES), 2)
+    rng = rng_state(CPU)
+    inputs, _, grad, faults = first_pass(train_py, m, inputs, args)
+    assert sorted(outlier_rows(grad)) == [2, 7]
+    assert faults.nonzero().view(-1).tolist() == [2]
+    found, passes, result = train_py.skip_nan_rows(
+        m, inputs, args, SIZES, rng, CPU, grad,
+        train_py.step_objective(args, 1.0), faults)
+    assert found == [2] and passes == 1 and result is not None
+
+
+def test_the_search_order_reads_the_faults_first():
+    grad = torch.ones(6, 4)
+    grad[1] = float("nan")          # a partner of a fault
+    grad[3] *= 1e4                  # a finite outlier
+    faults = torch.tensor([False, False, False, False, True, False])
+    ranked, outliers = search_order(grad, faults)
+    assert ranked[0] == 4 and set(ranked[1:3]) == {1, 3}
+    assert outliers == [4, 3]
+    assert search_order(grad) == search_order(grad, None)
+    assert sorted(search_order(grad)[1]) == [1, 3]
 
 
 def test_a_row_alone_in_its_group_leaves_with_its_group(train_py):

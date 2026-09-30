@@ -73,9 +73,8 @@ from src.metrics import (
 from src.freq_embedding import FREQ_VOCABS
 from src.nan_debug import EXIT_CODE as NAN_DEBUG_EXIT, NanDebug
 from src.nan_skip import (MAX_SKIPPED_IN_A_ROW, SpikeGuard, find_culprits,
-                          is_finite_step, outlier_rows, rank_rows,
-                          restore_rng, rng_state, total_grad_norm,
-                          weights_are_finite)
+                          is_finite_step, restore_rng, rng_state,
+                          search_order, total_grad_norm, weights_are_finite)
 from src.norm import patch_padding, zero_union_padding
 from src.forecasting_head import (QUANTILE_LEVELS,
                                   extract_encoder_latents,
@@ -1071,6 +1070,24 @@ def restrict(lat, pad, keep):
                            rollout=[cut(r) for r in lat.rollout], pad=cut(pad))
 
 
+def forward_faults(lats, groups, n_rows, device):
+    """bool, one per row: True where the row's forward is not finite
+    (#412). A forward reads its own row only, so a fault there is the
+    row's own. The row search reads it (``search_order``)."""
+    faults = torch.zeros(n_rows, dtype=torch.bool, device=device)
+    for size, lat in lats.items():
+        parts = [lat.f, lat.o, *lat.rollout] + ([] if lat.e is None
+                                                 else [lat.e])
+        bad = torch.stack([~torch.isfinite(t.detach()).flatten(1).all(1)
+                           for t in parts]).any(0)
+        rows = groups[size]
+        if rows is None:
+            faults |= bad
+        else:
+            faults[rows.to(device)] |= bad
+    return faults
+
+
 def diagnostic_group(lats, pads, groups, counts, active, base_size):
     """The latents the trainer's diagnostics read (#412). They read one
     sequence length, so one group: the base size's when it has an active
@@ -1107,7 +1124,8 @@ def contrastive_objective(model, inputs, args, multi_patch_sizes, active=None,
 
     Returns ``(loss, f_lat, o_lat, extra)``. ``f_lat``, ``o_lat`` and
     ``extra`` (teacher, e, rollout, pad and the term ``values``) are those
-    of the diagnostic group (``diagnostic_group``).
+    of the diagnostic group (``diagnostic_group``). ``extra.faults`` marks
+    the rows whose forward is not finite (``forward_faults``).
     """
     base = inputs.get("active")
     if base is not None:
@@ -1129,9 +1147,10 @@ def contrastive_objective(model, inputs, args, multi_patch_sizes, active=None,
         loss, values = grouped_contrastive_terms(model, lats, pads, counts,
                                                  args, rep_w, tau)
     diag = diagnostic_group(lats, pads, groups, counts, active, model.W)
+    faults = forward_faults(lats, groups, x_norm.shape[0], x_norm.device)
     return loss, diag.f, diag.o, SimpleNamespace(
         teacher=diag.teacher, e=diag.e, rollout=diag.rollout, pad=diag.pad,
-        values=values)
+        values=values, faults=faults)
 
 
 def step_objective(args, rep_w):
@@ -1167,7 +1186,7 @@ def mixed_label_embeddings(model, mix, freq_ids, seasonality_ids, kept):
 
 
 def drop_bad_rows(model, inputs, args, multi_patch_sizes, rng, device,
-                  pass_is_bad, input_grad=None, objective=None):
+                  pass_is_bad, input_grad=None, objective=None, faults=None):
     """The step without the rows that make it bad (#421).
 
     ``pass_is_bad(loss_value, active_count)`` judges one pass while the model
@@ -1181,6 +1200,8 @@ def drop_bad_rows(model, inputs, args, multi_patch_sizes, rng, device,
     the first pass with respect to each row's values, gives the outlier
     rows and the ranking the search tries first. ``objective`` is the row
     objective of the step (``step_objective``); None is ``value_objective``.
+    ``faults`` marks the rows whose first forward is not finite (the
+    contrastive objective by row, #412, ``search_order``).
     """
     B = inputs["x_norm"].shape[0]
     inputs = dict(inputs, x_norm=inputs["x_norm"].detach())
@@ -1201,7 +1222,7 @@ def drop_bad_rows(model, inputs, args, multi_patch_sizes, rng, device,
         return pass_is_bad(last["out"][0].item(), len(rows))
 
     culprits, passes, clean = find_culprits(
-        is_bad, range(B), rank_rows(input_grad), outlier_rows(input_grad))
+        is_bad, range(B), *search_order(input_grad, faults))
     if not clean:
         model.zero_grad(set_to_none=True)
         return culprits, passes, None
@@ -1209,15 +1230,15 @@ def drop_bad_rows(model, inputs, args, multi_patch_sizes, rng, device,
 
 
 def skip_nan_rows(model, inputs, args, multi_patch_sizes, rng, device,
-                  input_grad=None, objective=None):
+                  input_grad=None, objective=None, faults=None):
     """--skip-nan-samples: drop the rows of a non-finite step."""
     return drop_bad_rows(model, inputs, args, multi_patch_sizes, rng, device,
                          lambda loss, n: not is_finite_step(loss, model),
-                         input_grad, objective)
+                         input_grad, objective, faults)
 
 
 def skip_spike_rows(model, inputs, args, multi_patch_sizes, rng, device,
-                    guard, input_grad=None, objective=None):
+                    guard, input_grad=None, objective=None, faults=None):
     """--skip-spike-samples: drop the rows of a step whose gradient norm is a
     spike, and every non-finite row with them."""
     B = inputs["x_norm"].shape[0]
@@ -1226,7 +1247,7 @@ def skip_spike_rows(model, inputs, args, multi_patch_sizes, rng, device,
         return (not is_finite_step(loss, model)
                 or total_grad_norm(model) > guard.threshold(n, B))
     return drop_bad_rows(model, inputs, args, multi_patch_sizes, rng, device,
-                         bad, input_grad, objective)
+                         bad, input_grad, objective, faults)
 
 
 def nan_rows_report(step, culprits, meta, args, kind="nan"):
@@ -3364,6 +3385,10 @@ def main():
         # The last pass of a row search: the step trains on it, and every
         # diagnostic below reads it.
         adopted = None
+        # #412: on the contrastive objective by row, the rows of the first
+        # pass whose forward is not finite. The coupled terms make every
+        # input gradient of their group NaN, so the search reads these.
+        first_faults = row_extra.faults if rows_contrastive else None
         if args.skip_nan_samples and not is_finite_step(loss_val, model):
             if not weights_are_finite(model):
                 stop_on_nan(step, " The weights are not finite, so no row "
@@ -3371,7 +3396,8 @@ def main():
             t_skip = time.perf_counter()
             found = skip_nan_rows(model, step_inputs, args,
                                   multi_patch_sizes, skip_rng, device,
-                                  step_inputs["x_norm"].grad, objective)
+                                  step_inputs["x_norm"].grad, objective,
+                                  first_faults)
             nan_dropped = announce_dropped(
                 "nan", step, found, time.perf_counter() - t_skip, skip_meta,
                 args)
@@ -3390,7 +3416,8 @@ def main():
                 found = skip_spike_rows(model, step_inputs, args,
                                         multi_patch_sizes, skip_rng, device,
                                         spike_guard,
-                                        step_inputs["x_norm"].grad, objective)
+                                        step_inputs["x_norm"].grad, objective,
+                                        first_faults)
                 spike_dropped = announce_dropped(
                     "spike", step, found, time.perf_counter() - t_skip,
                     skip_meta, args, extra)

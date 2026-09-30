@@ -99,6 +99,29 @@ def outlier_rows(input_grad, factor=OUTLIER_FACTOR):
     return (~(norms <= limit)).nonzero().view(-1).tolist()
 
 
+def search_order(input_grad, faults=None):
+    """``(ranked, outliers)``: the order in which the row search tries the
+    rows, and the rows it first drops together (find_culprits).
+
+    ``faults`` (bool, one per row, #412) marks the rows whose forward is
+    not finite, on an objective whose terms couple the rows. Through those
+    terms one such row makes the input gradient of every row it meets NaN,
+    so only its forward names it. The faults are then the only outliers
+    from a non-finite gradient, and they rank first. A row with a
+    non-finite input gradient only ranks high, and the search checks it on
+    its own. None: the input gradient alone, as for rows that the objective
+    reads one by one.
+    """
+    ranked, outliers = rank_rows(input_grad), outlier_rows(input_grad)
+    if faults is None:
+        return ranked, outliers
+    bad = faults.nonzero().view(-1).tolist()
+    finite = ([] if input_grad is None
+              else torch.isfinite(row_grad_norms(input_grad)).tolist())
+    outliers = bad + [r for r in outliers if finite[r] and r not in bad]
+    return bad + [r for r in ranked if r not in bad], outliers
+
+
 def total_grad_norm(model):
     """The L2 norm of every gradient of ``model`` together, before the clip."""
     norms = [torch.linalg.vector_norm(p.grad.detach()) for p in model.parameters()
