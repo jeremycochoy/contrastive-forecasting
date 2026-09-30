@@ -67,9 +67,11 @@ from src.checkpoint import (
 )
 from src.forecasting_head import (
     ForecastingHead,
+    ForecastingHeadBank,
     FORECAST_LEN,
     forecast_autoregressive,
     forecast_with_strategy,
+    head_bank_sizes,
     native_value_head,
 )
 
@@ -483,6 +485,104 @@ def parse_args():
     return args
 
 
+def load_head_state(path, device):
+    """The state dict of the head at ``path``; SystemExit when there is no
+    file."""
+    if not os.path.isfile(path):
+        raise SystemExit(f"no head at {path}")
+    return torch.load(path, map_location=device, weights_only=True)
+
+
+def build_head_bank(head_sd, bank_sizes, backbone_sizes, args):
+    """The head bank of a checkpoint with ``heads.<P>.*`` keys (#412): one
+    head per patch size P, of the kind its keys name, decoding P values.
+    The bank's sizes must be the backbone's."""
+    if bank_sizes != tuple(backbone_sizes):
+        raise SystemExit(f"the head bank holds the sizes {bank_sizes}, and "
+                         f"the backbone reads {tuple(backbone_sizes)}")
+    heads = {}
+    for size in bank_sizes:
+        prefix = f"heads.{size}."
+        part = {k[len(prefix):]: v for k, v in head_sd.items()
+                if k.startswith(prefix)}
+        heads[size] = build_eval_head(part, size, args)
+    print(f"  [eval] head bank (#412): one head per patch size {bank_sizes}")
+    return ForecastingHeadBank(heads)
+
+
+def build_eval_head(head_sd, forecast_len, args):
+    """An empty head of the kind ``head_sd`` holds, decoding
+    ``forecast_len`` values: GRU, linear probe or transformer, point,
+    quantile or Gaussian, read off the keys and the output width."""
+    head_config = dict(HEAD_CONFIG)
+    head_config['forecast_len'] = forecast_len
+    # Auto-detect quantile vs MSE: forecast_head.weight shape distinguishes
+    #   MSE     : (forecast_len,                hidden_dim or H)
+    #   quantile: (num_quantiles * forecast_len, hidden_dim or H)
+    # Auto-detect GRU vs linear-probe: presence of `gru.*` keys in the state
+    # dict. Linear probe is a single nn.Linear (PR ?? — qhead-improvements).
+    fh_w = head_sd.get("forecast_head.weight")
+    fh_out = fh_w.shape[0] if fh_w is not None else 0
+    is_quantile = fh_out == forecast_len * 9
+    is_gaussian = fh_out == forecast_len * 2
+    is_transformer = any(
+        k.startswith("transformer.layers.") for k in head_sd)
+    is_linear = (not is_transformer
+                 and not any(k.startswith("gru.") for k in head_sd))
+    H = head_config["H"]
+    if is_transformer and is_gaussian:
+        layer_indices = sorted({
+            int(k.split(".")[2]) for k in head_sd
+            if k.startswith("transformer.layers.")})
+        num_layers = max(layer_indices) + 1 if layer_indices else 6
+        nhead = getattr(args, "head_nhead", 6)
+        causal = getattr(args, "head_causal", "true") == "true"
+        from src.forecasting_head import TransformerGaussianForecastingHead
+        head = TransformerGaussianForecastingHead(
+            H=H, num_layers=num_layers, nhead=nhead,
+            forecast_len=forecast_len, causal=causal)
+        print(f"  [eval] auto-detected transformer-gauss head "
+              f"({num_layers}L H={H} nhead={nhead} "
+              f"{'causal' if causal else 'bidir'})")
+    elif is_transformer:
+        if not is_quantile:
+            raise ValueError(
+                f"transformer head with forecast_head.weight shape[0]="
+                f"{fh_out} doesn't match quantile (={forecast_len*9}) "
+                f"or gaussian (={forecast_len*2})")
+        layer_indices = sorted({
+            int(k.split(".")[2]) for k in head_sd
+            if k.startswith("transformer.layers.")})
+        num_layers = max(layer_indices) + 1 if layer_indices else 6
+        # nhead default = 6 (matches backbone H=384/64); CLI override available.
+        nhead = getattr(args, "head_nhead", 6)
+        causal = getattr(args, "head_causal", "true") == "true"
+        from src.forecasting_head import TransformerQuantileForecastingHead
+        head = TransformerQuantileForecastingHead(
+            H=H, num_layers=num_layers, nhead=nhead,
+            forecast_len=forecast_len, causal=causal)
+        print(f"  [eval] auto-detected transformer-q head "
+              f"({num_layers}L H={H} nhead={nhead} "
+              f"{'causal' if causal else 'bidir'})")
+    elif is_linear and is_quantile:
+        from src.forecasting_head import LinearQuantileForecastingHead
+        head = LinearQuantileForecastingHead(
+            H=H, forecast_len=forecast_len)
+        print(f"  [eval] auto-detected linear-probe quantile head")
+    elif is_linear:
+        from src.forecasting_head import LinearForecastingHead
+        head = LinearForecastingHead(H=H, forecast_len=forecast_len)
+        print(f"  [eval] auto-detected linear-probe MSE head")
+    elif is_quantile:
+        from src.forecasting_head import QuantileForecastingHead
+        head = QuantileForecastingHead(**head_config)
+        print(f"  [eval] auto-detected GRU quantile head (9 levels)")
+    else:
+        head = ForecastingHead(**head_config)
+        print(f"  [eval] auto-detected GRU MSE head")
+    return head
+
+
 def load_models(args, device):
     """Load backbone and forecasting head."""
     # Backbone architecture overrides (CLI > defaults). HEAD_CONFIG['H']
@@ -509,14 +609,17 @@ def load_models(args, device):
     # Auto-detect freq_emb_dim and seasonality_emb_dim so backbones
     # trained with either / both axes load cleanly without CLI flags.
     sd = torch.load(args.backbone_path, map_location=device, weights_only=True)
-    # A multi-patch backbone (#417) holds one patch encoder and one value
-    # head per patch size. Only its own value heads can score it: no
-    # separate head was trained on it.
+    # A multi-patch backbone (#417) holds one patch encoder per patch size.
+    # Its own value heads score it (A2V), or a head bank with one head per
+    # size, trained on the frozen backbone (#412).
     patch_sizes = multi_patch_sizes_of(sd)
-    if patch_sizes and not args.native_value_head:
+    head_sd = (None if args.native_value_head
+               else load_head_state(args.head_path, device))
+    bank_sizes = head_bank_sizes(head_sd) if head_sd is not None else ()
+    if patch_sizes and not args.native_value_head and not bank_sizes:
         raise SystemExit(f"{args.backbone_path} has one patch encoder per "
-                         f"patch size {patch_sizes}; score it with "
-                         f"--native-value-head (A2V).")
+                         f"patch size {patch_sizes}; score it with its head "
+                         f"bank (#412) or --native-value-head (A2V).")
     BACKBONE_CONFIG["multi_patch_sizes"] = patch_sizes
     if patch_sizes:
         print(f"  [eval] auto-detected multi-patch sizes {patch_sizes}")
@@ -693,73 +796,11 @@ def load_models(args, device):
         print(f"  [eval] WARNING: {args.head_path} has no encoder-source "
               f"marker; trusting --encoder-source {args.encoder_source}")
 
-    head_config = dict(HEAD_CONFIG)
-    head_config['forecast_len'] = args.forecast_len
-    head_sd = torch.load(args.head_path, map_location=device, weights_only=True)
-    # Auto-detect quantile vs MSE: forecast_head.weight shape distinguishes
-    #   MSE     : (forecast_len,                hidden_dim or H)
-    #   quantile: (num_quantiles * forecast_len, hidden_dim or H)
-    # Auto-detect GRU vs linear-probe: presence of `gru.*` keys in the state
-    # dict. Linear probe is a single nn.Linear (PR ?? — qhead-improvements).
-    fh_w = head_sd.get("forecast_head.weight")
-    fh_out = fh_w.shape[0] if fh_w is not None else 0
-    is_quantile = fh_out == args.forecast_len * 9
-    is_gaussian = fh_out == args.forecast_len * 2
-    is_transformer = any(
-        k.startswith("transformer.layers.") for k in head_sd)
-    is_linear = (not is_transformer
-                 and not any(k.startswith("gru.") for k in head_sd))
-    H = head_config["H"]
-    if is_transformer and is_gaussian:
-        layer_indices = sorted({
-            int(k.split(".")[2]) for k in head_sd
-            if k.startswith("transformer.layers.")})
-        num_layers = max(layer_indices) + 1 if layer_indices else 6
-        nhead = getattr(args, "head_nhead", 6)
-        causal = getattr(args, "head_causal", "true") == "true"
-        from src.forecasting_head import TransformerGaussianForecastingHead
-        head = TransformerGaussianForecastingHead(
-            H=H, num_layers=num_layers, nhead=nhead,
-            forecast_len=args.forecast_len, causal=causal)
-        print(f"  [eval] auto-detected transformer-gauss head "
-              f"({num_layers}L H={H} nhead={nhead} "
-              f"{'causal' if causal else 'bidir'})")
-    elif is_transformer:
-        if not is_quantile:
-            raise ValueError(
-                f"transformer head with forecast_head.weight shape[0]="
-                f"{fh_out} doesn't match quantile (={args.forecast_len*9}) "
-                f"or gaussian (={args.forecast_len*2})")
-        layer_indices = sorted({
-            int(k.split(".")[2]) for k in head_sd
-            if k.startswith("transformer.layers.")})
-        num_layers = max(layer_indices) + 1 if layer_indices else 6
-        # nhead default = 6 (matches backbone H=384/64); CLI override available.
-        nhead = getattr(args, "head_nhead", 6)
-        causal = getattr(args, "head_causal", "true") == "true"
-        from src.forecasting_head import TransformerQuantileForecastingHead
-        head = TransformerQuantileForecastingHead(
-            H=H, num_layers=num_layers, nhead=nhead,
-            forecast_len=args.forecast_len, causal=causal)
-        print(f"  [eval] auto-detected transformer-q head "
-              f"({num_layers}L H={H} nhead={nhead} "
-              f"{'causal' if causal else 'bidir'})")
-    elif is_linear and is_quantile:
-        from src.forecasting_head import LinearQuantileForecastingHead
-        head = LinearQuantileForecastingHead(
-            H=H, forecast_len=args.forecast_len)
-        print(f"  [eval] auto-detected linear-probe quantile head")
-    elif is_linear:
-        from src.forecasting_head import LinearForecastingHead
-        head = LinearForecastingHead(H=H, forecast_len=args.forecast_len)
-        print(f"  [eval] auto-detected linear-probe MSE head")
-    elif is_quantile:
-        from src.forecasting_head import QuantileForecastingHead
-        head = QuantileForecastingHead(**head_config)
-        print(f"  [eval] auto-detected GRU quantile head (9 levels)")
+    if bank_sizes:
+        head = build_head_bank(head_sd, bank_sizes,
+                               patch_sizes or (BACKBONE_CONFIG["W"],), args)
     else:
-        head = ForecastingHead(**head_config)
-        print(f"  [eval] auto-detected GRU MSE head")
+        head = build_eval_head(head_sd, args.forecast_len, args)
     head.load_state_dict(head_sd)
     head = head.to(device)
     head.eval()
@@ -774,6 +815,8 @@ def main():
     # Load models
     print("Loading models...")
     backbone, head = load_models(args, device)
+    # #412: a head bank hands each config the head of its patch size.
+    bank = head if isinstance(head, ForecastingHeadBank) else None
     print(f"  Backbone: {args.backbone_path}")
     print(f"  Head: {args.head_path}")
     print(f"  Strategy: {args.strategy} (forecast_len={args.forecast_len})")
@@ -863,6 +906,8 @@ def main():
                 if args.native_value_head:
                     head = native_value_head(
                         backbone, dataset.freq).to(device).eval()
+                elif bank is not None:
+                    head = bank.for_frequency(backbone, dataset.freq)
 
                 # Create predictor for this dataset
                 predictor = ContrastiveForecasterPredictor(

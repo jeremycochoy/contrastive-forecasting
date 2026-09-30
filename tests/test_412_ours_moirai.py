@@ -15,6 +15,12 @@ Groups, all on the CPU:
    on the batch without the dropped rows, loss and gradients.
 5. The trainer: three steps of the run's full command line, a resume, a
    stream with poisoned rows, and the refusals.
+6. The scoring head: one head per patch size. Head P decodes P values, each
+   config reads the head of its frequency's size, each row trains the head
+   of its size, the head's statistics read only the context before the
+   split, and the forecast is unscaled with the context loc and scale.
+7. The scoring scripts: the head trainer trains a bank on the run's
+   checkpoint, and the GIFT-Eval script loads it and forecasts with it.
 """
 
 from __future__ import annotations
@@ -35,7 +41,11 @@ sys.path.insert(0, str(REPO_ROOT))
 
 import src.forecasting_head as fh  # noqa: E402
 from src.checkpoint import multi_patch_sizes_of  # noqa: E402
-from src.forecasting_head import mean_std_inputs  # noqa: E402
+from src.forecasting_head import (ForecastingHeadBank,  # noqa: E402
+                                  TransformerQuantileForecastingHead,
+                                  bank_quantile_loss, bank_training_inputs,
+                                  forecast_B4, head_bank_sizes,
+                                  mean_std_inputs)
 from src.freq_embedding import FREQ_NAMES_V2  # noqa: E402
 from src.models import ConfigurableModel  # noqa: E402
 from src.nan_skip import (is_finite_step, restore_rng,  # noqa: E402
@@ -43,6 +53,9 @@ from src.nan_skip import (is_finite_step, restore_rng,  # noqa: E402
 
 TRAIN_PY = (REPO_ROOT / "experiments" / "2026-04-27_freq-embedding"
             / "scripts" / "train.py")
+GIFT_SCRIPTS = REPO_ROOT / "experiments" / "2026-04-13_gift-eval" / "scripts"
+HEAD_PY = GIFT_SCRIPTS / "train_forecasting_head.py"
+EVAL_PY = GIFT_SCRIPTS / "eval_gift_eval_official.py"
 BASE_COMMIT = "3d57bf9a"
 SIZES = (8, 16, 32, 64, 128)
 T = 1024
@@ -593,3 +606,236 @@ def test_the_objective_by_row_runs_on_one_gpu(tmp_path):
             env={"WORLD_SIZE": "2"})
     assert r.returncode != 0 and "one GPU" in r.stdout + r.stderr
     assert not (tmp_path / "never").exists()
+
+
+# ---------------------------------------------------------------------------
+# 6. The scoring head: one head per patch size
+# ---------------------------------------------------------------------------
+
+Q = 9
+
+
+def bank_of(sizes=SIZES):
+    torch.manual_seed(1)
+    return ForecastingHeadBank({
+        p: TransformerQuantileForecastingHead(H=16, num_layers=1, nhead=2,
+                                              forecast_len=p)
+        for p in sizes})
+
+
+def test_head_p_decodes_the_p_values_of_the_next_patch():
+    bank = bank_of()
+    assert head_bank_sizes(bank.state_dict()) == SIZES
+    for size in SIZES:
+        head = bank.head_for(size)
+        assert head.patch_size == size
+        assert head(torch.randn(3, 5, 16)).shape == (3, 5, Q, size)
+
+
+@pytest.mark.parametrize("freq,size", [
+    ("A-DEC", 8), ("Q-DEC", 8), ("M", 16), ("W-SUN", 16), ("D", 16),
+    ("H", 32), ("15T", 64), ("10S", 128)])
+def test_each_config_reads_the_head_of_its_frequency(freq, size):
+    bank = bank_of()
+    assert bank.for_frequency(model(), freq) is bank.head_for(size)
+
+
+def test_the_head_statistics_read_the_context_before_the_split():
+    """loc and scale of a head step read no value after the split, and the
+    loss is scored on the real values after it only."""
+    m = model()
+    freq = torch.tensor([FREQ_NAMES_V2.index(f) for f in FREQS])
+    x = windows()
+    torch.manual_seed(5)
+    x_norm, sizes, keep = bank_training_inputs(m, x, freq, SIZES)
+    loc, scale = m.rev_norm.mean.clone(), m.rev_norm.stdev.clone()
+    assert keep.any(dim=1).all() and not (keep & m.rev_norm.pad_mask).any()
+    changed = x + keep * (1e3 * torch.rand(x.shape) + 1.0)
+    torch.manual_seed(5)
+    x_norm2, sizes2, keep2 = bank_training_inputs(m, changed, freq, SIZES)
+    assert torch.equal(sizes, sizes2) and torch.equal(keep, keep2)
+    assert torch.equal(m.rev_norm.mean, loc)
+    assert torch.equal(m.rev_norm.stdev, scale)
+    assert torch.equal(x_norm[~keep], x_norm2[~keep])
+    for row, size in enumerate(sizes.tolist()):
+        first = int(keep[row, :, 0].float().argmax())
+        assert first % size == 0 and keep[row, first:, 0].all()
+
+
+def test_each_row_trains_the_head_of_its_size():
+    """Rows at sizes 8 and 32 only: those two heads get a gradient, the
+    frozen backbone and the other heads get none, and the loss is the two
+    group losses weighted by their share of the rows."""
+    m = model().eval()
+    for p in m.parameters():
+        p.requires_grad_(False)
+    bank = bank_of().eval()  # no dropout: the two sums below compare
+    freq = torch.tensor([FREQ_NAMES_V2.index(f) for f in FREQS])
+    seas = torch.zeros_like(freq)
+    torch.manual_seed(5)
+    x_norm, _, keep = bank_training_inputs(m, windows(), freq, SIZES)
+    sizes = torch.tensor([8, 8, 32, 32, 8, 32, 32, 32])
+    loss = bank_quantile_loss(m, bank, x_norm, sizes, keep, freq, seas)
+    loss.backward()
+    for size in SIZES:
+        grads = [p.grad for p in bank.head_for(size).parameters()]
+        if size in (8, 32):
+            assert all(g is not None for g in grads), size
+        else:
+            assert all(g is None for g in grads), size
+    parts = []
+    for size, rows in ((8, [0, 1, 4]), (32, [2, 3, 5, 6, 7])):
+        labels = dict(freq_ids=freq[rows], seasonality_ids=seas[rows])
+        parts.append(len(rows) / 8 * fh._bank_group_loss(
+            m, bank.head_for(size), x_norm[rows], keep[rows], size, labels))
+    assert torch.allclose(loss, parts[0] + parts[1])
+
+
+@pytest.mark.parametrize("freq,size", [("A-DEC", 8), ("H", 32), ("10S", 128)])
+def test_b4_reads_the_context_at_the_heads_size(monkeypatch, freq, size):
+    seen, real = [], fh.extract_encoder_latents
+
+    def spy(backbone, x, **kw):
+        seen.append(kw.get("patch_size"))
+        return real(backbone, x, **kw)
+
+    monkeypatch.setattr(fh, "extract_encoder_latents", spy)
+    m = model().eval()
+    ctx = 50.0 + torch.randn(T, 1).cumsum(0)
+    out = forecast_B4(m, bank_of().for_frequency(m, freq), ctx, 45, "cpu")
+    assert out.shape == (Q, 45, 1) and np.isfinite(out).all()
+    assert seen == [size]
+
+
+def test_the_forecast_is_unscaled_with_the_context_statistics():
+    """The forecast is the head's normalised output times the context scale
+    plus its loc; taking them off again gives the head's output back. An
+    affine change of the context moves the forecast the same way."""
+    m = model().eval()
+    head = bank_of().head_for(32).eval()
+    ctx = 50.0 + torch.randn(T, 1).cumsum(0)
+    out = torch.as_tensor(forecast_B4(m, head, ctx, 40, "cpu"))
+    e_ctx, _ = fh.extract_encoder_latents(m, ctx[None], patch_size=32)
+    loc, scale = m.rev_norm.mean.view(()), m.rev_norm.stdev.view(())
+    rolled = fh.rollout_latent(m, e_ctx, 2)
+    with torch.no_grad():
+        raw = fh._b_variant_decode(head, e_ctx, rolled, e_ctx.size(1))
+    normalised = torch.cat([raw[0, 0], raw[0, 1]], dim=-1)[..., :40]
+    assert torch.allclose(out[..., 0], normalised * scale + loc, atol=1e-4)
+    assert torch.allclose((out[..., 0] - loc) / scale, normalised, atol=1e-5)
+    moved = forecast_B4(m, head, 3.0 * ctx - 20.0, 40, "cpu")
+    assert np.allclose(moved, 3.0 * out.numpy() - 20.0, rtol=1e-4, atol=1e-3)
+
+
+# ---------------------------------------------------------------------------
+# 7. The scoring scripts on the run's checkpoint
+# ---------------------------------------------------------------------------
+
+# The flags head_eval_bb.sh gives the head trainer, with the tiny backbone
+# shape (CF_BB_SHAPE) and the CPU. The protocol names --rev-norm-kind ewma
+# and --forecast-len 16; the checkpoint's scaling and sizes win.
+BB_SHAPE = ("--d-model", "16", "--n-heads", "2", "--num-layers", "1")
+HEAD_PROTOCOL = (
+    "--device", "cpu", "--quantile-head", "--grad-clip", "1.0",
+    "--forecast-len", "16", "--batch-size", "8", "--lr", "1e-3",
+    "--total-steps", "3", "--save-every", "5000", "--log-every", "1",
+    "--seed", "20260722", "--hf-repo", "jeremycochoy/gift-pretrain-full-4096",
+    "--hf-path", "small_v1", "--head-arch", "transformer",
+    "--head-num-layers", "2", "--head-nhead", "8", "--head-ffn-mult", "4.0",
+    "--head-causal", "true", "--head-train-input", "e_then_f",
+    "--head-dropout", "0.1", "--t-raw", "4096", "--n-channels", "1",
+    *BB_SHAPE, "--encoder-type", "gru", "--rev-norm-kind", "ewma",
+    "--rev-norm-span", "128", "--freq-emb-dim", "3",
+    "--seasonality-emb-dim", "3")
+# The flags eval_local.sh gives the GIFT-Eval script.
+EVAL_PROTOCOL = (
+    "--strategy", "B4", "--forecast-len", "16", "--device", "cpu",
+    "--t-raw", "4096", "--n-channels", "1", *BB_SHAPE, "--encoder-type",
+    "gru", "--rev-norm-kind", "ewma", "--rev-norm-span", "128",
+    "--head-nhead", "8", "--head-causal", "true")
+
+
+@pytest.fixture(scope="module", params=["student", "teacher"])
+def head_run(request, full_run):
+    """Three steps of the head protocol on the run's checkpoint."""
+    save, first, resumed = full_run
+    assert resumed.returncode == 0, resumed.stderr[-3000:]
+    out = save / f"head_{request.param}"
+    env = dict(os.environ, PYTHONPATH=str(REPO_ROOT), CUDA_VISIBLE_DEVICES="",
+               OMP_NUM_THREADS="4")
+    data = corpus(save / f"data_{request.param}")
+    r = subprocess.run(
+        [sys.executable, str(HEAD_PY), "--backbone-path",
+         str(save / "r_final.pth"), "--encoder-source", request.param,
+         *HEAD_PROTOCOL, "--save-dir", str(out), "--run-name", "qhead",
+         *data], capture_output=True, text=True, env=env, timeout=1800)
+    return request.param, save / "r_final.pth", out, r
+
+
+def test_the_head_trainer_trains_one_head_per_size(head_run):
+    source, _, out, r = head_run
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    assert "the checkpoint names the mean/std scaling" in r.stdout
+    assert "Head bank (#412)" in r.stdout
+    sd = torch.load(out / "qhead_final.pth", map_location="cpu",
+                    weights_only=True)
+    assert head_bank_sizes(sd) == SIZES
+    for size in SIZES:
+        assert sd[f"heads.{size}.forecast_head.weight"].shape[0] == Q * size
+    rows = list(csv.DictReader(open(out / "qhead_losses.csv")))
+    assert len(rows) == 3 and finite(rows, "loss")
+
+
+def load_eval_module():
+    pytest.importorskip("gluonts")
+    pytest.importorskip("gift_eval")
+    spec = importlib.util.spec_from_file_location("eval_412", EVAL_PY)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def eval_args(module, monkeypatch, *extra):
+    monkeypatch.setattr(sys, "argv", ["eval", *EVAL_PROTOCOL, *extra])
+    return module.parse_args()
+
+
+def test_the_eval_forecasts_with_the_bank(head_run, monkeypatch):
+    """The eval reads the sizes, the scaling and the zero padding from the
+    checkpoint, and each config's head forecasts at its size."""
+    import pandas as pd
+    from src.norm import RevMeanStdNorm
+    source, bb, out, r = head_run
+    assert r.returncode == 0, r.stderr[-3000:]
+    module = load_eval_module()
+    args = eval_args(module, monkeypatch, "--backbone-path", str(bb),
+                     "--head-path", str(out / "qhead_final.pth"),
+                     "--encoder-source", source)
+    backbone, bank = module.load_models(args, CPU)
+    assert isinstance(bank, ForecastingHeadBank) and bank.sizes == SIZES
+    assert backbone.multi_patch_sizes == SIZES
+    assert isinstance(backbone.rev_norm, RevMeanStdNorm)
+    assert args.context_pad == "zeros"
+    head = bank.for_frequency(backbone, "H")
+    assert head.patch_size == 32
+    predictor = module.ContrastiveForecasterPredictor(
+        backbone=backbone, head=head, prediction_length=48, device=CPU,
+        strategy="B4", context_pad=args.context_pad)
+    item = {"target": (50.0 + np.random.default_rng(0).standard_normal(700)
+                       .cumsum()).astype(np.float32),
+            "start": pd.Period("2020-01-01 00:00", freq="H")}
+    forecast = predictor.predict_item(item)
+    assert forecast.forecast_array.shape == (1 + Q, 48)
+    assert np.isfinite(forecast.forecast_array).all()
+
+
+def test_the_eval_refuses_a_bank_of_other_sizes(tmp_path, monkeypatch,
+                                                full_run):
+    save = full_run[0]
+    path = tmp_path / "bank.pth"
+    torch.save(bank_of((8, 16)).state_dict(), path)
+    module = load_eval_module()
+    args = eval_args(module, monkeypatch, "--backbone-path",
+                     str(save / "r_final.pth"), "--head-path", str(path))
+    with pytest.raises(SystemExit, match="the head bank holds the sizes"):
+        module.load_models(args, CPU)
