@@ -30,6 +30,7 @@ RUNS = [
     (P + "_cos665k",  "Ours, lr cosine 6e-5→1e-6 over 665k",      4.0, "D"),
     (P + "_cos200k",  "Ours, lr cosine 5.6e-5→1e-6 by 200k",      4.0, "v"),
     ("cf419_cos200k", "Ours, lr cosine by 200k, new data",        4.0, "*"),
+    ("cf412om", "Ours + patch sizes + mean/std + Moirai recipe, new data", 4.4, "h"),
     # Moirai: our copy of Moirai, trained on the values with its schedule.
     ("cf415_moirai_native", "Moirai, own head",                   2.4, "o"),
     ("cf421f_moirai_native", "Moirai + patch heads + mean/std, new data", 4.4, "X"),
@@ -37,11 +38,11 @@ RUNS = [
 ]
 SERIES = [(arm, label, colour(arm), width, marker, line(arm))
           for arm, label, width, marker in RUNS]
-# Moirai trains at batch 256: one of its steps holds the data of four
-# batch-64 steps.
+# Moirai and cf412om train at batch 256: one of their steps holds the data
+# of four batch-64 steps.
 XSCALE = {"cf415_moirai": 4, "cf415_moirai_native": 4, "cf419_moirai_native": 4,
           "cf421z_moirai_native": 4, "cf421f_moirai_native": 4, "cf421fb_moirai_native": 4,
-          "cf421n_moirai_native": 4}
+          "cf421n_moirai_native": 4, "cf412om": 4}
 # Where the last score of a line prints, so two lines that end together part.
 END_LABEL_OFFSET = {P + "_lr100x": (9, 4), P + "_cos200k": (9, -12)}
 BEST, BAND, PROJECT_BEST = 1.1369, 0.008, 1.0651
@@ -101,8 +102,8 @@ def main():
     ticks = [40000, 100000, 200000, 400000, 665000, 1000000]
     ax.set_xticks(ticks)
     ax.set_xticklabels(["40k", "100k", "200k", "400k", "665k", "1,000k"])
-    ax.set_xlabel("Data seen, in batch-64 steps (log scale). Moirai trains at "
-                  "batch 256, so one of its steps counts 4.")
+    ax.set_xlabel("Data seen, in batch-64 steps (log scale). Moirai and the Moirai "
+                  "recipe train at batch 256, so one of their steps counts 4.")
     ax.set_ylabel("GM-Relative MASE, 97-config GIFT-Eval (lower is better)")
     ax.set_title("GM-Relative MASE against data seen. 11.4M parameters unless marked.\n"
                  "Solid lines, Ours: our contrastive model. Dashed lines, Moirai: "

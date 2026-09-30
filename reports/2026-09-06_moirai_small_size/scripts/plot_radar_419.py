@@ -14,6 +14,7 @@ from run_style import P, colour, line
 # CSVs in the radar folder; the owner took them off this figure.
 NEW_DATA = [
     ("cf419_cos200k", "cos419_", "Ours"),
+    ("cf412om", "ours412om_", "Ours + patch sizes + mean/std + Moirai recipe"),
     ("cf421f_moirai_native", "moirai421f_native", "Moirai + patch heads + mean/std"),
     ("cf421n_moirai_native", "moirai421n_native", "Moirai + patch heads + mean/std + RMS term"),
 ]

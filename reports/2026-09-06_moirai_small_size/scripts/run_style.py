@@ -16,6 +16,7 @@ STYLE = {
     P + "_cos200k": ("#17becf", OURS),
     "b2cos": ("#e377c2", OURS),
     "cf419_cos200k": ("#1a1a1a", OURS),
+    "cf412om": ("#00897b", OURS),
     "cf415_moirai": ("#8c564b", MOIRAI),
     "cf415_moirai_native": ("#8c564b", ":"),
     "cf419_moirai_native": ("#9a9a00", MOIRAI),
