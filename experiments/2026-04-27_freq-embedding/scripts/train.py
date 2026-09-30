@@ -1549,6 +1549,137 @@ def real_positions(latent, pad_patches):
     return latent if pad_patches is None else latent[~pad_patches]
 
 
+@torch.no_grad()
+def tau_reference(f_lat, o_lat, pad_patches, args):
+    """The ``loss_tau_ref`` column: the main contrastive loss at a fixed
+    τ = 0.07, with no gradient. Comparable across runs whatever --tau or
+    --learnable-tau says.
+
+    It is a proper normalized InfoNCE (positive in the numerator and the
+    denominator), so the column is always 0 or more, unlike the training
+    loss, whose negatives-only form goes negative once the positives
+    separate. The split shapes (#374) take no such flag: their L_pred is
+    normalized already, and their own default at τ = 0.07 is the reference.
+    It stays a pure student-side reference: no L_align, no floor, no MoCo
+    keys or negatives. Depth 0 only, on a --train-rollout-depth run too
+    (#373), so one curve compares across k. It skips the padding as the
+    loss does, where its shape can (#419).
+    """
+    pos_in_denom = args.loss_shape not in (
+        "cosine_similarity_batch_split_pred_rep",
+        "cosine_similarity_batch_rep_only")
+    ref = contrastive_latent_loss(
+        (f_lat.detach(), o_lat.detach()), validation=False, spec=LOSS_SPEC,
+        tau_override=torch.tensor(0.07, device=f_lat.device,
+                                  dtype=f_lat.dtype),
+        include_positive_in_denominator=pos_in_denom, align_loss_weight=0.0,
+        subtract_contrastive_floor=False, moco_negatives=False,
+        moco_rep_keys=False, train_rollout_depth=0,
+        pad_patches=(pad_patches if args.loss_shape ==
+                     "cosine_similarity_batch_rep_only" else None))
+    return ref.item()
+
+
+def main_contrastive_term(lat, args, rep_w, tau, pad_patches, terms):
+    """The main contrastive loss of one forward, or L_align alone under
+    --no-main-contrastive-loss. ``terms`` receives the unweighted terms the
+    loss computes (#409)."""
+    if not args.no_main_contrastive_loss:
+        return contrastive_latent_loss(
+            (lat.f, lat.o), validation=False, spec=LOSS_SPEC,
+            tau_override=tau, teacher_original_latent=lat.teacher,
+            rollout_latents=lat.rollout, rep_loss_weight=rep_w,
+            term_out=terms, pad_patches=pad_patches)
+    loss = lat.f.new_zeros(())
+    if args.align_loss_weight <= 0:
+        return loss
+    # #388: `raise`, not `assert`, so `python -O` cannot fall back to the
+    # student target, the #382 defect --align-target teacher removes.
+    if args.align_target == "teacher" and lat.teacher is None:
+        raise SystemExit("--align-target teacher but no teacher latents at "
+                         "the loss call. Falling back to the student target "
+                         "is the #382 defect this flag removes.")
+    target = lat.teacher if args.align_target == "teacher" else None
+    return loss + align_loss(
+        lat.f, lat.o, args.align_loss_weight, target_latent=target,
+        rollout_latents=lat.rollout, depth_reduce=args.train_rollout_reduce,
+        pad_patches=pad_patches)
+
+
+def align_moco_term(lat, args, tau):
+    """The #374 arm 6 MoCo alignment, weighted, or None when it is off."""
+    if args.align_moco_loss_weight <= 0:
+        return None
+    if lat.teacher is None:
+        raise SystemExit("--align-moco-loss-weight > 0 requires an EMA "
+                         "teacher (--ema-encoder). teacher_o_lat is None.")
+    tau_am = float(tau.detach()) if tau is not None else args.tau
+    return align_moco_loss(lat.o, lat.teacher, tau=tau_am,
+                           weight=args.align_moco_loss_weight)
+
+
+def cpc_aux_term(model, lat, args, pad_patches):
+    """The CPC InfoNCE auxiliary (#344), unweighted, or None when off."""
+    if args.cpc_infonce_weight <= 0:
+        return None
+    if args.cpc_infonce_negs == "matched":
+        return cpc_infonce_aux_loss(
+            lat.f, lat.o, model.cpc_w1, rollout_latents=lat.rollout,
+            depth_reduce=args.train_rollout_reduce, pad_patches=pad_patches)
+    return cpc_infonce_all_loss(
+        lat.f, lat.o, model.cpc_w1,
+        marginal_only=(args.cpc_infonce_negs == "cross"),
+        rollout_latents=lat.rollout, depth_reduce=args.train_rollout_reduce)
+
+
+def sigreg_term(latent, args, pad_patches):
+    """SIGReg (#355) on the real positions of one latent, unweighted."""
+    return sigreg_loss(real_positions(latent, pad_patches), M=args.sigreg_m,
+                       T_knots=args.sigreg_t_knots,
+                       post_normalize=args.sigreg_post_normalization,
+                       n_chunk=args.sigreg_n_chunk)
+
+
+def no_contrastive_values():
+    """The add-on values of a step that computes none of them."""
+    return dict(terms={}, align_moco=float("nan"), cpc_aux=float("nan"),
+                sigreg_e=float("nan"), sigreg_h=float("nan"))
+
+
+def contrastive_terms(model, lat, args, rep_w, tau, pad_patches):
+    """The contrastive objective of one forward, in the trainer's order: the
+    main loss (or L_align alone), align_moco, the CPC auxiliary, then SIGReg
+    on e and on h.
+
+    ``lat`` holds the latents ``f``, ``o``, ``teacher``, ``e`` and
+    ``rollout``. ``tau`` is the learnable temperature, None for the spec's.
+    Returns ``(loss, values)``: ``values["terms"]`` holds the unweighted
+    L_pred / L_rep / L_align the loss computed, and each add-on its value
+    (NaN when it is off).
+    """
+    values = no_contrastive_values()
+    loss = main_contrastive_term(lat, args, rep_w, tau, pad_patches,
+                                 values["terms"])
+    moco = align_moco_term(lat, args, tau)
+    if moco is not None:
+        loss = loss + moco
+        values["align_moco"] = moco.item()
+    cpc = cpc_aux_term(model, lat, args, pad_patches)
+    if cpc is not None:
+        loss = loss + args.cpc_infonce_weight * cpc
+        values["cpc_aux"] = cpc.item()
+    for on, weight, key, latent in (
+            (args.sigreg_embedding, args.sigreg_embedding_weight, "sigreg_e",
+             lat.e),
+            (args.sigreg_encoding, args.sigreg_encoding_weight, "sigreg_h",
+             lat.o)):
+        if on:
+            term = sigreg_term(latent, args, pad_patches)
+            loss = loss + weight * term
+            values[key] = term.item()
+    return loss, values
+
+
 def gift_rows(args, C, position):
     """The factory of GiftEvalPretrain streams the mixed loaders call (#419).
 
@@ -2872,167 +3003,41 @@ def main():
         rep_w_now = linear_schedule_at_step(
             step, args.total_steps, args.rep_loss_weight,
             args.rep_loss_weight_end, args.rep_loss_weight_ramp_steps)
-        # Per-term readout for the losses CSV: the loss fills this dict with
-        # the UNWEIGHTED L_pred / L_rep / L_align it computes, and leaves the
-        # key out for a term it skips.
-        loss_terms = {}
         with torch.amp.autocast('cuda', enabled=False):
             tau_tensor_loss = (tau_tensor.float()
                                if tau_tensor is not None else None)
             if args.value_space_objective:
                 # The whole objective (#415): the pinball loss on the actual
-                # values, already reduced over the depths. Every term below
-                # is refused on this path, so nothing is added to it.
+                # values, already reduced over the depths. Every contrastive
+                # term is refused on this path, so nothing is added to it.
                 #
                 # Under torchrun this loss is per-rank on purpose: it pools
                 # no negatives, so the mean of the rank losses IS the global
                 # loss and `average_gradients` gives the global gradient.
-                loss = value_loss
-            elif args.no_main_contrastive_loss:
-                # #344 follow-up arm: drop the main contrastive loss. Train only
-                # on the auxiliary terms. Skip contrastive_latent_loss (no
-                # xshh_allt Gram backward) and add the BYOL align term standalone
-                # (same form, encoder target stop-gradded). L_cpc is added below.
-                loss = f_lat.new_zeros(())
-                if args.align_loss_weight > 0:
-                    # #388: --align-target teacher swaps the target for the
-                    # EMA teacher's h_{t+1} (the BYOL form). Argparse rejects
-                    # `teacher` without a teacher — re-check it here too,
-                    # where the value is used: a None target silently falls
-                    # back to the student, which is the #382 bug this flag
-                    # fixes. `raise`, not `assert`: `python -O` strips
-                    # asserts and would reinstate that exact fallback.
-                    if args.align_target == "teacher" and teacher_o_lat is None:
-                        raise SystemExit(
-                            "--align-target teacher but no teacher latents "
-                            "at the loss call. Falling back to the student "
-                            "target is the #382 defect this flag removes.")
-                    align_target = (teacher_o_lat
-                                    if args.align_target == "teacher" else None)
-                    loss = loss + align_loss(
-                        f_lat, o_lat, args.align_loss_weight,
-                        target_latent=align_target,
-                        rollout_latents=rollout_lats,
-                        depth_reduce=args.train_rollout_reduce,
-                        pad_patches=pad_patches)
+                loss, step_values = value_loss, no_contrastive_values()
             else:
-                loss = contrastive_latent_loss(
-                    (f_lat, o_lat), validation=False,
-                    spec=LOSS_SPEC, tau_override=tau_tensor_loss,
-                    teacher_original_latent=teacher_o_lat,
-                    rollout_latents=rollout_lats,
-                    rep_loss_weight=rep_w_now,
-                    term_out=loss_terms,
-                    pad_patches=pad_patches)
-            # #374 arm 6: MoCo-style alignment on the encoder side (student
-            # query, teacher key). Requires teacher_o_lat.
-            align_moco_val = float('nan')
-            if args.align_moco_loss_weight > 0:
-                if teacher_o_lat is None:
-                    raise SystemExit(
-                        "--align-moco-loss-weight > 0 requires an EMA teacher "
-                        "(--ema-encoder). teacher_o_lat is None.")
-                _tau_am = (float(tau_tensor.detach()) if tau_tensor is not None
-                           else args.tau)
-                align_moco = align_moco_loss(
-                    o_lat, teacher_o_lat, tau=_tau_am,
-                    weight=args.align_moco_loss_weight)
-                loss = loss + align_moco
-                align_moco_val = align_moco.item()
-            # CPC InfoNCE auxiliary (#344): total = contrastive + λ·L_cpc,
-            # equal weight at λ=1. f_lat is the AR context h_t (4-D here. The
-            # cpc_multistep stack is 5-D and returns earlier in the loss), o_lat
-            # the encoder embeddings e. Same fp32 block as the contrastive loss.
-            cpc_aux_val = float('nan')
-            if args.cpc_infonce_weight > 0:
-                if args.cpc_infonce_negs == "matched":
-                    cpc_aux = cpc_infonce_aux_loss(
-                        f_lat, o_lat, model.cpc_w1,
-                        rollout_latents=rollout_lats,
-                        depth_reduce=args.train_rollout_reduce,
-                        pad_patches=pad_patches)
-                else:  # "cross" (strict marginal) or "all" (full batch×time grid)
-                    cpc_aux = cpc_infonce_all_loss(
-                        f_lat, o_lat, model.cpc_w1,
-                        marginal_only=(args.cpc_infonce_negs == "cross"),
-                        rollout_latents=rollout_lats,
-                        depth_reduce=args.train_rollout_reduce)
-                loss = loss + args.cpc_infonce_weight * cpc_aux
-                cpc_aux_val = cpc_aux.item()
-            # LeJEPA SIGReg (#355): regularise the pooled marginal of e_t
-            # (patch-embed) and/or h_t (encoding) toward Unif(S^{K-1}). The
-            # statistic is stateless (no buffers. M projections resampled
-            # every forward); λ is per-term (#359) so the two sides can be
-            # tuned independently.
-            sigreg_e_val = float('nan')
-            sigreg_h_val = float('nan')
-            if args.sigreg_embedding:
-                sigreg_e = sigreg_loss(
-                    real_positions(e_lat, pad_patches),
-                    M=args.sigreg_m, T_knots=args.sigreg_t_knots,
-                    post_normalize=args.sigreg_post_normalization,
-                    n_chunk=args.sigreg_n_chunk)
-                loss = loss + args.sigreg_embedding_weight * sigreg_e
-                sigreg_e_val = sigreg_e.item()
-            if args.sigreg_encoding:
-                sigreg_h = sigreg_loss(
-                    real_positions(o_lat, pad_patches),
-                    M=args.sigreg_m, T_knots=args.sigreg_t_knots,
-                    post_normalize=args.sigreg_post_normalization,
-                    n_chunk=args.sigreg_n_chunk)
-                loss = loss + args.sigreg_encoding_weight * sigreg_h
-                sigreg_h_val = sigreg_h.item()
-        # Diagnostic: same loss with fixed τ=0.07 (no gradient). Comparable
-        # across runs regardless of --tau / --learnable-tau, useful as a
-        # cross-experiment baseline curve. Re-uses the already-forwarded
-        # latents so the only extra cost is one similarity-matrix softmax
-        # under no_grad (target <5% step-time overhead).
-        # include_positive_in_denominator=True makes this a proper
-        # normalized InfoNCE (positive in both numerator and denominator)
-        # so the column is always ≥ 0 — unlike the training `loss` above,
-        # whose negatives-only objective is intentionally unchanged and
-        # goes negative once positives separate. ONLY this diagnostic
-        # call passes the flag. The training loss keeps the default.
-        # #415 keeps no contrastive term, so there is no shape to take the
-        # reference at and the CSV drops the column. The `auc`, `gap` and
-        # `r2_*` columns still read the latents, which is what tells whether
-        # a value-trained cell separates futures from pasts.
-        loss_tau_ref_val = None
-        if not args.value_space_objective:
-            with torch.no_grad():
-                # `cosine_similarity_batch_split_pred_rep` (#374) is L_pred +
-                # L_rep where L_pred is ALREADY normalized-InfoNCE. The shape
-                # rejects `include_positive_in_denominator` as a semantic no-op.
-                # Its own default at τ=0.07 IS the correct reference.
-                _pos_in_denom_ref = (
-                    args.loss_shape not in (
-                        "cosine_similarity_batch_split_pred_rep",
-                        "cosine_similarity_batch_rep_only"))
-                loss_tau_ref = contrastive_latent_loss(
-                    (f_lat.detach(), o_lat.detach()),
-                    validation=False, spec=LOSS_SPEC,
-                    tau_override=torch.tensor(
-                        0.07, device=f_lat.device, dtype=f_lat.dtype),
-                    include_positive_in_denominator=_pos_in_denom_ref,
-                    # Keep this a PURE contrastive reference regardless of the
-                    # run's --align-loss-weight / --subtract-contrastive-floor
-                    # / --moco-negatives (the diagnostic doesn't have a teacher
-                    # to route through anyway. Force off to keep it a fixed
-                    # student-side reference).
-                    align_loss_weight=0.0,
-                    subtract_contrastive_floor=False,
-                    moco_negatives=False,
-                    moco_rep_keys=False,
-                    # Depth-0 reference on a --train-rollout-depth run too (#373):
-                    # one curve comparable across k, and the extra depths are the
-                    # thing the run varies.
-                    train_rollout_depth=0,
-                    # #419: the reference skips the padding as the loss does,
-                    # where its shape can.
-                    pad_patches=(pad_patches if args.loss_shape ==
-                                 "cosine_similarity_batch_rep_only" else None),
-                )
-            loss_tau_ref_val = loss_tau_ref.item()
+                # The contrastive objective (`contrastive_terms`), in fp32:
+                # the main loss or L_align alone, the MoCo alignment (#374),
+                # the CPC auxiliary (#344) and SIGReg on e and h (#355).
+                step_lat = SimpleNamespace(
+                    f=f_lat, o=o_lat, teacher=teacher_o_lat, e=e_lat,
+                    rollout=rollout_lats)
+                loss, step_values = contrastive_terms(
+                    model, step_lat, args, rep_w_now, tau_tensor_loss,
+                    pad_patches)
+        # Per-term readout for the losses CSV: the UNWEIGHTED L_pred / L_rep /
+        # L_align the loss computed. A term it skipped has no key.
+        loss_terms = step_values["terms"]
+        cpc_aux_val = step_values["cpc_aux"]
+        sigreg_e_val = step_values["sigreg_e"]
+        sigreg_h_val = step_values["sigreg_h"]
+        # Diagnostic: the loss at a fixed τ=0.07, with no gradient
+        # (`tau_reference`). #415 keeps no contrastive term, so the CSV drops
+        # the column. The `auc`, `gap` and `r2_*` columns still read the
+        # latents, which is what tells whether a value-trained cell separates
+        # futures from pasts.
+        loss_tau_ref_val = (None if args.value_space_objective
+                            else tau_reference(f_lat, o_lat, pad_patches, args))
         t_fwd_end = time.perf_counter()
 
         if nan_debug is not None:
