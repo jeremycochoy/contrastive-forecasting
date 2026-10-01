@@ -28,7 +28,7 @@ RUNS = [
     (P + "_lr30x",    "Ours, lr 1.8e-5",                          4.0, "o"),
     (P + "_lr100x",   "Ours, lr 5.6e-6",                          4.0, "^"),
     (P + "_cos665k",  "Ours, lr cosine 6e-5→1e-6 over 665k",      4.0, "D"),
-    (P + "_cos200k",  "Ours, lr cosine 5.6e-5→1e-6 by 200k",      4.0, "v"),
+    (P + "_cos200k",  "Ours, lr cosine 5e-5→1e-6 by 200k",        4.0, "v"),
     ("cf419_cos200k", "Ours, lr cosine by 200k, new data",        4.0, "*"),
     ("cf412om", "Ours + patch sizes + mean/std + Moirai recipe, new data", 4.4, "h"),
     ("cf412oc", "Ours + patch sizes + mean/std, cyan recipe, new data", 4.4, "p"),
