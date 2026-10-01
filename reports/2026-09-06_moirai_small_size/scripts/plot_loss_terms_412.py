@@ -27,6 +27,10 @@ OUT = STUDY / "plots" / "loss_terms_412om_vs_cyan.png"
 MIRROR = Path("/home/jupyter/checkpoints_backup/cf-412/vast_lr100x")
 CYAN = P + "_cos200k"
 BIN = 4000  # batch-64 steps of data seen per point
+# L_rep exists only while its weight ramps from 1 to 0 (#412om: 2,500 steps,
+# 10,000 batch-64 steps of data; the others: 10,000 steps), so its panel
+# shows the first 12,000 batch-64 steps with finer bins.
+REP_BIN, REP_END = 250, 12000
 # run: (CSV files, oldest first so a resumed leg overwrites its failed try;
 # batch-64 steps per training step)
 SOURCES = {
@@ -46,7 +50,8 @@ PANEL = {"gm": "GM-Relative MASE (lower is better)",
          "sigreg_e": "SIGReg on the embedding",
          "sigreg_h": "SIGReg on the encoding",
          "top1": "Top-1 accuracy of the contrastive match",
-         "grad_norm": "Gradient norm before the clip (not logged for cyan)"}
+         "grad_norm": "Gradient norm before the clip (not logged for cyan)",
+         "l_rep": "L_rep while its weight ramps from 1 to 0 (first 12k only)"}
 
 
 def read_steps(folders, name):
@@ -81,9 +86,13 @@ def collect():
                     value = number(r.get(term))
                     if value is not None:
                         bins[term][seen // BIN].append(value)
+                value = number(r.get("l_rep"))
+                if value is not None and seen <= REP_END:
+                    bins["l_rep"][seen // REP_BIN].append(value)
             for term, by_bin in bins.items():
+                width = REP_BIN if term == "l_rep" else BIN
                 for b, values in sorted(by_bin.items()):
-                    out.write(f"{run}\t{term}\t{(b + 0.5) * BIN:.0f}\t{statistics.median(values):.6g}\n")
+                    out.write(f"{run}\t{term}\t{(b + 0.5) * width:.0f}\t{statistics.median(values):.6g}\n")
     print(f"wrote {TSV}")
 
 
@@ -105,8 +114,8 @@ def load():
 
 def plot():
     curves = load()
-    fig, axes = plt.subplots(4, 2, figsize=(15, 17), sharex=True)
-    for ax, term in zip(axes.flat, ["gm"] + TERMS):
+    fig, axes = plt.subplots(4, 2, figsize=(15, 17))
+    for ax, term in zip(axes.flat, ["gm"] + TERMS + ["l_rep"]):
         for run in SOURCES:
             xs, ys = curves.get((run, term), ([], []))
             if xs:
@@ -119,13 +128,11 @@ def plot():
         ax.legend(fontsize=8.5, loc="best")
         if term in ("loss", "grad_norm"):
             ax.set_yscale("log")
-    axes.flat[-1].axis("off")
-    ticks = range(0, 700001, 100000)
-    for ax in axes.flat:
-        ax.set_xlim(0, 700000)
+    for ax, end, step in [(a, 700000, 100000) for a in axes.flat[:-1]] + [(axes.flat[-1], REP_END, 2000)]:
+        ticks = range(0, end + 1, step)
+        ax.set_xlim(0, end)
         ax.set_xticks(ticks)
         ax.set_xticklabels([f"{t // 1000}k" for t in ticks])
-        ax.tick_params(labelbottom=True)
     for ax in axes[-1]:
         ax.set_xlabel("Data seen, in batch-64 steps. One #412om step counts 4.")
     fig.suptitle("#412om against cyan: the score and the training-loss terms on one axis\n"
