@@ -20,9 +20,9 @@ OUT = STUDY / "plots" / "gm_mase_rates.png"
 RUNS = [
     # Ours: our contrastive model. The lr 5.6e-4 run (arm P) keeps its scores in
     # results/gm_trajectories.tsv; the owner took it off this figure. So do
-    # the stopped runs b2cos (1.1M, the wrong width), cf419_moirai_native,
-    # cf421z_moirai_native (fp16), cf421fb_moirai_native (GRU bound) and
-    # cf415_moirai (a separate head, a mistake).
+    # the stopped runs b2cos (1.1M, the wrong width), cf421z_moirai_native
+    # (fp16), cf421fb_moirai_native (GRU bound) and cf415_moirai (a separate
+    # head, a mistake). The owner brought cf419_moirai_native back on 10-01.
     (P + "_lr10x",    "Ours, lr 5.6e-5, seed a",                  3.4, "o"),
     (P + "_lr10xb",   "Ours, lr 5.6e-5, seed b",                  3.4, "s"),
     (P + "_lr30x",    "Ours, lr 1.8e-5",                          4.0, "o"),
@@ -33,6 +33,7 @@ RUNS = [
     ("cf412om", "Ours + patch sizes + mean/std + Moirai recipe, new data", 4.4, "h"),
     ("cf412oc", "Ours + patch sizes + mean/std, cyan recipe, new data", 4.4, "p"),
     # Moirai: our copy of Moirai, trained on the values with its schedule.
+    ("cf419_moirai_native", "Moirai, own head, new data",                2.4, "<"),
     ("cf415_moirai_native", "Moirai, own head, old data",                   2.4, "o"),
     ("cf421f_moirai_native", "Moirai + patch heads + mean/std, new data", 4.4, "X"),
     ("cf421n_moirai_native", "Moirai + patch heads + mean/std + RMS term, new data", 3.6, "P"),
