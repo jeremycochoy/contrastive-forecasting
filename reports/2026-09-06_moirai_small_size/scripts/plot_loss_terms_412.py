@@ -23,6 +23,10 @@ from run_style import P, colour, line
 STUDY = Path(__file__).resolve().parent.parent
 TSV = STUDY / "results" / "loss_terms_412.tsv"
 GM = STUDY / "results" / "gm_trajectories.tsv"
+# L_rep measured on checkpoints after its ramp, on the whole batch (#412):
+# the box lane lrep_measure.sh writes it, one row per checkpoint.
+MEASURED = STUDY / "results" / "lrep_after_ramp.tsv"
+MEASURED_RUN = {"cyan": P + "_cos200k", "cf412oc": "cf412oc", "cf412om": "cf412om"}
 OUT = STUDY / "plots" / "loss_terms_412om_vs_cyan.png"
 MIRROR = Path("/home/jupyter/checkpoints_backup/cf-412/vast_lr100x")
 CYAN = P + "_cos200k"
@@ -51,7 +55,9 @@ PANEL = {"gm": "GM-Relative MASE (lower is better)",
          "sigreg_h": "SIGReg on the encoding",
          "top1": "Top-1 accuracy of the contrastive match",
          "grad_norm": "Gradient norm before the clip (not logged for cyan)",
-         "l_rep": "L_rep while its weight ramps from 1 to 0 (first 12k only)"}
+         "l_rep": "L_rep. Line: as each run computed it during its ramp (#412om and\n"
+                  "#412oc on one patch size at a time). Dots: on the whole batch,\n"
+                  "measured on checkpoints after the ramp (weight 0 in training)"}
 
 
 def read_steps(folders, name):
@@ -104,6 +110,12 @@ def load():
             xs.append(float(r["data_seen"]))
             ys.append(float(r["median"]))
     scale = {"cf412om": 4}
+    if MEASURED.exists():
+        with open(MEASURED) as f:
+            for r in csv.DictReader(f, delimiter="\t"):
+                xs, ys = curves[(MEASURED_RUN[r["run"]], "l_rep_dots")]
+                xs.append(float(r["data_seen"]))
+                ys.append(float(r["l_rep"]))
     for arm, stop_k, score in (l.split() for l in open(GM)):
         if arm in SOURCES:
             xs, ys = curves[(arm, "gm")]
@@ -123,12 +135,22 @@ def plot():
                 ax.plot([xs[i] for i in order], [ys[i] for i in order], line(run),
                         color=colour(run), lw=2.4, marker="o" if term == "gm" else None,
                         ms=6, label=LABEL[run])
-        ax.set_title(PANEL[term], fontsize=12)
+            dots = curves.get((run, "l_rep_dots")) if term == "l_rep" else None
+            if dots:
+                mark = {CYAN: "o", "cf412oc": "D", "cf412om": "s"}[run]
+                ax.plot(*dots, mark, color=colour(run), ms=9, mec="black",
+                        zorder=2 if run == CYAN else 3)
+                for x, y in zip(*dots):
+                    ax.annotate(f"{y:.2f}", (x, y), textcoords="offset points",
+                                xytext=(8, -14 if run == CYAN else 6),
+                                fontsize=8.5, color=colour(run))
+        ax.set_title(PANEL[term], fontsize=12 if term != "l_rep" else 10)
         ax.grid(alpha=0.3)
         ax.legend(fontsize=8.5, loc="best")
         if term in ("loss", "grad_norm"):
             ax.set_yscale("log")
-    for ax, end, step in [(a, 700000, 100000) for a in axes.flat[:-1]] + [(axes.flat[-1], REP_END, 2000)]:
+    for ax in axes.flat:
+        end, step = 700000, 100000
         ticks = range(0, end + 1, step)
         ax.set_xlim(0, end)
         ax.set_xticks(ticks)
