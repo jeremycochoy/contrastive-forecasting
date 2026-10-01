@@ -46,7 +46,8 @@ from src.dataloader import (
     create_mixed_forked_arma_dataloader,
     create_hf_dataloader,
 )
-from src.loss import (contrastive_latent_loss, cpc_infonce_aux_loss,
+from src.loss import (contrastive_latent_loss, rep_only_term,
+                      cpc_infonce_aux_loss,
                       cpc_infonce_all_loss, align_loss, align_moco_loss,
                       sigreg_loss)
 from src.checkpoint import (gru_input_bound_of, load_training_state,
@@ -1110,13 +1111,10 @@ def multi_size_contrastive_terms(model, lats, pads, counts, args, rep_w,
                        {s: pads[s] for s in live})
     loss = grid.o.new_zeros(())
     if not args.no_main_contrastive_loss:
-        loss = loss + contrastive_latent_loss(
-            (grid.f, grid.o), validation=False, spec=LOSS_SPEC,
-            tau_override=tau, teacher_original_latent=grid.teacher,
-            rep_loss_weight=rep_w, align_loss_weight=0.0,
-            train_rollout_depth=0, term_out=values["terms"],
-            pad_patches=grid.pad,
-            same_token=grid.token)
+        loss = loss + rep_only_term(
+            grid.o, LOSS_SPEC, grid.pad, tau_override=tau,
+            teacher_original_latent=grid.teacher, rep_loss_weight=rep_w,
+            same_token=grid.token, term_out=values["terms"])
     loss = loss + group_align_terms(lats, pads, counts, args, values)
     for on, weight, key, latent in (
             (args.sigreg_embedding, args.sigreg_embedding_weight, "sigreg_e",
@@ -1145,14 +1143,13 @@ def group_align_terms(lats, pads, counts, args, values):
             raise SystemExit("--align-target teacher but no teacher latents "
                              "at the loss call (#382).")
         target = lat.teacher if args.align_target == "teacher" else None
-        share = counts[size] / n
+        share, part = counts[size] / n, {}
         total = total + share * align_loss(
             lat.f, lat.o, args.align_loss_weight, target_latent=target,
             rollout_latents=lat.rollout,
-            depth_reduce=args.train_rollout_reduce, pad_patches=pads[size])
-        with torch.no_grad():
-            logged += share * float(align_loss(
-                lat.f, lat.o, target_latent=target, pad_patches=pads[size]))
+            depth_reduce=args.train_rollout_reduce, pad_patches=pads[size],
+            term_out=part)
+        logged += share * part["l_align"]
     values["terms"]["l_align"] = logged
     return total
 
