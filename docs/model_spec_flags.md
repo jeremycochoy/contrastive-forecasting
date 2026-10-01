@@ -45,18 +45,26 @@ draws its size from its frequency's range (`src/patch_size.py`).
 | objective | what a size group trains |
 |---|---|
 | value space (#417) | the value head of its size, on the values |
-| contrastive (#412) | every contrastive term, on the group's own rows |
+| contrastive (#412) | its patch encoder, while the batch terms read every row |
 
 On the contrastive objective:
 
-- Every group first runs its forward at its size P. Then the group runs the
-  whole objective of the run on its own rows. Its negatives, its MoCo keys
-  and its SIGReg statistics come from the group.
-- The group losses add up with weights equal to each group's share of the
-  rows. Each group loss is a mean over its own positions. So a row of size
-  8 (127 anchors) and a row of size 128 (7 anchors) weigh the same. The
-  per-term columns of the losses CSV (`l_rep`, `l_align`, `sigreg_*`) add
-  up the same way.
+- Every group first runs its forward at its size P.
+- L_rep, its MoCo keys and SIGReg read every row of the step. They run once
+  on the time grid of the finest size G. On that grid a latent of size P
+  repeats P/G times. So the rows line up in time, and each row has the same
+  number of positions and the same weight. L_rep leaves every copy of an
+  anchor's own patch out of the anchor's within-row negatives.
+- L_align pulls each patch toward the next patch of its own row, rollout
+  depths included. So it runs on the grid of each group. The group values
+  add up with weights equal to each group's share of the active rows.
+- In the losses CSV, `l_rep` and `sigreg_*` come from the whole step, and
+  `l_align` adds up by the share of the rows.
+- A step whose rows all read one size runs the whole objective on that
+  group, as a single-size run does.
+- Up to 10-01, every term ran on the rows of its group only. So L_rep, its
+  MoCo keys and SIGReg read about one fifth of the batch. The runs #412om,
+  #412oc and #412oe trained that way.
 - The EMA teacher copies the encoder of each size and updates by EMA.
 - The rollout depth advances P values per depth at size P.
 - The diagnostics read one sequence length, so they read the group of the

@@ -756,9 +756,9 @@ def build_parser():
                         "frequency's range, as Moirai 1.0 does "
                         "(src/patch_size.py), and a batch trains one group "
                         "per size. The contrastive objective (#412) runs "
-                        "every term on each group's own rows, adds the group "
-                        "losses by their share of the rows, and needs terms "
-                        "that take a row mask; the EMA teacher copies the "
+                        "L_rep and SIGReg on every row of the step, on the "
+                        "time grid of the finest size, and L_align on each "
+                        "row's own patches; the EMA teacher copies the "
                         "encoder of each size. Default off: one patch size, "
                         "W.")
     p.add_argument("--ema-embedding", action="store_true",
@@ -1038,10 +1038,11 @@ def add_values(total, part, share):
 
 
 def grouped_contrastive_terms(model, lats, pads, counts, args, rep_w, tau):
-    """The contrastive terms of each group with an active row (#412), each
-    weighted by its share of the active rows, as #417 weights the groups of
-    the value objective. Returns ``(loss, values)``. With no active row the
-    loss is a zero on the graph: the step trains on nothing."""
+    """The contrastive terms of a step whose rows all read one patch size
+    (#412): the whole objective on that group. Returns ``(loss, values)``.
+    With no active row the loss is a zero on the graph: the step trains on
+    nothing. Several sizes: ``multi_size_contrastive_terms``, so the batch
+    terms read every row."""
     n = sum(counts.values())
     loss, values = None, no_contrastive_values()
     for size, lat in lats.items():
@@ -1055,6 +1056,105 @@ def grouped_contrastive_terms(model, lats, pads, counts, args, rep_w, tau):
     if loss is None:
         loss = sum(0.0 * lat.o.sum() for lat in lats.values())
     return loss, values
+
+
+def common_grid(lats, pads):
+    """The latents of every group on one time grid, the finest size G's
+    (#412): a latent of size P fills P / G positions, so the rows line up
+    in time and have one length. ``token`` (``[B, T]``) names the patch
+    each position repeats, so L_rep keeps a patch's copies out of its own
+    negatives. The positions that are padding on every row are cut."""
+    G = min(lats)
+    parts = []
+    for size in sorted(lats):
+        lat, r = lats[size], size // G
+        n, T, C = lat.o.shape[:3]
+        pad = pads[size]
+        if pad is None:
+            pad = torch.zeros(n, T, C, dtype=torch.bool, device=lat.o.device)
+        token = torch.arange(T, device=lat.o.device).repeat_interleave(r)
+        parts.append([None if t is None else t.repeat_interleave(r, dim=1)
+                      for t in (lat.f, lat.o, lat.teacher, lat.e, pad)]
+                     + [token.expand(n, -1)])
+    f, o, teacher, e, pad, token = (
+        None if parts[0][i] is None else torch.cat([p[i] for p in parts])
+        for i in range(6))
+    real = (~pad).any(dim=2).any(dim=0)
+    start = int(real.nonzero()[0]) if real.any() else 0
+    def cut(t):
+        return None if t is None else t[:, start:]
+    return SimpleNamespace(f=cut(f), o=cut(o), teacher=cut(teacher),
+                           e=cut(e), pad=cut(pad), token=cut(token))
+
+
+def multi_size_contrastive_terms(model, lats, pads, counts, args, rep_w,
+                                 tau):
+    """The contrastive terms of a step whose rows read several patch sizes
+    (#412). The batch terms read every row of the step: L_rep, with its
+    MoCo keys, and SIGReg run once on the common grid (``common_grid``),
+    where the rows line up in time and weigh the same. L_align pulls each
+    patch toward the next patch of its own row, rollout depths included,
+    so it runs on each group's own grid, weighted by the group's share of
+    the active rows. Returns ``(loss, values)`` as ``contrastive_terms``
+    does."""
+    if args.align_moco_loss_weight > 0 or args.cpc_infonce_weight > 0:
+        raise SystemExit("--align-moco-loss-weight and --cpc-infonce-weight "
+                         "do not run on the common grid of the patch sizes "
+                         "(#412).")
+    n = sum(counts.values())
+    values = no_contrastive_values()
+    if not n:
+        return sum(0.0 * lat.o.sum() for lat in lats.values()), values
+    live = [size for size in lats if counts[size]]  # a group with no active
+    grid = common_grid({s: lats[s] for s in live},  # row leaves every term
+                       {s: pads[s] for s in live})
+    loss = grid.o.new_zeros(())
+    if not args.no_main_contrastive_loss:
+        loss = loss + contrastive_latent_loss(
+            (grid.f, grid.o), validation=False, spec=LOSS_SPEC,
+            tau_override=tau, teacher_original_latent=grid.teacher,
+            rep_loss_weight=rep_w, align_loss_weight=0.0,
+            train_rollout_depth=0, term_out=values["terms"],
+            pad_patches=grid.pad,
+            same_token=grid.token)
+    loss = loss + group_align_terms(lats, pads, counts, args, values)
+    for on, weight, key, latent in (
+            (args.sigreg_embedding, args.sigreg_embedding_weight, "sigreg_e",
+             grid.e),
+            (args.sigreg_encoding, args.sigreg_encoding_weight, "sigreg_h",
+             grid.o)):
+        if on:
+            term = sigreg_term(latent, args, grid.pad)
+            loss = loss + weight * term
+            values[key] = term.item()
+    return loss, values
+
+
+def group_align_terms(lats, pads, counts, args, values):
+    """L_align of each group on its own grid (#412), with its rollout
+    depths, weighted by the group's share of the active rows. Writes the
+    unweighted depth-0 value to ``values["terms"]["l_align"]``."""
+    if args.align_loss_weight <= 0:
+        return 0.0
+    n = sum(counts.values())
+    total, logged = 0.0, 0.0
+    for size, lat in lats.items():
+        if not counts[size]:
+            continue
+        if args.align_target == "teacher" and lat.teacher is None:
+            raise SystemExit("--align-target teacher but no teacher latents "
+                             "at the loss call (#382).")
+        target = lat.teacher if args.align_target == "teacher" else None
+        share = counts[size] / n
+        total = total + share * align_loss(
+            lat.f, lat.o, args.align_loss_weight, target_latent=target,
+            rollout_latents=lat.rollout,
+            depth_reduce=args.train_rollout_reduce, pad_patches=pads[size])
+        with torch.no_grad():
+            logged += share * float(align_loss(
+                lat.f, lat.o, target_latent=target, pad_patches=pads[size]))
+    values["terms"]["l_align"] = logged
+    return total
 
 
 def restrict(lat, pad, keep):
@@ -1109,11 +1209,11 @@ def contrastive_objective(model, inputs, args, multi_patch_sizes, active=None,
     Every group first runs its forward at its size P: its own patch encoder
     (and the teacher's copy), and a rollout that advances P values per
     depth. So a pass draws the same dropout and DropKey masks for each row,
-    whatever rows are active. Then each group with an active row runs the
-    whole contrastive objective of the run (``contrastive_terms``) on its
-    own rows: its negatives, MoCo keys and SIGReg statistics come from the
-    group. The group losses add up with weights equal to each group's share
-    of the active rows.
+    whatever rows are active. With one group, the whole contrastive
+    objective of the run runs on it (``grouped_contrastive_terms``). With
+    several, the batch terms read every row of the step on one time grid
+    and L_align reads each row's own patches
+    (``multi_size_contrastive_terms``).
 
     ``active`` (bool, one per row, --skip-nan-samples) makes every other
     row inert: zero inputs, and every patch of it masked as padding, so it
@@ -1143,9 +1243,10 @@ def contrastive_objective(model, inputs, args, multi_patch_sizes, active=None,
                      else int(take_rows(active, rows).sum()))
               for size, rows in groups.items()}
     tau = model.tau().float() if args.learnable_tau else None
+    terms = (grouped_contrastive_terms if len(lats) == 1
+             else multi_size_contrastive_terms)
     with torch.amp.autocast('cuda', enabled=False):
-        loss, values = grouped_contrastive_terms(model, lats, pads, counts,
-                                                 args, rep_w, tau)
+        loss, values = terms(model, lats, pads, counts, args, rep_w, tau)
     diag = diagnostic_group(lats, pads, groups, counts, active, model.W)
     faults = forward_faults(lats, groups, x_norm.shape[0], x_norm.device)
     return loss, diag.f, diag.o, SimpleNamespace(
@@ -2793,11 +2894,13 @@ def main():
               f"reduce={args.train_rollout_reduce}. No teacher, no EMA, no "
               f"L_rep, no L_align, no CPC, no SIGReg.")
     if rows_contrastive:
-        print("Objective (#412): the contrastive objective by row. The rows "
-              "split by patch size, each group runs every contrastive term "
-              "on its own rows, and the group losses add up by their share "
-              "of the rows. A dropped row reads zeros and counts as padding, "
-              "so it leaves every term.")
+        print("Objective (#412): the contrastive objective by row. Each row "
+              "reads its own patch size. L_rep, its MoCo keys and SIGReg "
+              "read every row of the step, on the time grid of the finest "
+              "size, where a latent of size P repeats P/G times; L_align "
+              "pulls each patch toward the next patch of its own row. A "
+              "dropped row reads zeros and counts as padding, so it leaves "
+              "every term.")
     if multi_patch_sizes:
         heads = (" and one value head" if args.value_space_objective
                  else " (and its EMA teacher copy)"

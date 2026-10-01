@@ -48,8 +48,8 @@ from src.forecasting_head import (ForecastingHeadBank,  # noqa: E402
                                   mean_std_inputs)
 from src.freq_embedding import FREQ_NAMES_V2  # noqa: E402
 from src.models import ConfigurableModel  # noqa: E402
-from src.nan_skip import (is_finite_step, outlier_rows,  # noqa: E402
-                          restore_rng, rng_state, search_order)
+from src.nan_skip import (is_finite_step, restore_rng,  # noqa: E402
+                          rng_state, search_order)
 
 TRAIN_PY = (REPO_ROOT / "experiments" / "2026-04-27_freq-embedding"
             / "scripts" / "train.py")
@@ -345,25 +345,86 @@ def test_each_size_rolls_out_by_its_own_patches(train_py, monkeypatch):
         assert lat.teacher.shape == lat.o.shape
 
 
-def test_a_group_reads_its_own_rows_only(train_py):
-    """The groups share no negative, key or statistic: new values in row 0
-    (size 8) move the gradient of row 5, its partner at size 8, and leave
-    the gradient of every row of another size as it is."""
-    args = run_args(train_py)
+def row_gradients(train_py, args, rep_w, scale_row0):
+    """The input gradient of each row, with row 0 (size 8) scaled."""
     m = model()
     inputs = batch(m, ALL_SIZES)
-    grads = []
-    for scale in (1.0, 0.5):
-        x = inputs["x_norm"].clone()
-        x[0] = scale * x[0]
-        x.requires_grad_(True)
-        torch.manual_seed(2)
-        train_py.contrastive_objective(m, dict(inputs, x_norm=x), args,
-                                       SIZES, rep_w=1.0)[0].backward()
-        grads.append(x.grad)
-    assert not torch.allclose(grads[0][5], grads[1][5])
-    for row in (1, 2, 3, 4, 6, 7):
-        assert torch.equal(grads[0][row], grads[1][row]), row
+    x = inputs["x_norm"].clone()
+    x[0] = scale_row0 * x[0]
+    x.requires_grad_(True)
+    torch.manual_seed(2)
+    train_py.contrastive_objective(m, dict(inputs, x_norm=x), args, SIZES,
+                                   rep_w=rep_w)[0].backward()
+    return x.grad
+
+
+def test_the_batch_terms_read_every_row(train_py):
+    """L_rep, its MoCo keys and SIGReg read the whole batch, whatever the
+    patch size of each row: new values in row 0 (size 8) move the gradient
+    of every other row, of every size."""
+    args = run_args(train_py)
+    one, two = (row_gradients(train_py, args, 1.0, s) for s in (1.0, 0.5))
+    for row in range(1, len(ALL_SIZES)):
+        assert not torch.allclose(one[row], two[row]), row
+
+
+def test_l_align_reads_each_rows_own_patches(train_py):
+    """L_align pulls each patch toward the next patch of its own row: with
+    L_rep at weight 0 and SIGReg off, new values in row 0 leave the
+    gradient of every other row as it is."""
+    args = run_args(train_py)
+    args.sigreg_embedding = args.sigreg_encoding = False
+    one, two = (row_gradients(train_py, args, 0.0, s) for s in (1.0, 0.5))
+    assert not torch.allclose(one[0], two[0])
+    for row in range(1, len(ALL_SIZES)):
+        assert torch.equal(one[row], two[row]), row
+
+
+def test_the_common_grid_repeats_each_latent_to_the_finest_size(train_py):
+    """On the common grid a latent of size P fills P / 8 positions, every
+    row has the length of the finest size, a repeated latent keeps one
+    token id, and the positions that are padding on every row are cut."""
+    from types import SimpleNamespace
+    H, C = 4, 1
+    def group(n, length, seed):
+        g = torch.Generator().manual_seed(seed)
+        t = torch.randn(n, length, C, H, generator=g)
+        return SimpleNamespace(f=t + 1, o=t, teacher=t - 1, e=t * 2,
+                               rollout=[])
+    lats = {8: group(2, 8, 0), 16: group(1, 4, 1)}
+    pads = {8: torch.zeros(2, 8, C, dtype=torch.bool),
+            16: torch.zeros(1, 4, C, dtype=torch.bool)}
+    pads[8][:, :2] = True   # two leading padded patches on both size-8 rows
+    pads[16][:, :1] = True  # one leading padded patch of 16 = two of 8
+    grid = train_py.common_grid(lats, pads)
+    assert grid.o.shape == (3, 6, C, H)            # 8 positions, 2 cut
+    assert torch.equal(grid.o[:2], lats[8].o[:, 2:])
+    assert torch.equal(grid.o[2, 0::2], lats[16].o[0, 1:])
+    assert torch.equal(grid.o[2, 1::2], lats[16].o[0, 1:])
+    assert torch.equal(grid.teacher[2, 1::2], lats[16].teacher[0, 1:])
+    assert torch.equal(grid.e[2, 0::2], lats[16].e[0, 1:])
+    assert grid.pad.shape == (3, 6, C) and not grid.pad.any()
+    assert grid.token[0].tolist() == [2, 3, 4, 5, 6, 7]
+    assert grid.token[2].tolist() == [1, 1, 2, 2, 3, 3]
+
+
+def test_the_copies_of_an_anchors_patch_are_not_its_negatives():
+    """L_rep's within-row negatives leave out every position of the
+    anchor's own patch on the common grid, not just the anchor's own
+    position."""
+    from src.loss import _hh_all_lse_masked
+    g = torch.Generator().manual_seed(3)
+    h = torch.nn.functional.normalize(torch.randn(1, 4, 1, 8, generator=g),
+                                      dim=-1)
+    key = torch.nn.functional.normalize(torch.randn(1, 4, 1, 8, generator=g),
+                                        dim=-1)
+    pad = torch.zeros(1, 4, 1, dtype=torch.bool)
+    token = torch.tensor([[0, 0, 1, 1]])
+    got = _hh_all_lse_masked(h[:, :-1], key, pad, 0.5, same_token=token)
+    sims = torch.einsum("th,lh->tl", h[0, :-1, 0], key[0, :, 0]) / 0.5
+    keep = token[0, :-1, None] != token[0, None, :]
+    want = torch.logsumexp(sims.masked_fill(~keep, float("-inf")), dim=1)
+    assert torch.allclose(got[0, :, 0], want)
 
 
 # ---------------------------------------------------------------------------
@@ -453,17 +514,17 @@ def test_the_step_after_the_drop_equals_the_batch_without_the_rows(
     drop_and_compare(train_py, inputs, culprits)
 
 
-def test_the_partner_of_a_poisoned_row_stays(train_py):
-    """Row 2's forward overflows. Through the coupled terms of its group,
-    the input gradient of its partner, row 7, is NaN too, so the gradient
-    names both. The forward names row 2 alone: the search drops it in one
-    pass, and row 7 trains."""
+def test_the_rows_coupled_to_a_poisoned_row_stay(train_py):
+    """Row 2's forward overflows. L_rep and SIGReg read every row of the
+    step, so the input gradient of every row is not finite. The forward
+    names row 2 alone: the search drops it in one pass, and the other rows
+    train."""
     args = run_args(train_py)
     m = model()
     inputs = poison(batch(m, ALL_SIZES), 2)
     rng = rng_state(CPU)
     inputs, _, grad, faults = first_pass(train_py, m, inputs, args)
-    assert sorted(outlier_rows(grad)) == [2, 7]
+    assert not torch.isfinite(grad).flatten(1).all(1).any()
     assert faults.nonzero().view(-1).tolist() == [2]
     found, passes, result = train_py.skip_nan_rows(
         m, inputs, args, SIZES, rng, CPU, grad,
