@@ -33,7 +33,7 @@ RUNS = [
     ("cf412om", "Ours + patch sizes + mean/std + Moirai recipe, new data", 4.4, "h"),
     ("cf412oc", "Ours + patch sizes + mean/std, cyan recipe, new data", 4.4, "p"),
     # Moirai: our copy of Moirai, trained on the values with its schedule.
-    ("cf415_moirai_native", "Moirai, own head",                   2.4, "o"),
+    ("cf415_moirai_native", "Moirai, own head, old data",                   2.4, "o"),
     ("cf421f_moirai_native", "Moirai + patch heads + mean/std, new data", 4.4, "X"),
     ("cf421n_moirai_native", "Moirai + patch heads + mean/std + RMS term, new data", 3.6, "P"),
 ]
