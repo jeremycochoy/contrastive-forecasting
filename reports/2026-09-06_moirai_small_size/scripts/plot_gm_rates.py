@@ -9,7 +9,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from run_style import P, colour, line
+from run_style import P, colour, line, tagged
 
 STUDY = Path(__file__).resolve().parent.parent
 TSV = STUDY / "results" / "gm_trajectories.tsv"
@@ -40,7 +40,7 @@ RUNS = [
     ("cf421ew_moirai_native", "Moirai + patch heads + EWMA, new data",    4.4, "d"),
     ("cf421n_moirai_native", "Moirai + patch heads + mean/std + RMS term, new data", 3.6, "P"),
 ]
-SERIES = [(arm, label, colour(arm), width, marker, line(arm))
+SERIES = [(arm, tagged(arm, label), colour(arm), width, marker, line(arm))
           for arm, label, width, marker in RUNS]
 # Moirai and cf412om train at batch 256: one of their steps holds the data
 # of four batch-64 steps.

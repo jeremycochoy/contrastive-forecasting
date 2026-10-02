@@ -30,6 +30,28 @@ STYLE = {
 }
 
 
+# run: a 3-letter code (owner, 10-02). Every legend shows it in front of the
+# run's label, so that the owner and the agents name a run the same way.
+# Ours, one patch size and EWMA: ABC is the owner's name for the lr 5.6e-5
+# run. Ours + patch sizes: O, then the recipe (M Moirai, C cyan, E cyan with
+# EWMA), then B for the loss bug or F for the loss fixed. Moirai: M, then O
+# for its own head or P for patch heads, then the variant.
+CODE = {
+    P + "_lr10x": "ABC", P + "_lr10xb": "TWN", P + "_lr30x": "LOW", P + "_lr100x": "MIN",
+    P + "_cos665k": "LNG", P + "_cos200k": "CYN", "cf419_cos200k": "BLK", "b2cos": "WDT",
+    "cf412om": "OMB", "cf412oc": "OCB", "cf412oc2": "OCF", "cf412oe2": "OEF", "cf412om2": "OMF",
+    "cf415_moirai": "MSH", "cf415_moirai_native": "MOO", "cf419_moirai_native": "MON",
+    "cf421f_moirai_native": "MPM", "cf421ew_moirai_native": "MPE", "cf421n_moirai_native": "MPR",
+    "cf421z_moirai_native": "MPZ", "cf421fb_moirai_native": "MPG",
+}
+assert len(set(CODE.values())) == len(CODE), "two runs share a code"
+
+
+def tagged(run, label):
+    """A legend label: the run's code in bold, then the label."""
+    return rf"$\mathbf{{{CODE[run]}}}$  {label}"
+
+
 def colour(run):
     return STYLE[run][0]
 

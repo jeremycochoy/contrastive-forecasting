@@ -18,7 +18,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from run_style import P, colour, line
+from run_style import P, colour, line, tagged
 
 STUDY = Path(__file__).resolve().parent.parent
 TSV = STUDY / "results" / "loss_terms_412.tsv"
@@ -50,6 +50,7 @@ LABEL = {"cf412om": "Ours + patch sizes + mean/std + Moirai recipe, loss bug (ba
          "cf412oc": "Ours + patch sizes + mean/std, cyan recipe, loss bug (batch 64)",
          "cf412oc2": "Ours + patch sizes + mean/std, cyan recipe, loss fixed (batch 64)",
          CYAN: "cyan: ours, one patch size, EWMA (batch 64)"}
+LABEL = {run: tagged(run, text) for run, text in LABEL.items()}
 PANEL = {"gm": "GM-Relative MASE (lower is better)",
          "loss": "Total training loss",
          "l_align": "l_align: predict the teacher latent",

@@ -6,7 +6,7 @@ results/per_config/radar. The colours are those of the curves figure.
 """
 import re
 from radar_lib import RADAR, STUDY, draw
-from run_style import P, colour, line
+from run_style import P, colour, line, tagged
 
 # Run name in results/, CSV prefix in the radar folder, legend label. The
 # colour and the line style come from run_style.py.
@@ -21,7 +21,7 @@ NEW_DATA = [
     ("cf421ew_moirai_native", "moirai421ew_native", "Moirai + patch heads + EWMA"),
     ("cf421n_moirai_native", "moirai421n_native", "Moirai + patch heads + mean/std + RMS term"),
 ]
-OLD_BEST = ("cyan665", "Ours, old data, 665k   1.1369",
+OLD_BEST = ("cyan665", tagged(P + "_cos200k", "Ours, old data, 665k   1.1369"),
             colour(P + "_cos200k"), line(P + "_cos200k"))
 TITLE = ("Relative MASE per GIFT-Eval dataset (geometric mean over its configs), each run at its best checkpoint\n"
          "Solid lines, Ours: our contrastive model. Dashed lines, Moirai: our copy of Moirai.\n"
@@ -47,7 +47,7 @@ def new_data_arms():
         stops = scored_stops(arm, prefix)
         if stops:
             k = min(stops, key=stops.get)
-            arms.append((f"{prefix}{k}k", f"{label}, new data, {k}k   {stops[k]:.4f}",
+            arms.append((f"{prefix}{k}k", tagged(arm, f"{label}, new data, {k}k   {stops[k]:.4f}"),
                          colour(arm), line(arm)))
     return arms
 
