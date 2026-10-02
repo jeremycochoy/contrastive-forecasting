@@ -43,6 +43,8 @@ SOURCES = {
     "cf412oc": ([f"cf-412oc/leg_{k}k" for k in (40, 100, 200)], "cf412oc_k3_losses.csv", 1),
     "cf412oc2": ([f"cf-412oc2/leg_{k}k" for k in (40, 100, 200)], "cf412oc2_k3_losses.csv", 1),
     "cf412oe2": ([f"cf-412oe2/leg_{k}k" for k in (40, 100, 200)], "cf412oe2_k3_losses.csv", 1),
+    "cf412om2": ([f"cf-412om2/leg_{k}k" for k in (10, 25, 50, 75, 100, 125, 150, 166)],
+                 "cf412om2_k3_losses.csv", 4),
     CYAN: ([f"{CYAN}/arm6_v2_combab_alignT/leg_665k"],
            "cf393_arm6_v2_combab_alignT_cf373k3_cf412_" + CYAN + "_losses.csv", 1),
 }
@@ -51,6 +53,7 @@ LABEL = {"cf412om": "Ours + patch sizes + mean/std + Moirai recipe, loss bug (ba
          "cf412oc": "Ours + patch sizes + mean/std, cyan recipe, loss bug (batch 64)",
          "cf412oc2": "Ours + patch sizes + mean/std, cyan recipe, loss fixed (batch 64)",
          "cf412oe2": "Ours + patch sizes + EWMA, cyan recipe, loss fixed (batch 64)",
+         "cf412om2": "Ours + patch sizes + mean/std + Moirai recipe, loss fixed (batch 256)",
          CYAN: "cyan: ours, one patch size, EWMA (batch 64)"}
 LABEL = {run: tagged(run, text) for run, text in LABEL.items()}
 PANEL = {"gm": "GM-Relative MASE (lower is better)",
@@ -114,7 +117,7 @@ def load():
             xs, ys = curves[(r["run"], r["term"])]
             xs.append(float(r["data_seen"]))
             ys.append(float(r["median"]))
-    scale = {"cf412om": 4}
+    scale = {"cf412om": 4, "cf412om2": 4}
     if MEASURED.exists():
         with open(MEASURED) as f:
             for r in csv.DictReader(f, delimiter="\t"):

@@ -34,6 +34,7 @@ RUNS = [
     ("cf412oc", "Ours + patch sizes + mean/std, cyan recipe, new data, loss bug", 4.4, "p"),
     ("cf412oc2", "Ours + patch sizes + mean/std, cyan recipe, new data, loss fixed", 4.4, ">"),
     ("cf412oe2", "Ours + patch sizes + EWMA, cyan recipe, new data, loss fixed", 4.4, "8"),
+    ("cf412om2", "Ours + patch sizes + mean/std + Moirai recipe, new data, loss fixed", 4.4, "H"),
     # Moirai: our copy of Moirai, trained on the values with its schedule.
     ("cf419_moirai_native", "Moirai, own head, new data",                2.4, "<"),
     ("cf415_moirai_native", "Moirai, own head, old data",                   2.4, "o"),
@@ -47,7 +48,8 @@ SERIES = [(arm, tagged(arm, label), colour(arm), width, marker, line(arm))
 # of four batch-64 steps.
 XSCALE = {"cf415_moirai": 4, "cf415_moirai_native": 4, "cf419_moirai_native": 4,
           "cf421z_moirai_native": 4, "cf421f_moirai_native": 4, "cf421fb_moirai_native": 4,
-          "cf421n_moirai_native": 4, "cf421ew_moirai_native": 4, "cf412om": 4}
+          "cf421n_moirai_native": 4, "cf421ew_moirai_native": 4, "cf412om": 4,
+          "cf412om2": 4}
 # Where the last score of a line prints, so two lines that end together part.
 END_LABEL_OFFSET = {P + "_lr100x": (9, 4), P + "_cos200k": (9, -12), "cf412om": (-62, 6),
                     "cf412oc2": (-58, -16), "cf412oe2": (9, 5)}

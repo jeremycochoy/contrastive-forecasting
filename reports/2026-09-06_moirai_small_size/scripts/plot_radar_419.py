@@ -18,6 +18,7 @@ NEW_DATA = [
     ("cf412oc", "ours412oc_", "Ours + patch sizes + mean/std, cyan recipe, loss bug"),
     ("cf412oc2", "ours412oc2_", "Ours + patch sizes + mean/std, cyan recipe, loss fixed"),
     ("cf412oe2", "ours412oe2_", "Ours + patch sizes + EWMA, cyan recipe, loss fixed"),
+    ("cf412om2", "ours412om2_", "Ours + patch sizes + mean/std + Moirai recipe, loss fixed"),
     ("cf421f_moirai_native", "moirai421f_native", "Moirai + patch heads + mean/std"),
     ("cf421ew_moirai_native", "moirai421ew_native", "Moirai + patch heads + EWMA"),
     ("cf421n_moirai_native", "moirai421n_native", "Moirai + patch heads + mean/std + RMS term"),
