@@ -48,7 +48,8 @@ XSCALE = {"cf415_moirai": 4, "cf415_moirai_native": 4, "cf419_moirai_native": 4,
           "cf421z_moirai_native": 4, "cf421f_moirai_native": 4, "cf421fb_moirai_native": 4,
           "cf421n_moirai_native": 4, "cf421ew_moirai_native": 4, "cf412om": 4}
 # Where the last score of a line prints, so two lines that end together part.
-END_LABEL_OFFSET = {P + "_lr100x": (9, 4), P + "_cos200k": (9, -12), "cf412om": (-62, 6)}
+END_LABEL_OFFSET = {P + "_lr100x": (9, 4), P + "_cos200k": (9, -12), "cf412om": (-62, 6),
+                    "cf412oc2": (-58, -16)}
 BEST, BAND, PROJECT_BEST = 1.1369, 0.008, 1.0651
 YMIN, YMAX = 0.90, 1.60
 
