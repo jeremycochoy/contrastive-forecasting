@@ -124,6 +124,14 @@ def load():
     return curves
 
 
+def top_dot(curves, x):
+    """The highest measured L_rep near data seen x: its label goes above the
+    dot, the labels of the lower dots go below theirs."""
+    return max(y for run in SOURCES
+               for xs, ys in [curves.get((run, "l_rep_dots"), ([], []))]
+               for xi, y in zip(xs, ys) if abs(xi - x) <= 0.05 * x)
+
+
 def plot():
     curves = load()
     fig, axes = plt.subplots(4, 2, figsize=(15, 17))
@@ -141,8 +149,9 @@ def plot():
                 ax.plot(*dots, mark, color=colour(run), ms=9, mec="black",
                         zorder=2 if run == CYAN else 3)
                 for x, y in zip(*dots):
+                    above = y >= top_dot(curves, x)
                     ax.annotate(f"{y:.2f}", (x, y), textcoords="offset points",
-                                xytext=(8, -14 if run == CYAN else 6),
+                                xytext=(8, 6 if above else -14),
                                 fontsize=8.5, color=colour(run))
         ax.set_title(PANEL[term], fontsize=12 if term != "l_rep" else 10)
         ax.grid(alpha=0.3)

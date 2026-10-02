@@ -17,6 +17,7 @@ NEW_DATA = [
     ("cf412om", "ours412om_", "Ours + patch sizes + mean/std + Moirai recipe"),
     ("cf412oc", "ours412oc_", "Ours + patch sizes + mean/std, cyan recipe"),
     ("cf421f_moirai_native", "moirai421f_native", "Moirai + patch heads + mean/std"),
+    ("cf421ew_moirai_native", "moirai421ew_native", "Moirai + patch heads + EWMA"),
     ("cf421n_moirai_native", "moirai421n_native", "Moirai + patch heads + mean/std + RMS term"),
 ]
 OLD_BEST = ("cyan665", "Ours, old data, 665k   1.1369",
