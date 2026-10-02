@@ -30,8 +30,9 @@ RUNS = [
     (P + "_cos665k",  "Ours, lr cosine 6e-5→1e-6 over 665k",      4.0, "D"),
     (P + "_cos200k",  "Ours, lr cosine 5e-5→1e-6 by 200k",        4.0, "v"),
     ("cf419_cos200k", "Ours, lr cosine by 200k, new data",        4.0, "*"),
-    ("cf412om", "Ours + patch sizes + mean/std + Moirai recipe, new data", 4.4, "h"),
-    ("cf412oc", "Ours + patch sizes + mean/std, cyan recipe, new data", 4.4, "p"),
+    ("cf412om", "Ours + patch sizes + mean/std + Moirai recipe, new data, loss bug", 4.4, "h"),
+    ("cf412oc", "Ours + patch sizes + mean/std, cyan recipe, new data, loss bug", 4.4, "p"),
+    ("cf412oc2", "Ours + patch sizes + mean/std, cyan recipe, new data, loss fixed", 4.4, ">"),
     # Moirai: our copy of Moirai, trained on the values with its schedule.
     ("cf419_moirai_native", "Moirai, own head, new data",                2.4, "<"),
     ("cf415_moirai_native", "Moirai, own head, old data",                   2.4, "o"),
@@ -112,13 +113,14 @@ def main():
                  "Solid lines, Ours: our contrastive model. Dashed lines, Moirai: "
                  "our copy of Moirai, trained on the values with its schedule.\n"
                  "Old data: GiftEvalPretrain series of 4,096 points or more. "
-                 "New data: all of GiftEvalPretrain.")
+                 "New data: all of GiftEvalPretrain.\n"
+                 "Loss bug: the contrastive terms of a patch-size run read the rows of one patch size at a time.")
     ax.grid(alpha=0.3)
     ax.set_ylim(YMIN, YMAX)
     ax.legend(fontsize=10, loc="upper center", bbox_to_anchor=(0.5, -0.115),
               ncol=3, framealpha=0.94, title="one line per run")
     fig.tight_layout()
-    fig.savefig(OUT, dpi=135)
+    fig.savefig(OUT, dpi=135, bbox_inches="tight")
     print(f"wrote {OUT}")
 
 

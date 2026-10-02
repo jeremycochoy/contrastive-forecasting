@@ -18,6 +18,7 @@ STYLE = {
     "cf419_cos200k": ("#1a1a1a", OURS),
     "cf412om": ("#00897b", OURS),
     "cf412oc": ("#7a0177", OURS),
+    "cf412oc2": ("#d95f02", OURS),
     "cf415_moirai": ("#8c564b", MOIRAI),
     "cf415_moirai_native": ("#8c564b", ":"),
     "cf419_moirai_native": ("#9a9a00", MOIRAI),

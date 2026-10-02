@@ -14,8 +14,9 @@ from run_style import P, colour, line
 # CSVs in the radar folder; the owner took them off this figure.
 NEW_DATA = [
     ("cf419_cos200k", "cos419_", "Ours"),
-    ("cf412om", "ours412om_", "Ours + patch sizes + mean/std + Moirai recipe"),
-    ("cf412oc", "ours412oc_", "Ours + patch sizes + mean/std, cyan recipe"),
+    ("cf412om", "ours412om_", "Ours + patch sizes + mean/std + Moirai recipe, loss bug"),
+    ("cf412oc", "ours412oc_", "Ours + patch sizes + mean/std, cyan recipe, loss bug"),
+    ("cf412oc2", "ours412oc2_", "Ours + patch sizes + mean/std, cyan recipe, loss fixed"),
     ("cf421f_moirai_native", "moirai421f_native", "Moirai + patch heads + mean/std"),
     ("cf421ew_moirai_native", "moirai421ew_native", "Moirai + patch heads + EWMA"),
     ("cf421n_moirai_native", "moirai421n_native", "Moirai + patch heads + mean/std + RMS term"),
@@ -25,7 +26,8 @@ OLD_BEST = ("cyan665", "Ours, old data, 665k   1.1369",
 TITLE = ("Relative MASE per GIFT-Eval dataset (geometric mean over its configs), each run at its best checkpoint\n"
          "Solid lines, Ours: our contrastive model. Dashed lines, Moirai: our copy of Moirai.\n"
          "New data: all of GiftEvalPretrain. Old data: its series of 4,096 points or more.\n"
-         "Green ring: seasonal naive (1.0). Inside is better. The hardest datasets are at the top.")
+         "Green ring: seasonal naive (1.0). Inside is better. The hardest datasets are at the top.\n"
+         "Loss bug: the contrastive terms of a patch-size run read the rows of one patch size at a time.")
 
 
 def scored_stops(arm, csv_prefix):

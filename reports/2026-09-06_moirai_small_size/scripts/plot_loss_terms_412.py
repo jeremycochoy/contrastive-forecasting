@@ -41,12 +41,14 @@ SOURCES = {
     "cf412om": (["cf-412om/leg_150k_try1"] + [f"cf-412om/leg_{k}k" for k in
                 (10, 25, 50, 75, 100, 125, 150, 166)], "cf412om_k3_losses.csv", 4),
     "cf412oc": ([f"cf-412oc/leg_{k}k" for k in (40, 100, 200)], "cf412oc_k3_losses.csv", 1),
+    "cf412oc2": ([f"cf-412oc2/leg_{k}k" for k in (40, 100, 200)], "cf412oc2_k3_losses.csv", 1),
     CYAN: ([f"{CYAN}/arm6_v2_combab_alignT/leg_665k"],
            "cf393_arm6_v2_combab_alignT_cf373k3_cf412_" + CYAN + "_losses.csv", 1),
 }
 TERMS = ["loss", "l_align", "sigreg_e", "sigreg_h", "top1", "grad_norm"]
-LABEL = {"cf412om": "Ours + patch sizes + mean/std + Moirai recipe (batch 256)",
-         "cf412oc": "Ours + patch sizes + mean/std, cyan recipe (batch 64)",
+LABEL = {"cf412om": "Ours + patch sizes + mean/std + Moirai recipe, loss bug (batch 256)",
+         "cf412oc": "Ours + patch sizes + mean/std, cyan recipe, loss bug (batch 64)",
+         "cf412oc2": "Ours + patch sizes + mean/std, cyan recipe, loss fixed (batch 64)",
          CYAN: "cyan: ours, one patch size, EWMA (batch 64)"}
 PANEL = {"gm": "GM-Relative MASE (lower is better)",
          "loss": "Total training loss",
@@ -166,7 +168,7 @@ def plot():
         ax.set_xticklabels([f"{t // 1000}k" for t in ticks])
     for ax in axes[-1]:
         ax.set_xlabel("Data seen, in batch-64 steps. One #412om step counts 4.")
-    fig.suptitle("#412om against cyan: the score and the training-loss terms on one axis\n"
+    fig.suptitle("#412om, #412oc and #412oc2 against cyan: the score and the training-loss terms on one axis\n"
                  "Each point is the median over 4,000 batch-64 steps. The contrastive terms "
                  "compare rows within a batch,\nso their level depends on the batch size "
                  "(256 for #412om, 64 for the others): compare the shapes of the curves.",
