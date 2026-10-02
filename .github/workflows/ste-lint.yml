@@ -38,6 +38,9 @@ jobs:
           sudo install -m 0755 vale /usr/local/bin/vale
           vale --version
 
+      - name: Test the rules
+        run: python3 -m unittest tests.test_ste_lint
+
       - name: Report every file
         run: |
           {
