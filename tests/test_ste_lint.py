@@ -18,6 +18,7 @@ FORBIDDEN = [
     "A set {a}; the next set.",
     "A value ``x``; the next value.",
     "A letter τ; the next letter.",
+    "A **bold**; the next word.",
     "A line that stops after the mark (see note 12);",
 ]
 
