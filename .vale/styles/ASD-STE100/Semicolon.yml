@@ -1,10 +1,16 @@
 # ASD-STE100 rule 8.1 — the semicolon is not permitted.
-# The token needs a word character before the mark, so that a text which
-# names the punctuation mark itself, as "(;)", does not give an alert.
+# A text that names the mark itself, as "(;)", gives no alert. In that text,
+# no word character comes before the mark and no space comes after it.
+# Each token matches the mark only, so each alert points at the semicolon,
+# and one semicolon never gives two alerts.
 extends: existence
 message: "ASD-STE100 rule 8.1: the semicolon (;) is not permitted. Write two sentences."
 link: https://www.asd-ste100.org/
 level: error
 nonword: true
 tokens:
-  - '\w\s*;'
+  # After a word character: "word; next", "word;next".
+  - '(?<=\w\s*);'
+  # Before a space or the end of the text, after any character:
+  # "(see #12); next", "[B, T]; next", "``x``; next", "τ; next".
+  - ';(?=\s|$)'
