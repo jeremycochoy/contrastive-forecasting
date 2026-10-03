@@ -138,6 +138,12 @@ def build_parser():
                         "The cosine anneal then runs from --lr to "
                         "--lr-final and ends at --lr-cosine-steps. Needs "
                         "--lr-final. 0 means no warmup.")
+    # #412ow2: the warmup leads into a straight line down to --lr-final.
+    p.add_argument("--lr-decay-shape", choices=("cosine", "linear"),
+                   default="cosine",
+                   help="Shape of the anneal from --lr to --lr-final: the "
+                        "cosine, or a straight line. The rate holds at "
+                        "--lr-final after it in both shapes.")
     # Optimizer hyperparams. --adam-beta1/2 keep torch.optim.AdamW defaults
     # so prior runs that omitted them reproduce bit-identically.
     # MOIRAI Aksu and others recipe: lr=1e-3, weight_decay=0.1, betas=(0.9, 0.98).
@@ -1710,6 +1716,7 @@ VALUE_SPACE_FLAGS = frozenset((
     "log_attn_amplitude", "log_attn_amplitude_every",
     # The optimizer and the rate schedule.
     "batch_size", "lr", "lr_final", "lr_cosine_steps", "lr_warmup_steps",
+    "lr_decay_shape",
     "grad_clip", "weight_decay", "adam_beta1", "adam_beta2", "seed",
     # The data.
     "hf_repo", "hf_path", "split", "mix_ratio", "crossfade_ratio",
@@ -2471,13 +2478,17 @@ def cosine_lr(step, lr_start, lr_final, total):
         1.0 + math.cos(math.pi * t / total))
 
 
-def scheduled_lr(step, lr_start, lr_final, total, warmup=0):
-    """A linear warmup over `warmup` steps, then one cosine anneal from
-    `lr_start` to `lr_final` that ends at step `total`. This is the shape of
-    the Moirai schedule (uni2ts `get_scheduler`, #415). With no warmup it is
-    `cosine_lr` itself."""
+def scheduled_lr(step, lr_start, lr_final, total, warmup=0, shape="cosine"):
+    """A linear warmup over `warmup` steps, then one anneal from `lr_start`
+    to `lr_final` that ends at step `total` and holds after it. The cosine
+    anneal is the shape of the Moirai schedule (uni2ts `get_scheduler`,
+    #415); with no warmup it is `cosine_lr` itself. `shape="linear"` makes
+    the anneal a straight line (#412ow2)."""
     if step < warmup:
         return lr_start * step / warmup
+    if shape == "linear":
+        t = min(step - warmup, total - warmup)
+        return lr_start + (lr_final - lr_start) * t / (total - warmup)
     return cosine_lr(step - warmup, lr_start, lr_final, total - warmup)
 
 
@@ -2828,6 +2839,7 @@ def main():
                 args.lr_final = saved_sched["lr_final"]
                 args.lr_cosine_steps = saved_sched["cosine_steps"]
                 args.lr_warmup_steps = saved_sched.get("warmup_steps", 0)
+                args.lr_decay_shape = saved_sched.get("decay_shape", "cosine")
                 print(f"  [lr] resumed schedule from the checkpoint: "
                       f"{args.lr:g} to {args.lr_final:g} over "
                       f"{args.lr_cosine_steps} steps, warmup "
@@ -2835,10 +2847,11 @@ def main():
             else:
                 live = (args.lr, args.lr_final,
                         args.lr_cosine_steps or args.total_steps,
-                        args.lr_warmup_steps)
+                        args.lr_warmup_steps, args.lr_decay_shape)
                 held = (saved_sched["lr_start"], saved_sched["lr_final"],
                         saved_sched["cosine_steps"],
-                        saved_sched.get("warmup_steps", 0))
+                        saved_sched.get("warmup_steps", 0),
+                        saved_sched.get("decay_shape", "cosine"))
                 if live != held:
                     print(f"  [lr] WARNING: the checkpoint holds {held} and "
                           f"the command line names {live}. The command line "
@@ -3124,12 +3137,14 @@ def main():
     cosine_steps = args.lr_cosine_steps or args.total_steps
     lr_schedule = None if args.lr_final is None else {
         "lr_start": args.lr, "lr_final": args.lr_final,
-        "cosine_steps": cosine_steps, "warmup_steps": args.lr_warmup_steps}
+        "cosine_steps": cosine_steps, "warmup_steps": args.lr_warmup_steps,
+        "decay_shape": args.lr_decay_shape}
     for step in range(start_step + 1, args.total_steps + 1):
         t_step_start = time.perf_counter()
         if args.lr_final is not None:
             lr_now = scheduled_lr(step, args.lr, args.lr_final,
-                                  cosine_steps, args.lr_warmup_steps)
+                                  cosine_steps, args.lr_warmup_steps,
+                                  args.lr_decay_shape)
             for group in optimizer.param_groups:
                 group["lr"] = lr_now
         model.train()
