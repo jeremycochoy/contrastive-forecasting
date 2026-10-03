@@ -53,6 +53,8 @@ XSCALE = {"cf415_moirai": 4, "cf415_moirai_native": 4, "cf419_moirai_native": 4,
 # Where the last score of a line prints, so two lines that end together part.
 END_LABEL_OFFSET = {P + "_lr100x": (9, 4), P + "_cos200k": (9, -12), "cf412om": (-62, 6),
                     "cf412oc2": (-58, -16), "cf412oe2": (9, 5)}
+# How far left of its point an off-the-chart label starts, so two such labels part.
+OFF_LABEL_DIV = {"cf412om2": 3.0, "cf412om": 1.6}
 BEST, BAND, PROJECT_BEST = 1.1369, 0.008, 1.0651
 YMIN, YMAX = 0.90, 1.60
 
@@ -75,7 +77,7 @@ def draw_series(ax, arm, label, colour, width, marker, style, points):
         if yi > YMAX:
             # The label sits beside the point, inside the axes, clear of the
             # title: right of a point near the left edge, left of any other.
-            label_x = xi * 1.12 if xi < 100000 else xi / 1.9
+            label_x = xi * 1.12 if xi < 100000 else xi / OFF_LABEL_DIV.get(arm, 1.9)
             ax.annotate(f"{yi:.4f}, off the chart", (xi, YMAX - 0.004),
                         xytext=(label_x, YMAX - 0.012), va="center",
                         fontsize=9, color=colour, weight="bold",
