@@ -23,10 +23,10 @@ RUNS = [
     # the stopped runs b2cos (1.1M, the wrong width), cf421z_moirai_native
     # (fp16), cf421fb_moirai_native (GRU bound) and cf415_moirai (a separate
     # head, a mistake). The owner brought cf419_moirai_native back on 10-01.
-    (P + "_lr10x",    "Ours, constant lr 5.6e-5, seed a",         3.4, "o"),
-    (P + "_lr10xb",   "Ours, constant lr 5.6e-5, seed b",         3.4, "s"),
-    (P + "_lr30x",    "Ours, constant lr 1.8e-5",                 4.0, "o"),
-    (P + "_lr100x",   "Ours, constant lr 5.6e-6",                 4.0, "^"),
+    (P + "_lr10x",    "Ours, lr 5.6e-5, seed a",                  3.4, "o"),
+    (P + "_lr10xb",   "Ours, lr 5.6e-5, seed b",                  3.4, "s"),
+    (P + "_lr30x",    "Ours, lr 1.8e-5",                          4.0, "o"),
+    (P + "_lr100x",   "Ours, lr 5.6e-6",                          4.0, "^"),
     (P + "_cos665k",  "Ours, lr cosine 6e-5→1e-6 over 665k",      4.0, "D"),
     (P + "_cos200k",  "Ours, lr cosine 5e-5→1e-6 by 200k",        4.0, "v"),
     ("cf419_cos200k", "Ours, lr cosine by 200k, new data",        4.0, "*"),
