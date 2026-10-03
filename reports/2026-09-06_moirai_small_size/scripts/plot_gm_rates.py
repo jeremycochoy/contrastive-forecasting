@@ -54,9 +54,9 @@ XSCALE = {"cf415_moirai": 4, "cf415_moirai_native": 4, "cf419_moirai_native": 4,
 END_LABEL_OFFSET = {P + "_lr100x": (9, 4), P + "_cos200k": (9, -12), "cf412om": (-62, 6),
                     "cf412oc2": (-58, -16), "cf412oe2": (9, 5)}
 # How far left of its point an off-the-chart label starts, so two such labels part.
-OFF_LABEL_DIV = {"cf412om2": 3.0, "cf412om": 1.6}
+OFF_LABEL_DIV = {"cf412om2": 3.0}
 BEST, BAND, PROJECT_BEST = 1.1369, 0.008, 1.0651
-YMIN, YMAX = 0.90, 1.60
+YMIN, YMAX = 0.90, 1.70
 
 
 def load_points():
@@ -73,15 +73,18 @@ def draw_series(ax, arm, label, colour, width, marker, style, points):
     shown = [min(v, YMAX - 0.004) for v in y]
     ax.plot(x, shown, style, color=colour, lw=width, marker=marker, ms=8,
             label=label, zorder=3)
-    for xi, yi in zip(x, y):
-        if yi > YMAX:
-            # The label sits beside the point, inside the axes, clear of the
-            # title: right of a point near the left edge, left of any other.
-            label_x = xi * 1.12 if xi < 100000 else xi / OFF_LABEL_DIV.get(arm, 1.9)
-            ax.annotate(f"{yi:.4f}, off the chart", (xi, YMAX - 0.004),
-                        xytext=(label_x, YMAX - 0.012), va="center",
-                        fontsize=9, color=colour, weight="bold",
-                        arrowprops=dict(arrowstyle="->", color=colour, lw=1))
+    above = [(xi, yi) for xi, yi in zip(x, y) if yi > YMAX]
+    if above:
+        # One label lists the points off the chart and points at the last of
+        # them. It sits inside the axes, clear of the title: right of a point
+        # near the left edge, left of any other.
+        xi = above[-1][0]
+        label_x = xi * 1.12 if xi < 100000 else xi / OFF_LABEL_DIV.get(arm, 1.9)
+        values = ", ".join(f"{yi:.4f}" for _, yi in above)
+        ax.annotate(f"{values}, off the chart", (xi, YMAX - 0.004),
+                    xytext=(label_x, YMAX - 0.012), va="center",
+                    fontsize=9, color=colour, weight="bold",
+                    arrowprops=dict(arrowstyle="->", color=colour, lw=1))
     if y[-1] <= YMAX:
         ax.annotate(f"{y[-1]:.4f}", (x[-1], shown[-1]), textcoords="offset points",
                     xytext=END_LABEL_OFFSET.get(arm, (9, -3)), fontsize=9,
