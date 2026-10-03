@@ -45,6 +45,7 @@ SOURCES = {
     "cf412oe2": ([f"cf-412oe2/leg_{k}k" for k in (40, 100, 200)], "cf412oe2_k3_losses.csv", 1),
     "cf412om2": ([f"cf-412om2/leg_{k}k" for k in (10, 25, 50, 75, 100, 125, 150, 166)],
                  "cf412om2_k3_losses.csv", 4),
+    "cf412oa2": ([f"cf-412oa2/leg_{k}k" for k in (40, 100, 200)], "cf412oa2_k3_losses.csv", 1),
     CYAN: ([f"{CYAN}/arm6_v2_combab_alignT/leg_665k"],
            "cf393_arm6_v2_combab_alignT_cf373k3_cf412_" + CYAN + "_losses.csv", 1),
 }
@@ -54,6 +55,7 @@ LABEL = {"cf412om": "Ours + patch sizes + mean/std + Moirai recipe, loss bug (ba
          "cf412oc2": "Ours + patch sizes + mean/std, cyan recipe, loss fixed (batch 64)",
          "cf412oe2": "Ours + patch sizes + EWMA, cyan recipe, loss fixed (batch 64)",
          "cf412om2": "Ours + patch sizes + mean/std + Moirai recipe, loss fixed (batch 256)",
+         "cf412oa2": "Ours + patch sizes + mean/std, lr 5.6e-5, loss fixed (batch 64)",
          CYAN: "cyan: ours, one patch size, EWMA (batch 64)"}
 LABEL = {run: tagged(run, text) for run, text in LABEL.items()}
 PANEL = {"gm": "GM-Relative MASE (lower is better)",
@@ -173,11 +175,11 @@ def plot():
         ax.set_xticks(ticks)
         ax.set_xticklabels([f"{t // 1000}k" for t in ticks])
     for ax in axes[-1]:
-        ax.set_xlabel("Data seen, in batch-64 steps. One OMB step counts 4.")
-    fig.suptitle("OMB, OCB, OCF and OEF against CYN: the score and the training-loss terms on one axis\n"
+        ax.set_xlabel("Data seen, in batch-64 steps. One OMB or OMF step counts 4.")
+    fig.suptitle("OMB, OCB, OCF, OEF, OMF and OAF against CYN: the score and the training-loss terms on one axis\n"
                  "Each point is the median over 4,000 batch-64 steps. The contrastive terms "
                  "compare rows within a batch,\nso their level depends on the batch size "
-                 "(256 for OMB, 64 for the others): compare the shapes of the curves.",
+                 "(256 for OMB and OMF, 64 for the others): compare the shapes of the curves.",
                  fontsize=13)
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     fig.savefig(OUT, dpi=110)

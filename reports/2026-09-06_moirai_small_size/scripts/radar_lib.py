@@ -48,11 +48,15 @@ def bell_order(per_ds):
 
 def style_axes(ax, labels, ang):
     """Dataset names round the rim, clockwise from the top, and a log radius
-    from 0.55 to 9."""
+    from 0.55 to 9. A name on the right half starts at its spoke and a name on
+    the left half ends at it, so the long names near the top do not overlap."""
     ax.set_theta_offset(math.pi / 2)
     ax.set_theta_direction(-1)
     ax.set_xticks(ang[:-1])
     ax.set_xticklabels(labels, fontsize=9.5)
+    for text, angle in zip(ax.get_xticklabels(), ang):
+        side = math.sin(angle)
+        text.set_horizontalalignment("center" if abs(side) < 0.05 else "left" if side > 0 else "right")
     ax.tick_params(axis="x", pad=12)
     ax.set_rscale("log")
     ax.minorticks_off()
@@ -82,7 +86,7 @@ def draw(arms, title, out_png):
     ax.plot(ang, [1.0] * len(ang), color="#2ca02c", ls="--", lw=1.8, zorder=4)
     style_axes(ax, labels, ang)
     ax.set_title(title, fontsize=12, pad=28)
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.06), ncol=1, fontsize=10,
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.09), ncol=1, fontsize=10,
               title="run, checkpoint, GM-Relative MASE")
     fig.tight_layout()
     fig.savefig(out_png, dpi=130)

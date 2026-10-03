@@ -35,6 +35,7 @@ RUNS = [
     ("cf412oc2", "Ours + patch sizes + mean/std, cyan recipe, new data, loss fixed", 4.4, ">"),
     ("cf412oe2", "Ours + patch sizes + EWMA, cyan recipe, new data, loss fixed", 4.4, "8"),
     ("cf412om2", "Ours + patch sizes + mean/std + Moirai recipe, new data, loss fixed", 4.4, "H"),
+    ("cf412oa2", "Ours + patch sizes + mean/std, lr 5.6e-5, new data, loss fixed", 4.4, "o"),
     # Moirai: our copy of Moirai, trained on the values with its schedule.
     ("cf419_moirai_native", "Moirai, own head, new data",                2.4, "<"),
     ("cf415_moirai_native", "Moirai, own head, old data",                   2.4, "o"),
@@ -52,9 +53,9 @@ XSCALE = {"cf415_moirai": 4, "cf415_moirai_native": 4, "cf419_moirai_native": 4,
           "cf412om2": 4}
 # Where the last score of a line prints, so two lines that end together part.
 END_LABEL_OFFSET = {P + "_lr100x": (9, 4), P + "_cos200k": (9, -12), "cf412om": (-62, 6),
-                    "cf412oc2": (-58, -16), "cf412oe2": (9, 5)}
+                    "cf412oc2": (-58, -16), "cf412oe2": (9, 5), "cf412om2": (-22, -18)}
 # How far left of its point an off-the-chart label starts, so two such labels part.
-OFF_LABEL_DIV = {"cf412om2": 3.0}
+OFF_LABEL_DIV = {"cf412om": 2.4}
 BEST, BAND, PROJECT_BEST = 1.1369, 0.008, 1.0651
 YMIN, YMAX = 0.90, 1.70
 
@@ -77,14 +78,17 @@ def draw_series(ax, arm, label, colour, width, marker, style, points):
     if above:
         # One label lists the points off the chart and points at the last of
         # them. It sits inside the axes, clear of the title: right of a point
-        # near the left edge, left of any other.
+        # near the left edge, left of any other. The arrow leaves the label
+        # from its side nearest the point.
         xi = above[-1][0]
-        label_x = xi * 1.12 if xi < 100000 else xi / OFF_LABEL_DIV.get(arm, 1.9)
+        right_of_point = xi < 100000
+        label_x = xi * 1.12 if right_of_point else xi / OFF_LABEL_DIV.get(arm, 1.9)
         values = ", ".join(f"{yi:.4f}" for _, yi in above)
         ax.annotate(f"{values}, off the chart", (xi, YMAX - 0.004),
                     xytext=(label_x, YMAX - 0.012), va="center",
                     fontsize=9, color=colour, weight="bold",
-                    arrowprops=dict(arrowstyle="->", color=colour, lw=1))
+                    arrowprops=dict(arrowstyle="->", color=colour, lw=1,
+                                    relpos=(0, 0.5) if right_of_point else (1, 0.5)))
     if y[-1] <= YMAX:
         ax.annotate(f"{y[-1]:.4f}", (x[-1], shown[-1]), textcoords="offset points",
                     xytext=END_LABEL_OFFSET.get(arm, (9, -3)), fontsize=9,
