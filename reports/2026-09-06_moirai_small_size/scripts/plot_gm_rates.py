@@ -53,7 +53,8 @@ XSCALE = {"cf415_moirai": 4, "cf415_moirai_native": 4, "cf419_moirai_native": 4,
           "cf412om2": 4}
 # Where the last score of a line prints, so two lines that end together part.
 END_LABEL_OFFSET = {P + "_lr100x": (9, 4), P + "_cos200k": (9, -12), "cf412om": (-62, 6),
-                    "cf412oc2": (-58, -16), "cf412oe2": (9, 5), "cf412om2": (-22, -18)}
+                    "cf412oc2": (-58, -16), "cf412oe2": (9, 5), "cf412om2": (-22, -18),
+                    "cf421ew_moirai_native": (-45, -18)}
 # How far left of its point an off-the-chart label starts, so two such labels part.
 OFF_LABEL_DIV = {"cf412om": 2.4}
 BEST, BAND, PROJECT_BEST = 1.1369, 0.008, 1.0651
