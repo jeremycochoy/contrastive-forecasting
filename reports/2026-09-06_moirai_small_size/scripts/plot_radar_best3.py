@@ -10,8 +10,8 @@ ARMS = [("cyan665", tagged(CYN, "Ours, lr cosine by 200k, old data, 665k   1.136
         ("moirai421f_native166k",
          tagged("cf421f_moirai_native", "Moirai + patch heads + mean/std, new data, 166k   0.9250"),
          colour("cf421f_moirai_native"), MOIRAI),
-        ("moirai421ew_native125k",
-         tagged("cf421ew_moirai_native", "Moirai + patch heads + EWMA, new data, 125k   0.9468"),
+        ("moirai421ew_native150k",
+         tagged("cf421ew_moirai_native", "Moirai + patch heads + EWMA, new data, 150k   0.9405"),
          colour("cf421ew_moirai_native"), MOIRAI)]
 TITLE = ("Relative MASE per GIFT-Eval dataset (geometric mean over its configs): "
          "the best of ours and the best two Moirai runs\n"
