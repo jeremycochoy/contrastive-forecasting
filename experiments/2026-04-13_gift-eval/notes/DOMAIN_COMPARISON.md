@@ -1,8 +1,18 @@
 # GIFT-Eval Per-Domain Comparison: Small Models
 
 **Date:** 2026-04-13
-**Our model:** Tiny contrastive forecaster, ~20M backbone + 626K recovery head = ~21M params total.
+**Our model:** the v2 Tiny contrastive backbone of April 2026 (C=4, H=512, W=16,
+GRU encoder, 6 layers), 19,952,384 trainable parameters, plus a 626K recovery
+head. About 20.6M in total.
 **Eval pair:** v2 backbone, 30k-step recovery head.
+
+> **The backbone of this project is no longer that model.** Since #379 the
+> project trains a 64-wide cell of 720,668 trainable parameters, with a frozen
+> EMA teacher of 563,760 beside it. Its best score is 1.0651, not the 1.256
+> below. Read every "Ours" row here as the April v2 backbone. Measure any
+> other checkpoint with `python3 scripts/model_size.py`, and read
+> `src/model_size.py` first: a sum over the checkpoint file counts the patch
+> encoder two times and gives 1,135,774 for that 720,668-parameter model.
 
 ## 1. Models Compared
 
@@ -11,7 +21,7 @@ Parameter counts are total (not activated) unless noted.
 
 | Model | Params | Type | Source |
 |---|---|---|---|
-| **Ours (Contrastive Tiny)** | ~21M | Contrastive encoder + GRU head | This project |
+| **Ours (Contrastive Tiny, v2 April 2026)** | 20.6M | Contrastive encoder + GRU head | This project |
 | Moirai-2-Small | 11.4M | Decoder-only, causal attention | Salesforce, arXiv:2511.11698 |
 | FlowState-9.1M | 9.1M | Flow-matching | Granite family |
 | Reverso-Small | ~15M (est.) | Unknown | GIFT-Eval leaderboard |
@@ -42,7 +52,7 @@ This is the standard GIFT-Eval aggregation convention (Sundial Table 2, Moirai-2
 | Chronos-Small (46M) | 0.733 | 0.737 | 0.852 | 0.948 | 1.144 | 0.797 | 0.607 | **0.892** |
 | MOIRAI-Small (14M) | 0.731 | 0.731 | 0.807 | 1.069 | 1.136 | 0.985 | 0.848 | **0.946** |
 | TTM-R2 (1-5M) | 0.977 | 0.792 | 0.851 | 1.016 | 1.254 | 1.409 | 1.176 | **1.020** |
-| **Ours (21M)** | **0.831** | **1.056** | **0.948** | **1.550** | **1.272** | **1.786** | **1.117** | **1.256** |
+| **Ours (v2, 20.6M)** | **0.831** | **1.056** | **0.948** | **1.550** | **1.272** | **1.786** | **1.117** | **1.256** |
 | Seasonal Naive | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | **1.000** |
 
 ## 3. Raw GM-MASE (Absolute, Not Relative to Seasonal Naive)
@@ -61,7 +71,7 @@ MASE within each domain. Lower is better; 1.0 = match seasonal naive in-sample.
 | Chronos-Small (46M) | 0.798 | 0.853 | 1.060 | 1.157 | 2.008 | 1.677 | 1.511 | 1.246 |
 | MOIRAI-Small (14M) | 0.796 | 0.847 | 1.004 | 1.306 | 1.995 | 2.074 | 2.112 | 1.323 |
 | TTM-R2 (1-5M) | 1.064 | 0.917 | 1.059 | 1.240 | 2.201 | 2.966 | 2.929 | 1.425 |
-| **Ours (21M)** | **0.905** | **1.223** | **1.179** | **1.893** | **2.233** | **3.760** | **2.781** | **1.756** |
+| **Ours (v2, 20.6M)** | **0.905** | **1.223** | **1.179** | **1.893** | **2.233** | **3.760** | **2.781** | **1.756** |
 | Seasonal Naive | 1.089 | 1.158 | 1.244 | 1.221 | 1.756 | 2.105 | 2.490 | 1.398 |
 
 ## 4. Domain-by-Domain Analysis
@@ -156,7 +166,7 @@ Ranking by GM-relative MASE (lower = better):
 | 7 | MOIRAI-Small | 14M | 0.946 |
 | 8 | TTM-R2 | 1-5M | 1.020 |
 | 9 | Seasonal Naive | 0 | 1.000 |
-| 10 | **Ours** | **21M** | **1.256** |
+| 10 | **Ours (v2)** | **20.6M** | **1.256** |
 
 We rank last among all compared models, and below seasonal naive. The 2024
 generation of small models (Chronos-Small, MOIRAI-Small, TTM) generally score
@@ -212,7 +222,7 @@ weakest 2024 baselines.
 
 ## 7. Key Takeaway
 
-Our ~21M contrastive forecaster currently scores 1.256 GM-relative MASE on
+The v2 20.6M contrastive forecaster scores 1.256 GM-relative MASE on
 GIFT-Eval, placing it below seasonal naive (1.000) and behind all small
 foundation models tested (0.73-1.02 range). The primary bottleneck is not
 architecture but pretraining data: our synthetic-only training set does not

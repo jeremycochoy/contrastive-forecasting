@@ -62,7 +62,7 @@ SWEEP = REPO_ROOT / "reports" / "2026-08-19_ema_momentum_k32"
 STUDY_SH = EXP / "scripts" / "study.sh"
 RUN_ARM = EXP / "scripts" / "run_arm.sh"
 ARMS_TSV = EXP / "scripts" / "arms.tsv"
-AUC_WATCH = EXP / "scripts" / "auc_watch.py"
+AUC_WATCH = REPO_ROOT / "scripts" / "auc_watch.py"
 PARENT_LEG = PARENT / "scripts" / "run_leg_k.sh"
 
 CELL = "arm6_v2_combab_alignT"
