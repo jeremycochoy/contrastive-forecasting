@@ -48,6 +48,7 @@ SOURCES = {
                  "cf412om2_k3_losses.csv", 4),
     "cf412oa2": ([f"cf-412oa2/leg_{k}k" for k in (40, 100, 200)], "cf412oa2_k3_losses.csv", 1),
     "cf412ow2": (["cf-412ow2/leg_40k"], "cf412ow2_k3_losses.csv", 1),
+    "cf412or2": (["cf-412or2/leg_40k"], "cf412or2_k3_losses.csv", 1),
     CYAN: ([f"{CYAN}/arm6_v2_combab_alignT/leg_665k"],
            "cf393_arm6_v2_combab_alignT_cf373k3_cf412_" + CYAN + "_losses.csv", 1),
 }
@@ -59,6 +60,7 @@ LABEL = {"cf412om": "Ours + patch sizes + mean/std + Moirai recipe, loss bug (ba
          "cf412om2": "Ours + patch sizes + mean/std + Moirai recipe, loss fixed (batch 256)",
          "cf412oa2": "Ours + patch sizes + mean/std, lr 5.6e-5, loss fixed (batch 64)",
          "cf412ow2": "Ours + patch sizes + mean/std, warmup to 1e-3 then lr 5.6e-5, loss fixed (batch 64)",
+         "cf412or2": "As OWF, L_rep kept at weight 1 (batch 64)",
          CYAN: "cyan: ours, one patch size, EWMA (batch 64)"}
 LABEL = {run: tagged(run, text) for run, text in LABEL.items()}
 PANEL = {"gm": "GM-Relative MASE (lower is better)",
@@ -179,7 +181,7 @@ def plot():
         ax.set_xticklabels([f"{t // 1000}k" for t in ticks])
     for ax in axes[-1]:
         ax.set_xlabel("Data seen, in batch-64 steps. One OMB or OMF step counts 4.")
-    fig.suptitle("OMB, OCB, OCF, OEF, OMF, OAF and OWF against CYN: the score and the training-loss terms on one axis\n"
+    fig.suptitle("OMB, OCB, OCF, OEF, OMF, OAF, OWF and OWR against CYN: the score and the training-loss terms on one axis\n"
                  "Each point is the median over 4,000 batch-64 steps. The contrastive terms "
                  "compare rows within a batch,\nso their level depends on the batch size "
                  "(256 for OMB and OMF, 64 for the others): compare the shapes of the curves.",
