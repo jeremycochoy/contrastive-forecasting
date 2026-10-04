@@ -42,6 +42,7 @@ GROUPS = [
         ("cf412oe2", "EWMA, lr cosine 5.6e-5→1e-6 by 200k, loss fixed",         4.4, "8"),
         ("cf412om2", "mean/std, lr 1e-3 cosine by 166k, batch 256, loss fixed", 4.4, "H"),
         ("cf412oa2", "mean/std, lr 5.6e-5, loss fixed",                         4.4, "o"),
+        ("cf412ow2", "mean/std, warmup to 1e-3, then lr 5.6e-5 from 20k, loss fixed", 4.4, "s"),
     ]),
     ("Moirai: our copy, batch 256", [
         ("cf419_moirai_native",   "own head, new data",                        2.4, "<"),
