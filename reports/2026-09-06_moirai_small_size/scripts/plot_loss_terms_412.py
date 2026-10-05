@@ -48,7 +48,7 @@ SOURCES = {
                  "cf412om2_k3_losses.csv", 4),
     "cf412oa2": ([f"cf-412oa2/leg_{k}k" for k in (40, 100, 200)], "cf412oa2_k3_losses.csv", 1),
     "cf412ow2": (["cf-412ow2/leg_40k"], "cf412ow2_k3_losses.csv", 1),
-    "cf412or2": (["cf-412or2/leg_40k", "cf-412or2/leg_100k"], "cf412or2_k3_losses.csv", 1),
+    "cf412or2": (["cf-412or2/leg_40k", "cf-412or2/leg_100k", "cf-412or2/leg_200k"], "cf412or2_k3_losses.csv", 1),
     "cf412ol2": (["cf-412ol2/leg_40k"], "cf412ol2_k3_losses.csv", 1),
     "cf412bm": ([f"cf-412bm/leg_{k}k" for k in (10, 25, 50, 75)], "cf412bm_k3_losses.csv", 4),
     CYAN: ([f"{CYAN}/arm6_v2_combab_alignT/leg_665k"],
