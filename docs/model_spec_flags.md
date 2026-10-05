@@ -26,6 +26,7 @@ The run needs terms that take a row mask:
 | term | flag |
 |---|---|
 | `L_rep`, with or without MoCo keys | `--loss-shape cosine_similarity_batch_rep_only`, `--moco-rep-keys` |
+| `L_pred` and `L_rep`, with or without MoCo negatives and keys | `--loss-shape cosine_similarity_batch_split_pred_rep`, `--moco-negatives`, `--moco-rep-keys` |
 | `L_align`, in the loss or alone | `--align-loss-weight` |
 | the CPC auxiliary | `--cpc-infonce-weight` with `--cpc-infonce-negs matched` |
 | SIGReg | `--sigreg-embedding`, `--sigreg-encoding` |
@@ -58,8 +59,19 @@ On the contrastive objective:
 - L_align pulls each patch toward the next patch of its own row, rollout
   depths included. So it runs on the grid of each group. The group values
   add up with weights equal to each group's share of the active rows.
-- In the losses CSV, `l_rep` and `sigreg_*` come from the whole step, and
-  `l_align` adds up by the share of the rows.
+- L_pred of the split shape reads every row of the step. Each group first
+  pairs the forecast of each patch with the key 1 + j patches ahead on its
+  own grid, at rollout depth j. Then each pair fills P/G positions of the
+  grid of the finest size, so the forecast and its positive move together.
+  A coarse pair counts P/G times, as on the grid of L_rep. The positions
+  after the last pair of a group hold no pair.
+- At a grid position, an anchor takes the cross-batch keys of the other
+  rows at that position. The key of a row there is the patch after the
+  row's own patch at that position. With several sizes, that patch is not
+  at the horizon of the anchor. The two agree when all the rows have one
+  size.
+- In the losses CSV, `l_pred`, `l_rep` and `sigreg_*` come from the whole
+  step, and `l_align` adds up by the share of the rows.
 - A step whose rows all read one size runs the whole objective on that
   group, as a single-size run does.
 - Up to 10-01, every term ran on the rows of its group only. So L_rep, its

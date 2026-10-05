@@ -47,7 +47,7 @@ from src.dataloader import (
     create_hf_dataloader,
 )
 from src.loss import (contrastive_latent_loss, rep_only_term,
-                      cpc_infonce_aux_loss,
+                      grid_pred_term, pred_term, cpc_infonce_aux_loss,
                       cpc_infonce_all_loss, align_loss, align_moco_loss,
                       sigreg_loss)
 from src.checkpoint import (gru_input_bound_of, load_training_state,
@@ -112,6 +112,11 @@ CLD = LOSS_SPEC.train_configuration["contrastive_latent_delay"] + 1
 # ignores it, so a decay schedule on one of those would move nothing.
 REP_WEIGHT_SHAPES = ("cosine_similarity_batch_split_pred_rep",
                      "cosine_similarity_batch_rep_only")
+
+# The main shapes that take a row mask (#419, #412): no padded position and
+# no inert row enters their terms.
+SPLIT_SHAPE = "cosine_similarity_batch_split_pred_rep"
+ROW_MASK_SHAPES = ("cosine_similarity_batch_rep_only", SPLIT_SHAPE)
 
 T_RAW = 1024  # Default. Overridden by --t-raw CLI flag.
 
@@ -465,8 +470,8 @@ def build_parser():
                         "value-space objective counts the values after the "
                         "split only; the contrastive objective (#412) keeps "
                         "every real position, and needs terms that take a "
-                        "row mask (the rep_only shape and its add-ons). "
-                        "'none' to disable.")
+                        "row mask (the rep_only and split_pred_rep shapes "
+                        "and their add-ons). 'none' to disable.")
     p.add_argument("--meanstd-z-max", type=float, default=100.0,
                    help="With --rev-norm-kind meanstd (#421): drop from the "
                         "batch each window whose target part lies more than "
@@ -568,7 +573,11 @@ def build_parser():
                         "matches the established arms. 'cosine_similarity_batch' "
                         "is the paper-described loss with cross-time negatives "
                         "(h[b,t-1,c] <-> h[b,t,c] and cross-channel time terms) "
-                        "— re-introduced after being dropped during ARMA-era tuning.")
+                        "— re-introduced after being dropped during ARMA-era tuning. "
+                        "Only 'cosine_similarity_batch_rep_only' and "
+                        "'cosine_similarity_batch_split_pred_rep' take a row "
+                        "mask, which --gift-pretrain and the contrastive "
+                        "objective by row (#419, #412) need.")
     p.add_argument("--pos-in-denominator", action="store_true",
                    help="Train with the normalized-InfoNCE objective: put the "
                         "positive in BOTH numerator and denominator → loss = "
@@ -765,9 +774,11 @@ def build_parser():
                         "per size. The contrastive objective (#412) runs "
                         "L_rep and SIGReg on every row of the step, on the "
                         "time grid of the finest size, and L_align on each "
-                        "row's own patches; the EMA teacher copies the "
-                        "encoder of each size. Default off: one patch size, "
-                        "W.")
+                        "row's own patches. L_pred of the split shape pairs "
+                        "each patch with the next patch of its own row, and "
+                        "each pair fills P/G positions of the same grid. "
+                        "The EMA teacher copies the encoder of each size. "
+                        "Default off: one patch size, W.")
     p.add_argument("--ema-embedding", action="store_true",
                    help="BYOL/JEPA EMA-teacher copy of the patch-embedding "
                         "(--encoder-type's input_to_latent). Non-trained; "
@@ -1099,7 +1110,8 @@ def multi_size_contrastive_terms(model, lats, pads, counts, args, rep_w,
     """The contrastive terms of a step whose rows read several patch sizes
     (#412). The batch terms read every row of the step: L_rep, with its
     MoCo keys, and SIGReg run once on the common grid (``common_grid``),
-    where the rows line up in time and weigh the same. L_align pulls each
+    where the rows line up in time and weigh the same. L_pred of the split
+    shape reads every row too (``grid_main_terms``). L_align pulls each
     patch toward the next patch of its own row, rollout depths included,
     so it runs on each group's own grid, weighted by the group's share of
     the active rows. Returns ``(loss, values)`` as ``contrastive_terms``
@@ -1115,12 +1127,8 @@ def multi_size_contrastive_terms(model, lats, pads, counts, args, rep_w,
     live = [size for size in lats if counts[size]]  # a group with no active
     grid = common_grid({s: lats[s] for s in live},  # row leaves every term
                        {s: pads[s] for s in live})
-    loss = grid.o.new_zeros(())
-    if not args.no_main_contrastive_loss:
-        loss = loss + rep_only_term(
-            grid.o, LOSS_SPEC, grid.pad, tau_override=tau,
-            teacher_original_latent=grid.teacher, rep_loss_weight=rep_w,
-            same_token=grid.token, term_out=values["terms"])
+    loss = grid.o.new_zeros(()) + grid_main_terms(
+        lats, pads, live, grid, args, rep_w, tau, values["terms"])
     loss = loss + group_align_terms(lats, pads, counts, args, values)
     for on, weight, key, latent in (
             (args.sigreg_embedding, args.sigreg_embedding_weight, "sigreg_e",
@@ -1132,6 +1140,39 @@ def multi_size_contrastive_terms(model, lats, pads, counts, args, rep_w,
             loss = loss + weight * term
             values[key] = term.item()
     return loss, values
+
+
+def grid_main_terms(lats, pads, live, grid, args, rep_w, tau, terms):
+    """The main loss of a step whose rows read several patch sizes (#412):
+    L_rep on the common grid, and L_pred of the split shape on the grid of
+    its pairs (``pred_groups``). 0.0 under --no-main-contrastive-loss.
+    ``terms`` receives their unweighted values."""
+    if args.no_main_contrastive_loss:
+        return 0.0
+    loss = rep_only_term(
+        grid.o, LOSS_SPEC, grid.pad, tau_override=tau,
+        teacher_original_latent=grid.teacher, rep_loss_weight=rep_w,
+        same_token=grid.token, term_out=terms)
+    if args.loss_shape != SPLIT_SHAPE:
+        return loss
+    return loss + grid_pred_term(
+        pred_groups(lats, pads, live), LOSS_SPEC, tau_override=tau,
+        depth_reduce=args.train_rollout_reduce, term_out=terms)
+
+
+def pred_groups(lats, pads, live):
+    """The groups of L_pred on a step with several patch sizes (#412).
+
+    Each group makes its pairs on its own grid, rollout depths included,
+    and ``grid_pred_term`` puts them on the grid of the finest live size G.
+    ``ratio`` is P / G for the group of size P. ``live``: the sizes with an
+    active row.
+    """
+    finest = min(live)
+    return [SimpleNamespace(f=lats[s].f, o=lats[s].o,
+                            teacher=lats[s].teacher, rollout=lats[s].rollout,
+                            pad=pads[s], ratio=s // finest)
+            for s in sorted(live)]
 
 
 def group_align_terms(lats, pads, counts, args, values):
@@ -1794,10 +1835,11 @@ def check_gift_pretrain(args):
 def gift_contrastive_gap(args):
     """The first contrastive setting of this run that cannot skip the zero
     padding (#419), or None. Masked: the rep_only L_rep with or without MoCo
-    keys, L_align (in the loss or alone), the matched CPC auxiliary and both
-    SIGReg terms."""
+    keys, L_pred and L_rep of the split shape with or without MoCo
+    negatives and keys (#412), L_align (in the loss or alone), the matched
+    CPC auxiliary and both SIGReg terms."""
     if (not args.no_main_contrastive_loss
-            and args.loss_shape != "cosine_similarity_batch_rep_only"):
+            and args.loss_shape not in ROW_MASK_SHAPES):
         return f"--loss-shape {args.loss_shape}"
     if args.align_moco_loss_weight > 0:
         return "--align-moco-loss-weight"
@@ -1824,7 +1866,8 @@ def row_mask_refusal(flag, args):
     The value-space objective reads each row on its own. The contrastive
     objective takes the Moirai parts by row, through the masks of #419, so
     each of its terms must take one: L_rep of the rep_only shape, with or
-    without MoCo keys, L_align, the matched CPC auxiliary and SIGReg.
+    without MoCo keys, L_pred and L_rep of the split shape, L_align, the
+    matched CPC auxiliary and SIGReg.
     """
     if args.value_space_objective:
         return None
@@ -1834,7 +1877,8 @@ def row_mask_refusal(flag, args):
     return (f"{flag} reaches the contrastive objective by row (#412), and "
             f"{gap} takes no row mask. Use --value-space-objective, or the "
             f"contrastive terms that take one: --loss-shape "
-            f"cosine_similarity_batch_rep_only with its add-ons.")
+            f"cosine_similarity_batch_rep_only or "
+            f"cosine_similarity_batch_split_pred_rep, with their add-ons.")
 
 
 def check_contrastive_rows(args):
@@ -1946,15 +1990,22 @@ def tau_reference(f_lat, o_lat, pad_patches, args):
     It stays a pure student-side reference: no L_align, no floor, no MoCo
     keys or negatives. Depth 0 only, on a --train-rollout-depth run too
     (#373), so one curve compares across k. It skips the padding as the
-    loss does, where its shape can (#419).
+    loss does, where its shape can (#419). The split shape takes its masked
+    terms for that (#412).
     """
+    tau = torch.tensor(0.07, device=f_lat.device, dtype=f_lat.dtype)
+    if pad_patches is not None and args.loss_shape == SPLIT_SHAPE:
+        ref = (pred_term(f_lat.detach(), o_lat.detach(), LOSS_SPEC,
+                         pad_patches, tau_override=tau, moco_negatives=False)
+               + rep_only_term(o_lat.detach(), LOSS_SPEC, pad_patches,
+                               tau_override=tau, moco_rep_keys=False))
+        return ref.item()
     pos_in_denom = args.loss_shape not in (
         "cosine_similarity_batch_split_pred_rep",
         "cosine_similarity_batch_rep_only")
     ref = contrastive_latent_loss(
         (f_lat.detach(), o_lat.detach()), validation=False, spec=LOSS_SPEC,
-        tau_override=torch.tensor(0.07, device=f_lat.device,
-                                  dtype=f_lat.dtype),
+        tau_override=tau,
         include_positive_in_denominator=pos_in_denom, align_loss_weight=0.0,
         subtract_contrastive_floor=False, moco_negatives=False,
         moco_rep_keys=False, train_rollout_depth=0,
@@ -1991,16 +2042,41 @@ def configure_loss_spec(args):
 def main_contrastive_term(lat, args, rep_w_now, tau, pad_patches, terms):
     """The main contrastive loss of one forward, or L_align alone under
     --no-main-contrastive-loss. ``rep_w_now`` is the L_rep weight of the
-    step (#409). ``terms`` receives the unweighted terms the loss computes."""
-    if not args.no_main_contrastive_loss:
-        return contrastive_latent_loss(
-            (lat.f, lat.o), validation=False, spec=LOSS_SPEC,
-            tau_override=tau, teacher_original_latent=lat.teacher,
-            rollout_latents=lat.rollout, rep_loss_weight=rep_w_now,
-            term_out=terms, pad_patches=pad_patches)
-    loss = lat.f.new_zeros(())
+    step (#409). ``terms`` receives the unweighted terms the loss computes.
+    The split shape on a padded batch runs its masked terms (#412)."""
+    if args.no_main_contrastive_loss:
+        return lat.f.new_zeros(()) + align_term(lat, args, pad_patches)
+    if pad_patches is not None and args.loss_shape == SPLIT_SHAPE:
+        return split_masked_term(lat, args, rep_w_now, tau, pad_patches,
+                                 terms)
+    return contrastive_latent_loss(
+        (lat.f, lat.o), validation=False, spec=LOSS_SPEC,
+        tau_override=tau, teacher_original_latent=lat.teacher,
+        rollout_latents=lat.rollout, rep_loss_weight=rep_w_now,
+        term_out=terms, pad_patches=pad_patches)
+
+
+def split_masked_term(lat, args, rep_w, tau, pad_patches, terms):
+    """The split shape on a padded batch of one patch size (#412): L_pred
+    (``pred_term``), L_rep with its MoCo keys (``rep_only_term``) and
+    L_align, each without the padding. ``contrastive_latent_loss`` takes no
+    padding mask for this shape."""
+    loss = pred_term(lat.f, lat.o, LOSS_SPEC, pad_patches, tau_override=tau,
+                     teacher_original_latent=lat.teacher,
+                     rollout_latents=lat.rollout,
+                     depth_reduce=args.train_rollout_reduce, term_out=terms)
+    loss = loss + rep_only_term(
+        lat.o, LOSS_SPEC, pad_patches, tau_override=tau,
+        teacher_original_latent=lat.teacher, rep_loss_weight=rep_w,
+        term_out=terms)
+    return loss + align_term(lat, args, pad_patches, terms)
+
+
+def align_term(lat, args, pad_patches, terms=None):
+    """L_align of one forward, weighted, with its rollout depths (#373), or
+    0.0 when it is off. ``terms`` receives its unweighted depth-0 value."""
     if args.align_loss_weight <= 0:
-        return loss
+        return 0.0
     # #388: `raise`, not `assert`, so `python -O` cannot fall back to the
     # student target, the #382 defect --align-target teacher removes.
     if args.align_target == "teacher" and lat.teacher is None:
@@ -2008,10 +2084,10 @@ def main_contrastive_term(lat, args, rep_w_now, tau, pad_patches, terms):
                          "the loss call. Falling back to the student target "
                          "is the #382 defect this flag removes.")
     target = lat.teacher if args.align_target == "teacher" else None
-    return loss + align_loss(
+    return align_loss(
         lat.f, lat.o, args.align_loss_weight, target_latent=target,
         rollout_latents=lat.rollout, depth_reduce=args.train_rollout_reduce,
-        pad_patches=pad_patches)
+        pad_patches=pad_patches, term_out=terms)
 
 
 def align_moco_term(lat, args, tau):
@@ -2910,7 +2986,12 @@ def main():
               "size, where a latent of size P repeats P/G times; L_align "
               "pulls each patch toward the next patch of its own row. A "
               "dropped row reads zeros and counts as padding, so it leaves "
-              "every term.")
+              "every term."
+              + (" L_pred pairs each patch with the next patch of its own "
+                 "row, rollout depths included, and each pair fills P/G "
+                 "positions of the same grid, so its negatives read every "
+                 "row." if args.loss_shape == SPLIT_SHAPE
+                 and not args.no_main_contrastive_loss else ""))
     if multi_patch_sizes:
         heads = (" and one value head" if args.value_space_objective
                  else " (and its EMA teacher copy)"

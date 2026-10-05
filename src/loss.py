@@ -1,5 +1,6 @@
 import math
 import os
+from types import SimpleNamespace
 
 import torch
 import torch.distributed as dist
@@ -290,10 +291,17 @@ def rep_only_term(original_latent, spec, pad_patches, *, tau_override=None,
                                        1.0)
     moco_rep = (moco_rep_keys if moco_rep_keys is not None
                 else bool(train_config.get('moco_rep_keys', False)))
+    if moco_rep and teacher_original_latent is None:
+        # The guard of contrastive_latent_loss. The trainer also calls this
+        # function directly (#412), and student keys must not replace the
+        # teacher keys without a word.
+        raise ValueError(
+            "moco_rep_keys requires an EMA teacher (pass "
+            "teacher_original_latent, i.e. --ema-embedding / "
+            "--ema-encoder at training time).")
     orig_norm = F.normalize(original_latent, p=2, dim=-1)
-    teacher_keys = (
-        F.normalize(teacher_original_latent, p=2, dim=-1)
-        if moco_rep and teacher_original_latent is not None else None)
+    teacher_keys = (F.normalize(teacher_original_latent, p=2, dim=-1)
+                    if moco_rep else None)
     loss_rep = rep_only_loss_masked(
         orig_norm[:, :-1, :, :], orig_norm, teacher_keys, pad_patches,
         tau_rep, _xs_allt_chunk_for_mask(), same_token)
@@ -310,6 +318,195 @@ def _xs_allt_chunk_for_mask():
             "XSHH_ALLT_FUSED / XSHH_ALLT_SHARD take no padding mask; unset "
             "them to train on zero-padded windows (#419).")
     return int(os.environ.get('XSHH_ALLT_CHUNK', '8'))
+
+
+# --- L_pred of the split shape on a padded batch (#412) ---------------------
+#
+# L_pred of ``cosine_similarity_batch_split_pred_rep`` is a normalized
+# InfoNCE. Its positive is cos(f_t, h_{t+1}) / tau, with the teacher's h when
+# a teacher exists. Its negatives are the forecasts f_{t+1} of each channel
+# (zy) and the keys of the other rows at the same index (cross-batch). The
+# negatives of each anchor pool over the batch. The functions below give the
+# same value without the padding: a padded anchor leaves with its pair, and
+# a padded key leaves the zy family and the cross-batch family.
+#
+# A "pair" holds one anchor, its positive and its keys at one index. A group
+# of rows at patch size P makes its pairs on its own grid: copy j ties
+# f^(j)_t to the key 1 + j patches ahead, as `align_loss` does. A step with
+# several sizes then puts the pairs on the grid of its finest size G. Each
+# pair fills r = P / G positions, so the anchor and its positive move
+# together, and a coarse pair counts r times, as on the grid of L_rep. The
+# positions after the last pair of a group hold no pair. They leave as
+# anchors and as keys.
+#
+# At grid index p, the cross-batch key of another row is the key of its own
+# pair at p: the patch after the row's own patch at p. When the rows have
+# different sizes, this patch is not at the horizon of the anchor. The two
+# agree when all the rows have one size. This choice (the PR #423 review)
+# keeps one matmul for the keys of every row.
+
+def _zy_lse_masked(zy, anchor, zy_drop, tau):
+    """L_pred's adjacent family: cos(f_{t+1, c'}, f_{t, c}) over the
+    channels c', padded keys dropped."""
+    sims = cosine_similarity_from_normalized(
+        zy.unsqueeze(3), anchor.unsqueeze(2))                # [B, L, C, C]
+    return torch.logsumexp(
+        (sims / tau).masked_fill(zy_drop.unsqueeze(3), NEG_INF), dim=2)
+
+
+def _cross_batch_lse_masked(anchor, key, key_drop, tau):
+    """L_pred's cross-batch family: the keys of the other rows at the index
+    of the anchor, padded keys dropped. The layout is that of the unmasked
+    branch, so a batch with no padding gives the same bits."""
+    B = anchor.shape[0]
+    sims = torch.matmul(
+        anchor.permute(1, 2, 0, 3), key.permute(1, 2, 0, 3).transpose(-2, -1)
+    ).permute(2, 3, 0, 1).contiguous()                       # [B, B, L, C]
+    drop = (torch.eye(B, dtype=torch.bool, device=sims.device)
+            .view(B, B, 1, 1) | key_drop.unsqueeze(0))
+    return torch.logsumexp((sims / tau).masked_fill(drop, NEG_INF), dim=1)
+
+
+def pred_anchor_losses(pairs, tau):
+    """``(values, keep)``: the L_pred of each anchor of one copy, ``[B, L,
+    C]``, and the anchors that count. The copy is the masked mean."""
+    log_pos = cosine_similarity_from_normalized(
+        pairs['pos'], pairs['anchor']) / tau
+    negs = torch.stack([
+        _zy_lse_masked(pairs['zy'], pairs['anchor'], pairs['zy_drop'], tau),
+        _cross_batch_lse_masked(pairs['anchor'], pairs['key'],
+                                pairs['key_drop'], tau)])
+    per_anchor = torch.logsumexp(negs, dim=0).masked_fill(
+        pairs['drop'], NEG_INF)
+    total = torch.logsumexp(per_anchor, dim=0, keepdim=True)  # [1, L, C]
+    denom = torch.logsumexp(
+        torch.stack([log_pos, total.expand_as(log_pos)], dim=0), dim=0)
+    return denom - log_pos, ~pairs['drop']
+
+
+def pred_pairs(group, depth, moco_negatives, stopgrad_positive):
+    """The pairs of copy ``depth`` of L_pred on the grid of ``group``.
+
+    ``group`` holds ``f``, ``o``, ``teacher``, ``rollout`` (f^(1)..f^(k))
+    and ``pad``, the depth-0 padding (None: no padding). The copy reads the
+    views of :func:`rollout_depth_views`. The anchor f^(j)_t and its zy key
+    f^(j)_{t+1} take the padding of their positions. The positive and the
+    cross-batch key, h_{t+1+j}, take the padding of theirs. Copy 0 reads
+    the latents with no view, as the unmasked branch does, so the
+    gradients of the copies add up in the same order.
+    """
+    f_view, h_view, t_view = (
+        (group.f, group.o, group.teacher) if depth == 0 else
+        rollout_depth_views(group.rollout[depth - 1], group.o, depth,
+                            group.teacher))
+    pad = group.pad if group.pad is not None else torch.zeros(
+        group.o.shape[:3], dtype=torch.bool, device=group.o.device)
+    pad_f, pad_h = pad[:, :f_view.shape[1]], pad[:, depth:]
+    fore = F.normalize(f_view, p=2, dim=-1)
+    orig = F.normalize(h_view, p=2, dim=-1)
+    teach = None if t_view is None else F.normalize(t_view, p=2, dim=-1)
+    pos = teach if teach is not None else (
+        orig.detach() if stopgrad_positive else orig)
+    key = teach if moco_negatives and teach is not None else orig
+    return dict(anchor=fore[:, :-1], zy=fore[:, 1:], pos=pos[:, 1:],
+                key=key[:, 1:], drop=pad_f[:, :-1] | pad_h[:, 1:],
+                zy_drop=pad_f[:, 1:], key_drop=pad_h[:, 1:])
+
+
+def pairs_on_grid(pairs, ratio, length):
+    """The pairs of one group on the grid of the finest size: each pair
+    fills ``ratio`` positions. The positions after the last pair, up to
+    ``length``, hold zero vectors, and their masks drop them."""
+    def stretch(t):
+        t = t.repeat_interleave(ratio, dim=1)
+        fill = True if t.dtype == torch.bool else 0.0   # a mask drops it
+        tail = t.new_full((t.shape[0], length - t.shape[1], *t.shape[2:]),
+                          fill)
+        return torch.cat([t, tail], dim=1)
+    return {name: stretch(t) for name, t in pairs.items()}
+
+
+def grid_pairs(groups, depth, moco_negatives, stopgrad_positive):
+    """The pairs of copy ``depth`` of every group on one grid (#412).
+
+    Each group carries ``ratio``: its patch size over the finest size of
+    the step. One group is its own grid, as it is.
+    """
+    parts = [(pred_pairs(g, depth, moco_negatives, stopgrad_positive),
+              g.ratio) for g in groups]
+    if len(parts) == 1:
+        return parts[0][0]
+    length = max(p['anchor'].shape[1] * r for p, r in parts)
+    grids = [pairs_on_grid(p, r, length) for p, r in parts]
+    return {name: torch.cat([g[name] for g in grids]) for name in grids[0]}
+
+
+def _pred_settings(train_config, tau_override, moco_negatives, groups):
+    """``(tau, moco, stopgrad)`` of the masked L_pred. It refuses what the
+    unmasked split branch refuses too."""
+    if train_config.get('include_positive_in_denominator'):
+        raise NotImplementedError(
+            "include_positive_in_denominator is not implemented for the "
+            "split shape: its L_pred holds the positive already.")
+    moco = (moco_negatives if moco_negatives is not None
+            else bool(train_config.get('moco_negatives', False)))
+    if moco and any(g.teacher is None for g in groups):
+        raise ValueError(
+            "moco_negatives requires an EMA teacher (pass "
+            "teacher_original_latent, i.e. --ema-embedding / "
+            "--ema-encoder at training time).")
+    tau = (tau_override if tau_override is not None else
+           train_config.get('contrastive_divergence_temperature', 1.0))
+    return tau, moco, bool(train_config.get('stopgrad_positive_h', False))
+
+
+def grid_pred_term(groups, spec, *, tau_override=None, moco_negatives=None,
+                   depth_reduce=None, term_out=None):
+    """The weighted L_pred of ``cosine_similarity_batch_split_pred_rep``
+    over the rows of every group, with the rollout depths (#412).
+
+    ``groups``: see :func:`pred_pairs` and :func:`grid_pairs`. Each depth
+    copy runs on one grid. ``depth_reduce`` (else the config key) combines
+    the copies (:func:`reduce_depth_terms`). ``term_out`` receives the
+    unweighted depth-0 copy as ``l_pred``. Weight 0: a zero and no key.
+    """
+    train_config = spec.train_configuration
+    weight = float(train_config.get('pred_loss_weight', 1.0))
+    if weight == 0.0:
+        return groups[0].f.new_zeros(())
+    tau, moco, stopgrad = _pred_settings(train_config, tau_override,
+                                         moco_negatives, groups)
+    copies = []
+    for depth in range(len(groups[0].rollout) + 1):
+        pairs = grid_pairs(groups, depth, moco, stopgrad)
+        copy = masked_mean(*pred_anchor_losses(pairs, tau))
+        if depth == 0:
+            _record_term(term_out, 'l_pred', copy)
+        copies.append(weight * copy)
+    return reduce_depth_terms(copies, resolve_rollout_reduce(
+        depth_reduce, train_config.get('train_rollout_reduce')))
+
+
+def pred_term(forecasted_latent, original_latent, spec, pad_patches, *,
+              tau_override=None, teacher_original_latent=None,
+              moco_negatives=None, rollout_latents=None, depth_reduce=None,
+              term_out=None):
+    """The weighted L_pred of ``cosine_similarity_batch_split_pred_rep`` on
+    a padded batch of one patch size (#412), with its rollout depths.
+
+    No padded position enters it (#419). With no padding, its value and its
+    gradients are those of the L_pred of :func:`contrastive_latent_loss`,
+    bit for bit on the CPU. It holds no L_rep and no L_align: the trainer
+    adds :func:`rep_only_term` and :func:`align_loss`. ``pad_patches``
+    None: no padding.
+    """
+    group = SimpleNamespace(f=forecasted_latent, o=original_latent,
+                            teacher=teacher_original_latent,
+                            rollout=list(rollout_latents or ()),
+                            pad=pad_patches, ratio=1)
+    return grid_pred_term([group], spec, tau_override=tau_override,
+                          moco_negatives=moco_negatives,
+                          depth_reduce=depth_reduce, term_out=term_out)
 
 
 def _cpc_time_lse_masked(q_a, e, pad_e):
@@ -1439,8 +1636,9 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     positives (:func:`rep_only_loss_masked`), and L_align averages over the
     pairs with a real anchor. The loss then equals the loss of the batch
     with its padded positions removed. Only ``cosine_similarity_batch_
-    rep_only`` takes it; every other shape raises. None (default): the
-    unchanged code path of every other run.
+    rep_only`` takes it. Every other shape raises. The split shape on a
+    padded batch has :func:`pred_term` and :func:`rep_only_term` (#412).
+    None (default): the unchanged code path of every other run.
 
     ``same_token`` (#412): ``[B, T]``, the patch each position of a common
     time grid repeats, when the rows of the batch read different patch
@@ -3199,7 +3397,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         if pad_patches is None:
             loss_align = (2.0 - 2.0 * cos_align).mean()
         else:
-            # #419: the pairs with a real anchor f_t; their targets are real.
+            # #419: the pairs with a real anchor f_t. Their targets are real.
             loss_align = masked_mean(2.0 - 2.0 * cos_align,
                                      ~pad_patches[:, :-1])
         _record_term(term_out, 'l_align', loss_align)
