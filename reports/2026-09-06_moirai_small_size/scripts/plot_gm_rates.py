@@ -44,6 +44,7 @@ GROUPS = [
         ("cf412oa2", "mean/std, lr 5.6e-5, loss fixed",                         4.4, "o"),
         ("cf412ow2", "mean/std, warmup to 1e-3, then lr 5.6e-5 from 20k, loss fixed", 4.4, "s"),
         ("cf412or2", "as OWF, L_rep kept at weight 1", 4.4, "p"),
+        ("cf412ol2", "as OWR, ramp down to 5.6e-5 by 40k", 4.4, (6, 1, 0)),
     ]),
     ("Moirai: our copy, batch 256", [
         ("cf419_moirai_native",   "own head, new data",                        2.4, "<"),
@@ -64,6 +65,7 @@ XSCALE = {"cf415_moirai": 4, "cf415_moirai_native": 4, "cf419_moirai_native": 4,
 # Where the last score of a line prints, so two lines that end together part.
 END_LABEL_OFFSET = {P + "_lr100x": (9, 4), P + "_cos200k": (9, -12), "cf412om": (-62, 6),
                     "cf412oc2": (9, 6), "cf412oa2": (9, 7), "cf412oe2": (9, 5), "cf412om2": (-22, -18),
+                    "cf412ow2": (9, -9), "cf412ol2": (9, 2),
                     "cf421ew_moirai_native": (-45, -18), "cf421n_moirai_native": (-48, -16)}
 # A white outline keeps a score label readable where a line crosses it.
 HALO = [patheffects.withStroke(linewidth=3, foreground="white")]
