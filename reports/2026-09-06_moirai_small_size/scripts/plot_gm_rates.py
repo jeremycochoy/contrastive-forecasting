@@ -86,14 +86,23 @@ def load_points():
     return points
 
 
+def line_points(y, shown):
+    """The line's points: a point off the chart whose neighbours are off the
+    chart too leaves the line, so no segment runs along the top edge."""
+    off = [v > YMAX for v in y]
+    keep = [not off[i] or not all(off[max(i - 1, 0):i + 2]) for i in range(len(y))]
+    return [s if k else float("nan") for s, k in zip(shown, keep)]
+
+
 def draw_series(ax, arm, width, marker, points):
     """One run's line and its score labels. Returns the line."""
     x, y = zip(*sorted(points))
     x = [v * XSCALE.get(arm, 1) for v in x]
     shown = [min(v, YMAX - 0.004) for v in y]
     hue = colour(arm)
-    handle, = ax.plot(x, shown, line(arm), color=hue, lw=width, marker=marker, ms=8,
-                      zorder=3)
+    handle, = ax.plot(x, line_points(y, shown), line(arm), color=hue, lw=width,
+                      marker=marker, ms=8, zorder=3)
+    ax.plot(x, shown, linestyle="none", color=hue, marker=marker, ms=8, zorder=3)
     above = [(xi, yi) for xi, yi in zip(x, y) if yi > YMAX]
     if above:
         # One label lists the points off the chart and points at the last of
