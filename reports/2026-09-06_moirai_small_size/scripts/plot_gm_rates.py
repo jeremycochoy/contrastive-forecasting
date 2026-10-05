@@ -45,6 +45,7 @@ GROUPS = [
         ("cf412ow2", "mean/std, warmup to 1e-3, then lr 5.6e-5 from 20k, loss fixed", 4.4, "s"),
         ("cf412or2", "as OWF, L_rep kept at weight 1", 4.4, "p"),
         ("cf412ol2", "as OWR, ramp down to 5.6e-5 by 40k", 4.4, (6, 1, 0)),
+        ("cf412bm",  "as OMF, bimoco: L_pred + L_rep, MoCo, tau 1", 4.4, (4, 1, 0)),
     ]),
     ("Moirai: our copy, batch 256", [
         ("cf419_moirai_native",   "own head, new data",                        2.4, "<"),
@@ -61,7 +62,7 @@ OFF_MAIN = {P + "_lr10xb", "cf412oc", "cf419_moirai_native", "cf415_moirai_nativ
 XSCALE = {"cf415_moirai": 4, "cf415_moirai_native": 4, "cf419_moirai_native": 4,
           "cf421z_moirai_native": 4, "cf421f_moirai_native": 4, "cf421fb_moirai_native": 4,
           "cf421n_moirai_native": 4, "cf421ew_moirai_native": 4, "cf412om": 4,
-          "cf412om2": 4}
+          "cf412om2": 4, "cf412bm": 4}
 # Where the last score of a line prints, so two lines that end together part.
 END_LABEL_OFFSET = {P + "_lr100x": (9, 4), P + "_cos200k": (9, -12), "cf412om": (-62, 6),
                     "cf412oc2": (9, 6), "cf412oa2": (9, 7), "cf412oe2": (9, 5), "cf412om2": (-22, -18),
@@ -71,6 +72,8 @@ END_LABEL_OFFSET = {P + "_lr100x": (9, 4), P + "_cos200k": (9, -12), "cf412om": 
 HALO = [patheffects.withStroke(linewidth=3, foreground="white")]
 # How far left of its point an off-the-chart label starts, so two such labels part.
 OFF_LABEL_DIV = {"cf412om": 2.4}
+# How far below the top an off-the-chart label sits, so two labels at one step part.
+OFF_LABEL_DY = {"cf412bm": -0.030}
 BEST, BAND, PROJECT_BEST = 1.1369, 0.008, 1.0651
 YMIN, YMAX = 0.90, 1.70
 
@@ -102,7 +105,7 @@ def draw_series(ax, arm, width, marker, points):
         label_x = xi * 1.12 if right_of_point else xi / OFF_LABEL_DIV.get(arm, 1.9)
         values = ", ".join(f"{yi:.4f}" for _, yi in above)
         ax.annotate(f"{values}, off the chart", (xi, YMAX - 0.004),
-                    xytext=(label_x, YMAX - 0.012), va="center",
+                    xytext=(label_x, YMAX - 0.012 + OFF_LABEL_DY.get(arm, 0.0)), va="center",
                     fontsize=9, color=hue, weight="bold", path_effects=HALO,
                     arrowprops=dict(arrowstyle="->", color=hue, lw=1,
                                     relpos=(0, 0.5) if right_of_point else (1, 0.5)))
@@ -146,7 +149,7 @@ def style_axes(ax):
     ticks = [40000, 100000, 200000, 400000, 665000, 1000000]
     ax.set_xticks(ticks)
     ax.set_xticklabels(["40k", "100k", "200k", "400k", "665k", "1,000k"])
-    ax.set_xlabel("Data seen, in batch-64 steps (log scale). The Moirai runs, OMB and OMF "
+    ax.set_xlabel("Data seen, in batch-64 steps (log scale). The Moirai runs, OMB, OMF and OBM "
                   "train at batch 256, so one of their steps counts 4.")
     ax.set_ylabel("GM-Relative MASE, 97-config GIFT-Eval (lower is better)")
     ax.set_title("GM-Relative MASE against data seen. 11.4M parameters unless marked.\n"

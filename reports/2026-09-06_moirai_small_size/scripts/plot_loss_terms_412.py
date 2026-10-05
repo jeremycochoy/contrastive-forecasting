@@ -50,6 +50,7 @@ SOURCES = {
     "cf412ow2": (["cf-412ow2/leg_40k"], "cf412ow2_k3_losses.csv", 1),
     "cf412or2": (["cf-412or2/leg_40k", "cf-412or2/leg_100k"], "cf412or2_k3_losses.csv", 1),
     "cf412ol2": (["cf-412ol2/leg_40k"], "cf412ol2_k3_losses.csv", 1),
+    "cf412bm": ([f"cf-412bm/leg_{k}k" for k in (10, 25)], "cf412bm_k3_losses.csv", 4),
     CYAN: ([f"{CYAN}/arm6_v2_combab_alignT/leg_665k"],
            "cf393_arm6_v2_combab_alignT_cf373k3_cf412_" + CYAN + "_losses.csv", 1),
 }
@@ -63,6 +64,7 @@ LABEL = {"cf412om": "Ours + patch sizes + mean/std + Moirai recipe, loss bug (ba
          "cf412ow2": "Ours + patch sizes + mean/std, warmup to 1e-3 then lr 5.6e-5, loss fixed (batch 64)",
          "cf412or2": "As OWF, L_rep kept at weight 1 (batch 64)",
          "cf412ol2": "As OWR, lr down to 5.6e-5 by 40k (batch 64)",
+         "cf412bm": "As OMF, bimoco: L_pred + L_rep with MoCo, tau 1, no L_align (batch 256)",
          CYAN: "cyan: ours, one patch size, EWMA (batch 64)"}
 LABEL = {run: tagged(run, text) for run, text in LABEL.items()}
 PANEL = {"gm": "GM-Relative MASE (lower is better)",
@@ -126,7 +128,6 @@ def load():
             xs, ys = curves[(r["run"], r["term"])]
             xs.append(float(r["data_seen"]))
             ys.append(float(r["median"]))
-    scale = {"cf412om": 4, "cf412om2": 4}
     if MEASURED.exists():
         with open(MEASURED) as f:
             for r in csv.DictReader(f, delimiter="\t"):
@@ -136,7 +137,7 @@ def load():
     for arm, stop_k, score in (l.split() for l in open(GM)):
         if arm in SOURCES:
             xs, ys = curves[(arm, "gm")]
-            xs.append(int(stop_k) * 1000 * scale.get(arm, 1))
+            xs.append(int(stop_k) * 1000 * SOURCES[arm][2])  # batch-64 steps per step
             ys.append(float(score))
     return curves
 
@@ -182,11 +183,11 @@ def plot():
         ax.set_xticks(ticks)
         ax.set_xticklabels([f"{t // 1000}k" for t in ticks])
     for ax in axes[-1]:
-        ax.set_xlabel("Data seen, in batch-64 steps. One OMB or OMF step counts 4.")
-    fig.suptitle("OMB, OCB, OCF, OEF, OMF, OAF, OWF, OWR and OWL against CYN: the score and the training-loss terms on one axis\n"
+        ax.set_xlabel("Data seen, in batch-64 steps. One OMB, OMF or OBM step counts 4.")
+    fig.suptitle("OMB, OCB, OCF, OEF, OMF, OAF, OWF, OWR, OWL and OBM against CYN: the score and the training-loss terms on one axis\n"
                  "Each point is the median over 4,000 batch-64 steps. The contrastive terms "
                  "compare rows within a batch,\nso their level depends on the batch size "
-                 "(256 for OMB and OMF, 64 for the others): compare the shapes of the curves.",
+                 "(256 for OMB, OMF and OBM, 64 for the others): compare the shapes of the curves.",
                  fontsize=13)
     # The panels name each run by its code; this legend gives the codes in full.
     proxies = [plt.Line2D([], [], color=colour(run), ls=line(run), lw=2.4) for run in SOURCES]

@@ -35,7 +35,7 @@ def draw_schedules(ax):
     ax.plot(seen[moirai], np.maximum(moirai_lr(seen[moirai] / 4), FLOOR), "--",
             color=colour("cf421f_moirai_native"), lw=2.6,
             label="Moirai recipe: lr 1e-3, warmup over 10k steps, cosine to 0 at 166k steps, "
-                  "batch 256.  OMB, OMF, MPM, MPE")
+                  "batch 256.  OMB, OMF, OBM, MPM, MPE")
     ax.plot(seen, cosine(seen, 5.6e-5, 1e-6, 200000), color=colour(P + "_cos200k"), lw=2.6,
             label="Cyan recipe: lr cosine 5.6e-5→1e-6 by 200k, then 1e-6, batch 64.  "
                   "OCB, OCF, OEF (CYN starts at 5e-5)")
