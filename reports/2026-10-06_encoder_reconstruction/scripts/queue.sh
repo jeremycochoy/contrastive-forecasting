@@ -76,7 +76,7 @@ mark_failed(){  # <tag> <what>
 job_env(){  # <lane> <stop k>
   echo WT="$CODE" CF373_ROOT="$ROOT" CF_RESULTS="$RES" CF_STOP_K="$2" \
     GIFT_EVAL="${GIFT_EVAL:-/workspace/gift-eval-data}" \
-    EVAL_SHARDS="${CF425_EVAL_SHARDS:-1}" \
+    EVAL_SHARDS="${CF425_EVAL_SHARDS:-2}" \
     EVAL_DEVICE="${CF425_EVAL_DEVICE:-cuda}" \
     CF393_EVAL_SLOTS="${CF425_EVAL_SLOTS:-2}" \
     CF393_EVAL_SLOTDIR=/tmp/cf425_evalslots \
