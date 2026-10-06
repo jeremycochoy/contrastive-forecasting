@@ -10,10 +10,10 @@ the pass at a constant rate, and no log line would say so.
 Runs `train.py` twice on the smallest CPU arch (100 then 200 steps), the second
 time WITHOUT the schedule flags, then verifies:
 
-  (a) the checkpoint carries `lr_schedule`;
-  (b) the resumed run says it read the schedule back;
+  (a) the checkpoint carries `lr_schedule`.
+  (b) the resumed run says it read the schedule back.
   (c) the resumed optimizer ends at the rate the curve gives for step 200,
-      which is the end rate here, and NOT at the `--lr` default;
+      which is the end rate here, and NOT at the `--lr` default.
   (d) a run with no `--lr-final` stores `lr_schedule` as None, so every arm of
       an earlier pass is untouched.
 

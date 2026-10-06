@@ -152,7 +152,7 @@ def broadcast_module(module: torch.nn.Module, src: int = 0) -> None:
     nondeterminism). No-op when not distributed. This replaces what
     DDP's constructor does for us — we keep the model UNwrapped because
     the trainer calls submodules directly (`model.transformer(...)`,
-    `model.tau()`), which DDP's forward-call contract forbids; gradient
+    `model.tau()`), which DDP's forward-call contract forbids. Gradient
     sync is done explicitly by `average_gradients` after backward.
     """
     if not is_distributed():
@@ -183,7 +183,7 @@ def gather_latent(latent: torch.Tensor) -> torch.Tensor:
     """Concatenate ONE latent tensor across ranks along the batch dim.
 
     One collective per call. Use this for a lone tensor — each rollout depth
-    of #373, for instance. `gather_latents` is the pair form; calling it with
+    of #373, for instance. `gather_latents` is the pair form. Calling it with
     the same tensor twice would issue two all-gathers for one result.
 
     No-op (returns the input unchanged) when not distributed.
@@ -191,6 +191,20 @@ def gather_latent(latent: torch.Tensor) -> torch.Tensor:
     if not is_distributed():
         return latent
     return DifferentiableAllGather.apply(latent)
+
+
+def gather_mask(mask: torch.Tensor) -> torch.Tensor:
+    """Concatenate a bool tensor across ranks along the batch dim, with one
+    all-gather (#419: the padding of the gathered latents). No gradient.
+
+    No-op (returns the input unchanged) when not distributed.
+    """
+    if not is_distributed():
+        return mask
+    x = mask.float().contiguous()
+    gathered = [torch.empty_like(x) for _ in range(dist.get_world_size())]
+    dist.all_gather(gathered, x)
+    return torch.cat(gathered, dim=0) > 0.5
 
 
 def gather_latents(
@@ -201,7 +215,7 @@ def gather_latents(
     No-op (returns the inputs unchanged) when not distributed, so the
     single-GPU objective is byte-identical. When distributed, every rank
     receives the full ``[world_size * B, T, C, H]`` global set so
-    `contrastive_latent_loss` pools negatives over the global batch — i.e.
+    `contrastive_latent_loss` pools negatives over the global batch. So
     2-GPU @ B/2 each == single-GPU @ B.
     """
     return gather_latent(forecasted_latent), gather_latent(original_latent)

@@ -37,6 +37,8 @@ STOP="${1:?usage: head_eval_value.sh <stop steps> [head steps]}"
 
 . "$(dirname "${BASH_SOURCE[0]}")/paths.sh"
 HEAD_STEPS="${2:-$CF415_HEAD_STEPS}"
+# The tag and the score files name the head steps of this call.
+CF415_HEAD_STEPS="$HEAD_STEPS"
 cf415_is_stop "$STOP" || exit $?
 
 RUNNER="$CF415_PARENT/scripts/head_eval_bb.sh"

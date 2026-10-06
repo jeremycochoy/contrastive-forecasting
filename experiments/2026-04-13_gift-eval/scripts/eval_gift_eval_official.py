@@ -59,12 +59,20 @@ project_root = script_dir.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from src.models import ConfigurableModel
-from src.checkpoint import load_encoder_source, prepare_backbone_state_dict
+from src.checkpoint import (
+    gru_input_bound_of,
+    load_encoder_source,
+    multi_patch_sizes_of,
+    prepare_backbone_state_dict,
+)
 from src.forecasting_head import (
     ForecastingHead,
+    ForecastingHeadBank,
     FORECAST_LEN,
     forecast_autoregressive,
     forecast_with_strategy,
+    head_bank_sizes,
+    native_value_head,
 )
 
 
@@ -218,8 +226,13 @@ class ContrastiveForecasterPredictor(RepresentablePredictor):
         backbone_c: int = BACKBONE_C,
         quantile_levels: Optional[List[float]] = None,
         strategy: str = 'A1',
+        context_pad: str = 'first',
     ):
         super().__init__(prediction_length=prediction_length)
+        # How a context shorter than t_raw is filled on the left (#419):
+        # 'first' repeats the first value (every earlier model), 'zeros'
+        # pads with zeros, as the GiftEvalPretrain stream trains.
+        self.context_pad = context_pad
         self.backbone = backbone
         self.head = head
         self.device = device
@@ -235,21 +248,30 @@ class ContrastiveForecasterPredictor(RepresentablePredictor):
         for item in dataset:
             yield self.predict_item(item)
 
-    def predict_item(self, item) -> QuantileForecast:
-        target = np.asarray(item["target"], dtype=np.float32)
+    def _fill_missing(self, target: np.ndarray) -> np.ndarray:
+        """Handle NaN in context: forward-fill then back-fill. Under
+        'zeros' (#419) the values missing before the first observed one are
+        dropped instead, so they become left padding, as in training."""
+        if not np.isnan(target).any():
+            return target
+        target = target.copy()
+        mask = np.isnan(target)
+        if mask.all():
+            target[:] = 0.0
+            return target
+        first_valid = np.where(~mask)[0][0]
+        if self.context_pad == 'zeros':
+            target = target[first_valid:]
+        else:
+            target[:first_valid] = target[first_valid]
+        for i in range(1, len(target)):
+            if np.isnan(target[i]):
+                target[i] = target[i - 1]
+        return target
 
-        # Handle NaN in context: forward-fill then back-fill
-        if np.isnan(target).any():
-            target = target.copy()
-            mask = np.isnan(target)
-            if mask.all():
-                target[:] = 0.0
-            else:
-                first_valid = np.where(~mask)[0][0]
-                target[:first_valid] = target[first_valid]
-                for i in range(1, len(target)):
-                    if np.isnan(target[i]):
-                        target[i] = target[i - 1]
+    def predict_item(self, item) -> QuantileForecast:
+        target = self._fill_missing(
+            np.asarray(item["target"], dtype=np.float32))
 
         # Prepare context: truncate/pad to t_raw, expand to backbone_c channels
         context = self._prepare_context(target)  # (1, t_raw, backbone_c)
@@ -309,8 +331,9 @@ class ContrastiveForecasterPredictor(RepresentablePredictor):
             context = target[-self.t_raw:]
         else:
             pad_len = self.t_raw - n
+            fill = 0.0 if self.context_pad == 'zeros' else target[0]
             context = np.concatenate([
-                np.full(pad_len, target[0], dtype=np.float32),
+                np.full(pad_len, fill, dtype=np.float32),
                 target,
             ])
 
@@ -392,11 +415,23 @@ def parse_args():
                         "rollout stays the student's. MUST match the encoder "
                         "the head was trained on — the head's own marker is "
                         "checked and a mismatch aborts.")
+    p.add_argument("--context-pad", default="auto",
+                   choices=["auto", "first", "zeros"],
+                   help="How to fill a context shorter than the window (#419). "
+                        "'first' repeats the first value, as every model "
+                        "before #419 was scored. 'zeros' pads with zeros, as "
+                        "the GiftEvalPretrain stream trains. 'auto' (default) "
+                        "picks 'zeros' for a checkpoint whose normaliser "
+                        "skips zero padding (rev_norm.leading_zero_pad) and "
+                        "'first' for every other one.")
     p.add_argument("--rev-norm-kind", default="ewma",
                    choices=["ewma", "revin", "none"],
                    help="Reversible norm variant — MUST match the backbone's "
                         "training-time choice. Both have 0 params so state_dict "
-                        "doesn't disambiguate. Default 'ewma'.")
+                        "doesn't disambiguate. Default 'ewma'. A checkpoint "
+                        "with the mean/std scaling (#421) names it with the "
+                        "buffer rev_norm.mean_std_scaling, and the eval "
+                        "reads that kind whatever this flag says.")
     p.add_argument("--rev-norm-span", type=int, default=32,
                    help="Span for RevEWMNorm (only used when "
                         "--rev-norm-kind=ewma). Must match training-time value.")
@@ -450,6 +485,109 @@ def parse_args():
     return args
 
 
+def load_head_state(path, device):
+    """The state dict of the head at ``path``. SystemExit when there is no
+    file."""
+    if not os.path.isfile(path):
+        raise SystemExit(f"no head at {path}")
+    return torch.load(path, map_location=device, weights_only=True)
+
+
+def build_head_bank(head_sd, bank_sizes, backbone_sizes, args):
+    """The head bank of a checkpoint with ``heads.<P>.*`` keys (#412): one
+    head per patch size P, of the kind its keys name, decoding P values.
+    The bank's sizes must be the backbone's."""
+    if bank_sizes != tuple(backbone_sizes):
+        raise SystemExit(f"the head bank holds the sizes {bank_sizes}, and "
+                         f"the backbone reads {tuple(backbone_sizes)}")
+    if args.strategy != "B4":
+        # The other rollouts read the context at the backbone's base size,
+        # and head P decodes the latents of size P.
+        raise SystemExit(f"a head bank (#412) scores under --strategy B4, "
+                         f"not {args.strategy}")
+    heads = {}
+    for size in bank_sizes:
+        prefix = f"heads.{size}."
+        part = {k[len(prefix):]: v for k, v in head_sd.items()
+                if k.startswith(prefix)}
+        heads[size] = build_eval_head(part, size, args)
+    print(f"  [eval] head bank (#412): one head per patch size {bank_sizes}")
+    return ForecastingHeadBank(heads)
+
+
+def build_eval_head(head_sd, forecast_len, args):
+    """An empty head of the kind ``head_sd`` holds, decoding
+    ``forecast_len`` values: GRU, linear probe or transformer, point,
+    quantile or Gaussian, read off the keys and the output width."""
+    head_config = dict(HEAD_CONFIG)
+    head_config['forecast_len'] = forecast_len
+    # Auto-detect quantile vs MSE: forecast_head.weight shape distinguishes
+    #   MSE     : (forecast_len,                hidden_dim or H)
+    #   quantile: (num_quantiles * forecast_len, hidden_dim or H)
+    # Auto-detect GRU vs linear-probe: presence of `gru.*` keys in the state
+    # dict. Linear probe is a single nn.Linear (PR ?? — qhead-improvements).
+    fh_w = head_sd.get("forecast_head.weight")
+    fh_out = fh_w.shape[0] if fh_w is not None else 0
+    is_quantile = fh_out == forecast_len * 9
+    is_gaussian = fh_out == forecast_len * 2
+    is_transformer = any(
+        k.startswith("transformer.layers.") for k in head_sd)
+    is_linear = (not is_transformer
+                 and not any(k.startswith("gru.") for k in head_sd))
+    H = head_config["H"]
+    if is_transformer and is_gaussian:
+        layer_indices = sorted({
+            int(k.split(".")[2]) for k in head_sd
+            if k.startswith("transformer.layers.")})
+        num_layers = max(layer_indices) + 1 if layer_indices else 6
+        nhead = getattr(args, "head_nhead", 6)
+        causal = getattr(args, "head_causal", "true") == "true"
+        from src.forecasting_head import TransformerGaussianForecastingHead
+        head = TransformerGaussianForecastingHead(
+            H=H, num_layers=num_layers, nhead=nhead,
+            forecast_len=forecast_len, causal=causal)
+        print(f"  [eval] auto-detected transformer-gauss head "
+              f"({num_layers}L H={H} nhead={nhead} "
+              f"{'causal' if causal else 'bidir'})")
+    elif is_transformer:
+        if not is_quantile:
+            raise ValueError(
+                f"transformer head with forecast_head.weight shape[0]="
+                f"{fh_out} doesn't match quantile (={forecast_len*9}) "
+                f"or gaussian (={forecast_len*2})")
+        layer_indices = sorted({
+            int(k.split(".")[2]) for k in head_sd
+            if k.startswith("transformer.layers.")})
+        num_layers = max(layer_indices) + 1 if layer_indices else 6
+        # nhead default = 6 (matches backbone H=384/64). CLI override available.
+        nhead = getattr(args, "head_nhead", 6)
+        causal = getattr(args, "head_causal", "true") == "true"
+        from src.forecasting_head import TransformerQuantileForecastingHead
+        head = TransformerQuantileForecastingHead(
+            H=H, num_layers=num_layers, nhead=nhead,
+            forecast_len=forecast_len, causal=causal)
+        print(f"  [eval] auto-detected transformer-q head "
+              f"({num_layers}L H={H} nhead={nhead} "
+              f"{'causal' if causal else 'bidir'})")
+    elif is_linear and is_quantile:
+        from src.forecasting_head import LinearQuantileForecastingHead
+        head = LinearQuantileForecastingHead(
+            H=H, forecast_len=forecast_len)
+        print(f"  [eval] auto-detected linear-probe quantile head")
+    elif is_linear:
+        from src.forecasting_head import LinearForecastingHead
+        head = LinearForecastingHead(H=H, forecast_len=forecast_len)
+        print(f"  [eval] auto-detected linear-probe MSE head")
+    elif is_quantile:
+        from src.forecasting_head import QuantileForecastingHead
+        head = QuantileForecastingHead(**head_config)
+        print(f"  [eval] auto-detected GRU quantile head (9 levels)")
+    else:
+        head = ForecastingHead(**head_config)
+        print(f"  [eval] auto-detected GRU MSE head")
+    return head
+
+
 def load_models(args, device):
     """Load backbone and forecasting head."""
     # Backbone architecture overrides (CLI > defaults). HEAD_CONFIG['H']
@@ -476,8 +614,33 @@ def load_models(args, device):
     # Auto-detect freq_emb_dim and seasonality_emb_dim so backbones
     # trained with either / both axes load cleanly without CLI flags.
     sd = torch.load(args.backbone_path, map_location=device, weights_only=True)
+    # A multi-patch backbone (#417) holds one patch encoder per patch size.
+    # Its own value heads score it (A2V), or a head bank with one head per
+    # size, trained on the frozen backbone (#412).
+    patch_sizes = multi_patch_sizes_of(sd)
+    head_sd = (None if args.native_value_head
+               else load_head_state(args.head_path, device))
+    bank_sizes = head_bank_sizes(head_sd) if head_sd is not None else ()
+    if patch_sizes and not args.native_value_head and not bank_sizes:
+        raise SystemExit(f"{args.backbone_path} has one patch encoder per "
+                         f"patch size {patch_sizes}; score it with its head "
+                         f"bank (#412) or --native-value-head (A2V).")
+    BACKBONE_CONFIG["multi_patch_sizes"] = patch_sizes
+    if patch_sizes:
+        print(f"  [eval] auto-detected multi-patch sizes {patch_sizes}")
     w = sd.get("freq_embedding.embedding.weight")
     BACKBONE_CONFIG["freq_emb_dim"] = (w.shape[1] if w is not None else 0)
+    # #419: the row count of the frequency table is the vocabulary (10 rows:
+    # v1, every model before it), and a buffer marks a normaliser that skips
+    # zero padding. Both rebuild the model the checkpoint trained.
+    freq_rows = w.shape[0] if w is not None else None
+    if freq_rows is not None:
+        BACKBONE_CONFIG["num_freqs"] = freq_rows
+    zero_pad = "rev_norm.leading_zero_pad" in sd
+    BACKBONE_CONFIG["rev_norm_skip_leading_zeros"] = zero_pad
+    if args.context_pad == "auto":
+        args.context_pad = "zeros" if zero_pad else "first"
+    print(f"  [eval] context pad: {args.context_pad}")
     sw = sd.get("seasonality_embedding.embedding.weight")
     BACKBONE_CONFIG["seasonality_emb_dim"] = (sw.shape[1] if sw is not None else 0)
     if "log_inv_tau" in sd:
@@ -501,7 +664,7 @@ def load_models(args, device):
               f"{BACKBONE_CONFIG['num_encoder_layers']} from backbone checkpoint")
     # Auto-detect the b1024 collapse-fix norms (#322): QK-norm (q_norm/k_norm) and
     # attention-output RMSNorm (attn_out_rms) add per-layer params to encoder +
-    # forecaster layers; build with the matching flags so _qk_aon backbones load
+    # forecaster layers. Build with the matching flags so _qk_aon backbones load
     # cleanly. Absent keys -> flags stay False (older backbones unaffected).
     if any(k.endswith(".q_norm.weight") for k in sd):
         BACKBONE_CONFIG["qk_norm"] = True
@@ -540,6 +703,15 @@ def load_models(args, device):
         print(f"  [eval] auto-detected cpc forecaster "
               f"(K={BACKBONE_CONFIG['cpc_k_steps']}, "
               f"d={BACKBONE_CONFIG.get('forecaster_d_model')}) from checkpoint")
+    # #421: a buffer marks the mean/std scaling of Moirai 1.0, so the
+    # checkpoint names it. The flag picks among the kinds with no mark.
+    if "rev_norm.mean_std_scaling" in sd:
+        args.rev_norm_kind = "meanstd"
+    # #421: the bound of the GRU input, when the run trained with one.
+    BACKBONE_CONFIG["gru_input_bound"] = gru_input_bound_of(sd)
+    if BACKBONE_CONFIG["gru_input_bound"]:
+        print(f"  [eval] GRU input bound "
+              f"{BACKBONE_CONFIG['gru_input_bound']:g} from the checkpoint")
     BACKBONE_CONFIG["rev_norm_kind"] = args.rev_norm_kind
     if args.rev_norm_kind == "ewma":
         BACKBONE_CONFIG["rev_norm_span"] = args.rev_norm_span
@@ -558,6 +730,8 @@ def load_models(args, device):
         ref = sd.get("encoder.skip.weight")
         if ref is None:
             ref = sd.get("encoder.linear1.weight")
+        if ref is None:
+            ref = sd.get(f"encoder.encoders.{W}.skip.weight")
         if ref is None:
             args.patch_stats = "none"
         else:
@@ -578,11 +752,13 @@ def load_models(args, device):
         print(f"  [eval] auto-detected patch_stats={args.patch_stats}")
     BACKBONE_CONFIG["patch_stats_kind"] = args.patch_stats
     if args.native_value_head:
-        vh = sd.get("value_head.weight")
+        W = BACKBONE_CONFIG["W"]
+        vh = sd.get(f"value_heads.{W}.weight" if patch_sizes
+                    else "value_head.weight")
         if vh is None:
             raise SystemExit(f"--native-value-head: {args.backbone_path} has "
                              f"no value head (train with --value-space-objective)")
-        BACKBONE_CONFIG["value_head_quantiles"] = vh.shape[0] // BACKBONE_CONFIG["W"]
+        BACKBONE_CONFIG["value_head_quantiles"] = vh.shape[0] // W
     backbone = ConfigurableModel(**BACKBONE_CONFIG)
     # Drops the pretraining-only branches (CPC-InfoNCE `cpc_w1.*`, the EMA
     # teacher's `teacher_*`) so the strict load matches the eval-time
@@ -595,18 +771,25 @@ def load_models(args, device):
     backbone.eval()
     for p in backbone.parameters():
         p.requires_grad = False
-    print(f"  [eval] encoder={args.encoder_source}")
+    from src.freq_embedding import vocab_of_rows
+    backbone._freq_vocab = (vocab_of_rows(freq_rows) if freq_rows is not None
+                            else "v1")
+    print(f"  [eval] encoder={args.encoder_source} "
+          f"freq_vocab={backbone._freq_vocab}")
     if args.native_value_head:
         from src.forecasting_head import ValueHeadForecaster
         head = ValueHeadForecaster(backbone).to(device).eval()
         print(f"  [eval] native value head: {head.num_quantiles} quantiles of "
               f"the next {head.forecast_len} values, no separate head")
+        if patch_sizes:
+            print(f"  [eval] each config reads its frequency's patch size "
+                  f"from {patch_sizes}, with that size's value head")
         return backbone, head
 
     # A head decodes the latents of one encoder. Running a teacher head on
     # the student gives a number that looks fine and means nothing, so the
     # head's recorded source has the last word. Heads trained before #393
-    # carry no marker; those are student heads by construction and are left
+    # carry no marker. Those are student heads by construction and are left
     # to the caller.
     head_source = load_encoder_source(args.head_path)
     if head_source is not None and head_source != args.encoder_source:
@@ -618,73 +801,11 @@ def load_models(args, device):
         print(f"  [eval] WARNING: {args.head_path} has no encoder-source "
               f"marker; trusting --encoder-source {args.encoder_source}")
 
-    head_config = dict(HEAD_CONFIG)
-    head_config['forecast_len'] = args.forecast_len
-    head_sd = torch.load(args.head_path, map_location=device, weights_only=True)
-    # Auto-detect quantile vs MSE: forecast_head.weight shape distinguishes
-    #   MSE     : (forecast_len,                hidden_dim or H)
-    #   quantile: (num_quantiles * forecast_len, hidden_dim or H)
-    # Auto-detect GRU vs linear-probe: presence of `gru.*` keys in the state
-    # dict. Linear probe is a single nn.Linear (PR ?? — qhead-improvements).
-    fh_w = head_sd.get("forecast_head.weight")
-    fh_out = fh_w.shape[0] if fh_w is not None else 0
-    is_quantile = fh_out == args.forecast_len * 9
-    is_gaussian = fh_out == args.forecast_len * 2
-    is_transformer = any(
-        k.startswith("transformer.layers.") for k in head_sd)
-    is_linear = (not is_transformer
-                 and not any(k.startswith("gru.") for k in head_sd))
-    H = head_config["H"]
-    if is_transformer and is_gaussian:
-        layer_indices = sorted({
-            int(k.split(".")[2]) for k in head_sd
-            if k.startswith("transformer.layers.")})
-        num_layers = max(layer_indices) + 1 if layer_indices else 6
-        nhead = getattr(args, "head_nhead", 6)
-        causal = getattr(args, "head_causal", "true") == "true"
-        from src.forecasting_head import TransformerGaussianForecastingHead
-        head = TransformerGaussianForecastingHead(
-            H=H, num_layers=num_layers, nhead=nhead,
-            forecast_len=args.forecast_len, causal=causal)
-        print(f"  [eval] auto-detected transformer-gauss head "
-              f"({num_layers}L H={H} nhead={nhead} "
-              f"{'causal' if causal else 'bidir'})")
-    elif is_transformer:
-        if not is_quantile:
-            raise ValueError(
-                f"transformer head with forecast_head.weight shape[0]="
-                f"{fh_out} doesn't match quantile (={args.forecast_len*9}) "
-                f"or gaussian (={args.forecast_len*2})")
-        layer_indices = sorted({
-            int(k.split(".")[2]) for k in head_sd
-            if k.startswith("transformer.layers.")})
-        num_layers = max(layer_indices) + 1 if layer_indices else 6
-        # nhead default = 6 (matches backbone H=384/64); CLI override available.
-        nhead = getattr(args, "head_nhead", 6)
-        causal = getattr(args, "head_causal", "true") == "true"
-        from src.forecasting_head import TransformerQuantileForecastingHead
-        head = TransformerQuantileForecastingHead(
-            H=H, num_layers=num_layers, nhead=nhead,
-            forecast_len=args.forecast_len, causal=causal)
-        print(f"  [eval] auto-detected transformer-q head "
-              f"({num_layers}L H={H} nhead={nhead} "
-              f"{'causal' if causal else 'bidir'})")
-    elif is_linear and is_quantile:
-        from src.forecasting_head import LinearQuantileForecastingHead
-        head = LinearQuantileForecastingHead(
-            H=H, forecast_len=args.forecast_len)
-        print(f"  [eval] auto-detected linear-probe quantile head")
-    elif is_linear:
-        from src.forecasting_head import LinearForecastingHead
-        head = LinearForecastingHead(H=H, forecast_len=args.forecast_len)
-        print(f"  [eval] auto-detected linear-probe MSE head")
-    elif is_quantile:
-        from src.forecasting_head import QuantileForecastingHead
-        head = QuantileForecastingHead(**head_config)
-        print(f"  [eval] auto-detected GRU quantile head (9 levels)")
+    if bank_sizes:
+        head = build_head_bank(head_sd, bank_sizes,
+                               patch_sizes or (BACKBONE_CONFIG["W"],), args)
     else:
-        head = ForecastingHead(**head_config)
-        print(f"  [eval] auto-detected GRU MSE head")
+        head = build_eval_head(head_sd, args.forecast_len, args)
     head.load_state_dict(head_sd)
     head = head.to(device)
     head.eval()
@@ -699,6 +820,8 @@ def main():
     # Load models
     print("Loading models...")
     backbone, head = load_models(args, device)
+    # #412: a head bank hands each config the head of its patch size.
+    bank = head if isinstance(head, ForecastingHeadBank) else None
     print(f"  Backbone: {args.backbone_path}")
     print(f"  Head: {args.head_path}")
     print(f"  Strategy: {args.strategy} (forecast_len={args.forecast_len})")
@@ -776,10 +899,20 @@ def main():
                 # extract_*_latents picks them up as defaults — no need to
                 # thread kwargs through every forecast strategy.
                 from src.freq_embedding import (
-                    gluonts_freq_to_id, seasonality_to_id,
+                    freq_to_id, seasonality_to_id,
                 )
-                backbone._eval_freq_id = gluonts_freq_to_id(dataset.freq)
+                # v1 is gluonts_freq_to_id, as before #419.
+                backbone._eval_freq_id = freq_to_id(
+                    dataset.freq, backbone._freq_vocab)
                 backbone._eval_seasonality_id = seasonality_to_id(season_length)
+                # The model's own value head for this config (#417): a
+                # multi-patch model reads it at its frequency's patch size.
+                # A single-patch model gets the head it always had.
+                if args.native_value_head:
+                    head = native_value_head(
+                        backbone, dataset.freq).to(device).eval()
+                elif bank is not None:
+                    head = bank.for_frequency(backbone, dataset.freq)
 
                 # Create predictor for this dataset
                 predictor = ContrastiveForecasterPredictor(
@@ -789,6 +922,7 @@ def main():
                     device=device,
                     quantile_levels=QUANTILE_LEVELS,
                     strategy=args.strategy,
+                    context_pad=args.context_pad,
                 )
 
                 # Evaluate using gluonts official function

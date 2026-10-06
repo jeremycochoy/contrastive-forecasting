@@ -8,7 +8,7 @@ Two parallel categorical axes:
 * **Seasonality** — dominant period in samples (1, 7, 24, 168, ...) bucketed
   log-style. 10 classes including "unknown".
 
-Each axis has its own small learned embedding table; both get concatenated
+Each axis has its own small learned embedding table. Both get concatenated
 to every patch along the feature axis. The pair `(freq_id, seasonality_id)`
 is what the GIFT-Eval task descriptor exposes naturally — `freq` is the
 pandas freq string, and `seasonality = gluonts.time_feature.get_seasonality(freq)`.
@@ -50,7 +50,7 @@ SEASONALITY_NAMES = [
     "unknown", "≤4", "≤8", "≤16", "≤32", "≤64", "≤128", "≤256", "≤512", ">512",
 ]
 
-# Inclusive upper bounds for buckets 1..8; bucket 9 is everything beyond 512.
+# Inclusive upper bounds for buckets 1..8. Bucket 9 is everything beyond 512.
 _SEASONALITY_BOUNDARIES = (4, 8, 16, 32, 64, 128, 256, 512)
 
 
@@ -91,7 +91,7 @@ def seasonality_to_id(spp: float) -> int:
     return NUM_SEASONALITIES - 1
 
 # Canonical samples-per-day, useful for mapping a sampled spp from the synth
-# back to a freq class. 1/7 for weekly is approximate; we never actually
+# back to a freq class. 1/7 for weekly is approximate. We never actually
 # query it by value, just by id.
 SAMPLES_PER_DAY = {
     1: 8640,  # 10s
@@ -232,13 +232,91 @@ def gluonts_freq_to_id(freq) -> int:
     return FREQ_NAME_TO_ID[canonical]
 
 
+# ── Frequency vocabulary v2 (#419) ───────────────────────────────────────────
+#
+# v1 (above) has no monthly, quarterly or yearly class, and maps every
+# anchored alias it does not list ("W-SUN", "Q-DEC", "A-DEC") to 0. v2 keeps
+# the ten v1 classes at their ids and appends every other frequency of
+# `Salesforce/GiftEvalPretrain` and of the 97 GIFT-Eval configs. A v2 model
+# reads v1 ids unchanged, so the synthetic generators, which draw ids from
+# the v1 range, stay valid under v2.
+#
+# A checkpoint states its vocabulary by the row count of its frequency
+# embedding. The eval and the head trainer read that count, so a v1
+# checkpoint loads and maps frequencies exactly as before.
+
+# GiftEvalPretrain holds 4S (solar_power, wind_power), 6H (CMIP6), M and MS,
+# Q-DEC and A-DEC beyond the v1 classes. GIFT-Eval holds none beyond these.
+FREQ_NAMES_V2 = FREQ_NAMES + ["4s", "6h", "1M", "1Q", "1Y"]
+FREQ_VOCABS = {"v1": FREQ_NAMES, "v2": FREQ_NAMES_V2}
+
+# pandas offset class → unit of the canonical name.
+_OFFSET_UNITS = {
+    "Second": "s", "Minute": "min", "Hour": "h", "Day": "d", "Week": "w",
+    "MonthEnd": "M", "MonthBegin": "M", "QuarterEnd": "Q",
+    "QuarterBegin": "Q", "YearEnd": "Y", "YearBegin": "Y",
+}
+
+
+def canonical_freq(freq):
+    """The v2 name of a pandas/gluonts frequency string, or None.
+
+    ``"5T"`` → ``"5min"``, ``"H"`` → ``"1h"``, ``"W-SUN"`` → ``"1w"``,
+    ``"Q-DEC"`` → ``"1Q"``, ``"A-DEC"`` → ``"1Y"``.
+    """
+    import warnings
+    from pandas.tseries.frequencies import to_offset
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            offset = to_offset(str(freq))
+    except (TypeError, ValueError):
+        return None
+    unit = _OFFSET_UNITS.get(type(offset).__name__)
+    return None if unit is None else f"{offset.n}{unit}"
+
+
+def freq_to_id(freq, vocab="v1"):
+    """Frequency id of a pandas/gluonts frequency string in ``vocab``.
+
+    ``"v1"`` is :func:`gluonts_freq_to_id`, unchanged. ``"v2"`` parses the
+    string with pandas and gives 0 (unknown) to a frequency it does not list.
+    """
+    if vocab == "v1":
+        return gluonts_freq_to_id(freq)
+    names = FREQ_VOCABS[vocab]
+    name = canonical_freq(freq)
+    return names.index(name) if name in names else 0
+
+
+def vocab_of_rows(rows):
+    """The vocabulary a frequency embedding of ``rows`` rows was built for."""
+    for name, names in FREQ_VOCABS.items():
+        if len(names) == rows:
+            return name
+    raise ValueError(f"no frequency vocabulary has {rows} classes "
+                     f"({ {k: len(v) for k, v in FREQ_VOCABS.items()} })")
+
+
+def freq_labels(freq, vocab="v1"):
+    """``(freq_id, seasonality_id)`` of a frequency string, the pair the eval
+    gives a GIFT-Eval config: the seasonality is gluonts's
+    ``get_seasonality(freq)``, bucketed by :func:`seasonality_to_id`."""
+    import warnings
+    from gluonts.time_feature import get_seasonality
+    with warnings.catch_warnings():  # pandas deprecates "H", "T", "A-DEC"
+        warnings.simplefilter("ignore", FutureWarning)
+        season = get_seasonality(freq)
+    return freq_to_id(freq, vocab), seasonality_to_id(season)
+
+
 # ── Source-id → (freq_id, seasonality_id) lookup ─────────────────────────────
 #
 # Maps the bundle's `source_id` (defined in rnd:training_data_prep/config.py)
 # to the dual-axis labels we feed the model. Wiki seasonalities follow the
 # same convention as `gluonts.time_feature.get_seasonality`: hourly→24,
 # daily→7. STL components keep the underlying hourly freq but the
-# seasonality is left unknown (residual+trend have no period; the seasonal
+# seasonality is left unknown (residual+trend have no period. The seasonal
 # component's STL period was not preserved by the build pipeline).
 # Gift-train and bundle-synth rows lost their per-row metadata and fall
 # back to (0, 0).

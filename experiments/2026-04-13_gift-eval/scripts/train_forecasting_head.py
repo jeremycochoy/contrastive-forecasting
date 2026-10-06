@@ -30,8 +30,11 @@ import torch
 import torch.optim as optim
 
 from src.models import ConfigurableModel, count_parameters
-from src.checkpoint import prepare_backbone_state_dict, save_encoder_source
+from src.checkpoint import (gru_input_bound_of, multi_patch_sizes_of,
+                            prepare_backbone_state_dict, save_encoder_source)
 from src.dataloader import create_hf_dataloader, create_mixed_periodic_dataloader
+from src.freq_embedding import vocab_of_rows
+from src.loss import masked_mean
 from src.forecasting_head import (
     ForecastingHead,
     QuantileForecastingHead,
@@ -39,6 +42,9 @@ from src.forecasting_head import (
     LinearQuantileForecastingHead,
     TransformerQuantileForecastingHead,
     TransformerGaussianForecastingHead,
+    ForecastingHeadBank,
+    bank_quantile_loss,
+    bank_training_inputs,
     QUANTILE_LEVELS,
     quantile_loss,
     gaussian_nll_loss,
@@ -48,6 +54,8 @@ from src.forecasting_head import (
     extract_encoder_latents,
     rollout_latent,
     compute_valid_targets,
+    masked_quantile_loss,
+    valid_target_keep,
     compute_reconstruction_targets,
 )
 
@@ -62,7 +70,7 @@ def lr_multiplier(step: int, total_steps: int, schedule: str,
       ``wsd``:     warmup (linear 0→1) → stable at 1 → linear decay 1→
                    final_lr_ratio over [decay_start_step, total_steps].
       ``cosine``:  warmup → cosine from 1 → final_lr_ratio over
-                   [warmup_steps, total_steps]; ``decay_start_step`` ignored.
+                   [warmup_steps, total_steps]. ``decay_start_step`` ignored.
     """
     if step < warmup_steps:
         return step / max(warmup_steps, 1)
@@ -124,6 +132,15 @@ def parse_args():
                    help="Subdirectory within the HF repo")
     p.add_argument("--skip-rows", type=int, default=0,
                    help="HF rows to skip (for data position resume)")
+    # #419: a backbone trained on GiftEvalPretrain (its checkpoint holds
+    # rev_norm.leading_zero_pad) trains its head on the same stream, with no
+    # flag. These two only point that stream elsewhere (tests).
+    p.add_argument("--gift-pretrain-index", default=None,
+                   help="GiftEvalPretrain record-batch index. Default: "
+                        "src/gift_pretrain_index.json.gz.")
+    p.add_argument("--gift-pretrain-root", default=None,
+                   help="A local copy of the dataset repository to read "
+                        "instead of Hugging Face (tests).")
     p.add_argument("--no-resume-data-skip", action="store_true",
                    help="When resuming, DON'T compute skip_rows from start_step. "
                         "The HF skip is O(rows_to_skip) and can take an hour+ "
@@ -135,16 +152,21 @@ def parse_args():
                         "Replaces all final-layer projections; rest of the GRU "
                         "trunk identical. Required by GIFT-Eval's WQL metric.")
     p.add_argument("--rev-norm-kind", default="ewma",
-                   choices=["ewma", "revin", "none"],
+                   choices=["ewma", "revin", "meanstd", "none"],
                    help="MUST match the backbone's training-time choice "
                         "(both RevEWMNorm and RevIN have 0 params so state_dict "
-                        "doesn't disambiguate). Default 'ewma'.")
+                        "doesn't disambiguate). Default 'ewma'. A checkpoint "
+                        "with the mean/std scaling (#421) names it with the "
+                        "buffer rev_norm.mean_std_scaling, and the head reads "
+                        "that kind whatever this flag says.")
     p.add_argument("--seed", type=int, default=42,
                    help="Random seed for reproducibility")
     p.add_argument("--grad-clip", type=float, default=1.0,
                    help="Max gradient norm for clipping (0 to disable)")
     p.add_argument("--forecast-len", type=int, default=128,
-                   help="Head forecast length: 128 (default) or 16 for W-heads")
+                   help="Head forecast length: 128 (default) or 16 for "
+                        "W-heads. A head bank (#412) does not read it: its "
+                        "head of patch size P decodes P values.")
     p.add_argument("--mixed-rollout", type=int, default=0,
                    help="If >0, train on mixed real+rolled latent sequences. "
                         "Uses first 48 patches as context, rolls out N tokens, "
@@ -327,6 +349,51 @@ class _NullContext:
         return False
 
 
+def build_head(args, head_config, forecast_len):
+    """``(head, kind)``: the head --head-arch names, decoding
+    ``forecast_len`` values per quantile."""
+    H = head_config["H"]
+    causal = args.head_causal == "true"
+    shape = (f"({args.head_num_layers}L H{H} nhead{args.head_nhead} "
+             f"{'causal' if causal else 'bidir'})")
+    if args.head_arch == "linear":
+        if args.quantile_head:
+            return (LinearQuantileForecastingHead(H=H, forecast_len=forecast_len),
+                    "linear-probe quantile (9 levels)")
+        return (LinearForecastingHead(H=H, forecast_len=forecast_len),
+                "linear-probe MSE (point)")
+    if args.head_arch == "transformer":
+        if not args.quantile_head:
+            raise ValueError(
+                "transformer head only implemented for quantile output; "
+                "pass --quantile-head")
+        return (TransformerQuantileForecastingHead(
+            H=H, num_layers=args.head_num_layers, nhead=args.head_nhead,
+            ffn_mult=args.head_ffn_mult, forecast_len=forecast_len,
+            dropout=args.head_dropout, causal=causal), f"transformer-q {shape}")
+    if args.head_arch == "transformer-gaussian":
+        return (TransformerGaussianForecastingHead(
+            H=H, num_layers=args.head_num_layers, nhead=args.head_nhead,
+            ffn_mult=args.head_ffn_mult, forecast_len=forecast_len,
+            dropout=args.head_dropout, causal=causal),
+            f"transformer-gauss {shape}")
+    config = dict(head_config, forecast_len=forecast_len)
+    if args.quantile_head:
+        return QuantileForecastingHead(**config), "quantile (9 levels)"
+    return ForecastingHead(**config), "MSE (point)"
+
+
+def refuse_bank_flags(args):
+    """Refuse the flags a head bank (#412) cannot train with."""
+    if args.reconstruction or args.mixed_rollout > 0:
+        raise SystemExit("A head bank (#412) trains the prediction branch "
+                         "only. Drop --reconstruction / --mixed-rollout.")
+    if not args.quantile_head or args.head_arch == "transformer-gaussian":
+        raise SystemExit("A head bank (#412) trains quantile heads on the "
+                         "pinball loss. Pass --quantile-head, and a head "
+                         "arch other than transformer-gaussian.")
+
+
 def main():
     args = parse_args()
     device = torch.device(args.device)
@@ -384,6 +451,40 @@ def main():
     BACKBONE_CONFIG["freq_emb_dim"] = args.freq_emb_dim
     BACKBONE_CONFIG["seasonality_emb_dim"] = args.seasonality_emb_dim
     BACKBONE_CONFIG["rev_norm_kind"] = args.rev_norm_kind
+    # #419: the frequency table's row count is the vocabulary (10: v1, every
+    # earlier model), and a buffer marks a normaliser that skips zero
+    # padding. Both rebuild the backbone the checkpoint trained.
+    freq_w = sd.get("freq_embedding.embedding.weight")
+    if freq_w is not None:
+        BACKBONE_CONFIG["num_freqs"] = freq_w.shape[0]
+    zero_pad = "rev_norm.leading_zero_pad" in sd
+    BACKBONE_CONFIG["rev_norm_skip_leading_zeros"] = zero_pad
+    if not zero_pad and (args.gift_pretrain_index or args.gift_pretrain_root):
+        raise SystemExit("--gift-pretrain-index and --gift-pretrain-root read "
+                         "the stream of a zero-padding backbone (#419), and "
+                         "this backbone has none: its head trains on "
+                         "--hf-repo. Drop them.")
+    # #421: the bound of the GRU input, when the backbone trained with one.
+    BACKBONE_CONFIG["gru_input_bound"] = gru_input_bound_of(sd)
+    freq_vocab = vocab_of_rows(freq_w.shape[0]) if freq_w is not None else "v1"
+    # #412: the checkpoint names its patch sizes (#417) and the mean/std
+    # scaling (#421). Such a backbone gets one head per patch size, trained
+    # as the backbone trained: sizes, split and statistics per row.
+    patch_sizes = multi_patch_sizes_of(sd)
+    BACKBONE_CONFIG["multi_patch_sizes"] = patch_sizes
+    if "rev_norm.mean_std_scaling" in sd and args.rev_norm_kind != "meanstd":
+        print(f"  [head-train] the checkpoint names the mean/std scaling "
+              f"(#421); --rev-norm-kind {args.rev_norm_kind} is not read")
+        args.rev_norm_kind = "meanstd"
+    BACKBONE_CONFIG["rev_norm_kind"] = args.rev_norm_kind
+    use_bank = bool(patch_sizes) or args.rev_norm_kind == "meanstd"
+    if use_bank:
+        refuse_bank_flags(args)
+    if zero_pad and (args.reconstruction or args.mixed_rollout > 0):
+        raise SystemExit(
+            "This backbone trained on zero-padded GiftEvalPretrain windows "
+            "(#419); its head masks the padded targets of the prediction "
+            "branch only. Drop --reconstruction / --mixed-rollout.")
     # Auto-detect CLIP-style learnable τ from the checkpoint (#28). If
     # log_inv_tau is in the state_dict, we must instantiate the backbone
     # with learnable_tau=True so load_state_dict succeeds. The head loss
@@ -395,7 +496,7 @@ def main():
               f"τ={float((-sd['log_inv_tau']).exp()):.4f}) from backbone checkpoint")
     # Auto-detect num_encoder_layers from transformer.encoder_layers.<N>.* keys.
     # Encoder-forecaster backbones (2026-05-10) prepend N causal layers before
-    # the forecaster; their state_dict has the matching keys. Old backbones
+    # the forecaster, and their state_dict has the matching keys. Old backbones
     # have an empty encoder stack and the keys are absent → defaults to 0.
     enc_layer_idxs = set()
     for k in sd:
@@ -410,7 +511,7 @@ def main():
               f"{BACKBONE_CONFIG['num_encoder_layers']} from backbone checkpoint")
     # Auto-detect the b1024 collapse-fix norms (#322): QK-norm (q_norm/k_norm) and
     # attention-output RMSNorm (attn_out_rms) add per-layer params to encoder +
-    # forecaster layers; build with the matching flags so _qk_aon backbones load
+    # forecaster layers. Build with the matching flags so _qk_aon backbones load
     # cleanly. Absent keys -> flags stay False (older backbones unaffected).
     if any(k.endswith(".q_norm.weight") for k in sd):
         BACKBONE_CONFIG["qk_norm"] = True
@@ -421,8 +522,8 @@ def main():
     # Auto-detect a CPC multi-step forecaster (#316). Two families:
     #   transformer.cpc_layers.<N>.*  → 'cpc'        (K transformer-1L heads, #1)
     #   transformer.cpc_heads.<N>.*   → 'linear_cpc' (K linear heads, #2/#3)
-    # Build with the matching forecaster_kind + K so load_state_dict succeeds;
-    # for 'cpc' the bottleneck dim is read from cpc_down.0.weight. Either way
+    # Build with the matching forecaster_kind + K so load_state_dict succeeds.
+    # For 'cpc' the bottleneck dim is read from cpc_down.0.weight. Either way
     # extract_forecaster_latents returns the next-step (k=1) head.
     lin_idxs = set()
     for k in sd:
@@ -456,13 +557,15 @@ def main():
     if args.rev_norm_kind == "ewma":
         BACKBONE_CONFIG["rev_norm_span"] = args.rev_norm_span
     # Auto-detect patch_stats from the encoder's first projection input width.
-    # The GRU encoder stores `encoder.skip.weight` of shape [H, encoder_input];
+    # The GRU encoder stores `encoder.skip.weight` of shape [H, encoder_input].
     # MLP-style encoders store `encoder.linear1.weight` similarly. Either way
     # the in-features tells us W + freq_emb_dim + (2 if patch_stats else 0).
     if args.patch_stats == "auto":
         from src.norm import PATCH_STATS_DIM
         W = BACKBONE_CONFIG["W"]
         skip_w = sd.get("encoder.skip.weight")
+        if skip_w is None:
+            skip_w = sd.get(f"encoder.encoders.{W}.skip.weight")
         linear1_w = sd.get("encoder.linear1.weight")
         ref = skip_w if skip_w is not None else linear1_w
         if ref is None:
@@ -500,56 +603,16 @@ def main():
           f"encoder={args.encoder_source})")
 
     # -- Forecasting head ------------------------------------------------------
-    head_config = dict(HEAD_CONFIG)
-    head_config['forecast_len'] = args.forecast_len
-    if args.head_arch == "linear":
-        if args.quantile_head:
-            head = LinearQuantileForecastingHead(
-                H=head_config["H"], forecast_len=args.forecast_len).to(device)
-            head_kind = "linear-probe quantile (9 levels)"
-        else:
-            head = LinearForecastingHead(
-                H=head_config["H"], forecast_len=args.forecast_len).to(device)
-            head_kind = "linear-probe MSE (point)"
-    elif args.head_arch == "transformer":
-        if not args.quantile_head:
-            raise ValueError(
-                "transformer head only implemented for quantile output; "
-                "pass --quantile-head")
-        causal = args.head_causal == "true"
-        head = TransformerQuantileForecastingHead(
-            H=head_config["H"],
-            num_layers=args.head_num_layers,
-            nhead=args.head_nhead,
-            ffn_mult=args.head_ffn_mult,
-            forecast_len=args.forecast_len,
-            dropout=args.head_dropout,
-            causal=causal,
-        ).to(device)
-        head_kind = (f"transformer-q ({args.head_num_layers}L "
-                     f"H{head_config['H']} nhead{args.head_nhead} "
-                     f"{'causal' if causal else 'bidir'})")
-    elif args.head_arch == "transformer-gaussian":
-        causal = args.head_causal == "true"
-        head = TransformerGaussianForecastingHead(
-            H=head_config["H"],
-            num_layers=args.head_num_layers,
-            nhead=args.head_nhead,
-            ffn_mult=args.head_ffn_mult,
-            forecast_len=args.forecast_len,
-            dropout=args.head_dropout,
-            causal=causal,
-        ).to(device)
-        head_kind = (f"transformer-gauss ({args.head_num_layers}L "
-                     f"H{head_config['H']} nhead{args.head_nhead} "
-                     f"{'causal' if causal else 'bidir'})")
+    if use_bank:
+        sizes = patch_sizes or (BACKBONE_CONFIG["W"],)
+        built = {p: build_head(args, HEAD_CONFIG, p) for p in sizes}
+        head = ForecastingHeadBank(
+            {p: h for p, (h, _) in built.items()}).to(device)
+        head_kind = (f"bank of {len(sizes)} heads, sizes {sizes}, each "
+                     f"{built[sizes[0]][1]} decoding its P values (#412)")
     else:
-        if args.quantile_head:
-            head = QuantileForecastingHead(**head_config).to(device)
-            head_kind = "quantile (9 levels)"
-        else:
-            head = ForecastingHead(**head_config).to(device)
-            head_kind = "MSE (point)"
+        head, head_kind = build_head(args, HEAD_CONFIG, args.forecast_len)
+        head = head.to(device)
     n_head_params = count_parameters(head)
     print(f"Forecasting head [{head_kind}]: {n_head_params:,} trainable params")
 
@@ -607,6 +670,18 @@ def main():
         hf_rows_consumed = start_step * rows_per_step + args.skip_rows
 
     emit_labels = (args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0)
+    # #419: the head of a zero-padding backbone reads the stream the
+    # backbone trained on, in the vocabulary its checkpoint holds.
+    real_rows = None
+    if zero_pad:
+        from src.gift_pretrain import stream_factory
+        real_rows = stream_factory(
+            [args.seed, hf_rows_consumed], C, freq_vocab,
+            args.gift_pretrain_index, args.gift_pretrain_root)
+        print(f"Data: the backbone trained on GiftEvalPretrain with zero "
+              f"padding (#419): the head trains on the same stream, "
+              f"vocabulary {freq_vocab}, padded targets skipped. "
+              f"--hf-repo/--hf-path are not read.")
     if args.mix_ratio > 0 or emit_labels:
         # Use the mixed loader when we need labels, even if mix_ratio=0
         # (it falls through to MixedPeriodicLoader with synth_bs=0 and
@@ -618,6 +693,7 @@ def main():
             mix_ratio=args.mix_ratio,
             path_in_repo=args.hf_path, skip_rows=hf_rows_consumed,
             seed=synth_seed, emit_freq_ids=emit_labels,
+            real_rows=real_rows,
         )
         synth_bs = int(round(args.batch_size * args.mix_ratio))
         hf_bs = args.batch_size - synth_bs
@@ -625,6 +701,8 @@ def main():
               f"{args.mix_ratio*100:.0f}% synth, hf_bs={hf_bs}, "
               f"synth_bs={synth_bs}, synth_seed={synth_seed}, "
               f"emit_labels={emit_labels}")
+    elif real_rows is not None:
+        data_loader = real_rows(args.batch_size, False)
     else:
         data_loader = create_hf_dataloader(
             args.hf_repo, batch_size=args.batch_size, C=C,
@@ -635,6 +713,11 @@ def main():
 
     print(f"\nTraining for {args.total_steps} steps, bs={args.batch_size}, "
           f"lr={args.lr}, forecast_len={args.forecast_len}")
+    if use_bank:
+        print(f"Head bank (#412): each row draws its patch size from its "
+              f"frequency's range {'and its split ' if args.rev_norm_kind == 'meanstd' else ''}"
+              f"as the backbone trained, and trains the head of that size. "
+              f"--forecast-len is not read.")
     if args.reconstruction:
         print(f"RECONSTRUCTION mode: {args.reconstruction} "
               f"(head decodes what latent represents, not future)")
@@ -661,7 +744,7 @@ def main():
             g["lr"] = args.lr * mult
 
         # Data loading — when emit_labels is on, the dataloader yields
-        # (x, freq_ids, seasonality_ids); otherwise it yields just x.
+        # (x, freq_ids, seasonality_ids). Otherwise it yields just x.
         try:
             batch = next(data_iter)
         except StopIteration:
@@ -680,7 +763,7 @@ def main():
 
         # AMP autocast wraps the (frozen) backbone forward + head forward +
         # loss. No GradScaler — matches the contrastive trainer's convention
-        # (bf16's range matches fp32; for fp16 we skip the scaler too).
+        # (bf16's range matches fp32, and for fp16 we skip the scaler too).
         # Pinball / Gaussian-NLL / MSE losses don't have F.normalize-style
         # fp32 promotion, so no `to(amp_dtype)` cast trick is needed here
         # (unlike the contrastive trainer's `f_lat.to(amp_dtype)`).
@@ -690,7 +773,16 @@ def main():
         amp_ctx = (torch.amp.autocast('cuda', dtype=amp_dtype)
                    if amp_dtype is not None else _NullContext())
         with amp_ctx:
-            if args.mixed_rollout > 0:
+            if use_bank:
+                # #412: each row reads its patch size and trains that
+                # size's head. loc and scale read the context before the
+                # split, and the loss counts the values after it.
+                x_norm, sample_sizes, keep = bank_training_inputs(
+                    backbone, x, freq_ids, patch_sizes)
+                loss = bank_quantile_loss(
+                    backbone, head, x_norm, sample_sizes, keep,
+                    freq_ids=freq_ids, seasonality_ids=seasonality_ids)
+            elif args.mixed_rollout > 0:
                 # Mixed training: use first 48 patches as context, roll out N tokens
                 N_roll = args.mixed_rollout
                 T_ctx_raw = 48 * W  # 768 timesteps
@@ -762,7 +854,7 @@ def main():
                 if args.head_train_input == "e_then_f":
                     # Match the eval-time [e_ctx, rolled_f] layout: feed the
                     # head [e_0..e_{T-1}, f_0..f_{T-1}] (length 2T). The
-                    # head's outputs at positions T..(T+T_valid-1) — i.e. the
+                    # head's outputs at positions T..(T+T_valid-1) — that is the
                     # f-half — get the loss against `targets`.
                     #
                     # Custom mask prevents the head from peeking at e_{p_f+1}
@@ -807,12 +899,20 @@ def main():
                     x_norm, W=W, forecast_len=args.forecast_len)
                 targets = targets.to(device)
                 preds = head(f_bc)
+                # #419: the padded targets of a zero-padding backbone.
+                keep = (valid_target_keep(backbone.rev_norm.pad_mask, W,
+                                          args.forecast_len)
+                        if zero_pad else None)
                 if args.quantile_head:
                     preds = preds[:, :T_valid, :, :]
-                    loss = quantile_loss(preds, targets, QUANTILE_LEVELS)
+                    loss = (quantile_loss(preds, targets, QUANTILE_LEVELS)
+                            if keep is None else masked_quantile_loss(
+                                preds, targets, keep, QUANTILE_LEVELS))
                 else:
                     preds = preds[:, :T_valid, :]
-                    loss = torch.nn.functional.mse_loss(preds, targets)
+                    loss = (torch.nn.functional.mse_loss(preds, targets)
+                            if keep is None
+                            else masked_mean((preds - targets) ** 2, keep))
 
         # NaN detection -- skip bad batches instead of crashing
         loss_val = loss.item()
