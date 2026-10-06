@@ -694,7 +694,7 @@ def stub_checkout(tmp_path):
                CF393_EVAL_SLOTDIR=str(tmp_path / "slots"),
                EVAL_CONFIG_FILTER="^m4_yearly/short$", EVAL_EXPECT_CONFIGS="1")
     for key in ("CF_RECONSTRUCTION", "CF_SKIP_EVAL", "HEAD_SAVE_EVERY",
-                "EVAL_STRATEGY"):
+                "EVAL_STRATEGY", "EVAL_DEVICE"):
         env.pop(key, None)
     return tmp_path, bb, env
 
@@ -742,6 +742,22 @@ def test_the_forecast_mode_is_unchanged(stub_checkout):
     assert (tmp_path / "res" / "score_arm_bb40k_h30k_student.txt").exists()
 
 
+def test_the_shards_run_on_the_cpu_unless_the_caller_asks(stub_checkout):
+    tmp_path = stub_checkout[0]
+    r = head_eval(stub_checkout, "cpu_bb40k_h30k_recon",
+                  CF_RECONSTRUCTION="encoder")
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    shard = recorded(tmp_path / "root" / "eval" / "cpu_bb40k_h30k_recon"
+                     / "gift_r" / "shard_0" / "argv.json")
+    assert shard[shard.index("--device") + 1] == "cpu"
+    r = head_eval(stub_checkout, "gpu_bb40k_h30k_recon",
+                  CF_RECONSTRUCTION="encoder", EVAL_DEVICE="cuda")
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    shard = recorded(tmp_path / "root" / "eval" / "gpu_bb40k_h30k_recon"
+                     / "gift_r" / "shard_0" / "argv.json")
+    assert shard[shard.index("--device") + 1] == "cuda"
+
+
 def test_skip_eval_trains_the_head_and_scores_nothing(stub_checkout):
     tmp_path = stub_checkout[0]
     r = head_eval(stub_checkout, "arm_bb40k_h30k_recon",
@@ -771,3 +787,275 @@ def test_an_unknown_reconstruction_mode_is_refused(stub_checkout):
     r = head_eval(stub_checkout, "arm_bb40k_h30k_recon",
                   CF_RECONSTRUCTION="forecaster")
     assert r.returncode != 0
+
+
+# ---------------------------------------------------------------------------
+# 6. The scripts of the report
+# ---------------------------------------------------------------------------
+
+SCRIPTS = STUDY / "scripts"
+JOBS = SCRIPTS / "jobs.tsv"
+
+# The card's table: each run of ours and its checkpoints on disk on 10-06.
+CARD = {
+    "BLK": (100, 200, 300, 400),
+    "OMB": (10, 25, 50, 75, 100, 125, 150, 166), "OCB": (40,),
+    "OCF": (40, 100, 200, 300, 400), "OEF": (40, 100, 200),
+    "OMF": (10, 25, 50, 75, 100, 125), "OAF": (40, 100, 200), "OWF": (40,),
+    "OWR": (40, 100, 200), "OWL": (40,), "OBM": (10, 25, 50),
+    "OBW": (10, 25, 50), "OAL": (10, 25, 50), "BMS": (40, 100, 140),
+    "CYN": (665, 1140, 1330), "MIN": (1000, 1080), "TWN": (100, 420),
+    "LOW": (665,), "LNG": (665,),
+}
+
+
+def job_rows(path=JOBS):
+    return [line.rstrip("\n").split("\t") for line in open(path)
+            if line.strip() and not line.startswith("#")]
+
+
+def test_the_job_table_holds_the_card_checkpoints():
+    sys.path.insert(0, str(REPO_ROOT / "reports" / "2026-09-06_moirai_small_size"
+                           / "scripts"))
+    from run_style import CODE
+    rows = job_rows()
+    assert len(rows) == 56
+    stops = {}
+    for code, arm, stop_k, tier, ckpt, size in rows:
+        assert CODE[arm] == code
+        stops.setdefault(code, []).append(int(stop_k))
+        assert int(size) > 50_000_000 and ckpt.endswith(f"_{stop_k}k.pth")
+        first_or_last = int(stop_k) in (CARD[code][0], CARD[code][-1])
+        assert tier == ("1" if first_or_last else "2")
+    assert {c: tuple(s) for c, s in stops.items()} == CARD
+
+
+QUEUE_STUB = r'''#!/bin/bash
+# A runner that records each call. CF_SKIP_EVAL: the head. Else: the score.
+tag="$1"; out="$CF373_ROOT/eval/$tag"; mkdir -p "$out"
+mode=score; [ -n "${CF_SKIP_EVAL:-}" ] && mode=head
+echo "$tag $mode $CF_RECONSTRUCTION" >>"$CF_RESULTS/calls.log"
+if [ -n "${CF_SKIP_EVAL:-}" ]; then
+  case "$tag" in *bad*) exit 7 ;; esac
+  : >"$out/qhead_final.pth"; exit 0
+fi
+sleep 0.2
+echo 0.1234 >"$CF_RESULTS/score_$tag.txt"
+'''
+
+
+@pytest.fixture
+def queue_box(tmp_path):
+    """A box of four jobs with sparse input files, and a stub runner."""
+    ck, res = tmp_path / "ckpt", tmp_path / "res"
+    rows = [("AAA", "arm_a", "40", "2"), ("AAA", "arm_a", "10", "1"),
+            ("BAD", "arm_bad", "40", "1"), ("CCC", "arm_c", "100", "1")]
+    table = ["#code\tarm\tstop_k\ttier\tckpt\tbytes"]
+    for code, arm, stop, tier in rows:
+        rel = f"{arm}/leg/{arm}_{stop}k.pth"
+        (ck / rel).parent.mkdir(parents=True, exist_ok=True)
+        with open(ck / rel, "wb") as f:
+            f.truncate(1000 + int(stop))
+        table.append("\t".join([code, arm, stop, tier, rel, str(1000 + int(stop))]))
+    (tmp_path / "jobs.tsv").write_text("\n".join(table) + "\n")
+    stub = tmp_path / "runner.sh"
+    stub.write_text(QUEUE_STUB)
+    env = dict(os.environ, CF425_JOBS=str(tmp_path / "jobs.tsv"),
+               CF425_CK=str(ck), CF425_ROOT=str(ck / "cf-425" / "recon"),
+               CF425_RES=str(res), CF425_RUNNER=str(stub),
+               CF425_CODE=str(tmp_path), CF425_LANES="2",
+               CF425_LANE_STAGGER="0")
+    return tmp_path, res, env
+
+
+def run_queue(env, timeout=120):
+    return subprocess.run(["bash", str(SCRIPTS / "queue.sh")],
+                          capture_output=True, text=True, env=env,
+                          timeout=timeout)
+
+
+def calls(res):
+    return [line.split() for line in open(res / "calls.log")]
+
+
+def test_the_queue_scores_every_job_once(queue_box):
+    _, res, env = queue_box
+    r = run_queue(env)
+    assert r.returncode == 0, r.stdout + r.stderr
+    done = sorted(p.name for p in res.glob("score_*.txt"))
+    assert done == ["score_arm_a_bb10k_h30k_recon.txt",
+                    "score_arm_a_bb40k_h30k_recon.txt",
+                    "score_arm_c_bb100k_h30k_recon.txt"]
+    made = [c for c in calls(res) if c[1] == "head" and "bad" not in c[0]]
+    assert sorted(c[0] for c in made) == sorted(p[6:-4] for p in done)
+    assert all(c[2] == "encoder" for c in calls(res))
+
+
+def test_the_queue_takes_tier_1_first(queue_box):
+    _, res, env = queue_box
+    r = run_queue(dict(env, CF425_LANES="1"))
+    assert r.returncode == 0, r.stdout + r.stderr
+    heads = [c[0] for c in calls(res) if c[1] == "head"]
+    assert heads.index("arm_a_bb40k_h30k_recon") == len(heads) - 1
+
+
+def test_a_failing_head_stops_after_its_tries(queue_box):
+    _, res, env = queue_box
+    r = run_queue(dict(env, CF425_TRIES="2"))
+    assert r.returncode == 0, r.stdout + r.stderr
+    bad = [c for c in calls(res) if c[0] == "arm_bad_bb40k_h30k_recon"]
+    assert len(bad) == 2 and all(c[1] == "head" for c in bad)
+    assert len(list((res / "failed").glob("arm_bad_bb40k_h30k_recon.*"))) == 2
+    again = run_queue(env)
+    assert again.returncode == 0
+    assert len([c for c in calls(res) if c[0] == "arm_bad_bb40k_h30k_recon"]) == 2
+
+
+def test_a_job_another_process_holds_is_skipped(queue_box):
+    """The lock of a job passes to its score, so a second queue never runs
+    a job that an earlier one still runs."""
+    _, res, env = queue_box
+    (res / "locks").mkdir(parents=True)
+    lock = res / "locks" / "arm_c_bb100k_h30k_recon.lock"
+    holder = subprocess.Popen(["flock", str(lock), "sleep", "30"])
+    try:
+        import time
+        time.sleep(0.5)
+        r = run_queue(env)
+    finally:
+        holder.kill()
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert not any(c[0] == "arm_c_bb100k_h30k_recon" for c in calls(res))
+    assert not (res / "score_arm_c_bb100k_h30k_recon.txt").exists()
+
+
+def test_the_queue_refuses_a_missing_input(queue_box):
+    tmp_path, res, env = queue_box
+    (tmp_path / "ckpt" / "arm_c" / "leg" / "arm_c_100k.pth").unlink()
+    r = run_queue(env)
+    assert r.returncode == 3
+    assert "arm_c_100k.pth" in r.stdout and "stage_inputs.sh" in r.stdout
+    assert not (res / "calls.log").exists()
+
+
+def test_the_dry_run_lists_the_order_and_runs_nothing(queue_box):
+    _, res, env = queue_box
+    r = run_queue(dict(env, CF425_DRY_RUN="1"))
+    assert r.returncode == 0, r.stdout + r.stderr
+    order = [line.split()[3] for line in r.stdout.splitlines()]
+    assert order == ["arm_a_bb10k_h30k_recon", "arm_bad_bb40k_h30k_recon",
+                     "arm_c_bb100k_h30k_recon", "arm_a_bb40k_h30k_recon"]
+    assert not (res / "calls.log").exists()
+
+
+def test_the_queue_hands_the_runner_the_b4_head_steps(queue_box):
+    """The stub sees the reconstruction mode, no snapshot every 5,000
+    steps, and the 30,000 head steps."""
+    tmp_path, res, env = queue_box
+    stub = tmp_path / "runner.sh"
+    stub.write_text(QUEUE_STUB.replace(
+        'echo "$tag $mode', 'echo "$4 $HEAD_SAVE_EVERY" >>"$CF_RESULTS/steps.log"\necho "$tag $mode'))
+    r = run_queue(env)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert {line.strip() for line in open(res / "steps.log")} == {"30000 1000000"}
+
+
+def prune_tree(tmp_path):
+    """A box tree: a finished and scored head, a finished head with no
+    score yet, a head that still trains, and an input checkpoint."""
+    root, res = tmp_path / "cf-425", tmp_path / "res"
+    files = {"recon/eval/a_recon/qhead_a_final.pth": 10,
+             "recon/eval/a_recon/qhead_a_final_optimizer.pth": 20,
+             "recon/eval/a_recon/qhead_a_best.pth": 10,
+             "recon/eval/a_recon/qhead_a_losses.csv": 5,
+             "recon/eval/b_recon/qhead_b_final.pth": 10,
+             "recon/eval/b_recon/qhead_b_best.pth": 10,
+             "recon/eval/c_recon/qhead_c_best.pth": 10}
+    for rel, size in files.items():
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (root / rel).write_bytes(b"x" * size)
+    res.mkdir()
+    (res / "score_a_recon.txt").write_text("0.2\n")
+    return root, res, files
+
+
+def run_prune(tmp_path, root, res, manifest_rows, *extra):
+    manifest = tmp_path / "manifest.tsv"
+    manifest.write_text("".join(f"{size}\t{rel}\n" for rel, size in manifest_rows))
+    env = dict(os.environ, CF425_PRUNE_ROOT=str(root), CF425_RES=str(res))
+    return subprocess.run(["bash", str(SCRIPTS / "prune.sh"), str(manifest),
+                           *extra], capture_output=True, text=True, env=env,
+                          timeout=60)
+
+
+def test_prune_deletes_only_what_elisa_holds_at_its_size(tmp_path):
+    root, res, files = prune_tree(tmp_path)
+    held = dict(files)
+    held["recon/eval/b_recon/qhead_b_best.pth"] = 11       # another size
+    r = run_prune(tmp_path, root, res, held.items())
+    assert r.returncode == 0, r.stdout + r.stderr
+    left = {str(p.relative_to(root)) for p in root.rglob("*") if p.is_file()}
+    assert left == {
+        "recon/eval/a_recon/qhead_a_losses.csv",     # not a checkpoint
+        "recon/eval/b_recon/qhead_b_final.pth",      # no score yet
+        "recon/eval/b_recon/qhead_b_best.pth",       # elisa: another size
+        "recon/eval/c_recon/qhead_c_best.pth",       # the head still trains
+    }
+
+
+def test_prune_without_a_manifest_line_deletes_nothing(tmp_path):
+    root, res, files = prune_tree(tmp_path)
+    r = run_prune(tmp_path, root, res, [("../outside.pth", 10)])
+    assert r.returncode == 0
+    assert all((root / rel).exists() for rel in files)
+
+
+def test_the_prune_dry_run_deletes_nothing(tmp_path):
+    root, res, files = prune_tree(tmp_path)
+    r = run_prune(tmp_path, root, res, files.items(), "--dry-run")
+    assert r.returncode == 0 and "would delete" in r.stdout
+    assert all((root / rel).exists() for rel in files)
+
+
+def load_script(name):
+    spec = importlib.util.spec_from_file_location(f"cf425_{name}",
+                                                  SCRIPTS / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_collect_writes_the_two_tables(tmp_path, monkeypatch):
+    collect = load_script("collect")
+    box = tmp_path / "box"
+    box.mkdir()
+    (box / "score_cf412om_bb10k_h30k_recon.txt").write_text("0.3100\n")
+    (box / "score_cf412om_bb25k_h30k_recon.txt").write_text("")   # no score
+    (box / "score_k3_x_lr30x_bb665k_h30k_student.txt").write_text("1.1700\n")
+    (box / "score_smoke_bank_s500_recon.txt").write_text("0.5\n")  # no stop
+    found = collect.scores(box)
+    assert found == {"recon": [("cf412om", 10, 0.31)],
+                     "student": [("k3_x_lr30x", 665, 1.17)]}
+    out = tmp_path / "t.tsv"
+    collect.write_table(found["recon"], out)
+    assert out.read_text() == "cf412om\t10\t0.3100\n"
+
+
+def test_the_figures_pair_the_two_scores_of_a_checkpoint(tmp_path,
+                                                         monkeypatch):
+    pytest.importorskip("matplotlib")
+    plot = load_script("plot_recon")
+    recon = tmp_path / "recon.tsv"
+    recon.write_text("cf412om\t10\t0.3100\ncf412om\t25\t0.2900\n"
+                     "k3_r100_09_lr56_fix09_dec10k_lr30x\t665\t0.2000\n")
+    forecast = plot.load(plot.FORECAST[:1])
+    points = plot.load([recon])
+    assert points["cf412om"] == {40000: 0.31, 100000: 0.29}   # batch 256: x4
+    assert forecast["cf412om"][40000] == 1.3782
+    out = tmp_path / "overlay.png"
+    assert plot.draw_figure(plot.GRAPHS["all"], forecast, points, out, True)
+    assert out.stat().st_size > 10_000
+    moirai = [g for g in plot.base.GROUPS if g not in plot.OURS]
+    assert not plot.draw_figure(moirai, forecast, points, tmp_path / "m.png",
+                                False)
+    assert not (tmp_path / "m.png").exists()

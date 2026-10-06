@@ -34,7 +34,7 @@ mkdir -p "/tmp/cf425_smoke_$KIND" /workspace/results/cf-425/smoke
 
 WT="$CODE" CF373_ROOT="$CK/cf-425/smoke" CF_RESULTS=/workspace/results/cf-425/smoke \
   CF_STOP_K=0 CF_BB_SHAPE="--d-model 384 --n-heads 8 --num-layers 3" \
-  GIFT_EVAL=/workspace/gift-eval-data EVAL_SHARDS=1 \
+  GIFT_EVAL=/workspace/gift-eval-data EVAL_SHARDS=1 EVAL_DEVICE="${EVAL_DEVICE:-cuda}" \
   EVAL_CONFIG_FILTER="$FILTER" EVAL_EXPECT_CONFIGS="$N_CONFIGS" \
   CF393_EVAL_SLOTDIR=/tmp/cf425_smoke_slots \
   BB_GPU=0 HEAD_VRAM_MIB="${HEAD_VRAM_MIB:-4000}" \

@@ -152,6 +152,17 @@ sanitise_shard_csv() {  # <all_results.csv>
   fi
 }
 
+# The device of the shards. CPU unless a caller asks for the GPU. #425 scores
+# strategy R on the GPU of its box: R reads a batch of windows in one pass,
+# which the GPU runs in milliseconds and one CPU core at about 18 windows a
+# second. A GPU shard sees only the card BB_GPU names.
+EVAL_DEVICE="${EVAL_DEVICE:-cpu}"
+case "$EVAL_DEVICE" in
+  cpu) EVAL_GPU="" ;;
+  cuda) EVAL_GPU="${BB_GPU:-0}" ;;
+  *) echo "ABORT: EVAL_DEVICE=$EVAL_DEVICE. Use cpu or cuda." >&2; exit 2 ;;
+esac
+
 pids=(); tags=()
 for (( s = 0; s < EVAL_SHARDS; s++ )); do
   if [ -n "$EVAL_CONFIG_FILTER" ]; then
@@ -168,11 +179,12 @@ for (( s = 0; s < EVAL_SHARDS; s++ )); do
   # thread 97.3 s, 4 threads 81.4 s for the same six configs — four times
   # the cores for 16% less wall clock, so per-core throughput says one.
   OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
-  CUDA_VISIBLE_DEVICES="" \
+  CUDA_VISIBLE_DEVICES="$EVAL_GPU" \
   python3 -u "$GEVAL" \
     --backbone-path "$BB" "${HEAD_ARGS[@]}" \
     --encoder-source "$ENC" --output-dir "$sdir" \
-    --strategy "$PY_STRATEGY" --forecast-len 16 --resume --device cpu \
+    --strategy "$PY_STRATEGY" --forecast-len 16 --resume \
+    --device "$EVAL_DEVICE" \
     --config-filter "$filt" "${ARCH[@]}" >>"$sdir/shard.log" 2>&1 &
   pids+=($!); tags+=("$s")
 done

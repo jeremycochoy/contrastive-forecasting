@@ -4,8 +4,10 @@
 #
 # CF425_LANES lanes train heads on the one GPU at the same time. A lane trains
 # a head (`head_eval_bb.sh`, CF_SKIP_EVAL=1), starts its score in the
-# background, and takes the next job. The scores run on the CPU and wait for
-# one of CF393_EVAL_SLOTS slots, so the heads never wait for a score.
+# background, and takes the next job. A score waits for one of
+# CF393_EVAL_SLOTS slots, so the heads never wait for a score. The scores run
+# on the GPU (CF425_EVAL_DEVICE): strategy R reads a batch of windows in one
+# pass, and one CPU core reads about 18 windows a second.
 #
 # Every head and every score keeps the B4 settings of `head_eval_bb.sh`: the
 # head architecture, 30,000 steps, batch 256, lr 1e-3, head seed 20260722,
@@ -74,7 +76,8 @@ mark_failed(){  # <tag> <what>
 job_env(){  # <lane> <stop k>
   echo WT="$CODE" CF373_ROOT="$ROOT" CF_RESULTS="$RES" CF_STOP_K="$2" \
     GIFT_EVAL="${GIFT_EVAL:-/workspace/gift-eval-data}" \
-    EVAL_SHARDS="${CF425_EVAL_SHARDS:-2}" \
+    EVAL_SHARDS="${CF425_EVAL_SHARDS:-1}" \
+    EVAL_DEVICE="${CF425_EVAL_DEVICE:-cuda}" \
     CF393_EVAL_SLOTS="${CF425_EVAL_SLOTS:-2}" \
     CF393_EVAL_SLOTDIR=/tmp/cf425_evalslots \
     BB_GPU=0 HEAD_VRAM_MIB="${CF425_HEAD_VRAM_MIB:-9000}" \
