@@ -238,7 +238,7 @@ class RevEWMNorm(nn.Module):
         self.alpha = 2.0 / (span + 1.0)
         self.affine = affine
         # Dtype for the output cast of this module. The internal cumsum
-        # statistics math is always fp64 (see _compute_statistics); only the
+        # statistics math is always fp64 (see _compute_statistics). Only the
         # final cast and downstream arithmetic in the normalise/denormalise
         # paths are governed by this knob.
         self.patch_emb_dtype = patch_emb_dtype
@@ -271,7 +271,7 @@ class RevEWMNorm(nn.Module):
             Tensor of the same shape as ``x``.
         """
         # Run the normalise/denormalise math under the chosen patch-emb
-        # autocast context. fp32 = disabled autocast (no-op);
+        # autocast context. fp32 = disabled autocast (no-op).
         # fp16/bf16 = enabled at that dtype. The fp64 cumsum inside
         # `_compute_statistics` is unaffected (autocast doesn't downcast
         # explicit `.to(float64)` operations).

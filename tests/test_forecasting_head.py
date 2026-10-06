@@ -105,7 +105,7 @@ class FakeTransformer(nn.Module):
         `fp32_tail` picks the precision policy of the real block's last layer.
         This fake is fp32 throughout, where both policies are the same
         arithmetic, so it accepts the argument and ignores it. `cache_mask`
-        picks where the real block stores the causal mask; this fake builds
+        picks where the real block stores the causal mask. This fake builds
         one locally every call, so it ignores that argument too."""
         del fp32_tail, cache_mask
         x = self.fcst_down_proj(x)
@@ -233,7 +233,7 @@ class TestValidPatchCount:
         """For T=64, W=16, forecast_len=128:
         target for patch t starts at (t+1)*16 and needs 128 values.
         (t+1)*16 + 128 <= 1024 -> t+1 <= 56 -> t <= 55
-        So valid patches are t=0..55, i.e. T_valid=56.
+        So valid patches are t=0..55, that is, T_valid=56.
         """
         x_norm = torch.randn(B, T_RAW, C)
         targets, T_valid = compute_valid_targets(x_norm, W=16, forecast_len=128)
@@ -749,7 +749,7 @@ class TestTransformerQuantileHead:
     def test_default_layers_and_heads(self):
         head = TransformerQuantileForecastingHead(
             H=384, num_layers=6, nhead=6, forecast_len=16)
-        # 6 layers × (4 H² + 8 H²) ≈ 12 × 384² × 6 ≈ 10.6M; plus norm + head.
+        # 6 layers × (4 H² + 8 H²) ≈ 12 × 384² × 6 ≈ 10.6M. Plus norm + head.
         n = sum(p.numel() for p in head.parameters())
         assert 9_000_000 < n < 12_000_000, f"unexpected param count {n}"
 
@@ -827,7 +827,7 @@ class TestTransformerGaussianHead:
 
     def test_to_quantiles_monotonic(self):
         """Quantiles 0.1..0.9 must be monotonically non-decreasing per step
-        (inv-CDF of standard normal is monotonic; positive σ preserves it)."""
+        (inv-CDF of standard normal is monotonic, and a positive σ preserves it)."""
         head = TransformerGaussianForecastingHead(
             H=H, num_layers=1, nhead=4, ffn_mult=2.0, forecast_len=16)
         head.eval()
@@ -1091,8 +1091,9 @@ def _import_lr_multiplier():
 
 
 def _make_mock_backbone():
-    """Mock backbone with the surface forecast_B4 needs (rev_norm, transformer
-    with input_to_latent, .layers, .W; freq/seasonality embeddings absent)."""
+    """Mock backbone with the surface forecast_B4 needs: rev_norm, a transformer
+    with input_to_latent, .layers and .W. It has no freq or seasonality
+    embeddings."""
     import torch.nn as nn
 
     class MockTransformer(nn.Module):

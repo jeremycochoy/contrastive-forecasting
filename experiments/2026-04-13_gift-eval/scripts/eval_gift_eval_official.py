@@ -486,7 +486,7 @@ def parse_args():
 
 
 def load_head_state(path, device):
-    """The state dict of the head at ``path``; SystemExit when there is no
+    """The state dict of the head at ``path``. SystemExit when there is no
     file."""
     if not os.path.isfile(path):
         raise SystemExit(f"no head at {path}")
@@ -559,7 +559,7 @@ def build_eval_head(head_sd, forecast_len, args):
             int(k.split(".")[2]) for k in head_sd
             if k.startswith("transformer.layers.")})
         num_layers = max(layer_indices) + 1 if layer_indices else 6
-        # nhead default = 6 (matches backbone H=384/64); CLI override available.
+        # nhead default = 6 (matches backbone H=384/64). CLI override available.
         nhead = getattr(args, "head_nhead", 6)
         causal = getattr(args, "head_causal", "true") == "true"
         from src.forecasting_head import TransformerQuantileForecastingHead

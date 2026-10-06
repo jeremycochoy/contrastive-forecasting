@@ -221,7 +221,7 @@ def _detect_backbone_config(sd: dict, base_cfg: dict) -> dict:
             cfg["forecaster_d_model"] = int(wc.shape[0])
     # patch_stats width: encoder in-features = W + freq_emb + seasonality_emb
     # + (PATCH_STATS_DIM if patch_stats else 0). GRU encoder puts it in
-    # ``encoder.skip.weight``; MLP-style in ``encoder.linear1.weight``.
+    # ``encoder.skip.weight``. MLP-style in ``encoder.linear1.weight``.
     W = cfg["W"]
     ref = sd.get("encoder.skip.weight")
     if ref is None:

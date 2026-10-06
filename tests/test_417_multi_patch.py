@@ -547,7 +547,7 @@ def test_the_checkpoint_names_its_patch_sizes():
 
 
 def test_a_multi_patch_checkpoint_loads_strictly():
-    """The native eval keeps the value heads; every other reader drops them
+    """The native eval keeps the value heads. Every other reader drops them
     and still loads the encoder bank."""
     sd = tiny_model().state_dict()
     kept = prepare_backbone_state_dict(sd, keep_value_head=True)

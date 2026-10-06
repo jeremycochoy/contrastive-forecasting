@@ -52,7 +52,7 @@ class ConfigurableModel(torch.nn.Module):
         reversible normaliser (dmean in std units, dlogstd) to each patch
         along the feature axis. Encoder input widens from W to W+2.
         ``'raw'`` — append centred mean and centred log_std as an ablation.
-        Only meaningful with ``rev_norm_kind='ewma'``; with RevIN the
+        Only meaningful with ``rev_norm_kind='ewma'``. With RevIN the
         per-step stats are constant and the diff/centred values are all 0.
     gru_input_bound : float
         #421. With c > 0 the GRU patch encoders read c * tanh(x / c) in place
@@ -325,7 +325,7 @@ class ConfigurableModel(torch.nn.Module):
         # copies of the patch-embedding (input_to_latent) and the encoder
         # transformer stack. When enabled, the teacher's encoder output replaces
         # the student's h_{t+1} as the main-contrastive positive (a SimSiam/BYOL
-        # target stop-grad with a slowly-moving teacher); negatives, the
+        # target stop-grad with a slowly-moving teacher). Negatives, the
         # forecaster, and the CPC term stay on the student. Teacher is held in
         # eval() mode regardless of `model.train()` so dropkey/dropout never
         # touch it. Update via update_teacher(tau) after optimizer.step.
@@ -380,7 +380,7 @@ class ConfigurableModel(torch.nn.Module):
         # GRU patch-embed OOMs at B=1024 even under no_grad (cuDNN workspace ~
         # 17 GiB at B·T·C = 131 k sequences). The student's encoder chunks
         # automatically only when self.training=True (see encoders.py
-        # PATCH_ENC_CHUNK); the teacher stays in eval() so we chunk explicitly
+        # PATCH_ENC_CHUNK). The teacher stays in eval() so we chunk explicitly
         # over the batch dim here. Env-gated through the same TEACHER_EMBED_CHUNK
         # knob (default = PATCH_ENC_CHUNK, then 1), so memory tuning lives in
         # one place.
@@ -434,7 +434,7 @@ class ConfigurableModel(torch.nn.Module):
         """Current contrastive temperature.
 
         Returns the learnable τ as a 0-d tensor (gradient-tracking) when
-        ``learnable_tau=True``; otherwise returns ``None`` and the loss
+        ``learnable_tau=True``. Otherwise returns ``None`` and the loss
         falls back to the spec dict's `contrastive_divergence_temperature`.
 
         τ = exp(-log_inv_tau). With log_inv_tau clamped to [0, log(100)],
@@ -520,7 +520,7 @@ class ConfigurableModel(torch.nn.Module):
                                       seasonality_embs=None):
         """Widen the per-patch time axis with a broadcast seasonality embedding.
 
-        Mirrors :meth:`_apply_freq_embedding`; concatenated AFTER freq so
+        Mirrors :meth:`_apply_freq_embedding`. Concatenated AFTER freq so
         the patch tail is ``[W | stats | freq | seasonality]``.
         """
         if self.seasonality_embedding is None:

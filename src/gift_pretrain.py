@@ -25,7 +25,7 @@ The sampler copies the pretraining sampler of Moirai 1.0 in uni2ts
 
 A window is 1,024 values. A series shorter than that is padded with zeros on
 the left, before its first value. So are the missing values before the first
-observed one; later missing values are forward filled. A window with no
+observed one. Later missing values are forward filled. A window with no
 observed value is skipped. Each window carries the frequency id and the
 seasonality id of its source's `freq`.
 
@@ -73,7 +73,7 @@ POOL_BYTES = 48 * 2 ** 20
 # A kept chunk serves this share of the windows its values hold
 # (values / 1,024), then another one replaces it.
 BLOCK_USE = 0.25
-# One request reads a record batch header; a longer one reads it again.
+# One request reads a record batch header. a longer one reads it again.
 HEADER_BYTES = 64 * 1024
 # Windows mixed before they reach a batch, so that the variates of one draw
 # and the rows of one record batch spread over many batches.
@@ -151,7 +151,7 @@ def fetch_range(path, start, end, revision=None, repo=HF_REPO, tries=None,
 
 
 def result_with_retries(future, resubmit, what):
-    """The result of ``future``; when it failed, the result of a fresh try
+    """The result of ``future``. When it failed, the result of a fresh try
     from ``resubmit()``, up to ``LOAD_RETRIES`` times, each one logged."""
     for attempt in range(LOAD_RETRIES + 1):
         try:
@@ -238,7 +238,7 @@ def _field_arrays(column):
         inner, d = column.values, column.type.list_size
     else:
         inner, d = column, 1
-    # Raw offsets index the raw child array; IPC arrays are never sliced.
+    # Raw offsets index the raw child array. IPC arrays are never sliced.
     offs = inner.offsets.to_numpy()
     values = inner.values.to_numpy(zero_copy_only=False)
     starts = offs[:-1].reshape(-1, d).astype(np.int64)
@@ -406,7 +406,7 @@ class ResidentPool:
 
     ``jobs`` are ``(future, resubmit)`` pairs, one per file, whose future
     gives the file's blocks. The pool waits for them at its first draw, so
-    every family fetches in parallel; a file that fails is read again."""
+    every family fetches in parallel. a file that fails is read again."""
 
     def __init__(self, jobs):
         self.jobs, self.blocks, self.cdf = jobs, None, None

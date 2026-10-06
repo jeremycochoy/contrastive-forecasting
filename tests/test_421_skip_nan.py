@@ -78,8 +78,8 @@ def test_the_bisection_finds_the_culprits(culprits):
 
 @pytest.mark.parametrize("position", [0, 2, 9, 31])
 def test_a_ranking_orders_the_passes_and_finds_the_same_culprit(position):
-    """Culprit 17 at a given place of the ranking: first, it takes one pass;
-    later, the search finds it with the ranked rows, or with every row."""
+    """Culprit 17 at a given place of the ranking: first, it takes one pass.
+    Later, the search finds it with the ranked rows, or with every row."""
     ranked = [r for r in range(32) if r != 17]
     ranked.insert(position, 17)
     found, passes, clean = find_culprits(bad_rows([17]), range(32), ranked)

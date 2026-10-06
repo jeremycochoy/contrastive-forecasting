@@ -822,7 +822,7 @@ def rollout_forecaster_latents(backbone, forecasted_latent, depth):
         depth: k, how many further applications to compose.
 
     Returns:
-        list of k tensors (B, T, C, H); entry j−1 is f^(j).
+        list of k tensors (B, T, C, H). Entry j−1 is f^(j).
     """
     if depth <= 0:
         return []
@@ -1589,7 +1589,7 @@ def _b_variant_decode(head, e_ctx, rolled_f, n_ctx):
     """
     seq = torch.cat([e_ctx, rolled_f], dim=1)   # (BC, n_ctx+m, H)
     all_out = head(seq)
-    # Gaussian heads return (mu, log_var); convert to quantile shape so
+    # Gaussian heads return (mu, log_var). Convert to quantile shape so
     # downstream forecast_* code can treat them like quantile heads.
     if isinstance(all_out, tuple):
         mu, log_var = all_out

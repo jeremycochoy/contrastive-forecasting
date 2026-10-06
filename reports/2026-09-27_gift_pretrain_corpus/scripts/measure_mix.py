@@ -48,7 +48,7 @@ def expected_shares(families, with_covariates=True):
 
 
 def run(stream, batches):
-    """Iterate the stream; count windows per family and the padding."""
+    """Iterate the stream. Count windows per family and the padding."""
     padded = pad_values = 0
     it = iter(stream)
     t0 = time.time()

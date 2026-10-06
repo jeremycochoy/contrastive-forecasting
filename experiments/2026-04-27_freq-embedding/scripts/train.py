@@ -1260,7 +1260,7 @@ def contrastive_objective(model, inputs, args, multi_patch_sizes, active=None,
                           *, rep_w=None):
     """The contrastive objective of one step, by row (#412).
 
-    The rows split by patch size (#417); a single-size run is one group.
+    The rows split by patch size (#417). A single-size run is one group.
     Every group first runs its forward at its size P: its own patch encoder
     (and the teacher's copy), and a rollout that advances P values per
     depth. So a pass draws the same dropout and DropKey masks for each row,
@@ -1355,7 +1355,7 @@ def drop_bad_rows(model, inputs, args, multi_patch_sizes, rng, device,
     step, and the model holds no gradient. ``input_grad``, the gradient of
     the first pass with respect to each row's values, gives the outlier
     rows and the ranking the search tries first. ``objective`` is the row
-    objective of the step (``step_objective``); None is ``value_objective``.
+    objective of the step (``step_objective``). None is ``value_objective``.
     ``faults`` marks the rows whose first forward is not finite (the
     contrastive objective by row, #412, ``search_order``).
     """
@@ -2281,7 +2281,7 @@ class CSVLogger:
         # A k = 0 run writes no such column — its depth-0 curve is 1 − ff.
         self.rollout_depth = int(rollout_depth)
         # What the per-depth columns measure. `cos_err_d*` is #373's latent
-        # error 1 - cos(f^(j)_t, h_{t+1+j}); a value-space run (#415) writes
+        # error 1 - cos(f^(j)_t, h_{t+1+j}). a value-space run (#415) writes
         # `val_err_d*`, the pinball loss of depth j against the actual
         # values. One name per quantity, so no reader has to know the
         # objective to read the column.
@@ -2512,7 +2512,7 @@ class LatentDriftProbe:
         teacher too when the model has one.
 
         Teacher presence is read off ``ConfigurableModel.ema_embedding`` /
-        ``.ema_encoder``; both are pinned by
+        ``.ema_encoder``. Both are pinned by
         ``tests/test_388_align_teacher_ema_schedule.py`` so a rename cannot
         quietly drop every ``teacher_h`` row.
         """
@@ -2586,7 +2586,7 @@ class AttnAmplitudeCSV:
 
     def __init__(self, path):
         self.path = path
-        # Rank-0 only (shared sidecar file); no-op on other ranks.
+        # Rank-0 only (shared sidecar file). No-op on other ranks.
         self._enabled = is_main_process()
         if not self._enabled:
             self._file = None
@@ -2629,7 +2629,7 @@ def scheduled_lr(step, lr_start, lr_final, total, warmup=0, shape="cosine"):
     """A linear warmup over `warmup` steps, then one anneal from `lr_start`
     to `lr_final` that ends at step `total` and holds after it. The cosine
     anneal is the shape of the Moirai schedule (uni2ts `get_scheduler`,
-    #415); with no warmup it is `cosine_lr` itself. `shape="linear"` makes
+    #415). With no warmup it is `cosine_lr` itself. `shape="linear"` makes
     the anneal a straight line (#412ow2)."""
     if step < warmup:
         return lr_start * step / warmup
@@ -2706,7 +2706,7 @@ def main():
         args.device = f"cuda:{local_rank}"
 
     device = torch.device(args.device)
-    # Identical model init on every rank (also broadcast post-build); data
+    # Identical model init on every rank (also broadcast post-build). Data
     # RNG is offset per rank below so each rank streams DIFFERENT samples.
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
@@ -2840,7 +2840,7 @@ def main():
     # dataloader construction — the parser raises SystemExit on bad input.
     _extra_save_steps = parse_extra_save_steps(args.extra_save_steps)
     # α = 1.0 is a legal END value (a teacher frozen at the end of the
-    # budget); it is not a legal start value, since a teacher that never
+    # budget). It is not a legal start value, since a teacher that never
     # moves at all is a plain frozen init.
     if args.ema_tau_end is not None and not (0.0 < args.ema_tau_end <= 1.0):
         raise SystemExit("--ema-tau-end must be in (0, 1]; got "
@@ -3580,7 +3580,7 @@ def main():
                 pad_patches = gather_mask(pad_patches)
             if value_pad is not None:
                 value_pad = gather_mask(value_pad)
-            # Same global pooling for every rollout depth (#373); no-op
+            # Same global pooling for every rollout depth (#373). No-op
             # single-GPU, ONE all-gather per depth under torchrun (a depth is
             # a lone tensor, so it takes the single-tensor form).
             rollout_lats = [gather_latent(f_j) for f_j in rollout_lats]
@@ -3592,7 +3592,7 @@ def main():
                 # SIGReg-on-e pools its statistic over the global batch —
                 # same gather contract as the contrastive loss. Skip the
                 # gather when only --sigreg-encoding is on (no SIGReg
-                # consumer for e_lat); the u_*_e diagnostics are per-rank
+                # consumer for e_lat). The u_*_e diagnostics are per-rank
                 # marginal reads and work fine without a gather (#356-P4).
                 _dummy, e_lat = gather_latents(e_lat, e_lat)
         # CPC multi-step (#316): f_lat is [B,T,C,K,H]. The loss / loss_tau_ref

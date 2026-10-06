@@ -359,7 +359,7 @@ def test_the_stream_is_a_function_of_its_seed(corpus, monkeypatch):
 
 def test_streaming_pools_serve_the_same_windows_as_resident_ones(corpus, monkeypatch):
     """With every source over the resident size, the pools keep one record
-    batch and replace it; the stream still runs and labels every window."""
+    batch and replace it. The stream still runs and labels every window."""
     monkeypatch.setattr(gp, "SHUFFLE_WINDOWS", 32)
     monkeypatch.setattr(gp, "RESIDENT_BYTES", 0)
     monkeypatch.setattr(gp, "POOL_BYTES", 1)
@@ -701,7 +701,7 @@ class FakeResponse:
 
 
 class FlakySession:
-    """A timeout, then 503s, ``fails`` failures in all; then 206 answers."""
+    """A timeout, then 503s, ``fails`` failures in all. Then 206 answers."""
 
     def __init__(self, fails, data):
         self.fails, self.data, self.calls = fails, data, 0

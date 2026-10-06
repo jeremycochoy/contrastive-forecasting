@@ -70,7 +70,7 @@ def lr_multiplier(step: int, total_steps: int, schedule: str,
       ``wsd``:     warmup (linear 0→1) → stable at 1 → linear decay 1→
                    final_lr_ratio over [decay_start_step, total_steps].
       ``cosine``:  warmup → cosine from 1 → final_lr_ratio over
-                   [warmup_steps, total_steps]; ``decay_start_step`` ignored.
+                   [warmup_steps, total_steps]. ``decay_start_step`` ignored.
     """
     if step < warmup_steps:
         return step / max(warmup_steps, 1)
@@ -557,7 +557,7 @@ def main():
     if args.rev_norm_kind == "ewma":
         BACKBONE_CONFIG["rev_norm_span"] = args.rev_norm_span
     # Auto-detect patch_stats from the encoder's first projection input width.
-    # The GRU encoder stores `encoder.skip.weight` of shape [H, encoder_input];
+    # The GRU encoder stores `encoder.skip.weight` of shape [H, encoder_input].
     # MLP-style encoders store `encoder.linear1.weight` similarly. Either way
     # the in-features tells us W + freq_emb_dim + (2 if patch_stats else 0).
     if args.patch_stats == "auto":
@@ -744,7 +744,7 @@ def main():
             g["lr"] = args.lr * mult
 
         # Data loading — when emit_labels is on, the dataloader yields
-        # (x, freq_ids, seasonality_ids); otherwise it yields just x.
+        # (x, freq_ids, seasonality_ids). Otherwise it yields just x.
         try:
             batch = next(data_iter)
         except StopIteration:
