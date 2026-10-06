@@ -640,7 +640,7 @@ class TestEvalProtocol:
         names another. #415 added A2 beside it as an opt-in."""
         code = strip_comments(EVAL_LOCAL.read_text())
         assert 'EVAL_STRATEGY="${EVAL_STRATEGY:-B4}"' in code
-        assert '--strategy "$EVAL_STRATEGY" --forecast-len 16' in code
+        assert '--strategy "$PY_STRATEGY" --forecast-len 16' in code
         for script in SCRIPTS.glob("*"):
             if script.is_file():
                 assert "EVAL_STRATEGY" not in script.read_text(), script

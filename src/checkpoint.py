@@ -34,6 +34,10 @@ _DEFAULTS = {
     # for a constant rate. A resume reads it back, so the rate follows
     # the same curve even when the command line omits the flags.
     "lr_schedule": None,
+    # The gradient norms the spike guard of --skip-spike-samples holds
+    # (#421), or None. A resume reads them back, so the guard keeps its
+    # reference.
+    "spike_norms": None,
 }
 
 
@@ -52,7 +56,8 @@ def save_training_state(optimizer, model_path: str, step: int,
                         synth_rows_consumed: int = 0,
                         rng_state_torch=None,
                         rng_state_numpy=None,
-                        lr_schedule=None) -> str:
+                        lr_schedule=None,
+                        spike_norms=None) -> str:
     """Save optimizer state and training metadata to companion file.
 
     Returns the path where the state was saved.
@@ -71,6 +76,7 @@ def save_training_state(optimizer, model_path: str, step: int,
         "rng_state_torch": rng_state_torch,
         "rng_state_numpy": rng_state_numpy,
         "lr_schedule": lr_schedule,
+        "spike_norms": spike_norms,
     }
     optim_path = get_optimizer_state_path(model_path)
     torch.save(state, optim_path)

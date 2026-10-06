@@ -38,8 +38,9 @@ CF415_NUM_LAYERS=3
 CF415_NUM_ENCODER_LAYERS=3
 # The rollout depth, in VALUE space. #414's cell trains k = 3 in latent space.
 CF415_K="${K:-3}"
-# The backbone seed of #414's best arm, so the two runs start from the same
-# draw.
+# The backbone seed of #414's best arm. The two bodies still start from
+# different draws: the model builds its value head before its encoder, and
+# the head takes the first random draws.
 CF415_SEED="${SEED:-20260520}"
 
 # ---- The Moirai recipe -------------------------------------------------------

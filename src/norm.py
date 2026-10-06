@@ -133,6 +133,19 @@ def patch_padding(pad_mask: torch.Tensor, W: int) -> torch.Tensor:
     return pad_mask.reshape(B, T_raw // W, W, C).all(dim=2)
 
 
+def start_window_anchors(start_mask: torch.Tensor, P: int) -> torch.Tensor:
+    """``[B, T_raw // P, C]`` bool: the patches whose next patch starts in the
+    first window of an EWMA (``RevEWMNorm.start_mask``).
+
+    The EWMA starts from the mean and variance of that window. So the input
+    of such a patch reads values of its depth-0 target: at P < W, and when
+    the left padding does not end on a patch boundary. No term may read it.
+    """
+    B, T_raw, C = start_mask.shape
+    nxt = start_mask[:, P::P]                # the first value of patch p + 1
+    return torch.cat([nxt, nxt.new_zeros(B, 1, C)], dim=1)
+
+
 def leading_zero_count(x: torch.Tensor) -> torch.Tensor:
     """Exact zeros before the first nonzero value: ``[B, T, C]`` → ``[B, 1, C]``.
 
@@ -237,6 +250,9 @@ class RevEWMNorm(nn.Module):
         # 'norm' call. None when the mode is off.
         self.skip_leading_zeros = bool(skip_leading_zeros)
         self.pad_mask = None
+        # The values of the first window of the last 'norm' call, which the
+        # EWMA starts from: ``[B, T, C]`` bool (start_window_anchors).
+        self.start_mask = None
         if self.skip_leading_zeros:
             self.register_buffer("leading_zero_pad",
                                  torch.ones((), dtype=torch.bool))
@@ -335,6 +351,7 @@ class RevEWMNorm(nn.Module):
 
         self.mean = ema_mean.to(dtype).detach()  # [B, T, C]
         self.stdev = torch.sqrt(ema_var).to(dtype).detach()  # [B, T, C]
+        self.start_mask = (arange < W).view(1, T, 1).expand(B, T, C)
 
     def _compute_statistics_skip_zeros(self, x: torch.Tensor):
         """Statistics from the real values only (#419).
@@ -354,6 +371,7 @@ class RevEWMNorm(nn.Module):
         self.mean = mean.gather(1, back).to(x.dtype).detach()
         self.stdev = torch.sqrt(var.gather(1, back)).to(x.dtype).detach()
         self.pad_mask = t < z
+        self.start_mask = t < z + self.patch_size
 
     def _normalize(self, x: torch.Tensor) -> torch.Tensor:
         x = x - self.mean

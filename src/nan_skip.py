@@ -133,8 +133,8 @@ class SpikeGuard:
     """--skip-spike-samples: a step is a spike when its gradient norm is above
     ``factor`` times the reference: the median of the last HISTORY clean
     steps. Until the guard holds MIN_HISTORY of them, the reference is
-    ``prior``, the clip norm. After a resume the guard has no history, and
-    without a prior the first spikes would set the median. A pass with n of
+    ``prior``, the clip norm: without a prior the first spikes would set the
+    median. A checkpoint keeps the history, so a resume reads it back. A pass with n of
     the B rows active has a noisier mean gradient, so its threshold grows
     with sqrt(B / n)."""
 
@@ -175,7 +175,9 @@ def find_culprits(is_bad, rows, ranked=(), outliers=()):
 
     ``outliers`` lists the rows whose input gradient is far above the
     median row's (outlier_rows). The search first tries the pass without
-    all of them. When it is clean, they are the culprits: one pass.
+    all of them. When it is clean, it looks for the culprits among these
+    rows only, with the other rows active, as for the ranked rows: a large
+    input gradient alone drops no row.
 
     Returns ``(culprits, passes, clean)``: ``clean`` is True when the last
     pass, with the culprits out, was clean, and the model then holds its
@@ -207,7 +209,9 @@ def find_culprits(is_bad, rows, ranked=(), outliers=()):
     if outliers and len(outliers) < len(kept):
         rest = [r for r in kept if r not in set(outliers)]
         if not bad(rest):
-            return outliers, passes, True
+            if len(outliers) == 1:
+                return outliers, passes, True
+            part, context, ranked = outliers, rest, ()
     ranked = [r for r in ranked if r in set(rows)]
     k = 1
     while k <= min(MAX_RANKED, len(ranked), len(kept) - 1):

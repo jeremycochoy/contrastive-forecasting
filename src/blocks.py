@@ -35,6 +35,11 @@ class _AttnAmpDiag:
     def record(self, layer_idx, block, qk_logit_maxabs,
                sa_in_maxabs, sa_out_maxabs, resid_post_sa_maxabs,
                resid_post_ffn_maxabs):
+        # One row per (layer, block) and step: the first forward's. A step
+        # can run the cell again (a rollout depth on forecast inputs, a
+        # second patch-size group, a pass of --skip-nan-samples).
+        if any(r[0] == layer_idx and r[1] == block for r in self._rows):
+            return
         self._rows.append((layer_idx, block, qk_logit_maxabs,
                            sa_in_maxabs, sa_out_maxabs,
                            resid_post_sa_maxabs, resid_post_ffn_maxabs))

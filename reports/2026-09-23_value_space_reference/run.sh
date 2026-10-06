@@ -34,6 +34,7 @@ set -uo pipefail
 
 . "$(dirname "${BASH_SOURCE[0]}")/scripts/paths.sh"
 . "$CF415_PARENT/scripts/leg_paths.sh"
+. "$CF415_REPO/scripts/hub_gate.sh"
 
 # The eight stops live in `paths.sh`, because `head_eval_value.sh` validates
 # against them. A second list here would let a stop train and then fail to
@@ -72,11 +73,21 @@ stop_ready(){  # <stop steps>
 }
 
 train_lane(){
-  local stop rc
+  local stop rc tries
   for stop in $STOPS; do
     log "stop $stop: train"
-    BB_GPU="$BB_GPU" bash "$LEG_RUNNER" "$stop" || {
-      rc=$?; log "stop $stop: train rc=$rc — the train lane stops"; return $rc; }
+    tries=1
+    until BB_GPU="$BB_GPU" bash "$LEG_RUNNER" "$stop"; do
+      rc=$?
+      # A Hub outage fails the leg, not the run: wait for the Hub, then fire
+      # the leg again. It resumes its newest checkpoint.
+      if [ "$rc" -eq "$HUB_GATE_RC" ] && [ "$tries" -lt 5 ] && hub_wait_up; then
+        tries=$(( tries + 1 ))
+        log "stop $stop: the Hub answers again — train, try $tries"
+        continue
+      fi
+      log "stop $stop: train rc=$rc — the train lane stops"; return $rc
+    done
   done
   log "train lane done"
 }

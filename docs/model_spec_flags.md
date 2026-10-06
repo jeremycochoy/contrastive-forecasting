@@ -77,8 +77,16 @@ On the contrastive objective:
 - Up to 10-01, every term ran on the rows of its group only. So L_rep, its
   MoCo keys and SIGReg read about one fifth of the batch. The runs #412om,
   #412oc and #412oe trained that way.
+- The trainer refuses the CPC auxiliary (`--cpc-infonce-weight`): it does not
+  run on the common grid.
+- The trainer refuses a run on more than one rank (`WORLD_SIZE > 1`), on both
+  objectives: two ranks draw different sizes.
 - The EMA teacher copies the encoder of each size and updates by EMA.
 - The rollout depth advances P values per depth at size P.
+- The EWMA scaling starts from the mean and variance of the first 16 values
+  (the first 16 real values after zero padding). No term reads a patch whose
+  next patch starts in these 16 values, on either objective: its input reads
+  values of its target. At size 8 this is the first real patch.
 - The diagnostics read one sequence length, so they read the group of the
   base size 16. With no row at 16 they read the largest group. Only rows of
   the classes D, B, W and M, and rows with no frequency label, can draw the
@@ -122,6 +130,13 @@ forward (student or teacher) are the outliers that the search drops first.
 A row with only a non-finite input gradient ranks high, and the search
 checks it on its own before it drops it. Every pass of the search runs the
 forward of each group, so a NaN step costs one full step per pass.
+
+## `--patch-stats none|diff|raw`
+
+Default: `none`. The statistics come from the normaliser of the whole batch.
+So the trainer refuses `diff` and `raw` with `--gift-pretrain` (the zero
+padding moves them), `--rev-norm-kind meanstd`, `--multi-patch-sizes` and
+`--skip-nan-samples` (a row reads the statistics of other rows).
 
 ## The scoring head
 

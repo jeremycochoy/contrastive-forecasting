@@ -76,8 +76,9 @@ from src.nan_debug import EXIT_CODE as NAN_DEBUG_EXIT, NanDebug
 from src.nan_skip import (MAX_SKIPPED_IN_A_ROW, SpikeGuard, find_culprits,
                           is_finite_step, restore_rng, rng_state,
                           search_order, total_grad_norm, weights_are_finite)
-from src.norm import patch_padding, zero_union_padding
+from src.norm import patch_padding, start_window_anchors, zero_union_padding
 from src.forecasting_head import (QUANTILE_LEVELS,
+                                  diagnostic_rows,
                                   extract_encoder_latents,
                                   extract_teacher_encoder_latents,
                                   drop_far_windows,
@@ -726,7 +727,7 @@ def build_parser():
                         "the whole difference. Every flag the run does not "
                         "read is refused when named, whatever its value: "
                         "the contrastive loss and its knobs, the teacher and "
-                        "its EMA, SIGReg, the CPC auxiliary and --grad-clip. "
+                        "its EMA, SIGReg and the CPC auxiliary. "
                         "VALUE_SPACE_FLAGS lists what the run reads.")
     p.add_argument("--train-rollout-depth", type=int, default=0,
                    help="k — train the COMPOSED forecaster, not just one step "
@@ -970,6 +971,11 @@ def value_objective(model, inputs, args, multi_patch_sizes, active=None):
     """
     x_norm, labels = inert_inputs(inputs, active)
     target = inputs["target_mask"]
+    start = inputs.get("start_mask")
+    if start is not None:
+        # No term predicts a value of the EWMA's first window: every input
+        # before it reads that window's mean and variance.
+        target = ~start if target is None else target & ~start
     if active is not None:
         rows = active.view(-1, 1, 1)
         target = rows.expand_as(x_norm) if target is None else target & rows
@@ -1027,12 +1033,17 @@ def group_forward(model, x_norm, labels, size, args):
         rollout=forecaster_depths(model, f, args))
 
 
-def group_padding(pad_mask, rows, size, active, shape):
+def group_padding(pad_mask, rows, size, active, shape, start_mask=None):
     """``[n, T, C]`` bool: the patches of one group that no term may read
-    (#419, #412), its zero padding and every patch of an inert row. None
-    when the group has neither. ``shape`` is the step's ``[B, T_raw, C]``."""
+    (#419, #412), its zero padding, the patches whose next patch starts in
+    the EWMA's first window (start_window_anchors) and every patch of an
+    inert row. None when the group has none. ``shape`` is the step's
+    ``[B, T_raw, C]``."""
     pad = (None if pad_mask is None
            else patch_padding(take_rows(pad_mask, rows), size))
+    if start_mask is not None:
+        start = start_window_anchors(take_rows(start_mask, rows), size)
+        pad = start if pad is None else pad | start
     if active is None:
         return pad
     inert = ~take_rows(active, rows).view(-1, 1, 1)
@@ -1281,7 +1292,7 @@ def contrastive_objective(model, inputs, args, multi_patch_sizes, active=None,
                 {k: take_rows(v, rows) for k, v in labels.items()}, size, args)
             for size, rows in groups.items()}
     pads = {size: group_padding(inputs["pad_mask"], rows, size, active,
-                                x_norm.shape)
+                                x_norm.shape, inputs.get("start_mask"))
             for size, rows in groups.items()}
     counts = {size: (len(lats[size].o) if active is None
                      else int(take_rows(active, rows).sum()))
@@ -1413,8 +1424,10 @@ def nan_rows_report(step, culprits, meta, args, kind="nan"):
                        f"({meta['row_kind'][partner]})")
         size = meta["patch_size"]
         split = meta["split"]
+        freq = ("-" if meta["freq_ids"] is None
+                else names[int(meta["freq_ids"][row])])
         lines.append(
-            f"  row {row}: {source}, freq {names[int(meta['freq_ids'][row])]}"
+            f"  row {row}: {source}, freq {freq}"
             f", patch {int(size[r]) if size is not None else '-'}"
             f", split {int(split[row]) if split is not None else '-'}"
             f", max |z| "
@@ -1600,16 +1613,26 @@ def parse_extra_save_steps(spec):
 def parse_multi_patch_sizes(args):
     """--multi-patch-sizes as a sorted tuple of ints, or () when off (#417).
 
-    Raises SystemExit when the run cannot train the sizes: a contrastive
-    objective with a term that takes no row mask (#412), a set that leaves
-    a frequency without a size, or a window that holds too few patches of
-    the largest size for the rollout.
+    Raises SystemExit when the run cannot train the sizes: more than one
+    rank, a contrastive objective with a term that takes no row mask or with
+    the CPC auxiliary (#412), a set that leaves a frequency without a size,
+    or a window that holds too few patches of the largest size for the
+    rollout.
     """
     if args.multi_patch_sizes is None:
         return ()
+    if int(os.environ.get("WORLD_SIZE", "1")) > 1:
+        raise SystemExit("--multi-patch-sizes runs its patch-size groups on one "
+                         "rank: two ranks draw different sizes, so their "
+                         "gathers and gradient averages do not match. Run it "
+                         "on one GPU.")
     refusal = row_mask_refusal("--multi-patch-sizes", args)
     if refusal:
         raise SystemExit(refusal)
+    if not args.value_space_objective and args.cpc_infonce_weight > 0:
+        raise SystemExit("--multi-patch-sizes: the CPC auxiliary "
+                         "(--cpc-infonce-weight) does not run on the common "
+                         "grid of the patch sizes (#412).")
     try:
         sizes = tuple(sorted({int(s) for s in args.multi_patch_sizes.split(",")}))
         check_patch_sizes(sizes, base_size=MODEL_CONFIG["W"])
@@ -1645,7 +1668,9 @@ def resume_state(model, args):
     """
     state = torch.load(args.resume, map_location=next(model.parameters()).device)
     trained = gru_input_bound_of(state)
-    if trained and trained != args.gru_input_bound:
+    # The checkpoint holds the bound as float32: compare at that precision.
+    if trained and trained != float(torch.tensor(args.gru_input_bound,
+                                                 dtype=torch.float32)):
         raise SystemExit(f"{args.resume} trained with --gru-input-bound "
                          f"{trained:g}. Resume it with the same bound.")
     for key, value in model.state_dict().items():
@@ -1657,7 +1682,7 @@ def resume_state(model, args):
 def save_snapshot(model, optimizer, path, step, best_gap, best_gap_step,
                   best_loss, best_loss_step, ema_loss=None, ema_gap=None,
                   hf_rows_consumed=0, synth_rows_consumed=0,
-                  lr_schedule=None):
+                  lr_schedule=None, spike_norms=None):
     # Rank-0 only — concurrent writers to one path corrupt the checkpoint.
     # Centralised here so every call site (NaN/periodic/best/final) is
     # covered. Params are kept in sync across ranks (broadcast at init +
@@ -1676,6 +1701,7 @@ def save_snapshot(model, optimizer, path, step, best_gap, best_gap_step,
         rng_state_torch=torch.get_rng_state(),
         rng_state_numpy=_np.random.get_state(),
         lr_schedule=lr_schedule,
+        spike_norms=spike_norms,
     )
     print(f"  -> Saved {path}")
 
@@ -1881,6 +1907,24 @@ def row_mask_refusal(flag, args):
             f"cosine_similarity_batch_split_pred_rep, with their add-ons.")
 
 
+def check_patch_stats(args):
+    """Refuse --patch-stats where its statistics cannot be right (#419,
+    #421, #412 review). They come from the normaliser of the whole batch:
+    the zero padding moves them, a row group of one patch size or a dropped
+    row reads the statistics of other rows, and the mean/std scaling has
+    one statistic per window."""
+    if args.patch_stats == "none":
+        return
+    clash = [flag for flag, on in (
+        ("--gift-pretrain", args.gift_pretrain),
+        ("--rev-norm-kind meanstd", args.rev_norm_kind == "meanstd"),
+        ("--multi-patch-sizes", args.multi_patch_sizes is not None),
+        ("--skip-nan-samples", args.skip_nan_samples)) if on]
+    if clash:
+        raise SystemExit(f"--patch-stats {args.patch_stats} does not run with "
+                         f"{', '.join(clash)}. Use --patch-stats none.")
+
+
 def check_contrastive_rows(args):
     """Refuse a contrastive run by row (#412) this trainer cannot run."""
     if not moirai_contrastive(args):
@@ -1955,12 +1999,16 @@ def check_mean_std(args):
 
 
 def contrastive_padding(model, args):
-    """``[B, T, C]``: the zero-padded patches of the batch the model has just
-    normalised, which no contrastive term may read (#419). None when the run
-    pads nothing, or trains the value objective, which masks its own."""
+    """``[B, T, C]``: the patches of the batch the model has just normalised
+    which no contrastive term may read: the zero padding (#419), and the
+    patches whose next patch starts in the EWMA's first window
+    (start_window_anchors). None when the run pads nothing, or trains the
+    value objective, which masks its own."""
     if not args.gift_pretrain or args.value_space_objective:
         return None
-    return patch_padding(model.rev_norm.pad_mask, model.W)
+    pad = patch_padding(model.rev_norm.pad_mask, model.W)
+    start = getattr(model.rev_norm, "start_mask", None)
+    return pad if start is None else pad | start_window_anchors(start, model.W)
 
 
 def forecaster_depths(model, f_lat, args):
@@ -1968,6 +2016,29 @@ def forecaster_depths(model, f_lat, args):
     the trainer composes the forecaster on its own output, for the whole
     batch and for each patch-size group (#412)."""
     return rollout_forecaster_latents(model, f_lat, args.train_rollout_depth)
+
+
+def value_diagnostic_padding(model, inputs):
+    """``[n, T, C]``: the padded patches of the rows whose latents the value
+    objective returns for the diagnostics (#419, #417), or None."""
+    pad, sizes = inputs["pad_mask"], inputs["sample_sizes"]
+    if pad is None:
+        return None
+    if sizes is None:
+        return patch_padding(pad, model.W)
+    size, rows = diagnostic_rows(sizes, model.W)
+    return patch_padding(pad[rows.to(pad.device)], size)
+
+
+def clean_rows(pad_patches, n):
+    """The rows the step diagnostics read: those with no padded patch
+    (#419). A padded patch has a near-constant latent, which biases ff, the
+    AUC and the dimension usage. Every row when nothing is padded, or when
+    fewer than two rows are clean."""
+    if pad_patches is None:
+        return slice(None)
+    keep = ~pad_patches.reshape(n, -1).any(dim=1)
+    return keep if int(keep.sum()) >= 2 else slice(None)
 
 
 def real_positions(latent, pad_patches):
@@ -2602,7 +2673,7 @@ def main():
             raise SystemExit(
                 "--value-space-objective trains on the actual values and "
                 "reads no contrastive term, no teacher, no EMA, no CPC "
-                "auxiliary, no SIGReg and no gradient clip. This command "
+                "auxiliary and no SIGReg. This command "
                 "line still names " + ", ".join(clash) + ". Drop them "
                 "(#415).")
         if args.forecaster_kind != "transformer":
@@ -2616,6 +2687,7 @@ def main():
     check_skip_nan(args)
     check_patch_rms(args)
     check_contrastive_rows(args)
+    check_patch_stats(args)
     # #412: the Moirai parts reach the contrastive objective by row. The
     # value-space objective reads rows on its own already. Both are row
     # objectives: one input step (the split, the sizes, the filter) feeds
@@ -3193,7 +3265,7 @@ def main():
                       ema_loss=ema_loss, ema_gap=ema_gap,
                       hf_rows_consumed=hf_rows_consumed,
                       synth_rows_consumed=synth_rows_consumed,
-                      lr_schedule=lr_schedule)
+                      lr_schedule=lr_schedule, spike_norms=guard_history())
         csv_logger.close()
         if attn_amp_csv is not None:
             attn_amp_csv.close()
@@ -3203,6 +3275,14 @@ def main():
     skipped_in_a_row = 0
     spike_guard = (SpikeGuard(args.skip_spike_samples, args.grad_clip or 1.0)
                    if args.skip_spike_samples > 0 else None)
+    if spike_guard is not None and restored.get("spike_norms"):
+        # The history of the checkpoint: the reference stays the median of
+        # the last clean steps, and the prior does not come back.
+        spike_guard.norms = list(restored["spike_norms"])
+
+    def guard_history():
+        """The norms of the spike guard, saved with each snapshot."""
+        return None if spike_guard is None else list(spike_guard.norms)
 
     # -- Training loop --------------------------------------------------------
     t0 = time.time()
@@ -3379,6 +3459,7 @@ def main():
             step_inputs = dict(
                 x_norm=x_norm, sample_sizes=sample_sizes,
                 target_mask=target_mask, pad_mask=pad_mask,
+                start_mask=getattr(model.rev_norm, "start_mask", None),
                 freq_ids=freq_ids, freq_embs=freq_embs,
                 seasonality_ids=seasonality_ids,
                 seasonality_embs=seasonality_embs)
@@ -3452,6 +3533,11 @@ def main():
         # depths of its diagnostic group.
         pad_patches = (row_extra.pad if rows_contrastive
                        else contrastive_padding(model, args))
+        value_pad = (value_diagnostic_padding(model, step_inputs)
+                     if args.value_space_objective else None)
+        # The padding of this rank's rows, before any gather: e_lat keeps
+        # them when only --sigreg-encoding reads it.
+        local_pad = value_pad if pad_patches is None else pad_patches
         # Rollout depth (#373): f^(1)..f^(k), the forecaster re-applied to
         # its own output. Built from the LOCAL f_lat — the operator runs per
         # sequence — then gathered like f_lat below so every depth pools the
@@ -3492,6 +3578,8 @@ def main():
             if pad_patches is not None:
                 # #419: the padding pools over the same global batch.
                 pad_patches = gather_mask(pad_patches)
+            if value_pad is not None:
+                value_pad = gather_mask(value_pad)
             # Same global pooling for every rollout depth (#373); no-op
             # single-GPU, ONE all-gather per depth under torchrun (a depth is
             # a lone tensor, so it takes the single-tensor form).
@@ -3583,11 +3671,12 @@ def main():
         # #421 --skip-nan-samples: a non-finite step drops its bad rows.
         nan_dropped, spike_dropped, step_skipped = 0, 0, False
         step_grad_norm = None
-        if rows_contrastive and "active" in step_inputs:
-            # #412: every window of the step is far from its context. No
-            # term reads a row, so the step is skipped: no weight moves, the
-            # teacher waits, and the spike guard records no norm.
-            step_skipped = True
+        # #412: every window of the step is far from its context. No term
+        # reads a row, so the step is skipped: no weight moves, the teacher
+        # waits, and the spike guard records no norm. No row is bad, so the
+        # step does not count toward MAX_SKIPPED_IN_A_ROW.
+        far_skipped = rows_contrastive and "active" in step_inputs
+        step_skipped = far_skipped
         # The last pass of a row search: the step trains on it, and every
         # diagnostic below reads it.
         adopted = None
@@ -3650,12 +3739,12 @@ def main():
                                                  args)
             else:
                 value_depths = row_extra
-        if step_skipped:
+        if step_skipped and not far_skipped:
             skipped_in_a_row += 1
             if skipped_in_a_row == MAX_SKIPPED_IN_A_ROW:
                 stop_on_nan(step, f" {skipped_in_a_row} steps in a row were "
                             f"skipped, each with every row bad.")
-        else:
+        elif not step_skipped:
             skipped_in_a_row = 0
         grad_norm = None
         if args.grad_clip is not None and not step_skipped:
@@ -3696,6 +3785,14 @@ def main():
         timing_count += 1
 
         with torch.no_grad():
+            rows = f1_lat.shape[0]
+            keep = clean_rows(value_pad if pad_patches is None else pad_patches,
+                              rows)
+            f1_lat, o_lat = f1_lat[keep], o_lat[keep]
+            if e_lat is not None:
+                e_lat = e_lat[keep if e_lat.shape[0] == rows
+                              else clean_rows(local_pad, e_lat.shape[0])]
+            rollout_lats = [f_j[keep] for f_j in rollout_lats]
             val_ff, val_fp, val_tp, val_cb = compute_metrics(f1_lat, o_lat, CLD)
             # Per-batch backbone diagnostic metrics. Convention matches
             # experiments/2026-05-05_exp_qhead_improvements/scripts/eval_backbone_metrics.py:
@@ -3838,7 +3935,7 @@ def main():
                               ema_loss=ema_loss, ema_gap=ema_gap,
                               hf_rows_consumed=hf_rows_consumed,
                               synth_rows_consumed=synth_rows_consumed,
-                          lr_schedule=lr_schedule)
+                          lr_schedule=lr_schedule, spike_norms=guard_history())
             if ema_loss is not None and ema_loss < best_loss:
                 best_loss, best_loss_step = ema_loss, step
                 path = os.path.join(args.save_dir, f"{args.run_name}_best_loss.pth")
@@ -3847,7 +3944,7 @@ def main():
                               ema_loss=ema_loss, ema_gap=ema_gap,
                               hf_rows_consumed=hf_rows_consumed,
                               synth_rows_consumed=synth_rows_consumed,
-                          lr_schedule=lr_schedule)
+                          lr_schedule=lr_schedule, spike_norms=guard_history())
 
         if should_snapshot(step, args.save_every, _extra_save_steps):
             path = os.path.join(args.save_dir, f"{args.run_name}_{step // 1000}k.pth")
@@ -3856,7 +3953,7 @@ def main():
                           ema_loss=ema_loss, ema_gap=ema_gap,
                           hf_rows_consumed=hf_rows_consumed,
                           synth_rows_consumed=synth_rows_consumed,
-                          lr_schedule=lr_schedule)
+                          lr_schedule=lr_schedule, spike_norms=guard_history())
 
         if args.traj_save_every > 0 and step % args.traj_save_every == 0:
             path = os.path.join(args.save_dir, f"{args.run_name}_step{step}.pth")
@@ -3865,7 +3962,7 @@ def main():
                           ema_loss=ema_loss, ema_gap=ema_gap,
                           hf_rows_consumed=hf_rows_consumed,
                           synth_rows_consumed=synth_rows_consumed,
-                          lr_schedule=lr_schedule)
+                          lr_schedule=lr_schedule, spike_norms=guard_history())
 
         if latent_drift_probe is not None and drift_every > 0 \
                 and step % drift_every == 0:
@@ -3877,7 +3974,7 @@ def main():
                   ema_loss=ema_loss, ema_gap=ema_gap,
                   hf_rows_consumed=hf_rows_consumed,
                   synth_rows_consumed=synth_rows_consumed,
-                  lr_schedule=lr_schedule)
+                  lr_schedule=lr_schedule, spike_norms=guard_history())
     if latent_drift_probe is not None:
         # One final probe at total_steps so the CSV covers the run's tail.
         if latent_drift_probe.prev_step != args.total_steps:

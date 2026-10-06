@@ -459,6 +459,11 @@ def main():
         BACKBONE_CONFIG["num_freqs"] = freq_w.shape[0]
     zero_pad = "rev_norm.leading_zero_pad" in sd
     BACKBONE_CONFIG["rev_norm_skip_leading_zeros"] = zero_pad
+    if not zero_pad and (args.gift_pretrain_index or args.gift_pretrain_root):
+        raise SystemExit("--gift-pretrain-index and --gift-pretrain-root read "
+                         "the stream of a zero-padding backbone (#419), and "
+                         "this backbone has none: its head trains on "
+                         "--hf-repo. Drop them.")
     # #421: the bound of the GRU input, when the backbone trained with one.
     BACKBONE_CONFIG["gru_input_bound"] = gru_input_bound_of(sd)
     freq_vocab = vocab_of_rows(freq_w.shape[0]) if freq_w is not None else "v1"

@@ -1070,6 +1070,16 @@ def _diagnostic_latents(latents, base_size):
     return latents[size][1:]
 
 
+def diagnostic_rows(sample_sizes, base_size):
+    """``(size, rows)`` of the group whose latents the diagnostics read, by
+    the rule of :func:`_diagnostic_latents`: the base size's group, else the
+    largest, the smallest size first among equals."""
+    sizes, counts = sample_sizes.unique(return_counts=True)
+    size = (base_size if bool((sizes == base_size).any())
+            else int(sizes[counts.argmax()]))
+    return size, (sample_sizes == size).nonzero().squeeze(1)
+
+
 def patch_rms_terms(pre_norm, patch_pad, n):
     """--patch-rms-weight (#421), for n rows: the mean over each row's real
     patches of (RMS(v) - 1)^2, with gradient, and the mean RMS, without.
