@@ -10,6 +10,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.patheffects as patheffects
 import matplotlib.pyplot as plt
+from matplotlib.text import Text
 
 from run_style import P, colour, line, tagged
 
@@ -73,7 +74,8 @@ XSCALE = {"cf415_moirai": 4, "cf415_moirai_native": 4, "cf419_moirai_native": 4,
 END_LABEL_OFFSET = {P + "_lr100x": (9, 4), P + "_cos200k": (9, -12), "cf412om": (-62, 6),
                     "cf412oc2": (9, 6), "cf412oa2": (9, 7), "cf412oe2": (9, 5), "cf412om2": (-22, -18),
                     "cf412ow2": (9, -9), "cf412ol2": (9, 2), "cf419_cos200k": (9, -13),
-                    "cf412or2": (9, 5), "cf412bm": (9, -12), "cf412al": (9, -14),
+                    "cf412or2": (9, 5), "cf412bm": (9, -12), "cf412al": (9, 1),
+                    "cf412bw": (9, 3), "cf419ms": (9, -13),
                     "cf421ew_moirai_native": (-45, -18), "cf421n_moirai_native": (-48, -16)}
 # A white outline keeps a score label readable where a line crosses it.
 HALO = [patheffects.withStroke(linewidth=3, foreground="white")]
@@ -111,7 +113,7 @@ def draw_series(ax, arm, width, marker, points):
     if y[-1] <= YMAX:
         ax.annotate(f"{y[-1]:.4f}", (x[-1], shown[-1]), textcoords="offset points",
                     xytext=END_LABEL_OFFSET.get(arm, (9, -3)), fontsize=9,
-                    color=hue, weight="bold", path_effects=HALO)
+                    color=hue, weight="bold", path_effects=HALO, zorder=5)
     return handle, (above, hue)
 
 
@@ -125,7 +127,8 @@ def draw_off_chart(fig, ax, off):
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
     box = ax.get_window_extent(renderer)
-    width = lambda artist: artist.get_window_extent(renderer).width / box.width
+    # Text.get_window_extent: the width of the label alone, without its arrow.
+    width = lambda artist: Text.get_window_extent(artist, renderer).width / box.width
     head = ax.text(0, 1.022, "Above the chart:", transform=ax.transAxes, fontsize=9,
                    color="#555555", va="bottom")
     cursor = width(head) + 0.025
@@ -195,9 +198,10 @@ def draw_figure(groups, out):
     handles = {arm: handle for arm, (handle, _) in drawn.items()}
     draw_references(ax)
     style_axes(ax)
-    draw_off_chart(fig, ax, {arm: off for arm, (_, off) in drawn.items()})
     draw_legend(ax, groups, handles)
     fig.tight_layout()
+    # After the layout: the strip measures its labels on the final axes width.
+    draw_off_chart(fig, ax, {arm: off for arm, (_, off) in drawn.items()})
     fig.savefig(out, dpi=135, bbox_inches="tight")
     plt.close(fig)
     print(f"wrote {out}")
