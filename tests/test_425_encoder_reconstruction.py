@@ -1101,3 +1101,66 @@ def test_the_figures_pair_the_two_scores_of_a_checkpoint(tmp_path,
     assert not plot.draw_figure(moirai, forecast, points, tmp_path / "m.png",
                                 False)
     assert not (tmp_path / "m.png").exists()
+
+
+FAKE_SSH = """#!/bin/bash
+# The box is this machine: run the remote command here.
+exec bash -c "${@: -1}"
+"""
+
+
+@pytest.fixture
+def sync_box(tmp_path):
+    """A box with a scored head, a head that still trains, and a head that
+    ended after another loop copied its first `*_best.pth`."""
+    box, res = tmp_path / "box" / "cf-425", tmp_path / "box" / "results"
+    files = {
+        "recon/eval/done_recon/q_final.pth": b"F" * 10,
+        "recon/eval/done_recon/q_best.pth": b"B" * 10,
+        "recon/eval/done_recon/q_losses.csv": b"step,loss\n",
+        "recon/eval/done_recon/gift_r/summary.txt": b"Aggregate 0.2\n",
+        "recon/eval/train_recon/q_best.pth": b"T" * 10,
+        "recon/eval/late_recon/q_final.pth": b"L" * 10,
+        "recon/eval/late_recon/q_best.pth": b"new best!!",
+    }
+    for rel, data in files.items():
+        (box / rel).parent.mkdir(parents=True, exist_ok=True)
+        (box / rel).write_bytes(data)
+    res.mkdir(parents=True)
+    (res / "score_done_recon.txt").write_text("0.2000\n")
+    (res / "queue.log").write_text("started\n")
+    mirror = tmp_path / "elisa" / "vast_lr100x"
+    stale = mirror / "cf-425" / "recon/eval/late_recon/q_best.pth"
+    stale.parent.mkdir(parents=True)
+    stale.write_bytes(b"old best!!")
+    os.utime(stale, (1_000_000_000, 1_000_000_000))
+    ssh = tmp_path / "fake_ssh.sh"
+    ssh.write_text(FAKE_SSH)
+    env = dict(os.environ, CF425_SSH=f"bash {ssh}", CF425_BOX_ROOT=str(box),
+               CF425_RES=str(res), CF425_PRUNE_ROOT=str(box),
+               CF425_MIRROR=str(mirror),
+               CF425_RESULTS_MIRROR=str(tmp_path / "elisa" / "results"),
+               CF425_PRUNE=str(SCRIPTS / "prune.sh"))
+    return tmp_path, box, mirror / "cf-425", env
+
+
+def test_a_sync_tick_brings_the_ended_heads_and_frees_the_box(sync_box):
+    tmp_path, box, mirror, env = sync_box
+    r = subprocess.run(["bash", str(SCRIPTS / "sync_box.sh")],
+                       capture_output=True, text=True, env=env, timeout=120)
+    assert r.returncode == 0, r.stdout + r.stderr
+    held = {str(p.relative_to(mirror)) for p in mirror.rglob("*") if p.is_file()}
+    assert held == {"recon/eval/done_recon/q_final.pth",
+                    "recon/eval/done_recon/q_best.pth",
+                    "recon/eval/done_recon/q_losses.csv",
+                    "recon/eval/done_recon/gift_r/summary.txt",
+                    "recon/eval/late_recon/q_final.pth",
+                    "recon/eval/late_recon/q_best.pth"}
+    assert (mirror / "recon/eval/late_recon/q_best.pth").read_bytes() == b"new best!!"
+    results = tmp_path / "elisa" / "results"
+    assert (results / "score_done_recon.txt").read_text() == "0.2000\n"
+    left = {str(p.relative_to(box)) for p in box.rglob("*") if p.is_file()}
+    assert left == {"recon/eval/done_recon/q_losses.csv",
+                    "recon/eval/done_recon/gift_r/summary.txt",
+                    "recon/eval/train_recon/q_best.pth",     # still trains
+                    "recon/eval/late_recon/q_final.pth"}     # no score yet

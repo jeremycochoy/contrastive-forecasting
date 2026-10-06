@@ -152,14 +152,31 @@ from the backbone checkpoint. For such a backbone it trains a head bank:
   share of the rows.
 - The checkpoint names the scaling, so `--rev-norm-kind` is not read.
   `--forecast-len` is not read either. The script refuses
-  `--reconstruction`, `--mixed-rollout` and heads without quantiles.
+  `--reconstruction forecaster`, `--mixed-rollout` and heads without
+  quantiles.
+
+`--reconstruction encoder` (#425) trains the same heads on another target.
+Head P reads the encoder latent of each patch and decodes the P values of
+that patch. The loss counts the same values as above. A backbone with one
+patch size trains one quantile head on this target, and its zero padding
+counts in no term.
 
 `eval_gift_eval_official.py` loads the bank, checks that its sizes are the
 backbone's, and gives each config the head of its frequency's inference
 size. Strategy B4 reads the context at that size and rolls out one latent per
 patch of P values. The forecast is unscaled with the loc and the scale of the
-whole context. The script refuses a bank under another strategy: those read
-the context at the base size.
+whole context. The script refuses a bank under a strategy other than B4 and
+R: those read the context at the base size.
 
-`head_eval_bb.sh` and `eval_local.sh` need no new argument. `CF_BB_SHAPE`
-gives the backbone shape, as before.
+Strategy R (#425) is not a forecast. The encoder reads the B4 context and
+the true horizon, and a reconstruction head decodes the latents of the
+horizon patches. Each value is unscaled with the statistics that normalised
+it: the loc and the scale of the context (mean/std), or the EWMA at that
+value. So the score measures how much of each patch the encoder latent
+keeps.
+
+`head_eval_bb.sh` and `eval_local.sh` need no new argument for B4.
+`CF_BB_SHAPE` gives the backbone shape, as before. `CF_RECONSTRUCTION=encoder`
+trains a reconstruction head and scores it under R, `HEAD_SAVE_EVERY` sets
+the head snapshot interval, `CF_SKIP_EVAL=1` stops after the head, and
+`EVAL_DEVICE=cuda` runs the eval shards on the GPU.
