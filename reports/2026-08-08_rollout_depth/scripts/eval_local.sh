@@ -79,6 +79,9 @@ fi
 # protocol decodes 16 values, and only these two strategies read it that way.
 # A2V is A2 with the backbone's own value head (#415): the model forecasts
 # alone, autoregressively in value space, and no head file is read.
+# R is not a forecast (#425): the encoder reads the context and the true
+# horizon, and a reconstruction head decodes the horizon patches. It keeps
+# its own directory and log too.
 EVAL_STRATEGY="${EVAL_STRATEGY:-B4}"
 PY_STRATEGY="$EVAL_STRATEGY"; HEAD_ARGS=(--head-path "$HEAD_CKPT")
 case "$EVAL_STRATEGY" in
@@ -86,7 +89,8 @@ case "$EVAL_STRATEGY" in
   A2) GIFT="$OUT/gift_a2"; LOG="$OUT/eval_local_a2.log" ;;
   A2V) GIFT="$OUT/gift_a2v"; LOG="$OUT/eval_local_a2v.log"
        PY_STRATEGY=A2; HEAD_ARGS=(--native-value-head) ;;
-  *) echo "ABORT: EVAL_STRATEGY=$EVAL_STRATEGY; this protocol scores B4, A2 or A2V" >&2
+  R) GIFT="$OUT/gift_r"; LOG="$OUT/eval_local_r.log" ;;
+  *) echo "ABORT: EVAL_STRATEGY=$EVAL_STRATEGY. This protocol scores B4, A2, A2V or R." >&2
      exit 2 ;;
 esac
 if [ "$EVAL_STRATEGY" != "A2V" ] && [ ! -f "$HEAD_CKPT" ]; then

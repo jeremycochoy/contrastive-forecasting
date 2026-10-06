@@ -57,6 +57,7 @@ from src.forecasting_head import (
     masked_quantile_loss,
     valid_target_keep,
     compute_reconstruction_targets,
+    reconstruction_quantile_loss,
 )
 
 
@@ -385,9 +386,10 @@ def build_head(args, head_config, forecast_len):
 
 def refuse_bank_flags(args):
     """Refuse the flags a head bank (#412) cannot train with."""
-    if args.reconstruction or args.mixed_rollout > 0:
+    if args.reconstruction == "forecaster" or args.mixed_rollout > 0:
         raise SystemExit("A head bank (#412) trains the prediction branch "
-                         "only. Drop --reconstruction / --mixed-rollout.")
+                         "or --reconstruction encoder (#425). Drop "
+                         "--reconstruction forecaster / --mixed-rollout.")
     if not args.quantile_head or args.head_arch == "transformer-gaussian":
         raise SystemExit("A head bank (#412) trains quantile heads on the "
                          "pinball loss. Pass --quantile-head, and a head "
@@ -480,11 +482,13 @@ def main():
     use_bank = bool(patch_sizes) or args.rev_norm_kind == "meanstd"
     if use_bank:
         refuse_bank_flags(args)
-    if zero_pad and (args.reconstruction or args.mixed_rollout > 0):
+    if zero_pad and (args.reconstruction == "forecaster"
+                     or args.mixed_rollout > 0):
         raise SystemExit(
             "This backbone trained on zero-padded GiftEvalPretrain windows "
-            "(#419); its head masks the padded targets of the prediction "
-            "branch only. Drop --reconstruction / --mixed-rollout.")
+            "(#419). Its head masks the padded targets of the prediction "
+            "branch and of --reconstruction encoder (#425) only. Drop "
+            "--reconstruction forecaster / --mixed-rollout.")
     # Auto-detect CLIP-style learnable τ from the checkpoint (#28). If
     # log_inv_tau is in the state_dict, we must instantiate the backbone
     # with learnable_tau=True so load_state_dict succeeds. The head loss
@@ -776,12 +780,15 @@ def main():
             if use_bank:
                 # #412: each row reads its patch size and trains that
                 # size's head. loc and scale read the context before the
-                # split, and the loss counts the values after it.
+                # split, and the loss counts the values after it. #425:
+                # a reconstruction head decodes the encoder latent of each
+                # patch into the values of that patch.
                 x_norm, sample_sizes, keep = bank_training_inputs(
                     backbone, x, freq_ids, patch_sizes)
                 loss = bank_quantile_loss(
                     backbone, head, x_norm, sample_sizes, keep,
-                    freq_ids=freq_ids, seasonality_ids=seasonality_ids)
+                    freq_ids=freq_ids, seasonality_ids=seasonality_ids,
+                    reconstruction=args.reconstruction == "encoder")
             elif args.mixed_rollout > 0:
                 # Mixed training: use first 48 patches as context, roll out N tokens
                 N_roll = args.mixed_rollout
@@ -832,6 +839,17 @@ def main():
                     targets = targets[:, T_ctx_patches:, :]
 
                 loss = torch.nn.functional.mse_loss(preds, targets)
+            elif args.reconstruction == 'encoder' and args.quantile_head:
+                # #425: the B4 quantile head on e[t] → patch t values, on
+                # the pinball loss. Left padding (#419) counts in no term.
+                e_bc, x_norm = extract_encoder_latents(
+                    backbone, x, freq_ids=freq_ids,
+                    seasonality_ids=seasonality_ids)
+                keep = ~backbone.rev_norm.pad_mask if zero_pad else None
+                loss = reconstruction_quantile_loss(
+                    head(e_bc), x_norm, W, keep=keep,
+                    output_len=args.forecast_len)
+
             elif args.reconstruction == 'encoder':
                 # Encoder reconstruction: e[t] → patch t values
                 e_bc, x_norm = extract_encoder_latents(

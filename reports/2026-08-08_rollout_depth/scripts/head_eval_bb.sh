@@ -12,6 +12,14 @@
 # point of gap 1 is that only the BACKBONE differs from a run of this study.
 #
 # Usage: head_eval_bb.sh <tag> <backbone .pth> <student|teacher> [head steps]
+#
+# #425 adds three knobs. Unset, each one keeps the B4 forecast as it was.
+#   CF_RECONSTRUCTION=encoder  the head decodes each encoder latent into the
+#                              values of its own patch, and the eval scores
+#                              that reconstruction of the true horizon
+#                              (strategy R). The tag must end in `_recon`.
+#   HEAD_SAVE_EVERY            the head snapshot interval (default 5000).
+#   CF_SKIP_EVAL=1             train the head, then stop before the eval.
 set -uo pipefail
 
 TAG="${1:?usage: head_eval_bb.sh <tag> <backbone> <student|teacher> [steps]}"
@@ -20,6 +28,20 @@ ENC="${3:?student|teacher}"
 HEAD_STEPS="${4:-15000}"
 case "$ENC" in student|teacher) ;; *) echo "ABORT: bad encoder '$ENC'" >&2; exit 2;; esac
 [ -f "$BB" ] || { echo "ABORT: no backbone at $BB" >&2; exit 3; }
+
+# A forecast head and a reconstruction head of one checkpoint must never
+# share a head file or a score file, so the tag names the mode.
+RECON="${CF_RECONSTRUCTION:-}"
+RECON_ARGS=(); EVAL_MODE="${EVAL_STRATEGY:-B4}"
+case "$RECON" in
+  "") ;;
+  encoder)
+    case "$TAG" in *_recon) ;; *)
+      echo "ABORT: CF_RECONSTRUCTION=encoder needs a tag that ends in _recon, not $TAG" >&2
+      exit 2 ;; esac
+    RECON_ARGS=(--reconstruction encoder); EVAL_MODE=R ;;
+  *) echo "ABORT: CF_RECONSTRUCTION=$RECON. The one mode is encoder." >&2; exit 2 ;;
+esac
 
 HEAD_SEED="${HEAD_SEED:-20260722}"
 
@@ -114,19 +136,20 @@ if [ ! -f "$HEAD_CKPT" ]; then
   BB_GPU="${BB_GPU:-0}"
   gpu_gate "$BB_GPU" || { log "ABORT: GPU $BB_GPU never came free"; exit 1; }
   head_vram_gate "$BB_GPU" || { log "ABORT: not enough VRAM on GPU $BB_GPU"; exit 1; }
-  log "head-train start enc=$ENC steps=$HEAD_STEPS seed=$HEAD_SEED gpu=$BB_GPU bb=$(basename "$BB")"
+  log "head-train start enc=$ENC steps=$HEAD_STEPS seed=$HEAD_SEED gpu=$BB_GPU bb=$(basename "$BB")${RECON:+ reconstruction=$RECON}"
   CUDA_VISIBLE_DEVICES="$BB_GPU" python3 -u "$HEAD_TRAIN" \
     --backbone-path "$BB" \
     --encoder-source "$ENC" \
     --device cuda \
     --quantile-head --grad-clip 1.0 \
     --forecast-len 16 --batch-size 256 --lr 1e-3 \
-    --total-steps "$HEAD_STEPS" --save-every 5000 --log-every 500 \
+    --total-steps "$HEAD_STEPS" --save-every "${HEAD_SAVE_EVERY:-5000}" \
+    --log-every 500 \
     --save-dir "$OUT" --run-name "$HEAD_NAME" --seed "$HEAD_SEED" \
     --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1 \
     --head-arch transformer --head-num-layers 2 --head-nhead 8 \
     --head-ffn-mult 4.0 --head-causal true --head-train-input e_then_f \
-    --head-dropout 0.1 \
+    --head-dropout 0.1 "${RECON_ARGS[@]}" \
     "${ARCH_HEAD[@]}" >>"$LOG" 2>&1
   rc=$?
   log "head-train rc=$rc"
@@ -138,7 +161,12 @@ else
   log "head-train SKIP (final exists)"
 fi
 
-log "eval start (97 configs, B4, forecast-len 16, elisa CPUs)"
+if [ -n "${CF_SKIP_EVAL:-}" ]; then
+  log "eval SKIP (CF_SKIP_EVAL): the head is at $HEAD_CKPT"; exit 0
+fi
+
+log "eval start (97 configs, $EVAL_MODE, forecast-len 16, elisa CPUs)"
+EVAL_STRATEGY="$EVAL_MODE" \
 bash "$HERE/eval_local.sh" "$TAG" "$CF_STOP_K" "$ENC" "$BB" "$HEAD_CKPT" \
   "$OUT" "$SCORE_OUT" >>"$LOG" 2>&1
 rc=$?

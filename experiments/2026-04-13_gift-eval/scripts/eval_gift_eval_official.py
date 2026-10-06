@@ -73,6 +73,7 @@ from src.forecasting_head import (
     forecast_with_strategy,
     head_bank_sizes,
     native_value_head,
+    reconstruct_horizon,
 )
 
 
@@ -283,7 +284,11 @@ class ContrastiveForecasterPredictor(RepresentablePredictor):
                 self.strategy, self.backbone, self.head, context,
                 horizon=self.prediction_length, device=self.device,
             )
+        return self.to_forecast(forecast_raw, item)
 
+    def to_forecast(self, forecast_raw, item) -> QuantileForecast:
+        """The gluonts forecast of one window, from the raw output of a
+        strategy."""
         # forecast_raw is either:
         #   (prediction_length, C)              — MSE head (point forecast)
         #   (num_quantiles, prediction_length, C) — quantile head
@@ -344,6 +349,54 @@ class ContrastiveForecasterPredictor(RepresentablePredictor):
         return context_t
 
 
+def fill_horizon(values: np.ndarray, last: float) -> np.ndarray:
+    """The true horizon with each missing value replaced by the value before
+    it. The first value before the horizon is ``last``, the end of the
+    filled context. The metrics skip a missing label, so the filled values
+    only keep the encoder input finite."""
+    values = np.asarray(values, dtype=np.float32).copy()
+    for i in range(len(values)):
+        if np.isnan(values[i]):
+            values[i] = last if i == 0 else values[i - 1]
+    return values
+
+
+class ReconstructionPredictor(ContrastiveForecasterPredictor):
+    """Strategy R (#425): the reconstruction of the true horizon.
+
+    The predictor reads the label of each window in the order of
+    ``dataset.test_data``: the encoder reads the B4 context and the true
+    horizon, and the reconstruction head decodes the horizon patches
+    (:func:`reconstruct_horizon`). The model sees the future, so the MASE of
+    the result measures the encoder, not a forecast.
+    """
+
+    def __init__(self, *args, labels, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.labels = labels
+
+    def predict(self, dataset: GluonTSDataset, **kwargs) -> Iterator[Forecast]:
+        for item, label in zip(dataset, self.labels, strict=True):
+            yield self.reconstruct_item(item, label)
+
+    def reconstruct_item(self, item, label) -> QuantileForecast:
+        if label["start"] != forecast_start(item):
+            raise ValueError(f"the label starts at {label['start']} and "
+                             f"does not start where the window ends, at "
+                             f"{forecast_start(item)}")
+        target = self._fill_missing(
+            np.asarray(item["target"], dtype=np.float32))
+        context = self._prepare_context(target)
+        future = fill_horizon(label["target"], last=float(context[0, -1, 0]))
+        if len(future) != self.prediction_length:
+            raise ValueError(f"the label holds {len(future)} values, not "
+                             f"{self.prediction_length}")
+        raw = reconstruct_horizon(self.backbone, self.head,
+                                  context.to(self.device), future,
+                                  self.device)
+        return self.to_forecast(raw, item)
+
+
 # ============================================================================
 # Dataset iteration helpers
 # ============================================================================
@@ -399,8 +452,11 @@ def parse_args():
     p.add_argument("--resume", action="store_true",
                    help="Resume from existing partial all_results.csv")
     p.add_argument("--strategy", default="A1",
-                   choices=["A1", "A2", "B1", "B2", "B3", "B3R", "B4"],
-                   help="Forecast rollout strategy (default: A1)")
+                   choices=["A1", "A2", "B1", "B2", "B3", "B3R", "B4", "R"],
+                   help="Forecast rollout strategy (default: A1). R (#425) "
+                        "is not a forecast: the encoder reads the context "
+                        "and the true horizon, and a reconstruction head "
+                        "decodes the horizon patches.")
     p.add_argument("--forecast-len", type=int, default=128,
                    help="Head forecast length: 128 (default) or 16 for W-heads")
     p.add_argument("--encoder-type", default=None,
@@ -500,11 +556,12 @@ def build_head_bank(head_sd, bank_sizes, backbone_sizes, args):
     if bank_sizes != tuple(backbone_sizes):
         raise SystemExit(f"the head bank holds the sizes {bank_sizes}, and "
                          f"the backbone reads {tuple(backbone_sizes)}")
-    if args.strategy != "B4":
+    if args.strategy not in ("B4", "R"):
         # The other rollouts read the context at the backbone's base size,
-        # and head P decodes the latents of size P.
-        raise SystemExit(f"a head bank (#412) scores under --strategy B4, "
-                         f"not {args.strategy}")
+        # and head P decodes the latents of size P. R (#425) reads the
+        # window at size P, as B4 does.
+        raise SystemExit(f"a head bank (#412) scores under --strategy B4 "
+                         f"or R, not {args.strategy}")
     heads = {}
     for size in bank_sizes:
         prefix = f"heads.{size}."
@@ -914,8 +971,10 @@ def main():
                 elif bank is not None:
                     head = bank.for_frequency(backbone, dataset.freq)
 
-                # Create predictor for this dataset
-                predictor = ContrastiveForecasterPredictor(
+                # Create predictor for this dataset. R (#425) reads the
+                # labels of the same test data the metrics read.
+                test_data = dataset.test_data
+                predictor_kwargs = dict(
                     backbone=backbone,
                     head=head,
                     prediction_length=dataset.prediction_length,
@@ -924,11 +983,17 @@ def main():
                     strategy=args.strategy,
                     context_pad=args.context_pad,
                 )
+                if args.strategy == "R":
+                    predictor = ReconstructionPredictor(
+                        labels=test_data.label, **predictor_kwargs)
+                else:
+                    predictor = ContrastiveForecasterPredictor(
+                        **predictor_kwargs)
 
                 # Evaluate using gluonts official function
                 res = evaluate_model(
                     predictor,
-                    test_data=dataset.test_data,
+                    test_data=test_data,
                     metrics=METRICS,
                     batch_size=512,
                     axis=None,

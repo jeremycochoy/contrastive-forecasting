@@ -645,7 +645,7 @@ def forecast_autoregressive(backbone, head, x_context, horizon, device):
 # ============================================================================
 
 def extract_encoder_latents(backbone, x, freq_ids=None, seasonality_ids=None,
-                            patch_size=None):
+                            patch_size=None, normalised=False):
     """Extract encoder latents e[t] and RevEWMNorm stats.
 
     Returns the same tensor used as the contrastive target ``o_lat``
@@ -663,6 +663,9 @@ def extract_encoder_latents(backbone, x, freq_ids=None, seasonality_ids=None,
             id tensor is missing, falls back to class 0 (unknown).
         patch_size: the patch size a multi-patch backbone reads (#417,
             #412). None reads the backbone's one size, W.
+        normalised: True when ``x`` is already normalised (#425), as in
+            :func:`extract_forecaster_latents`: the normaliser does not
+            run, and its statistics stay as they are.
 
     Returns:
         e_bc: (B*C, T, H) encoder latents (detached)
@@ -670,7 +673,7 @@ def extract_encoder_latents(backbone, x, freq_ids=None, seasonality_ids=None,
     """
     size_kwarg = {} if patch_size is None else {"patch_size": patch_size}
     with torch.no_grad():
-        if backbone.rev_norm is not None:
+        if backbone.rev_norm is not None and not normalised:
             x_norm = backbone.rev_norm(x, mode='norm')
         else:
             x_norm = x
@@ -1363,19 +1366,56 @@ def _bank_group_loss(backbone, head, x_norm, keep, size, labels):
     return masked_quantile_loss(preds, targets, kept > 0.5)
 
 
+def reconstruction_quantile_loss(preds, x_norm, W, keep=None, output_len=None):
+    """The pinball loss of a reconstruction head (#425): at each patch t, the
+    quantiles of the values of patch t itself, which its encoder latent e_t
+    encodes. The prediction head of B4 reads patch t + 1 instead.
+
+    ``preds`` is ``(B*C, T, Q, L)``, ``x_norm`` ``(B, T_raw, C)``. ``keep``
+    (bool, the shape of ``x_norm``) marks the values a term may score: no
+    padding (#419), and under the mean/std scaling only the values after the
+    split (#421). None scores every value. ``output_len`` is L, W by default.
+    """
+    output_len = W if output_len is None else output_len
+    targets, t_valid = compute_reconstruction_targets(
+        x_norm, W=W, output_len=output_len, mode='encoder')
+    preds = preds[:, :t_valid]
+    if keep is None:
+        return quantile_loss(preds, targets)
+    kept, _ = compute_reconstruction_targets(
+        keep.float(), W=W, output_len=output_len, mode='encoder')
+    return masked_quantile_loss(preds, targets, kept > 0.5)
+
+
+def _bank_group_reconstruction_loss(backbone, head, x_norm, keep, size,
+                                    labels):
+    """:func:`_bank_group_loss` of a reconstruction head (#425): the head of
+    ``size`` reads the encoder latents of its rows at that size, and decodes
+    the values of each latent's own patch."""
+    e_bc, _ = extract_encoder_latents(backbone, x_norm, patch_size=size,
+                                      normalised=True, **labels)
+    return reconstruction_quantile_loss(head(e_bc), x_norm, size, keep=keep)
+
+
 def bank_quantile_loss(backbone, bank, x_norm, sample_sizes, keep=None,
-                       freq_ids=None, seasonality_ids=None):
+                       freq_ids=None, seasonality_ids=None,
+                       reconstruction=False):
     """The loss of a head bank on one batch (#412): each row trains the
     head of its patch size, on the frozen backbone's latents at that size.
     A group's loss counts with its share of the rows, as the backbone's
-    groups do (#417)."""
+    groups do (#417).
+
+    ``reconstruction`` (#425): each head decodes the encoder latent of a
+    patch into the values of that patch, in place of the forecaster latent
+    into the values of the next patch."""
+    group_loss = (_bank_group_reconstruction_loss if reconstruction
+                  else _bank_group_loss)
     loss = 0.0
     for size, rows in patch_size_groups(sample_sizes).items():
         labels = dict(freq_ids=_rows(freq_ids, rows),
                       seasonality_ids=_rows(seasonality_ids, rows))
-        part = _bank_group_loss(backbone, bank.head_for(size),
-                                _rows(x_norm, rows), _rows(keep, rows), size,
-                                labels)
+        part = group_loss(backbone, bank.head_for(size), _rows(x_norm, rows),
+                          _rows(keep, rows), size, labels)
         loss = loss + len(rows) / x_norm.shape[0] * part
     return loss
 
@@ -1760,6 +1800,85 @@ def forecast_B4(backbone, head, x_context, horizon, device):
 def forecast_B3R(backbone, head, x_context, horizon, device):
     """B3R: Same as B3, kept for backward compatibility."""
     return forecast_B3(backbone, head, x_context, horizon, device)
+
+
+# ============================================================================
+# R (#425): the reconstruction of the true horizon. Not a forecast.
+# ============================================================================
+
+def normalise_window(backbone, window, context_end):
+    """``window`` (``(B, T_raw, C)``) normalised as the backbone reads it, with
+    the statistics of the B4 forecast of its first ``context_end`` values.
+
+    The mean/std scaling (#421) takes loc and scale from the context only and
+    applies them to the whole window. The EWMA is causal, so its statistics
+    at a context value read no later value.
+    """
+    if backbone.rev_norm is None:
+        return window
+    if isinstance(backbone.rev_norm, RevMeanStdNorm):
+        end = torch.full((window.shape[0], 1, window.shape[2]), context_end,
+                         device=window.device)
+        return backbone.rev_norm(window, mode='norm', context_end=end)
+    return backbone.rev_norm(window, mode='norm')
+
+
+def reconstruct_horizon(backbone, head, x_context, horizon, device):
+    """R (#425): the encoder reads the context AND the true horizon, and the
+    reconstruction head decodes the latents of the horizon patches.
+
+    The model sees the future here, so the result measures how much of each
+    patch the encoder latent keeps, not a forecast. The window is the context
+    of the B4 forecast, then the horizon, then copies of the last value up
+    to a whole patch of the head's size P. Each position is unscaled with
+    the statistics it was normalised with.
+
+    Args:
+        backbone: frozen ConfigurableModel.
+        head: a reconstruction head that decodes P values per position. A
+            head of a :class:`ForecastingHeadBank` carries its ``patch_size``.
+        x_context: ``(T_ctx, C)`` or ``(1, T_ctx, C)``, as B4 takes it.
+        horizon: ``(h,)`` or ``(h, C)`` true values, with no NaN.
+        device: torch device.
+
+    Returns:
+        ``(num_quantiles, h, C)`` for a quantile head, ``(h, C)`` for a
+        point head, as :func:`forecast_B4` returns.
+    """
+    size = getattr(head, "patch_size", None) or backbone.W
+    if head.forecast_len != size:
+        raise ValueError(f"a reconstruction head of patch size {size} decodes "
+                         f"{size} values. This one decodes "
+                         f"{head.forecast_len} values.")
+    if x_context.dim() == 2:
+        x_context = x_context.unsqueeze(0)
+    x_context = x_context.to(device).float()
+    future = torch.as_tensor(np.asarray(horizon), dtype=torch.float32,
+                             device=device)
+    future = (future.unsqueeze(-1) if future.dim() == 1 else future)[None]
+    n_ctx, h = x_context.shape[1], future.shape[1]
+    tail = future[:, -1:].expand(-1, (-(n_ctx + h)) % size, -1)
+    window = torch.cat([x_context, future, tail], dim=1)
+    with torch.no_grad():
+        x_norm = normalise_window(backbone, window, n_ctx)
+        e_bc, _ = extract_encoder_latents(backbone, x_norm, patch_size=size,
+                                          normalised=True)
+        out = head(e_bc)
+        if isinstance(out, tuple):
+            out = head.to_quantiles(*out)                   # (BC, T, Q, P)
+        BC, T = out.shape[0], out.shape[1]
+        values = out.movedim(1, -2).reshape(BC, *out.shape[2:-1], T * size)
+        values = values[..., n_ctx:n_ctx + h]               # (BC, [Q,] h)
+        stats = [s.expand(*window.shape)[0, n_ctx:n_ctx + h].T
+                 for s in (backbone.rev_norm.mean, backbone.rev_norm.stdev)
+                 ] if backbone.rev_norm is not None else None
+    if stats is not None:
+        mean, stdev = (s.unsqueeze(-2) if values.dim() == 3 else s
+                       for s in stats)                      # (C, [1,] h)
+        values = values * stdev.clamp(min=1e-5) + mean
+    if values.dim() == 3:
+        return values.permute(1, 2, 0).cpu().numpy()        # (Q, h, C)
+    return values.T.cpu().numpy()                           # (h, C)
 
 
 # Strategy dispatch
