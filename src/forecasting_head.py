@@ -1823,42 +1823,41 @@ def normalise_window(backbone, window, context_end):
     return backbone.rev_norm(window, mode='norm')
 
 
-def reconstruct_horizon(backbone, head, x_context, horizon, device):
-    """R (#425): the encoder reads the context AND the true horizon, and the
+def reconstruct_windows(backbone, head, contexts, horizons, device):
+    """R (#425): the encoder reads each context AND its true horizon, and the
     reconstruction head decodes the latents of the horizon patches.
 
     The model sees the future here, so the result measures how much of each
-    patch the encoder latent keeps, not a forecast. The window is the context
-    of the B4 forecast, then the horizon, then copies of the last value up
+    patch the encoder latent keeps, not a forecast. Each window is a context
+    of the B4 forecast, then its horizon, then copies of the last value up
     to a whole patch of the head's size P. Each position is unscaled with
-    the statistics it was normalised with.
+    the statistics it was normalised with. The windows of one batch share
+    one context length and one horizon length, as the windows of one GIFT-Eval
+    config do.
 
     Args:
         backbone: frozen ConfigurableModel.
         head: a reconstruction head that decodes P values per position. A
             head of a :class:`ForecastingHeadBank` carries its ``patch_size``.
-        x_context: ``(T_ctx, C)`` or ``(1, T_ctx, C)``, as B4 takes it.
-        horizon: ``(h,)`` or ``(h, C)`` true values, with no NaN.
+        contexts: ``(B, T_ctx, C)``, as B4 takes one context.
+        horizons: ``(B, h, C)`` true values, with no NaN.
         device: torch device.
 
     Returns:
-        ``(num_quantiles, h, C)`` for a quantile head, ``(h, C)`` for a
-        point head, as :func:`forecast_B4` returns.
+        ``(B, num_quantiles, h, C)`` for a quantile head, ``(B, h, C)`` for
+        a point head.
     """
     size = getattr(head, "patch_size", None) or backbone.W
     if head.forecast_len != size:
         raise ValueError(f"a reconstruction head of patch size {size} decodes "
                          f"{size} values. This one decodes "
                          f"{head.forecast_len} values.")
-    if x_context.dim() == 2:
-        x_context = x_context.unsqueeze(0)
-    x_context = x_context.to(device).float()
-    future = torch.as_tensor(np.asarray(horizon), dtype=torch.float32,
-                             device=device)
-    future = (future.unsqueeze(-1) if future.dim() == 1 else future)[None]
-    n_ctx, h = x_context.shape[1], future.shape[1]
+    contexts = torch.as_tensor(contexts, dtype=torch.float32).to(device)
+    future = torch.as_tensor(horizons, dtype=torch.float32).to(device)
+    B, n_ctx, C = contexts.shape
+    h = future.shape[1]
     tail = future[:, -1:].expand(-1, (-(n_ctx + h)) % size, -1)
-    window = torch.cat([x_context, future, tail], dim=1)
+    window = torch.cat([contexts, future, tail], dim=1)
     with torch.no_grad():
         x_norm = normalise_window(backbone, window, n_ctx)
         e_bc, _ = extract_encoder_latents(backbone, x_norm, patch_size=size,
@@ -1866,19 +1865,36 @@ def reconstruct_horizon(backbone, head, x_context, horizon, device):
         out = head(e_bc)
         if isinstance(out, tuple):
             out = head.to_quantiles(*out)                   # (BC, T, Q, P)
-        BC, T = out.shape[0], out.shape[1]
-        values = out.movedim(1, -2).reshape(BC, *out.shape[2:-1], T * size)
-        values = values[..., n_ctx:n_ctx + h]               # (BC, [Q,] h)
-        stats = [s.expand(*window.shape)[0, n_ctx:n_ctx + h].T
-                 for s in (backbone.rev_norm.mean, backbone.rev_norm.stdev)
-                 ] if backbone.rev_norm is not None else None
-    if stats is not None:
-        mean, stdev = (s.unsqueeze(-2) if values.dim() == 3 else s
-                       for s in stats)                      # (C, [1,] h)
-        values = values * stdev.clamp(min=1e-5) + mean
-    if values.dim() == 3:
-        return values.permute(1, 2, 0).cpu().numpy()        # (Q, h, C)
-    return values.T.cpu().numpy()                           # (h, C)
+        T = out.shape[1]
+        values = out.movedim(1, -2).reshape(B, C, *out.shape[2:-1], T * size)
+        values = values[..., n_ctx:n_ctx + h]               # (B, C, [Q,] h)
+        if backbone.rev_norm is not None:
+            mean, stdev = (s.expand(*window.shape)[:, n_ctx:n_ctx + h]
+                           .permute(0, 2, 1)                # (B, C, h)
+                           for s in (backbone.rev_norm.mean,
+                                     backbone.rev_norm.stdev))
+            if values.dim() == 4:
+                mean, stdev = mean.unsqueeze(2), stdev.unsqueeze(2)
+            values = values * stdev.clamp(min=1e-5) + mean
+    if values.dim() == 4:
+        return values.permute(0, 2, 3, 1).cpu().numpy()    # (B, Q, h, C)
+    return values.permute(0, 2, 1).cpu().numpy()           # (B, h, C)
+
+
+def reconstruct_horizon(backbone, head, x_context, horizon, device):
+    """:func:`reconstruct_windows` of one window.
+
+    ``x_context`` is ``(T_ctx, C)`` or ``(1, T_ctx, C)``, and ``horizon``
+    ``(h,)`` or ``(h, C)``. Returns ``(num_quantiles, h, C)`` for a quantile
+    head and ``(h, C)`` for a point head, as :func:`forecast_B4` returns.
+    """
+    x_context = torch.as_tensor(x_context, dtype=torch.float32)
+    if x_context.dim() == 2:
+        x_context = x_context.unsqueeze(0)
+    future = torch.as_tensor(np.asarray(horizon), dtype=torch.float32)
+    future = future.unsqueeze(-1) if future.dim() == 1 else future
+    return reconstruct_windows(backbone, head, x_context, future[None],
+                               device)[0]
 
 
 # Strategy dispatch

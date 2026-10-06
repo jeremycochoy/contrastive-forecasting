@@ -73,7 +73,7 @@ from src.forecasting_head import (
     forecast_with_strategy,
     head_bank_sizes,
     native_value_head,
-    reconstruct_horizon,
+    reconstruct_windows,
 )
 
 
@@ -367,34 +367,47 @@ class ReconstructionPredictor(ContrastiveForecasterPredictor):
     The predictor reads the label of each window in the order of
     ``dataset.test_data``: the encoder reads the B4 context and the true
     horizon, and the reconstruction head decodes the horizon patches
-    (:func:`reconstruct_horizon`). The model sees the future, so the MASE of
-    the result measures the encoder, not a forecast.
+    (:func:`reconstruct_windows`). The model sees the future, so the MASE of
+    the result measures the encoder, not a forecast. The windows of one
+    config share their lengths, so ``batch_size`` windows run in one pass.
     """
 
-    def __init__(self, *args, labels, **kwargs):
+    def __init__(self, *args, labels, batch_size=256, **kwargs):
         super().__init__(*args, **kwargs)
         self.labels = labels
+        self.batch_size = batch_size
 
     def predict(self, dataset: GluonTSDataset, **kwargs) -> Iterator[Forecast]:
-        for item, label in zip(dataset, self.labels, strict=True):
-            yield self.reconstruct_item(item, label)
+        pairs = []
+        for pair in zip(dataset, self.labels, strict=True):
+            pairs.append(pair)
+            if len(pairs) == self.batch_size:
+                yield from self.reconstruct_batch(pairs)
+                pairs = []
+        if pairs:
+            yield from self.reconstruct_batch(pairs)
 
-    def reconstruct_item(self, item, label) -> QuantileForecast:
-        if label["start"] != forecast_start(item):
-            raise ValueError(f"the label starts at {label['start']} and "
-                             f"does not start where the window ends, at "
-                             f"{forecast_start(item)}")
-        target = self._fill_missing(
-            np.asarray(item["target"], dtype=np.float32))
-        context = self._prepare_context(target)
-        future = fill_horizon(label["target"], last=float(context[0, -1, 0]))
-        if len(future) != self.prediction_length:
-            raise ValueError(f"the label holds {len(future)} values, not "
-                             f"{self.prediction_length}")
-        raw = reconstruct_horizon(self.backbone, self.head,
-                                  context.to(self.device), future,
+    def reconstruct_batch(self, pairs) -> Iterator[QuantileForecast]:
+        contexts, futures = [], []
+        for item, label in pairs:
+            if label["start"] != forecast_start(item):
+                raise ValueError(f"the label starts at {label['start']} and "
+                                 f"does not start where the window ends, at "
+                                 f"{forecast_start(item)}")
+            target = self._fill_missing(
+                np.asarray(item["target"], dtype=np.float32))
+            context = self._prepare_context(target)[0]       # (t_raw, 1)
+            future = fill_horizon(label["target"], last=float(context[-1, 0]))
+            if len(future) != self.prediction_length:
+                raise ValueError(f"the label holds {len(future)} values, not "
+                                 f"{self.prediction_length}")
+            contexts.append(context)
+            futures.append(torch.from_numpy(future)[:, None])
+        raw = reconstruct_windows(self.backbone, self.head,
+                                  torch.stack(contexts), torch.stack(futures),
                                   self.device)
-        return self.to_forecast(raw, item)
+        for (item, _), out in zip(pairs, raw):
+            yield self.to_forecast(out, item)
 
 
 # ============================================================================

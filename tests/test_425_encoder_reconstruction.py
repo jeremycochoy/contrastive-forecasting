@@ -50,7 +50,7 @@ from src.forecasting_head import (QUANTILE_LEVELS,  # noqa: E402
                                   compute_reconstruction_targets,
                                   extract_encoder_latents, forecast_B4,
                                   head_bank_sizes, quantile_loss,
-                                  reconstruct_horizon,
+                                  reconstruct_horizon, reconstruct_windows,
                                   reconstruction_quantile_loss)
 from src.freq_embedding import FREQ_NAMES_V2  # noqa: E402
 from src.models import ConfigurableModel  # noqa: E402
@@ -384,6 +384,23 @@ def test_a_head_of_another_length_is_refused():
         reconstruct_horizon(m, head, walk(T)[:, None], np.ones(16), CPU)
 
 
+@pytest.mark.parametrize("make,size", [(ewma_model, 16), (bank_model, 64)])
+def test_a_batch_of_windows_is_the_windows_one_by_one(make, size):
+    """The statistics, the latents and the unscaling are per window, so a
+    batch of the windows of one config gives each window's own result."""
+    m = make()
+    head = (quantile_head(16) if size == 16 else bank_of().head_for(size))
+    series = [walk(T + 50, seed=s) for s in range(3)]
+    series[1] = 1e3 + 20.0 * series[1]                # another level and scale
+    contexts = torch.stack([s[:T, None] for s in series])
+    futures = torch.stack([s[T:, None] for s in series])
+    batch = reconstruct_windows(m, head, contexts, futures, CPU)
+    assert batch.shape == (3, Q, 50, 1)
+    for i in range(3):
+        one = reconstruct_horizon(m, head, contexts[i], futures[i, :, 0], CPU)
+        assert np.allclose(batch[i], one, rtol=1e-4, atol=1e-3)
+
+
 def test_the_b4_forecast_is_unchanged_by_the_new_keyword():
     """The B4 forecast of a bank head still reads its context alone."""
     m = bank_model()
@@ -429,9 +446,10 @@ def gluonts_test_data(h=24, windows=2, n=3, length=900):
 
 
 def predictor_of(module, m, head, test_data, h=24, labels=None):
+    """Six windows in batches of four: a full batch, then a partial one."""
     return module.ReconstructionPredictor(
         backbone=m, head=head, prediction_length=h, device=CPU,
-        strategy="R", context_pad="first",
+        strategy="R", context_pad="first", batch_size=4,
         labels=test_data.label if labels is None else labels)
 
 
