@@ -38,7 +38,6 @@ SCORE_OUT="${7:?score output path}"
 
 case "$ENC" in student|teacher) ;; *) echo "ABORT: bad encoder '$ENC'" >&2; exit 2;; esac
 [ -f "$BB" ] || { echo "ABORT: no backbone at $BB" >&2; exit 3; }
-[ -f "$HEAD_CKPT" ] || { echo "ABORT: no head at $HEAD_CKPT" >&2; exit 3; }
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$HERE/leg_paths.sh"
@@ -73,8 +72,26 @@ EVAL_EXPECT_CONFIGS="${EVAL_EXPECT_CONFIGS:-97}"
 if [ -n "$EVAL_CONFIG_FILTER" ]; then
   EVAL_SHARDS=1
 fi
-GIFT="$OUT/gift"
-LOG="$OUT/eval_local.log"
+# The rollout the eval scores. B4, the latent rollout, is the protocol of
+# every published score of these cards, and unset it is still the only one.
+# #415 scores a value-space model under A2 beside it. A2 keeps its own
+# directory and log, so no merge mixes the rows of the two. The head of this
+# protocol decodes 16 values, and only these two strategies read it that way.
+# A2V is A2 with the backbone's own value head (#415): the model forecasts
+# alone, autoregressively in value space, and no head file is read.
+EVAL_STRATEGY="${EVAL_STRATEGY:-B4}"
+PY_STRATEGY="$EVAL_STRATEGY"; HEAD_ARGS=(--head-path "$HEAD_CKPT")
+case "$EVAL_STRATEGY" in
+  B4) GIFT="$OUT/gift"; LOG="$OUT/eval_local.log" ;;
+  A2) GIFT="$OUT/gift_a2"; LOG="$OUT/eval_local_a2.log" ;;
+  A2V) GIFT="$OUT/gift_a2v"; LOG="$OUT/eval_local_a2v.log"
+       PY_STRATEGY=A2; HEAD_ARGS=(--native-value-head) ;;
+  *) echo "ABORT: EVAL_STRATEGY=$EVAL_STRATEGY; this protocol scores B4, A2 or A2V" >&2
+     exit 2 ;;
+esac
+if [ "$EVAL_STRATEGY" != "A2V" ] && [ ! -f "$HEAD_CKPT" ]; then
+  echo "ABORT: no head at $HEAD_CKPT" >&2; exit 3
+fi
 mkdir -p "$GIFT" "$(dirname "$SCORE_OUT")" || exit 2
 
 export PYTHONPATH="$WT"
@@ -149,9 +166,9 @@ for (( s = 0; s < EVAL_SHARDS; s++ )); do
   OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
   CUDA_VISIBLE_DEVICES="" \
   python3 -u "$GEVAL" \
-    --backbone-path "$BB" --head-path "$HEAD_CKPT" \
+    --backbone-path "$BB" "${HEAD_ARGS[@]}" \
     --encoder-source "$ENC" --output-dir "$sdir" \
-    --strategy B4 --forecast-len 16 --resume --device cpu \
+    --strategy "$PY_STRATEGY" --forecast-len 16 --resume --device cpu \
     --config-filter "$filt" "${ARCH[@]}" >>"$sdir/shard.log" 2>&1 &
   pids+=($!); tags+=("$s")
 done
@@ -203,9 +220,9 @@ if [ -n "$EVAL_CONFIG_FILTER" ]; then
   AGG_FILTER=(--config-filter "$EVAL_CONFIG_FILTER")
 fi
 python3 -u "$GEVAL" \
-  --backbone-path "$BB" --head-path "$HEAD_CKPT" \
+  --backbone-path "$BB" "${HEAD_ARGS[@]}" \
   --encoder-source "$ENC" --output-dir "$GIFT" \
-  --strategy B4 --forecast-len 16 --resume --device cpu \
+  --strategy "$PY_STRATEGY" --forecast-len 16 --resume --device cpu \
   "${AGG_FILTER[@]}" "${ARCH[@]}" >>"$LOG" 2>&1
 rc=$?
 [ $rc -eq 0 ] || { log "ABORT: aggregate pass rc=$rc"; exit 7; }
