@@ -200,7 +200,10 @@ def test_the_repeat_seed_moves_the_seed_column_alone():
 
 
 def test_the_stops_are_the_stops_the_parent_reports_use():
-    assert study("echo $CF412_STOPS").split() == ["40000", "100000", "200000"]
+    """The parent's three stops, then 665,000: one pass over the data, the
+    stop of the long anneal arms (pass 11)."""
+    assert study("echo $CF412_STOPS").split() == ["40000", "100000", "200000",
+                                                  "665000"]
     assert study("printf '%s' $CF412_HEAD_STEPS") == "30000"
 
 
@@ -351,10 +354,15 @@ RATE_ARMS = ["k3_r100_09_lr33", "k3_r100_09_lr17"]
 LR_DEFAULT = 1e-3
 
 
+CARD_ARMS = [CONFIGS[n] for n in (1, 2, 3, 4, 5, 6)] + [REPEAT_SEED_ARM] + RATE_ARMS
+
+
 def test_the_card_has_its_six_configurations_the_repeat_and_the_bracket():
+    """The nine rows of pass 1 come first. Each later pass adds its rows
+    after them and moves none of them."""
     arms = study("printf '%s\\n' $CF412_ARMS").split()
-    assert arms == ([CONFIGS[n] for n in (1, 2, 3, 4, 5, 6)]
-                    + [REPEAT_SEED_ARM] + RATE_ARMS)
+    assert arms[:len(CARD_ARMS)] == CARD_ARMS
+    assert len(set(arms)) == len(arms)
 
 
 @pytest.mark.parametrize("config,k,reduce,ema,decay", [
@@ -640,7 +648,8 @@ def test_the_committed_smoke_agrees_with_the_claim():
     assert " rc=" not in log, log
     rows = (EXP / "results" / "trial" / "smoke.csv").read_text().splitlines()
     measured = [r.split(",")[0] for r in rows[1:]]
-    arms = study("printf '%s\\n' $CF412_ARMS").split()
+    # The smoke ran in pass 1: it covers the rows of the card.
+    arms = CARD_ARMS
     assert measured == [a for a in arms if a in measured]
     def cost(arm):
         return tuple(study(f"{r} {arm}") for r in
@@ -792,12 +801,22 @@ def cmdline(arm, lr, env=None):
 
 
 def test_the_arms_table_carries_the_rate_as_its_last_column():
-    header = [ln for ln in ARMS_TSV.read_text().splitlines()
-              if ln.startswith("# arm\t")]
-    assert len(header) == 1, "the table names its columns one time"
-    assert header[0].lstrip("# ").split("\t") == ARMS_COLUMNS
-    for row in arms_rows():
-        assert len(row) == len(ARMS_COLUMNS), row
+    """The rate is the ninth column. A pass that adds a column (align_w,
+    lr_final, lr_cos_steps) names the columns again above its rows, and
+    each header extends the one before it."""
+    headers, rows_of = [], {}
+    for ln in ARMS_TSV.read_text().splitlines():
+        if ln.startswith("# arm\t"):
+            headers.append(ln.lstrip("# ").split("\t"))
+        elif ln and not ln.startswith("#"):
+            assert headers, "a row before the first header"
+            rows_of.setdefault(len(headers) - 1, []).append(ln.split("\t"))
+    assert headers[0][:len(ARMS_COLUMNS)] == ARMS_COLUMNS
+    for before, after in zip(headers, headers[1:]):
+        assert after[:len(before)] == before and len(after) == len(before) + 1
+    for i, rows in rows_of.items():
+        for row in rows:
+            assert len(row) == len(headers[i]), row
 
 
 def test_every_published_arm_keeps_the_rate_of_the_runner():
