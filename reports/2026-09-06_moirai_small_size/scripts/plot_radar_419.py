@@ -25,6 +25,7 @@ NEW_DATA = [
     ("cf412ol2", "ours412ol2_", "Ours + patch sizes + mean/std, warmup to 1e-3 then down to 5.6e-5 by 40k, L_rep kept, loss fixed"),
     ("cf412bm", "ours412bm_", "Ours + patch sizes + mean/std + Moirai recipe, bimoco: L_pred + L_rep, MoCo, tau 1"),
     ("cf412bw", "ours412bw_", "Ours + patch sizes + mean/std, bimoco, warmup to 1e-3 then lr 5.6e-5, L_rep to 0 by 10k, batch 256"),
+    ("cf412al", "ours412al_", "Ours + patch sizes + mean/std, lr 5.6e-5, loss fixed, batch 256"),
     ("cf421f_moirai_native", "moirai421f_native", "Moirai + patch heads + mean/std"),
     ("cf421ew_moirai_native", "moirai421ew_native", "Moirai + patch heads + EWMA"),
     ("cf421n_moirai_native", "moirai421n_native", "Moirai + patch heads + mean/std + RMS term"),

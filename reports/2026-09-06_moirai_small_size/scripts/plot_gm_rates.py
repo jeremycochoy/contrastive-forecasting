@@ -47,6 +47,7 @@ GROUPS = [
         ("cf412ol2", "as OWR, ramp down to 5.6e-5 by 40k", 4.4, (6, 1, 0)),
         ("cf412bm",  "as OMF, bimoco: L_pred + L_rep, MoCo, tau 1", 4.4, (4, 1, 0)),
         ("cf412bw",  "as OBM, with OWF's lr and L_rep ramp", 4.4, (8, 1, 0)),
+        ("cf412al",  "as OAF, batch 256", 4.4, (3, 1, 0)),
     ]),
     ("Moirai: our copy, batch 256", [
         ("cf419_moirai_native",   "own head, new data",                        2.4, "<"),
@@ -63,12 +64,12 @@ OFF_MAIN = {P + "_lr10xb", "cf412oc", "cf419_moirai_native", "cf415_moirai_nativ
 XSCALE = {"cf415_moirai": 4, "cf415_moirai_native": 4, "cf419_moirai_native": 4,
           "cf421z_moirai_native": 4, "cf421f_moirai_native": 4, "cf421fb_moirai_native": 4,
           "cf421n_moirai_native": 4, "cf421ew_moirai_native": 4, "cf412om": 4,
-          "cf412om2": 4, "cf412bm": 4, "cf412bw": 4}
+          "cf412om2": 4, "cf412bm": 4, "cf412bw": 4, "cf412al": 4}
 # Where the last score of a line prints, so two lines that end together part.
 END_LABEL_OFFSET = {P + "_lr100x": (9, 4), P + "_cos200k": (9, -12), "cf412om": (-62, 6),
                     "cf412oc2": (9, 6), "cf412oa2": (9, 7), "cf412oe2": (9, 5), "cf412om2": (-22, -18),
                     "cf412ow2": (9, -9), "cf412ol2": (9, 2), "cf419_cos200k": (9, -13),
-                    "cf412or2": (9, 5), "cf412bm": (9, -12),
+                    "cf412or2": (9, 5), "cf412bm": (9, -12), "cf412al": (-52, -4),
                     "cf421ew_moirai_native": (-45, -18), "cf421n_moirai_native": (-48, -16)}
 # A white outline keeps a score label readable where a line crosses it.
 HALO = [patheffects.withStroke(linewidth=3, foreground="white")]
@@ -161,7 +162,7 @@ def style_axes(ax):
     ax.set_xticks(ticks)
     ax.set_xticklabels(["40k", "100k", "200k", "400k", "665k", "1,000k"])
     ax.set_xlabel("Data seen, in batch-64 steps (log scale). A step at batch 256 (the Moirai runs, "
-                  "OMB, OMF, OBM and OBW) counts 4.")
+                  "OMB, OMF, OBM, OBW and OAL) counts 4.")
     ax.set_ylabel("GM-Relative MASE, 97-config GIFT-Eval (lower is better)")
     ax.set_title("GM-Relative MASE against data seen. 11.4M parameters unless marked.\n"
                  "Solid lines, Ours: our contrastive model. Dashed lines, Moirai: "
@@ -171,6 +172,7 @@ def style_axes(ax):
                  "Loss bug: the contrastive terms of a patch-size run read the rows of one patch size at a time.")
     ax.grid(alpha=0.3)
     ax.set_ylim(YMIN, YMAX)
+    ax.set_xlim(left=28000)  # room for a label left of a 40k point
 
 
 def draw_figure(groups, out):
