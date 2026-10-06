@@ -27,7 +27,7 @@
 | LNG | Ours, one patch size, EWMA, old data | 64 | lr cosine 6e-5 to 1e-6 over 665k | 1.1646 | 100k |
 | CYN | Ours, one patch size, EWMA, old data | 64 | lr cosine 5e-5 to 1e-6 by 200k, then 1e-6 | 1.1369 | 665k |
 | BLK | Ours, one patch size, EWMA, new data | 64 | lr cosine 5.6e-5 to 1e-6 by 200k, then 1e-6 | 1.1262 | 200k |
-| BMS | As BLK, with mean/std in place of EWMA | 64 | lr cosine 5.6e-5 to 1e-6 by 200k, then 1e-6 | 1.4195 | 100k |
+| BMS | As BLK, with mean/std in place of EWMA | 64 | lr cosine 5.6e-5 to 1e-6 by 200k, then 1e-6 | 1.2167 | 140k |
 | OMB | Ours, patch sizes 8 to 128, mean/std, new data, loss bug | 256 | lr 1e-3, warmup over 10k, cosine to 0 at 166k | 1.3345 | 25k |
 | OCB | Ours, patch sizes 8 to 128, mean/std, new data, loss bug | 64 | lr cosine 5.6e-5 to 1e-6 by 200k, then 1e-6 | 1.5371 | 40k |
 | OCF | Ours, patch sizes 8 to 128, mean/std, new data | 64 | lr cosine 5.6e-5 to 1e-6 by 200k, then 1e-6 | 1.2329 | 400k |
