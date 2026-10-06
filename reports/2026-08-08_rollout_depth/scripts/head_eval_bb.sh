@@ -165,7 +165,7 @@ if [ -n "${CF_SKIP_EVAL:-}" ]; then
   log "eval SKIP (CF_SKIP_EVAL): the head is at $HEAD_CKPT"; exit 0
 fi
 
-log "eval start (97 configs, $EVAL_MODE, forecast-len 16, elisa CPUs)"
+log "eval start (97 configs, $EVAL_MODE, forecast-len 16, ${EVAL_DEVICE:-cpu})"
 EVAL_STRATEGY="$EVAL_MODE" \
 bash "$HERE/eval_local.sh" "$TAG" "$CF_STOP_K" "$ENC" "$BB" "$HEAD_CKPT" \
   "$OUT" "$SCORE_OUT" >>"$LOG" 2>&1
