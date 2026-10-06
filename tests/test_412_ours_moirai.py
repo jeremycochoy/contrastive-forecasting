@@ -157,8 +157,25 @@ CYAN_EWMA = CYAN + ("--rev-norm-kind", "ewma", "--rev-norm-span", "128",
     "--mix-ratio", "0.25", "--mixup-p", "1.0", "--total-steps", "3")
 
 
+def long_corpus(root):
+    """A #419 corpus whose series are longer than the window: no zero
+    padding. The base commit masked the padding in another way (#412
+    review: the EWMA's first window, and the step diagnostics), so only an
+    unpadded stream must give the same bytes."""
+    pytest.importorskip("pyarrow")
+    from tests.test_419_gift_pretrain import (index_sources, series,
+                                              write_index, write_source)
+    rng = np.random.default_rng(0)
+    folder = root / "long_corpus"
+    write_source(folder, "long_hourly",
+                 [{"target": series(rng, 4500, 10.0)} for _ in range(6)], "H")
+    index = index_sources(folder, {"long_hourly": 1.0})
+    return ("--gift-pretrain-root", str(folder),
+            "--gift-pretrain-index", str(write_index(root, index)))
+
+
 def test_the_cyan_run_writes_the_losses_csv_of_the_base_commit(tmp_path):
-    data = corpus(tmp_path)
+    data = long_corpus(tmp_path)
     old = run(git_tree(BASE_COMMIT, tmp_path), tmp_path / "old", *CYAN_EWMA,
               *data)
     new = run(REPO_ROOT, tmp_path / "new", *CYAN_EWMA, *data)
