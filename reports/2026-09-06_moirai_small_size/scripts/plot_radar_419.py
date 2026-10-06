@@ -1,0 +1,85 @@
+"""#419 and #421: each run on all of GiftEvalPretrain at its best checkpoint,
+against the best run on the old data.
+
+A stop enters once its score file is in results/ and its per-config CSV is in
+results/per_config/radar. The colours are those of the curves figure.
+"""
+import re
+from radar_lib import RADAR, STUDY, draw
+from run_style import P, colour, line, tagged
+
+# Run name in results/, CSV prefix in the radar folder, legend label. The
+# colour and the line style come from run_style.py.
+# The stopped runs cf419_moirai_native and cf421fb_moirai_native keep their
+# CSVs in the radar folder. The owner took them off this figure.
+NEW_DATA = [
+    ("cf419_cos200k", "cos419_", "Ours"),
+    ("cf419ms", "ours419ms_", "Ours + mean/std"),
+    ("cf412om", "ours412om_", "Ours + patch sizes + mean/std + Moirai recipe, loss bug"),
+    ("cf412oc", "ours412oc_", "Ours + patch sizes + mean/std, cyan recipe, loss bug"),
+    ("cf412oc2", "ours412oc2_", "Ours + patch sizes + mean/std, cyan recipe, loss fixed"),
+    ("cf412oe2", "ours412oe2_", "Ours + patch sizes + EWMA, cyan recipe, loss fixed"),
+    ("cf412om2", "ours412om2_", "Ours + patch sizes + mean/std + Moirai recipe, loss fixed"),
+    ("cf412oa2", "ours412oa2_", "Ours + patch sizes + mean/std, lr 5.6e-5, loss fixed"),
+    ("cf412ow2", "ours412ow2_", "Ours + patch sizes + mean/std, warmup to 1e-3 then lr 5.6e-5, loss fixed"),
+    ("cf412or2", "ours412or2_", "Ours + patch sizes + mean/std, warmup to 1e-3 then lr 5.6e-5, L_rep kept, loss fixed"),
+    ("cf412ol2", "ours412ol2_", "Ours + patch sizes + mean/std, warmup to 1e-3 then down to 5.6e-5 by 40k, L_rep kept, loss fixed"),
+    ("cf412bm", "ours412bm_", "Ours + patch sizes + mean/std + Moirai recipe, bimoco: L_pred + L_rep, MoCo, tau 1"),
+    ("cf412bw", "ours412bw_", "Ours + patch sizes + mean/std, bimoco, warmup to 1e-3 then lr 5.6e-5, L_rep to 0 by 10k, batch 256"),
+    ("cf412al", "ours412al_", "Ours + patch sizes + mean/std, lr 5.6e-5, loss fixed, batch 256"),
+    ("cf421f_moirai_native", "moirai421f_native", "Moirai + patch heads + mean/std"),
+    ("cf421ew_moirai_native", "moirai421ew_native", "Moirai + patch heads + EWMA"),
+    ("cf421n_moirai_native", "moirai421n_native", "Moirai + patch heads + mean/std + RMS term"),
+]
+OLD_BEST = ("cyan665", tagged(P + "_cos200k", "Ours, old data, 665k   1.1369"),
+            colour(P + "_cos200k"), line(P + "_cos200k"))
+TITLE = ("Relative MASE per GIFT-Eval dataset (geometric mean over its configs), each run at its best checkpoint\n"
+         "Solid lines, Ours: our contrastive model. Dashed lines, Moirai: our copy of Moirai.\n"
+         "New data: all of GiftEvalPretrain. Old data: its series of 4,096 points or more.\n"
+         "Green ring: seasonal naive (1.0). Inside is better. The hardest datasets are at the top.\n"
+         "Loss bug: the contrastive terms of a patch-size run read the rows of one patch size at a time.")
+
+
+def scored_stops(arm, csv_prefix):
+    """{stop in k steps: GM-Relative MASE} for the stops with a score and a radar CSV."""
+    out = {}
+    for f in (STUDY / "results").glob(f"score_{arm}_bb*k_h30k_student.txt"):
+        k = int(re.search(r"_bb(\d+)k_", f.name).group(1))
+        if (RADAR / f"{csv_prefix}{k}k.csv").exists():
+            out[k] = float(f.read_text().split()[0])
+    return out
+
+
+def new_data_arms():
+    """The best scored stop of each new-data run, when it has one."""
+    arms = []
+    for arm, prefix, label in NEW_DATA:
+        stops = scored_stops(arm, prefix)
+        if stops:
+            k = min(stops, key=stops.get)
+            arms.append((f"{prefix}{k}k", tagged(arm, f"{label}, new data, {k}k   {stops[k]:.4f}"),
+                         colour(arm), line(arm)))
+    return arms
+
+
+def print_table(arms, per_ds):
+    """One row per dataset with the value of each arm. The first new-data arm's
+    largest gains over the old best come first."""
+    names = [a[0] for a in arms]
+    old, new = per_ds[names[0]], per_ds[names[1]]
+    print("dataset\t" + "\t".join(names))
+    for d in sorted(new, key=lambda d: new[d] / old.get(d, new[d])):
+        print(d + "\t" + "\t".join(f"{per_ds[n].get(d, float('nan')):.3f}" for n in names))
+
+
+def main():
+    new = new_data_arms()
+    if not new:
+        return print("radar 419: no new-data score yet")
+    arms = [OLD_BEST] + new
+    per_ds = draw(arms, TITLE, STUDY / "plots/gm_mase_radar_419.png")
+    print_table(arms, per_ds)
+
+
+if __name__ == "__main__":
+    main()

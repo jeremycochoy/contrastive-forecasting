@@ -57,7 +57,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cf409_require_arm "$ARM" || exit $?
 cf409_require_stop "$STOP" || exit $?
 
-WATCH="$HERE/auc_watch.py"
+WATCH="$CF409_REPO/scripts/auc_watch.py"
 [ -f "$WATCH" ] || { echo "ABORT: no watch at $WATCH" >&2; exit 2; }
 mkdir -p "$CF409_RESULTS"
 

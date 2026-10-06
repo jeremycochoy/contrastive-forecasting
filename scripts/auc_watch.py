@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """Say whether a run lost the contrastive task, and at which step.
 
-WHY THIS SCRIPT EXISTS. L_rep carries the negatives of this objective. At
-weight 0.0 nothing pushes the representations apart, and both SIGReg terms
-are already near 0.0002 by step 1,000. So the card asks one question of every
-run: did it keep the contrastive task, and if not, when did it stop?
+WHY THIS SCRIPT EXISTS. A backbone that loses the contrastive task climbs
+tens of thousands of dead steps to a checkpoint whose score is already known
+to be bad. Every study of this project asks the same question of every run:
+did it keep the task, and if not, when did it stop? So the reader is shared,
+and each study wires it to its own arms.
 
 The trainer writes the answer to the `auc` column of `<run>_losses.csv` every
 step: the area under the ROC curve of the contrastive task, on the training
-stream. A healthy run of this cell holds 0.95 to 0.98. A run at 0.5 tells a
-positive from a negative no better than a coin.
+stream. A healthy run holds 0.95 to 0.98. A run at 0.5 tells a positive from
+a negative no better than a coin.
 
 THE READING. One step is noisy, so the verdict reads a rolling MEDIAN over
 `--window` steps. The run "lost the task" at the first step where that median
@@ -32,8 +33,8 @@ to the CSV of the leg that crashed. `--skip-rows N` drops the first N rows in
 FILE order, so the verdict reads the rows of one leg alone. `auc_guard.sh`
 counts N before the leg starts.
 
-TWO USES. The report reads the verdict of every arm. `auc_guard.sh` reads the
-exit code and stops an arm that has nothing left to train:
+TWO USES. The report reads the verdict of every arm. A study's `auc_guard.sh`
+reads the exit code and stops an arm that has nothing left to train:
 
     exit 0   the run holds the task
     exit 1   the run lost it. Line 1 of stdout names the step

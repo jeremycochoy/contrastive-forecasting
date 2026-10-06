@@ -1,0 +1,51 @@
+Command line: experiments/2026-04-27_freq-embedding/scripts/train.py --qk-norm --attn-out-norm --batch-size 256 --device cuda --total-steps 200 --lr 1e-3 --weight-decay 0.1 --adam-beta1 0.9 --adam-beta2 0.98 --lr-final 0 --lr-cosine-steps 166000 --lr-warmup-steps 10000 --grad-clip 1.0 --seed 20260520 --save-every 1000000 --save-dir /workspace/cf419-scratch/smoke_old --run-name smoke_old --log-every 25 --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1 --t-raw 4096 --n-channels 1 --d-model 384 --n-heads 8 --num-encoder-layers 3 --num-layers 3 --encoder-dropkey 0.70 --encoder-dropkey-share-heads --encoder-dropkey-share-layers --depthwise-conv 3 --deprecated-depthwise-conv 0 --rev-norm-kind ewma --rev-norm-span 128 --encoder-type gru --synth-kind forked-arma --mix-ratio 0.0078125 --crossfade-triplets 1 --mixup-p 0.3 --freq-emb-dim 3 --seasonality-emb-dim 3 --log-attn-amplitude --log-attn-amplitude-every 200 --residual-dtype fp32 --attn-dtype fp16 --ffn-dtype fp16 --conv-dtype fp16 --patch-emb-dtype fp32 --value-space-objective --train-rollout-depth 3 --train-rollout-reduce sum
+Device: cuda | Params: 11,486,988
+Objective: value-space objective (#415) — pinball on the actual values, 9 quantiles, rollout depth 3 in value space, reduce=sum. No teacher, no EMA, no L_rep, no L_align, no CPC, no SIGReg.
+Training for 200 steps, bs=256, lr=0.001, T=4096, C=1, mix_ratio=0.0078125, freq_emb_dim=3, seasonality_emb_dim=3, mixup_p=0.3, rev_norm_kind=ewma(span=128), patch_stats=none, encoder_type=gru
+Checkpoints: /workspace/cf419-scratch/smoke_old/smoke_old_*.pth
+Loss CSV: /workspace/cf419-scratch/smoke_old/smoke_old_losses.csv
+Latent-drift CSV: /workspace/cf419-scratch/smoke_old/smoke_old_latent_drift.csv (every 1000000 steps, probe_bs=64, probe_seed=20260722)
+Attn-amplitude CSV: /workspace/cf419-scratch/smoke_old/smoke_old_attn_amplitude.csv (every 200 steps)
+Data: MIX 99% HF + 1% synth (forked-arma) + 0% crossfade + 1 triplet(s)=3 rows, hf_bs=254, synth_bs=2, cross_bs=0, total_bs=259
+[     25] loss=2.8719  ema_loss=3.0769  gap=-0.3947  ema_gap=-0.3941  mixup=8/25  0.9 sps  ETA 0.1h
+              R²_rand=0.1028  R²_naive=-0.2626  U_t=0.0155  U_b=0.0283  AUC=0.8271  Top1=0.1584
+  timing: data=615.2ms  fwd=140.3ms  bwd=187.8ms  total=943.7ms
+  -> Saved /workspace/cf419-scratch/smoke_old/smoke_old_best_gap.pth
+  -> Saved /workspace/cf419-scratch/smoke_old/smoke_old_best_loss.pth
+[     50] loss=2.3364  ema_loss=2.9713  gap=-0.3883  ema_gap=-0.3945  mixup=8/25  1.2 sps  ETA 0.0h
+              R²_rand=0.0689  R²_naive=-0.2757  U_t=0.0148  U_b=0.0237  AUC=0.8040  Top1=0.1423
+  timing: data=12.0ms  fwd=161.5ms  bwd=194.6ms  total=368.9ms
+  -> Saved /workspace/cf419-scratch/smoke_old/smoke_old_best_loss.pth
+[     75] loss=1.8194  ema_loss=2.7683  gap=-0.3569  ema_gap=-0.3900  mixup=9/25  1.4 sps  ETA 0.0h
+              R²_rand=0.0208  R²_naive=-0.3021  U_t=0.0125  U_b=0.0183  AUC=0.7611  Top1=0.0817
+  timing: data=12.8ms  fwd=160.0ms  bwd=195.7ms  total=368.9ms
+  -> Saved /workspace/cf419-scratch/smoke_old/smoke_old_best_gap.pth
+  -> Saved /workspace/cf419-scratch/smoke_old/smoke_old_best_loss.pth
+[    100] loss=1.6365  ema_loss=2.5312  gap=-0.3081  ema_gap=-0.3771  mixup=10/25  1.5 sps  ETA 0.0h
+              R²_rand=-0.0351  R²_naive=-0.3643  U_t=0.0096  U_b=0.0135  AUC=0.7511  Top1=0.0550
+  timing: data=11.0ms  fwd=160.2ms  bwd=194.9ms  total=366.6ms
+  -> Saved /workspace/cf419-scratch/smoke_old/smoke_old_best_gap.pth
+  -> Saved /workspace/cf419-scratch/smoke_old/smoke_old_best_loss.pth
+[    125] loss=1.5458  ema_loss=2.3164  gap=-0.2520  ema_gap=-0.3541  mixup=7/25  1.5 sps  ETA 0.0h
+              R²_rand=-0.1061  R²_naive=-0.5181  U_t=0.0072  U_b=0.0096  AUC=0.7573  Top1=0.0682
+  timing: data=11.3ms  fwd=157.5ms  bwd=196.5ms  total=365.9ms
+  -> Saved /workspace/cf419-scratch/smoke_old/smoke_old_best_gap.pth
+  -> Saved /workspace/cf419-scratch/smoke_old/smoke_old_best_loss.pth
+[    150] loss=1.4632  ema_loss=2.1344  gap=-0.2194  ema_gap=-0.3280  mixup=8/25  1.6 sps  ETA 0.0h
+              R²_rand=-0.2630  R²_naive=-0.6376  U_t=0.0060  U_b=0.0072  AUC=0.7125  Top1=0.0602
+  timing: data=10.3ms  fwd=154.9ms  bwd=195.4ms  total=361.1ms
+  -> Saved /workspace/cf419-scratch/smoke_old/smoke_old_best_gap.pth
+  -> Saved /workspace/cf419-scratch/smoke_old/smoke_old_best_loss.pth
+[    175] loss=1.4255  ema_loss=1.9826  gap=-0.1997  ema_gap=-0.3017  mixup=7/25  1.5 sps  ETA 0.0h
+              R²_rand=-0.3713  R²_naive=-0.7318  U_t=0.0054  U_b=0.0061  AUC=0.6931  Top1=0.0498
+  timing: data=224.3ms  fwd=162.2ms  bwd=196.7ms  total=583.7ms
+  -> Saved /workspace/cf419-scratch/smoke_old/smoke_old_best_gap.pth
+  -> Saved /workspace/cf419-scratch/smoke_old/smoke_old_best_loss.pth
+[    200] loss=1.3710  ema_loss=1.8537  gap=-0.1808  ema_gap=-0.2765  mixup=7/25  1.6 sps  ETA 0.0h
+              R²_rand=-0.4935  R²_naive=-0.8508  U_t=0.0049  U_b=0.0053  AUC=0.6591  Top1=0.0230
+  timing: data=11.3ms  fwd=161.1ms  bwd=195.3ms  total=368.2ms
+  -> Saved /workspace/cf419-scratch/smoke_old/smoke_old_best_gap.pth
+  -> Saved /workspace/cf419-scratch/smoke_old/smoke_old_best_loss.pth
+  -> Saved /workspace/cf419-scratch/smoke_old/smoke_old_final.pth
+
+Done in 0.0h. Best gap=-0.2765 at step 200, Best loss=1.8537 at step 200

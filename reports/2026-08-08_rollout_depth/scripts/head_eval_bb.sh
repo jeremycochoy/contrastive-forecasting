@@ -45,6 +45,9 @@ RES="${CF_RESULTS:-${CF_STUDY_DIR:-$WT/reports/2026-08-08_rollout_depth}/results
 mkdir -p "$RES"
 . "$HERE/cell_paths.sh"
 . "$HERE/gpu_gate.sh"
+# The backbone shape both this script and eval_local.sh build to. One file,
+# because a card that trains another width must move both together (#412).
+. "$HERE/bb_shape.sh"
 
 OUT="$CF373_ROOT/eval/$TAG"
 SCORE_OUT="$RES/score_${TAG}.txt"
@@ -67,9 +70,11 @@ if [ -s "$SCORE_OUT" ]; then
   log "SKIP — already scored $(cat "$SCORE_OUT")"; exit 0
 fi
 
-# stop_k.sh's list, verbatim.
-ARCH_HEAD=(--t-raw 4096 --n-channels 1 --d-model 64 --n-heads 8
-           --num-layers 3 --encoder-type gru
+# stop_k.sh's list. The three shape flags come from `bb_shape.sh` and are its
+# values unless a caller replaces them, so every published run of this script
+# reproduces (#412).
+ARCH_HEAD=(--t-raw 4096 --n-channels 1 "${BB_SHAPE[@]}"
+           --encoder-type gru
            --rev-norm-kind ewma --rev-norm-span 128
            --freq-emb-dim 3 --seasonality-emb-dim 3)
 

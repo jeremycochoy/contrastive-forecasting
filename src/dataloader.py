@@ -5,8 +5,8 @@ Supports two modes:
   1. Local parquet shards (from the data prep pipeline)
   2. HuggingFace streaming (streams shards without downloading the full dataset)
 
-Each row contains a fixed-length time series window (1025 points; we use
-the first 1024). Multiple rows are stacked to form the C independent
+Each row contains a fixed-length time series window (1025 points, of which we
+use the first 1024). Multiple rows are stacked to form the C independent
 channels per training sample, matching the [B, T_raw, C] convention.
 """
 
@@ -136,7 +136,7 @@ class PrefetchIterator:
     is busy with forward/backward passes.
 
     Args:
-        iterable: Any iterable (e.g. HFStreamingLoader).
+        iterable: Any iterable (for example HFStreamingLoader).
         prefetch: Number of items to buffer ahead. Default 2 is enough
             to hide one batch of I/O latency.
     """
@@ -221,8 +221,8 @@ class HFStreamingLoader:
     Uses a background prefetch thread to overlap data loading with training.
 
     Args:
-        repo_id: HuggingFace dataset repo (e.g. "user/contrastive-training-tiny-bundles").
-        path_in_repo: Subdirectory within the repo (e.g. "tiny_mixed_v1").
+        repo_id: HuggingFace dataset repo (for example "user/contrastive-training-tiny-bundles").
+        path_in_repo: Subdirectory within the repo (for example "tiny_mixed_v1").
         batch_size: Number of C-channel samples per batch.
         C: Number of channels (independent series) per sample.
         split: Dataset split to use.
@@ -266,14 +266,14 @@ class HFStreamingLoader:
         true streaming path (one shard at a time) is exercised, so the
         thundering-herd metadata resolve never happens.
 
-        Falls back to ``load_dataset`` if shard listing fails (e.g. nested
+        Falls back to ``load_dataset`` if shard listing fails (for example nested
         layouts the simple pattern can't resolve) so behaviour for non-flat
         repos is unchanged.
         """
         shards = self._list_shard_files()
         if shards is None:
             # Fallback: original load_dataset path. Used for repos whose
-            # parquet layout isn't a flat list under path_in_repo (e.g.
+            # parquet layout isn't a flat list under path_in_repo (for example
             # ``contrastive-training-tiny-bundles`` which the unit tests use).
             from datasets import load_dataset
 
@@ -317,7 +317,7 @@ class HFStreamingLoader:
         Each row is ``{"series": [float, ...], "source_id": int}`` matching
         the schema produced by ``datasets.load_dataset``. ``within_shard_skip``
         drops the first N rows of the FIRST shard only (used by the resume
-        path); subsequent shards are fully consumed.
+        path). Subsequent shards are fully consumed.
 
         Bypassing ``load_dataset`` here means we never trigger the
         per-file ``resolve_path`` thread pool against
@@ -330,7 +330,7 @@ class HFStreamingLoader:
         for i, shard in enumerate(shards):
             with fs.open(shard, "rb") as f:
                 pf = pq.ParquetFile(f)
-                # Read only what we need; emit_source_ids gates the
+                # Read only what we need. emit_source_ids gates the
                 # source_id column. Always include "series" / fallback
                 # "target" if present.
                 cols = []
@@ -358,7 +358,7 @@ class HFStreamingLoader:
 
     @property
     def token(self):
-        """HF auth token from the standard env vars; None if not set."""
+        """HF auth token from the standard env vars, or None if not set."""
         import os
         return (
             os.environ.get("HF_TOKEN")
@@ -370,7 +370,7 @@ class HFStreamingLoader:
         """Return row counts per shard from the FIRST shard's metadata.
 
         Assumes uniform shard sizing: shards 0..N-2 share the same row count
-        (read from shard 0's parquet footer); only the last shard may be
+        (read from shard 0's parquet footer). Only the last shard may be
         shorter. This is true for our HF datasets which are written by the
         same upload pipeline.
 
@@ -381,7 +381,7 @@ class HFStreamingLoader:
         fs = HfFileSystem()
         with fs.open(shard_paths[0], "rb") as f:
             rows_per_shard = pq.read_metadata(f).num_rows
-        # All but last assumed equal; last gets the remainder. We only need
+        # All but last assumed equal, and last gets the remainder. We only need
         # exact counts for the start-shard search, so leaving the last as
         # rows_per_shard is fine — we only ever skip INTO a shard, never past
         # the end of the dataset. If a future caller needs exact totals, they
@@ -689,6 +689,46 @@ def create_hf_dataloader(repo_id: str, batch_size: int = 16, C: int = 4,
     )
 
 
+# ── Labels of the real rows of a mixed batch ─────────────────────────────────
+
+
+def _split_real_batch(hf_batch, emit):
+    """``(x, labels)`` of one real sub-batch.
+
+    ``labels`` is None (a bare tensor), ``(source_ids,)`` (the HF bundles,
+    labelled through ``SOURCE_ID_TO_LABELS``) or ``(freq_ids,
+    seasonality_ids)`` (#419: the GiftEvalPretrain stream labels its own
+    rows from each source's frequency).
+    """
+    if emit and isinstance(hf_batch, tuple):
+        return hf_batch[0], hf_batch[1:]
+    return hf_batch, None
+
+
+def _real_labels(labels, n, sid_to_freq, sid_to_seas, max_sid):
+    """Frequency and seasonality ids of ``n`` real rows. A bare tensor gives
+    (0, 0), unknown. An out-of-table source id gives 0 as well."""
+    if labels is None:
+        zeros = torch.zeros(n, dtype=torch.long)
+        return zeros, zeros.clone()
+    if len(labels) == 2:
+        return labels
+    safe = labels[0].clamp(min=0, max=max_sid)
+    return sid_to_freq[safe], sid_to_seas[safe]
+
+
+def _make_real_loader(real_rows, hf_bs, emit, make_hf):
+    """The loader of the real rows of a mixed batch, or None with no real row.
+
+    ``real_rows(batch_size, emit_labels)`` replaces the HF stream when given
+    (#419: the GiftEvalPretrain stream). Every factory below takes it, and
+    without it builds the HF stream exactly as before.
+    """
+    if hf_bs <= 0:
+        return None
+    return real_rows(hf_bs, emit) if real_rows is not None else make_hf()
+
+
 # ── Mixed loader: HF stream + on-the-fly periodic synthesizer ────────────────
 
 class MixedPeriodicLoader:
@@ -704,7 +744,7 @@ class MixedPeriodicLoader:
     split with effective batch ``B=24`` use ``hf_bs=synth_bs=12``.
 
     The synth generator threads a numpy ``Generator`` seeded from ``seed``
-    so runs are reproducible; the generator state advances across batches.
+    so runs are reproducible. The generator state advances across batches.
     """
 
     def __init__(self, hf_loader: "HFStreamingLoader", synth_bs: int,
@@ -716,7 +756,7 @@ class MixedPeriodicLoader:
         self.T_raw = T_raw
         self.C = C
         self.emit_freq_ids = emit_freq_ids
-        # Synth generator is persistent; each __iter__ seeds a fresh one.
+        # Synth generator is persistent. Each __iter__ seeds a fresh one.
         self._seed = seed
 
     def __iter__(self):
@@ -744,11 +784,7 @@ class MixedPeriodicLoader:
                 hf_batch = next(hf_iter)
             except StopIteration:
                 return
-            if self.emit_freq_ids and isinstance(hf_batch, tuple):
-                x_hf, hf_source_ids = hf_batch
-            else:
-                x_hf = hf_batch
-                hf_source_ids = None
+            x_hf, hf_labels = _split_real_batch(hf_batch, self.emit_freq_ids)
             hf_bs = x_hf.shape[0]
 
             if self.synth_bs > 0:
@@ -767,16 +803,8 @@ class MixedPeriodicLoader:
                 x = x_hf
 
             if self.emit_freq_ids:
-                if hf_source_ids is not None:
-                    # Out-of-vocab source_ids fall back to 0 (unknown).
-                    safe_sids = hf_source_ids.clamp(min=0, max=max_sid)
-                    freq_hf = sid_to_freq[safe_sids]
-                    seas_hf = sid_to_seas[safe_sids]
-                else:
-                    # Backwards compat for callers passing a bare-tensor hf
-                    # loader: treat HF rows as unknown (0, 0).
-                    freq_hf = torch.zeros(hf_bs, dtype=torch.long)
-                    seas_hf = torch.zeros(hf_bs, dtype=torch.long)
+                freq_hf, seas_hf = _real_labels(
+                    hf_labels, hf_bs, sid_to_freq, sid_to_seas, max_sid)
                 if self.synth_bs > 0:
                     freq = torch.cat([freq_hf, freq_syn], dim=0)
                     seas = torch.cat([seas_hf, seas_syn], dim=0)
@@ -793,13 +821,13 @@ def create_mixed_periodic_dataloader(
     mix_ratio: float = 0.5,
     path_in_repo: str = None, split: str = "train",
     skip_rows: int = 0, T_raw: int = 1024, seed: int | None = None,
-    emit_freq_ids: bool = False,
+    emit_freq_ids: bool = False, real_rows=None,
 ) -> "MixedPeriodicLoader":
     """Create a 50/50 (or arbitrary) mix of real HF + on-the-fly periodic synth.
 
     The effective batch size (HF + synth rows) equals ``batch_size``. With
     ``mix_ratio=0.5`` and ``batch_size=24`` the HF loader yields ``bs=12``
-    real rows per step and the synth adds 12 periodic rows; both halves are
+    real rows per step and the synth adds 12 periodic rows. Both halves are
     independent draws.
 
     Args:
@@ -820,18 +848,21 @@ def create_mixed_periodic_dataloader(
         # Exact parity with the HF-only path — no synth overhead, and
         # the caller doesn't need freq_ids. When emit_freq_ids is True
         # we fall through to the MixedPeriodicLoader path with
-        # synth_bs=0; that path returns (x, freq_ids) tuples (freq=0
+        # synth_bs=0. That path returns (x, freq_ids) tuples (freq=0
         # for HF rows) which downstream training expects.
+        if real_rows is not None:
+            return real_rows(batch_size, False)
         return create_hf_dataloader(
             repo_id=repo_id, batch_size=batch_size, C=C,
             path_in_repo=path_in_repo, split=split, skip_rows=skip_rows,
         )
 
-    hf_loader = HFStreamingLoader(
-        repo_id=repo_id, batch_size=hf_bs, C=C,
-        path_in_repo=path_in_repo, split=split, skip_rows=skip_rows,
-        emit_source_ids=emit_freq_ids,
-    ) if hf_bs > 0 else None
+    hf_loader = _make_real_loader(
+        real_rows, hf_bs, emit_freq_ids, lambda: HFStreamingLoader(
+            repo_id=repo_id, batch_size=hf_bs, C=C,
+            path_in_repo=path_in_repo, split=split, skip_rows=skip_rows,
+            emit_source_ids=emit_freq_ids,
+        ))
 
     # Small helper to act as an "iterable-like" HF loader when mix_ratio=1.0.
     class _EmptyHFLoader:
@@ -900,11 +931,7 @@ class MixedCompositeLoader:
                 hf_batch = next(hf_iter)
             except StopIteration:
                 return
-            if self.emit_freq_ids and isinstance(hf_batch, tuple):
-                x_hf, hf_source_ids = hf_batch
-            else:
-                x_hf = hf_batch
-                hf_source_ids = None
+            x_hf, hf_labels = _split_real_batch(hf_batch, self.emit_freq_ids)
             hf_bs = x_hf.shape[0]
 
             if self.synth_bs > 0:
@@ -925,13 +952,8 @@ class MixedCompositeLoader:
                 x = x_hf
 
             if self.emit_freq_ids:
-                if hf_source_ids is not None:
-                    safe_sids = hf_source_ids.clamp(min=0, max=max_sid)
-                    freq_hf = sid_to_freq[safe_sids]
-                    seas_hf = sid_to_seas[safe_sids]
-                else:
-                    freq_hf = torch.zeros(hf_bs, dtype=torch.long)
-                    seas_hf = torch.zeros(hf_bs, dtype=torch.long)
+                freq_hf, seas_hf = _real_labels(
+                    hf_labels, hf_bs, sid_to_freq, sid_to_seas, max_sid)
                 if self.synth_bs > 0:
                     freq = torch.cat([freq_hf, freq_syn], dim=0)
                     seas = torch.cat([seas_hf, seas_syn], dim=0)
@@ -949,12 +971,12 @@ def create_mixed_composite_dataloader(
     path_in_repo: str = None, split: str = "train",
     skip_rows: int = 0, T_raw: int = 1024, seed: int | None = None,
     emit_freq_ids: bool = False,
-    synth_kwargs: dict | None = None,
+    synth_kwargs: dict | None = None, real_rows=None,
 ) -> "MixedCompositeLoader":
     """Create an HF + on-the-fly *composite* synth mix, parallel to
     :func:`create_mixed_periodic_dataloader`.
 
-    Same factory contract; ``synth_kwargs`` forwards extra recipe knobs to
+    Same factory contract. ``synth_kwargs`` forwards extra recipe knobs to
     :func:`src.synthetic_composite.generate_composite_batch`.
     """
     if not 0.0 <= mix_ratio <= 1.0:
@@ -964,16 +986,19 @@ def create_mixed_composite_dataloader(
     hf_bs = batch_size - synth_bs
 
     if mix_ratio == 0.0 and not emit_freq_ids:
+        if real_rows is not None:
+            return real_rows(batch_size, False)
         return create_hf_dataloader(
             repo_id=repo_id, batch_size=batch_size, C=C,
             path_in_repo=path_in_repo, split=split, skip_rows=skip_rows,
         )
 
-    hf_loader = HFStreamingLoader(
-        repo_id=repo_id, batch_size=hf_bs, C=C,
-        path_in_repo=path_in_repo, split=split, skip_rows=skip_rows,
-        emit_source_ids=emit_freq_ids,
-    ) if hf_bs > 0 else None
+    hf_loader = _make_real_loader(
+        real_rows, hf_bs, emit_freq_ids, lambda: HFStreamingLoader(
+            repo_id=repo_id, batch_size=hf_bs, C=C,
+            path_in_repo=path_in_repo, split=split, skip_rows=skip_rows,
+            emit_source_ids=emit_freq_ids,
+        ))
 
     class _EmptyHFLoader:
         def __iter__(self):
@@ -1005,12 +1030,15 @@ class MixedForkedArmaLoader:
     ``cross_bs == 0`` and ``cross_triplets == 0`` the fork-only path (and its
     RNG draw order) is byte-identical to #318/#322.
     Both synthetic streams carry no canonical frequency/seasonality → label 0.
+    ``zero_padding`` tells the crossfade that the real rows carry left zero
+    padding (#419), which it keeps at 0 (#421).
     """
 
     def __init__(self, hf_loader, synth_bs, T_raw=1024, C=4, seed=None,
                  emit_freq_ids=False, synth_kwargs=None, cross_bs=0,
-                 cross_triplets=0):
+                 cross_triplets=0, zero_padding=False):
         self.hf_loader = hf_loader
+        self.zero_padding = bool(zero_padding)
         self.synth_bs = synth_bs
         self.cross_bs = cross_bs
         self.cross_triplets = cross_triplets
@@ -1042,14 +1070,10 @@ class MixedForkedArmaLoader:
                 hf_batch = next(hf_iter)
             except StopIteration:
                 return
-            if self.emit_freq_ids and isinstance(hf_batch, tuple):
-                x_hf, hf_source_ids = hf_batch
-            else:
-                x_hf = hf_batch
-                hf_source_ids = None
+            x_hf, hf_labels = _split_real_batch(hf_batch, self.emit_freq_ids)
             hf_bs = x_hf.shape[0]
 
-            # Block order is [HF | forked-arma | crossfade]; the fork block is
+            # Block order is [HF | forked-arma | crossfade]. The fork block is
             # built first so cross_bs==0 leaves the fork-only RNG draws (and the
             # output) byte-identical to #318/#322.
             blocks = [x_hf]
@@ -1082,6 +1106,7 @@ class MixedForkedArmaLoader:
                 if self.emit_freq_ids:
                     x_cross, freq_cross, seas_cross = generate_crossfade_batch(
                         x_hf, self.cross_bs, rng=rng, return_labels=True,
+                        zero_padding=self.zero_padding,
                     )
                     blocks.append(x_cross)
                     freq_blocks.append(freq_cross)
@@ -1089,6 +1114,7 @@ class MixedForkedArmaLoader:
                 else:
                     blocks.append(generate_crossfade_batch(
                         x_hf, self.cross_bs, rng=rng,
+                        zero_padding=self.zero_padding,
                     ))
 
             # Explicit (A_norm, B_norm, C) crossfade triplets (#328), appended
@@ -1103,6 +1129,7 @@ class MixedForkedArmaLoader:
                 if self.emit_freq_ids:
                     x_trip, freq_trip, seas_trip = generate_crossfade_triplets(
                         x_hf, self.cross_triplets, rng=rng, return_labels=True,
+                        zero_padding=self.zero_padding,
                     )
                     blocks.append(x_trip)
                     freq_blocks.append(freq_trip)
@@ -1110,18 +1137,14 @@ class MixedForkedArmaLoader:
                 else:
                     blocks.append(generate_crossfade_triplets(
                         x_hf, self.cross_triplets, rng=rng,
+                        zero_padding=self.zero_padding,
                     ))
 
             x = torch.cat(blocks, dim=0) if len(blocks) > 1 else x_hf
 
             if self.emit_freq_ids:
-                if hf_source_ids is not None:
-                    safe_sids = hf_source_ids.clamp(min=0, max=max_sid)
-                    freq_hf = sid_to_freq[safe_sids]
-                    seas_hf = sid_to_seas[safe_sids]
-                else:
-                    freq_hf = torch.zeros(hf_bs, dtype=torch.long)
-                    seas_hf = torch.zeros(hf_bs, dtype=torch.long)
+                freq_hf, seas_hf = _real_labels(
+                    hf_labels, hf_bs, sid_to_freq, sid_to_seas, max_sid)
                 freq = torch.cat([freq_hf, *freq_blocks], dim=0) if freq_blocks else freq_hf
                 seas = torch.cat([seas_hf, *seas_blocks], dim=0) if seas_blocks else seas_hf
                 yield x, freq, seas
@@ -1134,20 +1157,23 @@ def create_mixed_forked_arma_dataloader(
     path_in_repo: str = None, split: str = "train",
     skip_rows: int = 0, T_raw: int = 1024, seed: int | None = None,
     emit_freq_ids: bool = False, synth_kwargs: dict | None = None,
-    crossfade_ratio: float = 0.0, cross_triplets: int = 0,
+    crossfade_ratio: float = 0.0, cross_triplets: int = 0, real_rows=None,
+    zero_padding: bool = False,
 ) -> "MixedForkedArmaLoader":
     """HF + forked-continuation-ARIMA synth mix, optionally plus a regime-
-    crossfade stream (#325); same contract as the composite factory.
+    crossfade stream (#325). Same contract as the composite factory.
 
     The batch splits as ``[hf_bs | synth_bs | cross_bs]`` where
     ``synth_bs = round(batch_size * mix_ratio)`` (forked-arma) and
     ``cross_bs = round(batch_size * crossfade_ratio)`` (crossfade rows blended
     from the ``hf_bs`` real rows). ``cross_triplets`` additionally appends
     ``3 * cross_triplets`` (A_norm, B_norm, C) rows ON TOP (the total batch
-    becomes ``batch_size + 3 * cross_triplets``; #328). With
+    becomes ``batch_size + 3 * cross_triplets``. #328). With
     ``crossfade_ratio == 0`` and ``cross_triplets == 0`` this is the #318/#322
     fork-only loader unchanged. `synth_kwargs` forwards forked-ARMA knobs
-    (integrate, perturb_sigma, fork_frac_range, std, dimension)."""
+    (integrate, perturb_sigma, fork_frac_range, std, dimension).
+    `zero_padding` says the real rows carry left zero padding (#419): the
+    crossfade keeps it at 0 (#421)."""
     if not 0.0 <= mix_ratio <= 1.0:
         raise ValueError(f"mix_ratio must be in [0, 1], got {mix_ratio}")
     if not 0.0 <= crossfade_ratio <= 1.0:
@@ -1167,15 +1193,18 @@ def create_mixed_forked_arma_dataloader(
             f"(batch_size={batch_size}, mix_ratio={mix_ratio}, "
             f"crossfade_ratio={crossfade_ratio}, cross_triplets={cross_triplets})")
     if synth_bs == 0 and cross_bs == 0 and cross_triplets == 0 and not emit_freq_ids:
+        if real_rows is not None:
+            return real_rows(batch_size, False)
         return create_hf_dataloader(
             repo_id=repo_id, batch_size=batch_size, C=C,
             path_in_repo=path_in_repo, split=split, skip_rows=skip_rows,
         )
-    hf_loader = HFStreamingLoader(
-        repo_id=repo_id, batch_size=hf_bs, C=C,
-        path_in_repo=path_in_repo, split=split, skip_rows=skip_rows,
-        emit_source_ids=emit_freq_ids,
-    ) if hf_bs > 0 else None
+    hf_loader = _make_real_loader(
+        real_rows, hf_bs, emit_freq_ids, lambda: HFStreamingLoader(
+            repo_id=repo_id, batch_size=hf_bs, C=C,
+            path_in_repo=path_in_repo, split=split, skip_rows=skip_rows,
+            emit_source_ids=emit_freq_ids,
+        ))
 
     class _EmptyHFLoader:
         def __iter__(self):
@@ -1187,4 +1216,5 @@ def create_mixed_forked_arma_dataloader(
         synth_bs=synth_bs, cross_bs=cross_bs, cross_triplets=cross_triplets,
         T_raw=T_raw, C=C, seed=seed,
         emit_freq_ids=emit_freq_ids, synth_kwargs=synth_kwargs,
+        zero_padding=zero_padding,
     )

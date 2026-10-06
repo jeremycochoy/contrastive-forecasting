@@ -1,0 +1,34 @@
+# `CF412_TRIAL=<steps>` runs the whole pipeline at a few tens of backbone
+# steps. Its score is a wiring check, not a measurement, and a trial file
+# beside the study's own results is one glob away from being read as a study
+# number.
+#
+# Three files are the exception, and they are committed. `smoke.csv` and
+# `smoke.log` carry the shape each arm's trainer actually ran, the
+# depth-column count, the memory and the step time the run plan is sized from.
+# `trial.log` carries the end-to-end pass through the head and the
+# evaluation.
+results/trial/*
+!results/trial/smoke.csv
+!results/trial/smoke.log
+!results/trial/trial.log
+
+# `run_snapshot/` is a frozen copy of `scripts/`, and a lane runs from it.
+#
+# Two agent sessions share this checkout. On 2026-09-06 one edited
+# `run_arm.sh` and `phase1.sh` in place while the other's lanes were running
+# them. Bash reads a script by byte offset and re-reads the file after each
+# command, so a running shell resumed inside the new text and died on a syntax
+# error. That cost `k3_r100_09` its 100,000-step head.
+#
+# A lane launched from a frozen copy cannot be edited under itself.
+# `study.sh` takes the study directory from its own parent, so a copy that
+# sits beside `scripts/` writes to the same `results/` and `plots/`.
+#
+# It is a copy of committed files, so it is not committed again.
+run_snapshot/
+
+# `results/lane_d.log` is not committed. Two sessions opened it at once on
+# 2026-09-07, one with `>`, so its text interleaves at two offsets. Every line
+# it held is also in `results/arms.log` and `results/phase1.log`, which append.
+results/lane_d.log

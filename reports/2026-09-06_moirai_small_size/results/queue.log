@@ -1,0 +1,61 @@
+[09-07 04:22:04] [#412 queue] gpu 0  stop 40000  queue: k32_r200_08 k8_r100_09 k3_r100_09_lr17
+[09-07 04:22:04] [#412 queue] k32_r200_08 waits for 11300 MiB free on gpu 0
+[#412 vram] gpu 0 has 5767 MiB free, backbone k32_r200_08 needs 11300
+[#412 vram] gpu 0 has 5767 MiB free, backbone k32_r200_08 needs 11300
+[#412 vram] gpu 0 has 5767 MiB free, backbone k32_r200_08 needs 11300
+[#412 vram] gpu 0 has 5767 MiB free, backbone k32_r200_08 needs 11300
+[#412 vram] gpu 0 has 5767 MiB free, backbone k32_r200_08 needs 11300
+[#412 vram] gpu 0 has 5767 MiB free, backbone k32_r200_08 needs 11300
+[#412 vram] gpu 0 has 5767 MiB free, backbone k32_r200_08 needs 11300
+[09-07 05:30:47] [#412 queue] lr17 dropped — lane D pid 1102993 owns it (ARMS="k3_r100_09_lr33 k3_r100_09_lr17", gpu 1)
+[09-07 05:30:47] [#412 queue] gpu 0  stop 40000  queue: k32_r200_08 k8_r100_09
+[09-07 05:30:47] [#412 queue] k32_r200_08 waits for 11300 MiB free on gpu 0
+[#412 vram] gpu 0 has 5767 MiB free, backbone k32_r200_08 needs 11300
+[#412 vram] gpu 0 has 5767 MiB free, backbone k32_r200_08 needs 11300
+[#412 vram] gpu 0 has 5747 MiB free, backbone k32_r200_08 needs 11300
+[#412 vram] gpu 0 has 5747 MiB free, backbone k32_r200_08 needs 11300
+[#412 vram] gpu 0 has 12222 MiB free after 1920s — backbone k32_r200_08 starts
+[09-07 06:02:48] [#412 queue] k32_r200_08 -> 40000 steps on gpu 0
+[09-07 06:02:48] [#412 queue] k32_r200_08 run_arm pid 1346483
+[09-07 06:07:48] [#412 queue] k32_r200_08 settled — gpu 0 has 5817 MiB free
+[09-07 06:07:48] [#412 queue] k8_r100_09 waits for 8400 MiB free on gpu 0
+[#412 vram] gpu 0 has 5817 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 5817 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 5817 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 5817 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 5817 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 5817 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 5817 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 5817 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 5817 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 5817 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 5817 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 5817 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 5817 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 5817 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 5817 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 5817 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 5817 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 5817 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 5817 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 5817 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 5817 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 5817 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 5817 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 5817 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 5817 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 5817 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 5817 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 5817 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 1801 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 0 has 1801 MiB free, backbone k8_r100_09 needs 8400
+[09-07 11:00:24] [#412 queue] k8_r100_09 moved to gpu 1. gpu 0 free is 1801 MiB: k32_r200_08 grew to 10418 at its step-20,000 save, so the climb window gives 8293 against the 8400 it needs.
+[09-07 11:00:24] [#412 queue] gpu 1  stop 40000  queue: k8_r100_09
+[09-07 11:00:24] [#412 queue] k8_r100_09 waits for 8400 MiB free on gpu 1
+[#412 vram] gpu 1 has 7684 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 1 has 7684 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 1 has 13940 MiB free after 1080s — backbone k8_r100_09 starts
+[09-07 11:18:25] [#412 queue] k8_r100_09 -> 40000 steps on gpu 1
+[09-07 11:18:25] [#412 queue] k8_r100_09 run_arm pid 1938421
+[09-07 11:23:25] [#412 queue] k8_r100_09 settled — gpu 1 has 8512 MiB free
+[09-07 11:23:25] [#412 queue] queue done

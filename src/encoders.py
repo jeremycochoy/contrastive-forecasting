@@ -75,11 +75,21 @@ class GRUEncoder(nn.Module):
     Captures temporal ordering within the patch.
     """
     def __init__(self, W, H, intermediate_dim=128, num_gru_layers=2,
-                 patch_emb_dtype: str = "fp32"):
+                 patch_emb_dtype: str = "fp32", input_bound: float = 0.0):
         super().__init__()
         self.W = W
+        # #421: with input_bound c > 0 the GRU reads c * tanh(x / c), and the
+        # skip layer keeps the raw x. On patches with values above about 20,
+        # the size-128 GRU of the #421z run multiplied the gradient by 1e7 to
+        # 1e13 in its backward pass. On inputs within 12 its gain stayed
+        # below 0.5. The buffer records c, so a loader rebuilds it.
+        if input_bound:
+            self.register_buffer("input_bound",
+                                 torch.tensor(float(input_bound)))
+        else:
+            self.input_bound = None
         # Dtype for the GRU compute path. fp32 = disabled autocast (no-op).
-        # The GRU's W-step recurrence is sensitive to bf16 truncation; fp32
+        # The GRU's W-step recurrence is sensitive to bf16 truncation. fp32
         # is the safe default. fp16 trades precision for ~25-30% speedup.
         self.patch_emb_dtype = patch_emb_dtype
         self.gru = nn.GRU(
@@ -90,12 +100,17 @@ class GRUEncoder(nn.Module):
         self.proj = nn.Linear(intermediate_dim * 2, H)  # bidirectional
         self.skip = nn.Linear(W, H)
         self.layer_norm = nn.LayerNorm(H)
+        # --patch-rms-weight (#421): a list the forward appends the vector
+        # before the LayerNorm to. None: nothing is kept.
+        self.pre_norm_sink = None
 
     def forward(self, x):
         with _autocast_ctx(self.patch_emb_dtype):
             # x: [B, T, C, W]
             shape = x.shape[:-1]  # [B, T, C]
             flat = x.reshape(-1, self.W, 1)  # [B*T*C, W, 1]
+            if self.input_bound is not None:
+                flat = self.input_bound * torch.tanh(flat / self.input_bound)
             # The GRU over B*T*C independent sequences is the patch-encoder's memory
             # wall at large batch. Optionally chunk it over the sequence dim and/or
             # gradient-checkpoint it (recompute in backward). Both are BYTE-IDENTICAL
@@ -126,7 +141,10 @@ class GRUEncoder(nn.Module):
             h = self.proj(h)  # [B*T*C, H]
             h = h.reshape(*shape, -1)  # [B, T, C, H]
             s = self.skip(x)
-            return self.layer_norm(h + s)
+            pre = h + s
+            if self.pre_norm_sink is not None:
+                self.pre_norm_sink.append(pre)
+            return self.layer_norm(pre)
 
 
 class ConvEncoder(nn.Module):
@@ -183,7 +201,7 @@ class TransformerEncoder(nn.Module):
                  activation='gelu', use_grad_checkpoint=True,
                  chunk_size=8192):
         super().__init__()
-        # W is recorded only for diagnostics; the linear is per-scalar
+        # W is recorded only for diagnostics. The linear is per-scalar
         # (1 -> H), so the layer doesn't depend on patch width.
         self.W = W
         # Per-scalar upscale: each of the W' positions in a patch is treated
@@ -263,20 +281,52 @@ class TransformerEncoder(nn.Module):
         return out.reshape(B, T, C, H)                          # [B, T, C, H]
 
 
+class PatchEncoderBank(nn.Module):
+    """One patch encoder per patch size (#417).
+
+    A patch of P values reaches the encoder as P + ``tail`` features: the
+    values, then the patch statistics and the label embeddings. The width
+    of the input therefore names its patch size, and the bank hands the
+    patch to that size's encoder. So every caller that runs
+    ``transformer(prepare_encoder_input(x, patch_size=P))`` reads size P
+    with no other change.
+    """
+
+    def __init__(self, encoders: dict, tail: int):
+        super().__init__()
+        self.tail = int(tail)
+        self.encoders = nn.ModuleDict(
+            {str(size): encoders[size] for size in sorted(encoders)})
+
+    def forward(self, x):
+        size = str(x.shape[-1] - self.tail)
+        if size not in self.encoders:
+            raise ValueError(f"no patch encoder for patch size {size}; the "
+                             f"bank holds {list(self.encoders)}")
+        return self.encoders[size](x)
+
+
 def create_encoder(encoder_type, W, H, intermediate_dim=None,
                    transformer_num_layers=4, transformer_nhead=6,
                    transformer_ffn_mult=4, transformer_dropout=0.0,
                    transformer_depthwise_conv=3,
                    transformer_chunk_size=8192,
                    transformer_use_grad_checkpoint=True,
-                   patch_emb_dtype: str = "fp32"):
+                   patch_emb_dtype: str = "fp32",
+                   gru_input_bound: float = 0.0):
     """Factory function for encoder creation.
 
     ``patch_emb_dtype`` is wired into encoders whose forward compute is
     precision-sensitive (currently GRU). Other encoders accept-and-ignore
     the kwarg — they can opt in later by wrapping their forward in
     ``_autocast_ctx(self.patch_emb_dtype)``.
+
+    ``gru_input_bound`` (#421) bounds the values the GRU reads (see
+    :class:`GRUEncoder`). Only the GRU encoder takes it.
     """
+    if gru_input_bound and encoder_type != 'gru':
+        raise ValueError("gru_input_bound applies to the GRU encoder only, "
+                         f"not to encoder_type={encoder_type!r}")
     if encoder_type == 'mlp':
         return MLPEncoder(W, H, intermediate_dim=intermediate_dim or 64)
     elif encoder_type == 'mlp_wide':
@@ -285,7 +335,8 @@ def create_encoder(encoder_type, W, H, intermediate_dim=None,
         return ResidualSiLUEncoder(W, H, intermediate_dim=intermediate_dim)
     elif encoder_type == 'gru':
         return GRUEncoder(W, H, intermediate_dim=intermediate_dim or 128,
-                          patch_emb_dtype=patch_emb_dtype)
+                          patch_emb_dtype=patch_emb_dtype,
+                          input_bound=gru_input_bound)
     elif encoder_type == 'conv':
         return ConvEncoder(W, H, intermediate_dim=intermediate_dim or 128)
     elif encoder_type == 'transformer':

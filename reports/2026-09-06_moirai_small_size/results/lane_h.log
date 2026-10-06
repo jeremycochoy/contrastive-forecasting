@@ -1,0 +1,71 @@
+[09-10 18:30:18] [#412 phase1] arms: k3_r100_09_lr56_dec10k
+[09-10 18:30:18] [#412 phase1] stops: 40000 100000  gpu: 0
+[09-10 18:30:18] [#412 phase1] backbone k3_r100_09_lr56_dec10k -> 40000 (gpu 0 holds the 7700 MiB it needs)
+[09-10 18:30:18] [#412] arm k3_r100_09_lr56_dec10k arch='--d-model 384 --n-heads 8 --num-layers 3 --num-encoder-layers 3' k=3 reduce=sum ema='--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 40000' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000' seed=20260520 lr=5.6e-4 -> 40000 steps on gpu 0
+[09-10 18:30:18] [arm6_v2_combab_alignT] FRESH start at step 0
+[09-10 18:30:18] [arm6_v2_combab_alignT] START target=40000 gpu=0 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-412/k3_r100_09_lr56_dec10k/arm6_v2_combab_alignT/leg_40k
+[09-10 18:30:23] [#412] arm k3_r100_09_lr56_dec10k arch=384 3 3 k=3 reduce=sum ema='0.9 1.0 40000' decay='1.0 0.0 10000' seed=20260520 batch=64 lr=5.6e-4 align=teacher OK — all eight reached the trainer
+[09-10 18:30:23] [#412] arm k3_r100_09_lr56_dec10k AUC gate pid 2757173 — window 500, threshold 0.55, warmup 1786
+[09-10 21:47:02] [arm6_v2_combab_alignT] DONE target=40000 (66M) -> /home/jupyter/checkpoints_backup/cf-412/k3_r100_09_lr56_dec10k/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_dec10k_40k.pth
+[09-10 21:47:02] [#412] arm k3_r100_09_lr56_dec10k stop=40000 rc=0
+[09-10 21:47:02] [#412 phase1] head k3_r100_09_lr56_dec10k bb40000
+[09-10 21:47:02] [#412] head k3_r100_09_lr56_dec10k_bb40k_h30k_student on cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_dec10k_40k.pth
+[09-10 21:47:02] [k3_r100_09_lr56_dec10k_bb40k_h30k_student] head-train start enc=student steps=30000 seed=20260722 gpu=0 bb=cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_dec10k_40k.pth
+[09-10 23:31:02] [k3_r100_09_lr56_dec10k_bb40k_h30k_student] head-train rc=0
+[09-10 23:31:02] [k3_r100_09_lr56_dec10k_bb40k_h30k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[09-11 03:26:35] [k3_r100_09_lr56_dec10k_bb40k_h30k_student] eval rc=0
+[09-11 03:26:35] [k3_r100_09_lr56_dec10k_bb40k_h30k_student] DONE — GM-Relative MASE 1.1915
+[09-11 03:26:35] [#412] head k3_r100_09_lr56_dec10k_bb40k_h30k_student rc=0
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3206 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 3426 MiB free, backbone k3_r100_09_lr56_dec10k needs 7700
+[#412 vram] gpu 0 has 9682 MiB free after 14100s — backbone k3_r100_09_lr56_dec10k starts
+[09-11 07:21:39] [#412 phase1] backbone k3_r100_09_lr56_dec10k -> 100000 (gpu 0 holds the 7700 MiB it needs)
+[09-11 07:21:39] [#412] arm k3_r100_09_lr56_dec10k arch='--d-model 384 --n-heads 8 --num-layers 3 --num-encoder-layers 3' k=3 reduce=sum ema='--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 40000' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 10000' seed=20260520 lr=5.6e-4 -> 100000 steps on gpu 0
+[09-11 07:21:39] [arm6_v2_combab_alignT] RESUME from cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_dec10k_40k.pth (step 40k)
+[09-11 07:21:39] [arm6_v2_combab_alignT] START target=100000 gpu=0 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-412/k3_r100_09_lr56_dec10k/arm6_v2_combab_alignT/leg_100k
+[09-11 07:21:44] [#412] arm k3_r100_09_lr56_dec10k arch=384 3 3 k=3 reduce=sum ema='0.9 1.0 40000' decay='1.0 0.0 10000' seed=20260520 batch=64 lr=5.6e-4 align=teacher OK — all eight reached the trainer
+[09-11 07:21:44] [#412] arm k3_r100_09_lr56_dec10k AUC gate pid 3875026 — window 500, threshold 0.55, warmup 1786
+[09-11 11:05:05] [arm6_v2_combab_alignT] DONE target=100000 (66M) -> /home/jupyter/checkpoints_backup/cf-412/k3_r100_09_lr56_dec10k/arm6_v2_combab_alignT/leg_100k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_dec10k_100k.pth
+[09-11 11:05:05] [#412] arm k3_r100_09_lr56_dec10k stop=100000 rc=0
+[09-11 11:05:05] [#412 phase1] head k3_r100_09_lr56_dec10k bb100000
+[09-11 11:05:05] [#412] head k3_r100_09_lr56_dec10k_bb100k_h30k_student on cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_dec10k_100k.pth
+[09-11 11:05:05] [k3_r100_09_lr56_dec10k_bb100k_h30k_student] waiting for VRAM on GPU 0: 7200 MiB free, need 9000
+[09-11 11:15:06] [k3_r100_09_lr56_dec10k_bb100k_h30k_student] waiting for VRAM on GPU 0: 7200 MiB free, need 9000
+[09-11 11:25:06] [k3_r100_09_lr56_dec10k_bb100k_h30k_student] waiting for VRAM on GPU 0: 7200 MiB free, need 9000
+[09-11 11:35:06] [k3_r100_09_lr56_dec10k_bb100k_h30k_student] waiting for VRAM on GPU 0: 7200 MiB free, need 9000
+[09-11 11:45:07] [k3_r100_09_lr56_dec10k_bb100k_h30k_student] waiting for VRAM on GPU 0: 7200 MiB free, need 9000
+[09-11 11:55:07] [k3_r100_09_lr56_dec10k_bb100k_h30k_student] waiting for VRAM on GPU 0: 7200 MiB free, need 9000
+[09-11 12:05:07] [k3_r100_09_lr56_dec10k_bb100k_h30k_student] waiting for VRAM on GPU 0: 7200 MiB free, need 9000
+[09-11 12:15:08] [k3_r100_09_lr56_dec10k_bb100k_h30k_student] waiting for VRAM on GPU 0: 7200 MiB free, need 9000
+[09-11 12:25:08] [k3_r100_09_lr56_dec10k_bb100k_h30k_student] waiting for VRAM on GPU 0: 7200 MiB free, need 9000
+[09-11 12:35:08] [k3_r100_09_lr56_dec10k_bb100k_h30k_student] waiting for VRAM on GPU 0: 7200 MiB free, need 9000
+[09-11 12:38:08] [k3_r100_09_lr56_dec10k_bb100k_h30k_student] GPU 0 has 18924 MiB free after 5580s
+[09-11 12:38:08] [k3_r100_09_lr56_dec10k_bb100k_h30k_student] head-train start enc=student steps=30000 seed=20260722 gpu=0 bb=cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_dec10k_100k.pth
+[09-11 14:39:25] [k3_r100_09_lr56_dec10k_bb100k_h30k_student] head-train rc=0
+[09-11 14:39:25] [k3_r100_09_lr56_dec10k_bb100k_h30k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[09-11 18:14:39] [k3_r100_09_lr56_dec10k_bb100k_h30k_student] eval rc=0
+[09-11 18:14:39] [k3_r100_09_lr56_dec10k_bb100k_h30k_student] DONE — GM-Relative MASE 1.2151
+[09-11 18:14:39] [#412] head k3_r100_09_lr56_dec10k_bb100k_h30k_student rc=0
+[09-11 18:14:39] [#412 phase1] phase1 done — 0 failure(s)

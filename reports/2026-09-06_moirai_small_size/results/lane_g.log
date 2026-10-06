@@ -1,0 +1,46 @@
+[09-10 18:29:28] [#412 phase1] arms: k3_r100_09_lr56_dec
+[09-10 18:29:28] [#412 phase1] stops: 40000 100000 200000  gpu: 1
+[09-10 18:29:28] [#412 phase1] backbone k3_r100_09_lr56_dec -> 40000 (gpu 1 holds the 7700 MiB it needs)
+[09-10 18:29:28] [#412] arm k3_r100_09_lr56_dec arch='--d-model 384 --n-heads 8 --num-layers 3 --num-encoder-layers 3' k=3 reduce=sum ema='--ema-tau 0.9 --ema-tau-end 1.0 --ema-tau-ramp-steps 100000' decay='--rep-loss-weight 1.0 --rep-loss-weight-end 0.0 --rep-loss-weight-ramp-steps 2000' seed=20260520 lr=5.6e-4 -> 40000 steps on gpu 1
+[09-10 18:29:28] [arm6_v2_combab_alignT] FRESH start at step 0
+[09-10 18:29:28] [arm6_v2_combab_alignT] START target=40000 gpu=1 save_every=20000 leg=/home/jupyter/checkpoints_backup/cf-412/k3_r100_09_lr56_dec/arm6_v2_combab_alignT/leg_40k
+[09-10 18:29:33] [#412] arm k3_r100_09_lr56_dec arch=384 3 3 k=3 reduce=sum ema='0.9 1.0 100000' decay='1.0 0.0 2000' seed=20260520 batch=64 lr=5.6e-4 align=teacher OK — all eight reached the trainer
+[09-10 18:29:33] [#412] arm k3_r100_09_lr56_dec AUC gate pid 2753280 — window 500, threshold 0.55, warmup 1786
+[09-10 21:34:14] [arm6_v2_combab_alignT] DONE target=40000 (66M) -> /home/jupyter/checkpoints_backup/cf-412/k3_r100_09_lr56_dec/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_dec_40k.pth
+[09-10 21:34:14] [#412] arm k3_r100_09_lr56_dec stop=40000 rc=0
+[09-10 21:34:14] [#412 phase1] head k3_r100_09_lr56_dec bb40000
+[09-10 21:34:14] [#412] head k3_r100_09_lr56_dec_bb40k_h30k_student on cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_dec_40k.pth
+[09-10 21:34:14] [k3_r100_09_lr56_dec_bb40k_h30k_student] waiting for VRAM on GPU 1: 7018 MiB free, need 9000
+[09-10 21:44:14] [k3_r100_09_lr56_dec_bb40k_h30k_student] waiting for VRAM on GPU 1: 7018 MiB free, need 9000
+[09-10 21:54:15] [k3_r100_09_lr56_dec_bb40k_h30k_student] waiting for VRAM on GPU 1: 7018 MiB free, need 9000
+[09-10 22:04:15] [k3_r100_09_lr56_dec_bb40k_h30k_student] waiting for VRAM on GPU 1: 7018 MiB free, need 9000
+[09-10 22:14:16] [k3_r100_09_lr56_dec_bb40k_h30k_student] waiting for VRAM on GPU 1: 7018 MiB free, need 9000
+[09-10 22:24:16] [k3_r100_09_lr56_dec_bb40k_h30k_student] waiting for VRAM on GPU 1: 7018 MiB free, need 9000
+[09-10 22:34:16] [k3_r100_09_lr56_dec_bb40k_h30k_student] waiting for VRAM on GPU 1: 7018 MiB free, need 9000
+[09-10 22:44:17] [k3_r100_09_lr56_dec_bb40k_h30k_student] waiting for VRAM on GPU 1: 7018 MiB free, need 9000
+[09-10 22:54:17] [k3_r100_09_lr56_dec_bb40k_h30k_student] waiting for VRAM on GPU 1: 7018 MiB free, need 9000
+[09-10 23:04:17] [k3_r100_09_lr56_dec_bb40k_h30k_student] waiting for VRAM on GPU 1: 7018 MiB free, need 9000
+[09-10 23:14:18] [k3_r100_09_lr56_dec_bb40k_h30k_student] waiting for VRAM on GPU 1: 7018 MiB free, need 9000
+[09-10 23:24:18] [k3_r100_09_lr56_dec_bb40k_h30k_student] waiting for VRAM on GPU 1: 7018 MiB free, need 9000
+[09-10 23:34:18] [k3_r100_09_lr56_dec_bb40k_h30k_student] waiting for VRAM on GPU 1: 7018 MiB free, need 9000
+Terminated
+[09-10 23:42:17] [#412] head k3_r100_09_lr56_dec_bb40k_h30k_student rc=143
+[09-10 23:42:17] [#412 phase1] head k3_r100_09_lr56_dec stop 40000 FAILED
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+Terminated
+[09-10 23:49:23] [#412 phase1] backbone k3_r100_09_lr56_dec SKIPPED at 100000 — gpu 1 never had 7700 MiB free
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700
+[#412 vram] gpu 1 has 7018 MiB free, backbone k3_r100_09_lr56_dec needs 7700

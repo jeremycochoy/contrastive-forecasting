@@ -1,0 +1,9 @@
+[09-07 11:00:24] [#412 queue] gpu 1  stop 40000  queue: k8_r100_09
+[09-07 11:00:24] [#412 queue] k8_r100_09 waits for 8400 MiB free on gpu 1
+[#412 vram] gpu 1 has 7684 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 1 has 7684 MiB free, backbone k8_r100_09 needs 8400
+[#412 vram] gpu 1 has 13940 MiB free after 1080s — backbone k8_r100_09 starts
+[09-07 11:18:25] [#412 queue] k8_r100_09 -> 40000 steps on gpu 1
+[09-07 11:18:25] [#412 queue] k8_r100_09 run_arm pid 1938421
+[09-07 11:23:25] [#412 queue] k8_r100_09 settled — gpu 1 has 8512 MiB free
+[09-07 11:23:25] [#412 queue] queue done
