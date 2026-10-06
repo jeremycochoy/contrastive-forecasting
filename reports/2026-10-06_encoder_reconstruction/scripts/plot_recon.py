@@ -83,9 +83,10 @@ def draw_links(ax, arm, forecast, recon):
 
 def style_axes(ax, overlay, low, high):
     ax.set_xscale("log")
-    ticks = [10000, 40000, 100000, 200000, 400000, 665000, 1000000]
+    ticks = [40000, 100000, 200000, 400000, 665000, 1000000]
     ax.set_xticks(ticks)
-    ax.set_xticklabels(["10k", "40k", "100k", "200k", "400k", "665k", "1,000k"])
+    ax.set_xticklabels(["40k", "100k", "200k", "400k", "665k", "1,000k"])
+    ax.set_xlim(left=28000)
     ax.set_xlabel("Data seen, in batch-64 steps (log scale). A step at batch "
                   "256 (OMB, OMF, OBM, OBW and OAL) counts 4.")
     ax.set_ylabel("GM-Relative MASE, 97-config GIFT-Eval (lower is better)")
@@ -105,8 +106,10 @@ def style_axes(ax, overlay, low, high):
 def draw_figure(groups, forecast, recon, out, overlay):
     """One figure. Returns False, and draws nothing, when no run of the
     groups has a reconstruction score."""
-    runs = [run for _, members in groups for run in members]
-    if not any(recon.get(arm) for arm, *_ in runs):
+    # A run with no reconstruction score (ABC keeps no checkpoint) has no
+    # pair to show, so its forecast stays in the #412 figures only.
+    runs = [run for _, members in groups for run in members if recon.get(run[0])]
+    if not runs:
         return False
     fig, ax = plt.subplots(figsize=(12.5, 9.0))
     handles = {}
