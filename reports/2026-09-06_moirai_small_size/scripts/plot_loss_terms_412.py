@@ -31,11 +31,11 @@ OUT = STUDY / "plots" / "loss_terms_412om_vs_cyan.png"
 MIRROR = Path("/home/jupyter/checkpoints_backup/cf-412/vast_lr100x")
 CYAN = P + "_cos200k"
 BIN = 4000  # batch-64 steps of data seen per point
-# L_rep exists only while its weight ramps from 1 to 0 (#412om: 2,500 steps,
-# 10,000 batch-64 steps of data; the others: 10,000 steps), so its panel
-# shows the first 12,000 batch-64 steps with finer bins.
+# L_rep exists only while its weight ramps from 1 to 0: 2,500 steps for
+# #412om (10,000 batch-64 steps of data), and 10,000 steps for the others. So
+# its panel shows the first 12,000 batch-64 steps with finer bins.
 REP_BIN, REP_END = 250, 12000
-# run: (CSV files, oldest first so a resumed leg overwrites its failed try;
+# run: (CSV files, oldest first so a resumed leg overwrites its failed try,
 # batch-64 steps per training step)
 SOURCES = {
     "cf412om": (["cf-412om/leg_150k_try1"] + [f"cf-412om/leg_{k}k" for k in
@@ -199,7 +199,7 @@ def plot():
                  "compare rows within a batch,\nso their level depends on the batch size "
                  "(256 for OMB, OMF, OBM, OBW and OAL, 64 for the others): compare the shapes of the curves.",
                  fontsize=13)
-    # The panels name each run by its code; this legend gives the codes in full.
+    # The panels name each run by its code. This legend gives the codes in full.
     proxies = [plt.Line2D([], [], color=colour(run), ls=line(run), lw=2.4) for run in SOURCES]
     fig.legend(proxies, [LABEL[run] for run in SOURCES], loc="lower center", ncol=2,
                fontsize=10.5, framealpha=0.94)

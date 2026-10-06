@@ -11,7 +11,7 @@ from run_style import P, colour, line, tagged
 # Run name in results/, CSV prefix in the radar folder, legend label. The
 # colour and the line style come from run_style.py.
 # The stopped runs cf419_moirai_native and cf421fb_moirai_native keep their
-# CSVs in the radar folder; the owner took them off this figure.
+# CSVs in the radar folder. The owner took them off this figure.
 NEW_DATA = [
     ("cf419_cos200k", "cos419_", "Ours"),
     ("cf419ms", "ours419ms_", "Ours + mean/std"),

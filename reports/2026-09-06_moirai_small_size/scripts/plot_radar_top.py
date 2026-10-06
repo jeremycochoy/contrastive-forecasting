@@ -9,7 +9,7 @@ MPM_ARM = ("moirai421f_native166k", tagged(MPM, "Moirai + patch heads + mean/std
            colour(MPM), MOIRAI)
 MPE_ARM = ("moirai421ew_native166k", tagged(MPE, "Moirai + patch heads + EWMA, new data, 166k   0.9362"),
            colour(MPE), MOIRAI)
-# The four best runs of ours; the per-config files of ABC and MIN are in traj/.
+# The four best runs of ours. The per-config files of ABC and MIN are in traj/.
 OURS = [("cos419_200k", "cf419_cos200k", "Ours, lr cosine by 200k, new data, 200k   1.1262"),
         ("cyan665", P + "_cos200k", "Ours, lr cosine by 200k, old data, 665k   1.1369"),
         ("../traj/blue_240", P + "_lr10x", "Ours, lr 5.6e-5, old data, 240k   1.1403"),
