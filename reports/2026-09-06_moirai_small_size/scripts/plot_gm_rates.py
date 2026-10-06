@@ -75,7 +75,7 @@ END_LABEL_OFFSET = {P + "_lr100x": (9, 4), P + "_cos200k": (9, -12), "cf412om": 
                     "cf412oc2": (9, 6), "cf412oa2": (9, 7), "cf412oe2": (9, 5), "cf412om2": (-22, -18),
                     "cf412ow2": (9, -9), "cf412ol2": (9, 2), "cf419_cos200k": (9, -13),
                     "cf412or2": (9, 5), "cf412bm": (9, -12), "cf412al": (9, 1),
-                    "cf412bw": (9, 3), "cf419ms": (9, -13),
+                    "cf412bw": (9, -13), "cf419ms": (9, -13),
                     "cf421ew_moirai_native": (-45, -18), "cf421n_moirai_native": (-48, -16)}
 # A white outline keeps a score label readable where a line crosses it.
 HALO = [patheffects.withStroke(linewidth=3, foreground="white")]
