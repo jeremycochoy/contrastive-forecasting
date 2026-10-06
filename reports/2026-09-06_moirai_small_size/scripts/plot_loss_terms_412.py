@@ -51,6 +51,7 @@ SOURCES = {
     "cf412or2": (["cf-412or2/leg_40k", "cf-412or2/leg_100k", "cf-412or2/leg_200k"], "cf412or2_k3_losses.csv", 1),
     "cf412ol2": (["cf-412ol2/leg_40k"], "cf412ol2_k3_losses.csv", 1),
     "cf412bm": ([f"cf-412bm/leg_{k}k" for k in (10, 25, 50, 75)], "cf412bm_k3_losses.csv", 4),
+    "cf412bw": ([f"cf-412bw/leg_{k}k" for k in (10, 25)], "cf412bw_k3_losses.csv", 4),
     CYAN: ([f"{CYAN}/arm6_v2_combab_alignT/leg_665k"],
            "cf393_arm6_v2_combab_alignT_cf373k3_cf412_" + CYAN + "_losses.csv", 1),
 }
@@ -65,6 +66,7 @@ LABEL = {"cf412om": "Ours + patch sizes + mean/std + Moirai recipe, loss bug (ba
          "cf412or2": "As OWF, L_rep kept at weight 1 (batch 64)",
          "cf412ol2": "As OWR, lr down to 5.6e-5 by 40k (batch 64)",
          "cf412bm": "As OMF, bimoco: L_pred + L_rep with MoCo, tau 1, no L_align (batch 256)",
+         "cf412bw": "As OBM, with OWF's lr and the L_rep weight from 1 to 0 by 10k (batch 256)",
          CYAN: "cyan: ours, one patch size, EWMA (batch 64)"}
 LABEL = {run: tagged(run, text) for run, text in LABEL.items()}
 PANEL = {"gm": "GM-Relative MASE (lower is better)",
@@ -183,11 +185,11 @@ def plot():
         ax.set_xticks(ticks)
         ax.set_xticklabels([f"{t // 1000}k" for t in ticks])
     for ax in axes[-1]:
-        ax.set_xlabel("Data seen, in batch-64 steps. One OMB, OMF or OBM step counts 4.")
-    fig.suptitle("OMB, OCB, OCF, OEF, OMF, OAF, OWF, OWR, OWL and OBM against CYN: the score and the training-loss terms on one axis\n"
+        ax.set_xlabel("Data seen, in batch-64 steps. One OMB, OMF, OBM or OBW step counts 4.")
+    fig.suptitle("OMB, OCB, OCF, OEF, OMF, OAF, OWF, OWR, OWL, OBM and OBW against CYN: the score and the training-loss terms on one axis\n"
                  "Each point is the median over 4,000 batch-64 steps. The contrastive terms "
                  "compare rows within a batch,\nso their level depends on the batch size "
-                 "(256 for OMB, OMF and OBM, 64 for the others): compare the shapes of the curves.",
+                 "(256 for OMB, OMF, OBM and OBW, 64 for the others): compare the shapes of the curves.",
                  fontsize=13)
     # The panels name each run by its code; this legend gives the codes in full.
     proxies = [plt.Line2D([], [], color=colour(run), ls=line(run), lw=2.4) for run in SOURCES]

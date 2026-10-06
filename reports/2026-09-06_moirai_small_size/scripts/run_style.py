@@ -26,6 +26,7 @@ STYLE = {
     "cf412or2": ("#9acd32", OURS),
     "cf412ol2": ("#1b7837", OURS),
     "cf412bm": ("#8a2be2", OURS),
+    "cf412bw": ("#ff00ff", OURS),
     "cf415_moirai": ("#8c564b", MOIRAI),
     "cf415_moirai_native": ("#8c564b", ":"),
     "cf419_moirai_native": ("#9a9a00", MOIRAI),
@@ -46,7 +47,7 @@ STYLE = {
 CODE = {
     P + "_lr10x": "ABC", P + "_lr10xb": "TWN", P + "_lr30x": "LOW", P + "_lr100x": "MIN",
     P + "_cos665k": "LNG", P + "_cos200k": "CYN", "cf419_cos200k": "BLK", "b2cos": "WDT",
-    "cf412om": "OMB", "cf412oc": "OCB", "cf412oc2": "OCF", "cf412oe2": "OEF", "cf412om2": "OMF", "cf412oa2": "OAF", "cf412ow2": "OWF", "cf412or2": "OWR", "cf412ol2": "OWL", "cf412bm": "OBM",
+    "cf412om": "OMB", "cf412oc": "OCB", "cf412oc2": "OCF", "cf412oe2": "OEF", "cf412om2": "OMF", "cf412oa2": "OAF", "cf412ow2": "OWF", "cf412or2": "OWR", "cf412ol2": "OWL", "cf412bm": "OBM", "cf412bw": "OBW",
     "cf415_moirai": "MSH", "cf415_moirai_native": "MOO", "cf419_moirai_native": "MON",
     "cf421f_moirai_native": "MPM", "cf421ew_moirai_native": "MPE", "cf421n_moirai_native": "MPR",
     "cf421z_moirai_native": "MPZ", "cf421fb_moirai_native": "MPG",
