@@ -99,6 +99,29 @@ def outlier_rows(input_grad, factor=OUTLIER_FACTOR):
     return (~(norms <= limit)).nonzero().view(-1).tolist()
 
 
+def search_order(input_grad, faults=None):
+    """``(ranked, outliers)``: the order in which the row search tries the
+    rows, and the rows it first drops together (find_culprits).
+
+    ``faults`` (bool, one per row, #412) marks the rows whose forward is
+    not finite, on an objective whose terms couple the rows. Through those
+    terms one such row makes the input gradient of every row it meets NaN,
+    so only its forward names it. The faults are then the only outliers
+    from a non-finite gradient, and they rank first. A row with a
+    non-finite input gradient only ranks high, and the search checks it on
+    its own. None: the input gradient alone, as for rows that the objective
+    reads one by one.
+    """
+    ranked, outliers = rank_rows(input_grad), outlier_rows(input_grad)
+    if faults is None:
+        return ranked, outliers
+    bad = faults.nonzero().view(-1).tolist()
+    finite = ([] if input_grad is None
+              else torch.isfinite(row_grad_norms(input_grad)).tolist())
+    outliers = bad + [r for r in outliers if finite[r] and r not in bad]
+    return bad + [r for r in ranked if r not in bad], outliers
+
+
 def total_grad_norm(model):
     """The L2 norm of every gradient of ``model`` together, before the clip."""
     norms = [torch.linalg.vector_norm(p.grad.detach()) for p in model.parameters()
@@ -110,8 +133,8 @@ class SpikeGuard:
     """--skip-spike-samples: a step is a spike when its gradient norm is above
     ``factor`` times the reference: the median of the last HISTORY clean
     steps. Until the guard holds MIN_HISTORY of them, the reference is
-    ``prior``, the clip norm. After a resume the guard has no history, and
-    without a prior the first spikes would set the median. A pass with n of
+    ``prior``, the clip norm: without a prior the first spikes would set the
+    median. A checkpoint keeps the history, so a resume reads it back. A pass with n of
     the B rows active has a noisier mean gradient, so its threshold grows
     with sqrt(B / n)."""
 
@@ -152,7 +175,9 @@ def find_culprits(is_bad, rows, ranked=(), outliers=()):
 
     ``outliers`` lists the rows whose input gradient is far above the
     median row's (outlier_rows). The search first tries the pass without
-    all of them. When it is clean, they are the culprits: one pass.
+    all of them. When it is clean, it looks for the culprits among these
+    rows only, with the other rows active, as for the ranked rows: a large
+    input gradient alone drops no row.
 
     Returns ``(culprits, passes, clean)``: ``clean`` is True when the last
     pass, with the culprits out, was clean, and the model then holds its
@@ -184,7 +209,9 @@ def find_culprits(is_bad, rows, ranked=(), outliers=()):
     if outliers and len(outliers) < len(kept):
         rest = [r for r in kept if r not in set(outliers)]
         if not bad(rest):
-            return outliers, passes, True
+            if len(outliers) == 1:
+                return outliers, passes, True
+            part, context, ranked = outliers, rest, ()
     ranked = [r for r in ranked if r in set(rows)]
     k = 1
     while k <= min(MAX_RANKED, len(ranked), len(kept) - 1):

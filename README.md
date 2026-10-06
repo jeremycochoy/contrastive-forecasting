@@ -111,6 +111,9 @@ python scripts/recover.py --device cuda --model-path model.pth --epochs 20000
 - [`docs/rep_loss_weight_schedule.md`](docs/rep_loss_weight_schedule.md) —
   `--rep-loss-weight-end`, which decays the weight on `L_rep` over a ramp,
   and the four per-term columns of `<run>_losses.csv`.
+- [`docs/model_spec_flags.md`](docs/model_spec_flags.md) — the mean/std
+  scaling, the patch sizes and the row drop of the Moirai copy on the
+  contrastive objective (#412), and the head bank that scores it.
 
 ### How large is the model?
 

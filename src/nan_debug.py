@@ -276,7 +276,7 @@ def _batch_lines(batch):
     if "max_z" in batch:
         z = batch["max_z"]
         lines.append(f"  max |z| of the target parts: max {z.max().item():.4g}"
-                     f", windows kept {int(batch.get('kept', z >= 0).sum())}"
+                     f", windows kept {len(z) if batch.get('kept') is None else int(batch['kept'].sum())}"
                      f" of {len(z)}")
     if "patch_size" in batch and batch["patch_size"] is not None:
         sizes, counts = batch["patch_size"].unique(return_counts=True)

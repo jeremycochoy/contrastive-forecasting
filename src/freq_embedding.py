@@ -8,7 +8,7 @@ Two parallel categorical axes:
 * **Seasonality** — dominant period in samples (1, 7, 24, 168, ...) bucketed
   log-style. 10 classes including "unknown".
 
-Each axis has its own small learned embedding table; both get concatenated
+Each axis has its own small learned embedding table. Both get concatenated
 to every patch along the feature axis. The pair `(freq_id, seasonality_id)`
 is what the GIFT-Eval task descriptor exposes naturally — `freq` is the
 pandas freq string, and `seasonality = gluonts.time_feature.get_seasonality(freq)`.
@@ -50,7 +50,7 @@ SEASONALITY_NAMES = [
     "unknown", "≤4", "≤8", "≤16", "≤32", "≤64", "≤128", "≤256", "≤512", ">512",
 ]
 
-# Inclusive upper bounds for buckets 1..8; bucket 9 is everything beyond 512.
+# Inclusive upper bounds for buckets 1..8. Bucket 9 is everything beyond 512.
 _SEASONALITY_BOUNDARIES = (4, 8, 16, 32, 64, 128, 256, 512)
 
 
@@ -91,7 +91,7 @@ def seasonality_to_id(spp: float) -> int:
     return NUM_SEASONALITIES - 1
 
 # Canonical samples-per-day, useful for mapping a sampled spp from the synth
-# back to a freq class. 1/7 for weekly is approximate; we never actually
+# back to a freq class. 1/7 for weekly is approximate. We never actually
 # query it by value, just by id.
 SAMPLES_PER_DAY = {
     1: 8640,  # 10s
@@ -246,7 +246,7 @@ def gluonts_freq_to_id(freq) -> int:
 # checkpoint loads and maps frequencies exactly as before.
 
 # GiftEvalPretrain holds 4S (solar_power, wind_power), 6H (CMIP6), M and MS,
-# Q-DEC and A-DEC beyond the v1 classes; GIFT-Eval holds none beyond these.
+# Q-DEC and A-DEC beyond the v1 classes. GIFT-Eval holds none beyond these.
 FREQ_NAMES_V2 = FREQ_NAMES + ["4s", "6h", "1M", "1Q", "1Y"]
 FREQ_VOCABS = {"v1": FREQ_NAMES, "v2": FREQ_NAMES_V2}
 
@@ -316,7 +316,7 @@ def freq_labels(freq, vocab="v1"):
 # to the dual-axis labels we feed the model. Wiki seasonalities follow the
 # same convention as `gluonts.time_feature.get_seasonality`: hourly→24,
 # daily→7. STL components keep the underlying hourly freq but the
-# seasonality is left unknown (residual+trend have no period; the seasonal
+# seasonality is left unknown (residual+trend have no period. The seasonal
 # component's STL period was not preserved by the build pipeline).
 # Gift-train and bundle-synth rows lost their per-row metadata and fall
 # back to (0, 0).

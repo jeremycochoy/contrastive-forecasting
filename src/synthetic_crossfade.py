@@ -79,7 +79,7 @@ def _blend(a, b, s, real, ia, ib, zero_padding):
 def _sample_crossfade_weight(T: int, rng: Generator) -> np.ndarray:
     """One monotone crossfade s(t) in [0, 1] of length ``T`` (float32).
 
-    midpoint m ~ U(0, T); width w ~ LogUniform(T/128, T); the ramp spans the
+    midpoint m ~ U(0, T). Width w ~ LogUniform(T/128, T). The ramp spans the
     clipped [l, l'] and is 0 before it, 1 after it.
     """
     m = float(rng.uniform(0.0, T))

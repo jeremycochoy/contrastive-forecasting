@@ -26,6 +26,7 @@ Usage
 
 import argparse
 import csv
+import functools
 import math
 import os
 import shlex
@@ -45,7 +46,8 @@ from src.dataloader import (
     create_mixed_forked_arma_dataloader,
     create_hf_dataloader,
 )
-from src.loss import (contrastive_latent_loss, cpc_infonce_aux_loss,
+from src.loss import (contrastive_latent_loss, rep_only_term,
+                      grid_pred_term, pred_term, cpc_infonce_aux_loss,
                       cpc_infonce_all_loss, align_loss, align_moco_loss,
                       sigreg_loss)
 from src.checkpoint import (gru_input_bound_of, load_training_state,
@@ -72,17 +74,18 @@ from src.metrics import (
 from src.freq_embedding import FREQ_VOCABS
 from src.nan_debug import EXIT_CODE as NAN_DEBUG_EXIT, NanDebug
 from src.nan_skip import (MAX_SKIPPED_IN_A_ROW, SpikeGuard, find_culprits,
-                          is_finite_step, outlier_rows, rank_rows,
-                          restore_rng, rng_state, total_grad_norm,
-                          weights_are_finite)
-from src.norm import patch_padding, zero_union_padding
+                          is_finite_step, restore_rng, rng_state,
+                          search_order, total_grad_norm, weights_are_finite)
+from src.norm import patch_padding, start_window_anchors, zero_union_padding
 from src.forecasting_head import (QUANTILE_LEVELS,
+                                  diagnostic_rows,
                                   extract_encoder_latents,
                                   extract_teacher_encoder_latents,
                                   drop_far_windows,
                                   mean_std_inputs,
                                   window_max_z,
                                   multi_patch_value_objective,
+                                  patch_size_groups,
                                   rollout_forecaster_latents,
                                   value_space_objective)
 from src.patch_size import check_patch_sizes, draw_patch_sizes
@@ -111,6 +114,11 @@ CLD = LOSS_SPEC.train_configuration["contrastive_latent_delay"] + 1
 REP_WEIGHT_SHAPES = ("cosine_similarity_batch_split_pred_rep",
                      "cosine_similarity_batch_rep_only")
 
+# The main shapes that take a row mask (#419, #412): no padded position and
+# no inert row enters their terms.
+SPLIT_SHAPE = "cosine_similarity_batch_split_pred_rep"
+ROW_MASK_SHAPES = ("cosine_similarity_batch_rep_only", SPLIT_SHAPE)
+
 T_RAW = 1024  # Default. Overridden by --t-raw CLI flag.
 
 
@@ -136,6 +144,12 @@ def build_parser():
                         "The cosine anneal then runs from --lr to "
                         "--lr-final and ends at --lr-cosine-steps. Needs "
                         "--lr-final. 0 means no warmup.")
+    # #412ow2: the warmup leads into a straight line down to --lr-final.
+    p.add_argument("--lr-decay-shape", choices=("cosine", "linear"),
+                   default="cosine",
+                   help="Shape of the anneal from --lr to --lr-final: the "
+                        "cosine, or a straight line. The rate holds at "
+                        "--lr-final after it in both shapes.")
     # Optimizer hyperparams. --adam-beta1/2 keep torch.optim.AdamW defaults
     # so prior runs that omitted them reproduce bit-identically.
     # MOIRAI Aksu and others recipe: lr=1e-3, weight_decay=0.1, betas=(0.9, 0.98).
@@ -453,9 +467,12 @@ def build_parser():
                         "single-instance z-score; 'meanstd' = the mean/std "
                         "scaling of Moirai 1.0 (#421): one loc and one scale "
                         "per window, from the observed values before a split "
-                        "drawn as uni2ts MaskedPrediction draws it, and a "
-                        "loss on the values after the split only. Needs "
-                        "--value-space-objective. 'none' to disable.")
+                        "drawn as uni2ts MaskedPrediction draws it. The "
+                        "value-space objective counts the values after the "
+                        "split only; the contrastive objective (#412) keeps "
+                        "every real position, and needs terms that take a "
+                        "row mask (the rep_only and split_pred_rep shapes "
+                        "and their add-ons). 'none' to disable.")
     p.add_argument("--meanstd-z-max", type=float, default=100.0,
                    help="With --rev-norm-kind meanstd (#421): drop from the "
                         "batch each window whose target part lies more than "
@@ -466,7 +483,9 @@ def build_parser():
                         "100, keeps 99.2%% of the GiftEvalPretrain windows "
                         "(reports/2026-09-28_meanstd_z). 0 turns it off.")
     p.add_argument("--skip-nan-samples", action="store_true",
-                   help="With --value-space-objective (#421): when a step "
+                   help="With --value-space-objective (#421), or a "
+                        "contrastive objective whose terms take a row mask "
+                        "(#412): when a step "
                         "gives a non-finite loss or gradient, find the rows "
                         "that cause it by bisection, drop only them, and "
                         "take the step on the other rows (src/nan_skip.py). "
@@ -474,7 +493,10 @@ def build_parser():
                         "so each row draws the same split, patch size, mixup, "
                         "dropout and DropKey masks. The search always ends: "
                         "a fault that needs two rows drops one of them, and "
-                        "the step is skipped only when every row is bad. The "
+                        "the step is skipped only when every row is bad. A "
+                        "contrastive row leaves every term: it reads zeros "
+                        "and counts as padding, as an anchor, a key, a "
+                        "positive and a sample of SIGReg. The "
                         "losses CSV logs the dropped rows (nan_dropped, -1 "
                         "for a skipped step) and the gradient norm before "
                         "the clip (grad_norm), and each dropped row is "
@@ -552,7 +574,11 @@ def build_parser():
                         "matches the established arms. 'cosine_similarity_batch' "
                         "is the paper-described loss with cross-time negatives "
                         "(h[b,t-1,c] <-> h[b,t,c] and cross-channel time terms) "
-                        "— re-introduced after being dropped during ARMA-era tuning.")
+                        "— re-introduced after being dropped during ARMA-era tuning. "
+                        "Only 'cosine_similarity_batch_rep_only' and "
+                        "'cosine_similarity_batch_split_pred_rep' take a row "
+                        "mask, which --gift-pretrain and the contrastive "
+                        "objective by row (#419, #412) need.")
     p.add_argument("--pos-in-denominator", action="store_true",
                    help="Train with the normalized-InfoNCE objective: put the "
                         "positive in BOTH numerator and denominator → loss = "
@@ -701,7 +727,7 @@ def build_parser():
                         "the whole difference. Every flag the run does not "
                         "read is refused when named, whatever its value: "
                         "the contrastive loss and its knobs, the teacher and "
-                        "its EMA, SIGReg, the CPC auxiliary and --grad-clip. "
+                        "its EMA, SIGReg and the CPC auxiliary. "
                         "VALUE_SPACE_FLAGS lists what the run reads.")
     p.add_argument("--train-rollout-depth", type=int, default=0,
                    help="k — train the COMPOSED forecaster, not just one step "
@@ -740,13 +766,20 @@ def build_parser():
                         "every published run reproduces under either. "
                         "docs/train_rollout_depth.md.")
     p.add_argument("--multi-patch-sizes", default=None,
-                   help="One GRU patch encoder and one value head per patch "
-                        "size, e.g. 8,16,32,64,128 (#417). The body stays "
+                   help="One GRU patch encoder per patch size, e.g. "
+                        "8,16,32,64,128 (#417), and one value head per size "
+                        "under --value-space-objective. The body stays "
                         "shared. Each sample draws its size from its "
                         "frequency's range, as Moirai 1.0 does "
                         "(src/patch_size.py), and a batch trains one group "
-                        "per size. Needs --value-space-objective. Default "
-                        "off: one patch size, W.")
+                        "per size. The contrastive objective (#412) runs "
+                        "L_rep and SIGReg on every row of the step, on the "
+                        "time grid of the finest size, and L_align on each "
+                        "row's own patches. L_pred of the split shape pairs "
+                        "each patch with the next patch of its own row, and "
+                        "each pair fills P/G positions of the same grid. "
+                        "The EMA teacher copies the encoder of each size. "
+                        "Default off: one patch size, W.")
     p.add_argument("--ema-embedding", action="store_true",
                    help="BYOL/JEPA EMA-teacher copy of the patch-embedding "
                         "(--encoder-type's input_to_latent). Non-trained; "
@@ -907,6 +940,26 @@ def parse_args(argv=None):
     return build_parser().parse_args(argv)
 
 
+def inert_inputs(inputs, active):
+    """``(x_norm, labels)`` of one pass of a row objective (#421, #412).
+
+    ``active`` (bool, one per row) makes every other row read zeros, and a
+    mixup batch builds its label embeddings again on this pass's graph.
+    None: every row as it is. ``labels`` holds the label keyword arguments
+    of ``prepare_encoder_input``.
+    """
+    x_norm = inputs["x_norm"]
+    freq_embs, seas_embs = inputs["freq_embs"], inputs["seasonality_embs"]
+    if active is not None:
+        x_norm = x_norm.masked_fill(~active.view(-1, 1, 1), 0.0)
+        if inputs.get("label_embs") is not None:
+            # The mixup embeddings again, on a new graph for this pass.
+            freq_embs, seas_embs = inputs["label_embs"]()
+    return x_norm, dict(freq_ids=inputs["freq_ids"], freq_embs=freq_embs,
+                        seasonality_ids=inputs["seasonality_ids"],
+                        seasonality_embs=seas_embs)
+
+
 def value_objective(model, inputs, args, multi_patch_sizes, active=None):
     """The value-space objective of one step (#415, #417, #419, #421).
 
@@ -916,25 +969,354 @@ def value_objective(model, inputs, args, multi_patch_sizes, active=None):
     --skip-nan-samples: zero inputs, no target, and no share of the loss.
     None: every row.
     """
-    x_norm, target = inputs["x_norm"], inputs["target_mask"]
-    freq_embs, seas_embs = inputs["freq_embs"], inputs["seasonality_embs"]
+    x_norm, labels = inert_inputs(inputs, active)
+    target = inputs["target_mask"]
+    start = inputs.get("start_mask")
+    if start is not None:
+        # No term predicts a value of the EWMA's first window: every input
+        # before it reads that window's mean and variance.
+        target = ~start if target is None else target & ~start
     if active is not None:
         rows = active.view(-1, 1, 1)
-        x_norm = x_norm.masked_fill(~rows, 0.0)
         target = rows.expand_as(x_norm) if target is None else target & rows
-        if inputs.get("label_embs") is not None:
-            # The mixup embeddings again, on a new graph for this pass.
-            freq_embs, seas_embs = inputs["label_embs"]()
     kw = dict(depth=args.train_rollout_depth, reduce=args.train_rollout_reduce,
-              freq_ids=inputs["freq_ids"], freq_embs=freq_embs,
-              seasonality_ids=inputs["seasonality_ids"],
-              seasonality_embs=seas_embs,
-              pad_mask=inputs["pad_mask"], target_mask=target)
+              pad_mask=inputs["pad_mask"], target_mask=target, **labels)
     if multi_patch_sizes:
         return multi_patch_value_objective(
             model, x_norm, inputs["sample_sizes"], active=active,
             rms_weight=args.patch_rms_weight, **kw)
     return value_space_objective(model, x_norm, **kw)
+
+
+# ---------------------------------------------------------------------------
+# The contrastive objective by row (#412)
+#
+# The mean/std scaling, the patch sizes and the row drop of #421 reach the
+# contrastive objective here. A contrastive term couples the rows of a batch:
+# its in-batch negatives, its MoCo keys and its SIGReg statistics read every
+# row. So a row leaves the objective through the masks of #419: an inert row
+# reads zeros, and every one of its patches counts as padding, which no term
+# reads as an anchor, a key, a positive or a sample of a statistic.
+# ---------------------------------------------------------------------------
+
+def size_groups(sample_sizes, base_size):
+    """``{P: rows}``: the rows of each patch size (#417). A step that draws
+    no size is one group, ``{W: None}``, every row at the base size."""
+    if sample_sizes is None:
+        return {base_size: None}
+    return patch_size_groups(sample_sizes)
+
+
+def take_rows(tensor, rows):
+    """``tensor[rows]``: the tensor itself when ``rows`` is None, and None
+    for an input the step does not carry."""
+    if tensor is None or rows is None:
+        return tensor
+    return tensor[rows.to(tensor.device)]
+
+
+def group_forward(model, x_norm, labels, size, args):
+    """The latents of one forward at patch size ``size`` (#412), in the
+    layout and the precision of ``forward_step``: ``f`` and ``o``, the
+    teacher's ``o`` and the patch embedding ``e`` when the run reads them,
+    and the rollout depths (#373), which advance ``size`` values each."""
+    B, T_raw, C = x_norm.shape
+    xr = model.prepare_encoder_input(x_norm, patch_size=size, **labels)
+    want_embed = args.sigreg_embedding or args.sigreg_encoding
+    out = model.transformer(xr, return_embed=want_embed)
+    f, o = (t.reshape(B, C, T_raw // size, model.H).permute(0, 2, 1, 3)
+            .float() for t in out[:2])
+    teacher = (model.teacher_forward(xr).float()
+               if args.ema_embedding or args.ema_encoder else None)
+    return SimpleNamespace(
+        f=f, o=o, teacher=teacher, e=out[2].float() if want_embed else None,
+        rollout=forecaster_depths(model, f, args))
+
+
+def group_padding(pad_mask, rows, size, active, shape, start_mask=None):
+    """``[n, T, C]`` bool: the patches of one group that no term may read
+    (#419, #412), its zero padding, the patches whose next patch starts in
+    the EWMA's first window (start_window_anchors) and every patch of an
+    inert row. None when the group has none. ``shape`` is the step's
+    ``[B, T_raw, C]``."""
+    pad = (None if pad_mask is None
+           else patch_padding(take_rows(pad_mask, rows), size))
+    if start_mask is not None:
+        start = start_window_anchors(take_rows(start_mask, rows), size)
+        pad = start if pad is None else pad | start
+    if active is None:
+        return pad
+    inert = ~take_rows(active, rows).view(-1, 1, 1)
+    if pad is None:
+        n = shape[0] if rows is None else len(rows)
+        pad = torch.zeros(n, shape[1] // size, shape[2], dtype=torch.bool,
+                          device=active.device)
+    return pad | inert
+
+
+def add_values(total, part, share):
+    """Add one group's term values to the step's, weighted by its share
+    (#412). A value stays NaN until a group computes it."""
+    for key, value in part.items():
+        if key == "terms":
+            for name, term in value.items():
+                total[key][name] = total[key].get(name, 0.0) + share * term
+        elif not math.isnan(value):
+            base = 0.0 if math.isnan(total[key]) else total[key]
+            total[key] = base + share * value
+
+
+def grouped_contrastive_terms(model, lats, pads, counts, args, rep_w, tau):
+    """The contrastive terms of a step whose rows all read one patch size
+    (#412): the whole objective on that group. Returns ``(loss, values)``.
+    With no active row the loss is a zero on the graph: the step trains on
+    nothing. Several sizes: ``multi_size_contrastive_terms``, so the batch
+    terms read every row."""
+    n = sum(counts.values())
+    loss, values = None, no_contrastive_values()
+    for size, lat in lats.items():
+        if not counts[size]:
+            continue
+        part, part_values = contrastive_terms(model, lat, args, rep_w, tau,
+                                              pads[size])
+        share = counts[size] / n
+        loss = share * part if loss is None else loss + share * part
+        add_values(values, part_values, share)
+    if loss is None:
+        loss = sum(0.0 * lat.o.sum() for lat in lats.values())
+    return loss, values
+
+
+def common_grid(lats, pads):
+    """The latents of every group on one time grid, the finest size G's
+    (#412): a latent of size P fills P / G positions, so the rows line up
+    in time and have one length. ``token`` (``[B, T]``) names the patch
+    each position repeats, so L_rep keeps a patch's copies out of its own
+    negatives. The positions that are padding on every row are cut."""
+    G = min(lats)
+    parts = []
+    for size in sorted(lats):
+        lat, r = lats[size], size // G
+        n, T, C = lat.o.shape[:3]
+        pad = pads[size]
+        if pad is None:
+            pad = torch.zeros(n, T, C, dtype=torch.bool, device=lat.o.device)
+        token = torch.arange(T, device=lat.o.device).repeat_interleave(r)
+        parts.append([None if t is None else t.repeat_interleave(r, dim=1)
+                      for t in (lat.f, lat.o, lat.teacher, lat.e, pad)]
+                     + [token.expand(n, -1)])
+    f, o, teacher, e, pad, token = (
+        None if parts[0][i] is None else torch.cat([p[i] for p in parts])
+        for i in range(6))
+    real = (~pad).any(dim=2).any(dim=0)
+    start = int(real.nonzero()[0]) if real.any() else 0
+    def cut(t):
+        return None if t is None else t[:, start:]
+    return SimpleNamespace(f=cut(f), o=cut(o), teacher=cut(teacher),
+                           e=cut(e), pad=cut(pad), token=cut(token))
+
+
+def multi_size_contrastive_terms(model, lats, pads, counts, args, rep_w,
+                                 tau):
+    """The contrastive terms of a step whose rows read several patch sizes
+    (#412). The batch terms read every row of the step: L_rep, with its
+    MoCo keys, and SIGReg run once on the common grid (``common_grid``),
+    where the rows line up in time and weigh the same. L_pred of the split
+    shape reads every row too (``grid_main_terms``). L_align pulls each
+    patch toward the next patch of its own row, rollout depths included,
+    so it runs on each group's own grid, weighted by the group's share of
+    the active rows. Returns ``(loss, values)`` as ``contrastive_terms``
+    does."""
+    if args.align_moco_loss_weight > 0 or args.cpc_infonce_weight > 0:
+        raise SystemExit("--align-moco-loss-weight and --cpc-infonce-weight "
+                         "do not run on the common grid of the patch sizes "
+                         "(#412).")
+    n = sum(counts.values())
+    values = no_contrastive_values()
+    if not n:
+        return sum(0.0 * lat.o.sum() for lat in lats.values()), values
+    live = [size for size in lats if counts[size]]  # a group with no active
+    grid = common_grid({s: lats[s] for s in live},  # row leaves every term
+                       {s: pads[s] for s in live})
+    loss = grid.o.new_zeros(()) + grid_main_terms(
+        lats, pads, live, grid, args, rep_w, tau, values["terms"])
+    loss = loss + group_align_terms(lats, pads, counts, args, values)
+    for on, weight, key, latent in (
+            (args.sigreg_embedding, args.sigreg_embedding_weight, "sigreg_e",
+             grid.e),
+            (args.sigreg_encoding, args.sigreg_encoding_weight, "sigreg_h",
+             grid.o)):
+        if on:
+            term = sigreg_term(latent, args, grid.pad)
+            loss = loss + weight * term
+            values[key] = term.item()
+    return loss, values
+
+
+def grid_main_terms(lats, pads, live, grid, args, rep_w, tau, terms):
+    """The main loss of a step whose rows read several patch sizes (#412):
+    L_rep on the common grid, and L_pred of the split shape on the grid of
+    its pairs (``pred_groups``). 0.0 under --no-main-contrastive-loss.
+    ``terms`` receives their unweighted values."""
+    if args.no_main_contrastive_loss:
+        return 0.0
+    loss = rep_only_term(
+        grid.o, LOSS_SPEC, grid.pad, tau_override=tau,
+        teacher_original_latent=grid.teacher, rep_loss_weight=rep_w,
+        same_token=grid.token, term_out=terms)
+    if args.loss_shape != SPLIT_SHAPE:
+        return loss
+    return loss + grid_pred_term(
+        pred_groups(lats, pads, live), LOSS_SPEC, tau_override=tau,
+        depth_reduce=args.train_rollout_reduce, term_out=terms)
+
+
+def pred_groups(lats, pads, live):
+    """The groups of L_pred on a step with several patch sizes (#412).
+
+    Each group makes its pairs on its own grid, rollout depths included,
+    and ``grid_pred_term`` puts them on the grid of the finest live size G.
+    ``ratio`` is P / G for the group of size P. ``live``: the sizes with an
+    active row.
+    """
+    finest = min(live)
+    return [SimpleNamespace(f=lats[s].f, o=lats[s].o,
+                            teacher=lats[s].teacher, rollout=lats[s].rollout,
+                            pad=pads[s], ratio=s // finest)
+            for s in sorted(live)]
+
+
+def group_align_terms(lats, pads, counts, args, values):
+    """L_align of each group on its own grid (#412), with its rollout
+    depths, weighted by the group's share of the active rows. Writes the
+    unweighted depth-0 value to ``values["terms"]["l_align"]``."""
+    if args.align_loss_weight <= 0:
+        return 0.0
+    n = sum(counts.values())
+    total, logged = 0.0, 0.0
+    for size, lat in lats.items():
+        if not counts[size]:
+            continue
+        if args.align_target == "teacher" and lat.teacher is None:
+            raise SystemExit("--align-target teacher but no teacher latents "
+                             "at the loss call (#382).")
+        target = lat.teacher if args.align_target == "teacher" else None
+        share, part = counts[size] / n, {}
+        total = total + share * align_loss(
+            lat.f, lat.o, args.align_loss_weight, target_latent=target,
+            rollout_latents=lat.rollout,
+            depth_reduce=args.train_rollout_reduce, pad_patches=pads[size],
+            term_out=part)
+        logged += share * part["l_align"]
+    values["terms"]["l_align"] = logged
+    return total
+
+
+def restrict(lat, pad, keep):
+    """The latents of one group and its padding, on the rows ``keep``
+    marks. None or all True: the group as it is."""
+    if keep is None or bool(keep.all()):
+        return SimpleNamespace(**vars(lat), pad=pad)
+
+    def cut(t):
+        return None if t is None else t[keep]
+    return SimpleNamespace(f=cut(lat.f), o=cut(lat.o),
+                           teacher=cut(lat.teacher), e=cut(lat.e),
+                           rollout=[cut(r) for r in lat.rollout], pad=cut(pad))
+
+
+def forward_faults(lats, groups, n_rows, device):
+    """bool, one per row: True where the row's forward is not finite
+    (#412). A forward reads its own row only, so a fault there is the
+    row's own. The row search reads it (``search_order``)."""
+    faults = torch.zeros(n_rows, dtype=torch.bool, device=device)
+    for size, lat in lats.items():
+        parts = [lat.f, lat.o, *lat.rollout] + [
+            t for t in (lat.e, lat.teacher) if t is not None]
+        bad = torch.stack([~torch.isfinite(t.detach()).flatten(1).all(1)
+                           for t in parts]).any(0)
+        rows = groups[size]
+        if rows is None:
+            faults |= bad
+        else:
+            faults[rows.to(device)] |= bad
+    return faults
+
+
+def diagnostic_group(lats, pads, groups, counts, active, base_size):
+    """The latents the trainer's diagnostics read (#412). They read one
+    sequence length, so one group: the base size's when it has an active
+    row, else the group with the most (``_diagnostic_latents``). Its active
+    rows only, or every row when no row of the step is active."""
+    if not any(counts.values()):
+        counts, active = {s: len(lat.o) for s, lat in lats.items()}, None
+    size = (base_size if counts.get(base_size)
+            else max(counts, key=counts.get))
+    keep = None if active is None else take_rows(active, groups[size])
+    return restrict(lats[size], pads[size], keep)
+
+
+def contrastive_objective(model, inputs, args, multi_patch_sizes, active=None,
+                          *, rep_w=None):
+    """The contrastive objective of one step, by row (#412).
+
+    The rows split by patch size (#417). A single-size run is one group.
+    Every group first runs its forward at its size P: its own patch encoder
+    (and the teacher's copy), and a rollout that advances P values per
+    depth. So a pass draws the same dropout and DropKey masks for each row,
+    whatever rows are active. With one group, the whole contrastive
+    objective of the run runs on it (``grouped_contrastive_terms``). With
+    several, the batch terms read every row of the step on one time grid
+    and L_align reads each row's own patches
+    (``multi_size_contrastive_terms``).
+
+    ``active`` (bool, one per row, --skip-nan-samples) makes every other
+    row inert: zero inputs, and every patch of it masked as padding, so it
+    leaves every term, as an anchor, a key, a positive and a sample of a
+    batch statistic. ``inputs["active"]``, when present, marks the rows no
+    pass may train on (a step whose every window is far, #421). None: every
+    row. ``rep_w`` is the L_rep weight of the step (#409).
+
+    Returns ``(loss, f_lat, o_lat, extra)``. ``f_lat``, ``o_lat`` and
+    ``extra`` (teacher, e, rollout, pad and the term ``values``) are those
+    of the diagnostic group (``diagnostic_group``). ``extra.faults`` marks
+    the rows whose forward is not finite (``forward_faults``).
+    """
+    base = inputs.get("active")
+    if base is not None:
+        active = base if active is None else active & base
+    x_norm, labels = inert_inputs(inputs, active)
+    groups = size_groups(inputs["sample_sizes"], model.W)
+    lats = {size: group_forward(
+                model, take_rows(x_norm, rows),
+                {k: take_rows(v, rows) for k, v in labels.items()}, size, args)
+            for size, rows in groups.items()}
+    pads = {size: group_padding(inputs["pad_mask"], rows, size, active,
+                                x_norm.shape, inputs.get("start_mask"))
+            for size, rows in groups.items()}
+    counts = {size: (len(lats[size].o) if active is None
+                     else int(take_rows(active, rows).sum()))
+              for size, rows in groups.items()}
+    tau = model.tau().float() if args.learnable_tau else None
+    terms = (grouped_contrastive_terms if len(lats) == 1
+             else multi_size_contrastive_terms)
+    with torch.amp.autocast('cuda', enabled=False):
+        loss, values = terms(model, lats, pads, counts, args, rep_w, tau)
+    diag = diagnostic_group(lats, pads, groups, counts, active, model.W)
+    faults = forward_faults(lats, groups, x_norm.shape[0], x_norm.device)
+    return loss, diag.f, diag.o, SimpleNamespace(
+        teacher=diag.teacher, e=diag.e, rollout=diag.rollout, pad=diag.pad,
+        values=values, faults=faults)
+
+
+def step_objective(args, rep_w):
+    """The objective a row step calls, and each pass of a row search calls
+    again: None for the value-space objective (``value_objective``, looked
+    up at call time), else the contrastive objective by row with this
+    step's L_rep weight."""
+    if args.value_space_objective:
+        return None
+    return functools.partial(contrastive_objective, rep_w=rep_w)
 
 
 def mixed_label_embeddings(model, mix, freq_ids, seasonality_ids, kept):
@@ -960,7 +1342,7 @@ def mixed_label_embeddings(model, mix, freq_ids, seasonality_ids, kept):
 
 
 def drop_bad_rows(model, inputs, args, multi_patch_sizes, rng, device,
-                  pass_is_bad, input_grad=None):
+                  pass_is_bad, input_grad=None, objective=None, faults=None):
     """The step without the rows that make it bad (#421).
 
     ``pass_is_bad(loss_value, active_count)`` judges one pass while the model
@@ -968,11 +1350,14 @@ def drop_bad_rows(model, inputs, args, multi_patch_sizes, rng, device,
     rows active and the others inert. Every pass restores ``rng``, the random
     state from before the first pass, and keeps every row in the batch.
     Returns ``(culprits, passes, result)``: ``result`` is the ``(loss, f_lat,
-    o_lat, per_depth)`` of the last pass, with the culprits inert, whose
+    o_lat, extra)`` of the last pass, with the culprits inert, whose
     gradients the model then holds. None when every row is bad: skip the
     step, and the model holds no gradient. ``input_grad``, the gradient of
     the first pass with respect to each row's values, gives the outlier
-    rows and the ranking the search tries first.
+    rows and the ranking the search tries first. ``objective`` is the row
+    objective of the step (``step_objective``). None is ``value_objective``.
+    ``faults`` marks the rows whose first forward is not finite (the
+    contrastive objective by row, #412, ``search_order``).
     """
     B = inputs["x_norm"].shape[0]
     inputs = dict(inputs, x_norm=inputs["x_norm"].detach())
@@ -981,7 +1366,8 @@ def drop_bad_rows(model, inputs, args, multi_patch_sizes, rng, device,
     def run(active):
         model.zero_grad(set_to_none=True)
         restore_rng(rng, device)
-        out = value_objective(model, inputs, args, multi_patch_sizes, active)
+        out = (objective or value_objective)(model, inputs, args,
+                                             multi_patch_sizes, active)
         out[0].backward()
         return out
 
@@ -992,7 +1378,7 @@ def drop_bad_rows(model, inputs, args, multi_patch_sizes, rng, device,
         return pass_is_bad(last["out"][0].item(), len(rows))
 
     culprits, passes, clean = find_culprits(
-        is_bad, range(B), rank_rows(input_grad), outlier_rows(input_grad))
+        is_bad, range(B), *search_order(input_grad, faults))
     if not clean:
         model.zero_grad(set_to_none=True)
         return culprits, passes, None
@@ -1000,15 +1386,15 @@ def drop_bad_rows(model, inputs, args, multi_patch_sizes, rng, device,
 
 
 def skip_nan_rows(model, inputs, args, multi_patch_sizes, rng, device,
-                  input_grad=None):
+                  input_grad=None, objective=None, faults=None):
     """--skip-nan-samples: drop the rows of a non-finite step."""
     return drop_bad_rows(model, inputs, args, multi_patch_sizes, rng, device,
                          lambda loss, n: not is_finite_step(loss, model),
-                         input_grad)
+                         input_grad, objective, faults)
 
 
 def skip_spike_rows(model, inputs, args, multi_patch_sizes, rng, device,
-                    guard, input_grad=None):
+                    guard, input_grad=None, objective=None, faults=None):
     """--skip-spike-samples: drop the rows of a step whose gradient norm is a
     spike, and every non-finite row with them."""
     B = inputs["x_norm"].shape[0]
@@ -1017,7 +1403,7 @@ def skip_spike_rows(model, inputs, args, multi_patch_sizes, rng, device,
         return (not is_finite_step(loss, model)
                 or total_grad_norm(model) > guard.threshold(n, B))
     return drop_bad_rows(model, inputs, args, multi_patch_sizes, rng, device,
-                         bad, input_grad)
+                         bad, input_grad, objective, faults)
 
 
 def nan_rows_report(step, culprits, meta, args, kind="nan"):
@@ -1038,8 +1424,10 @@ def nan_rows_report(step, culprits, meta, args, kind="nan"):
                        f"({meta['row_kind'][partner]})")
         size = meta["patch_size"]
         split = meta["split"]
+        freq = ("-" if meta["freq_ids"] is None
+                else names[int(meta["freq_ids"][row])])
         lines.append(
-            f"  row {row}: {source}, freq {names[int(meta['freq_ids'][row])]}"
+            f"  row {row}: {source}, freq {freq}"
             f", patch {int(size[r]) if size is not None else '-'}"
             f", split {int(split[row]) if split is not None else '-'}"
             f", max |z| "
@@ -1225,17 +1613,26 @@ def parse_extra_save_steps(spec):
 def parse_multi_patch_sizes(args):
     """--multi-patch-sizes as a sorted tuple of ints, or () when off (#417).
 
-    Raises SystemExit when the run cannot train the sizes: without
-    --value-space-objective, which is the only objective with value heads,
-    with a set that leaves a frequency without a size, or with a window
-    that holds too few patches of the largest size for the rollout.
+    Raises SystemExit when the run cannot train the sizes: more than one
+    rank, a contrastive objective with a term that takes no row mask or with
+    the CPC auxiliary (#412), a set that leaves a frequency without a size,
+    or a window that holds too few patches of the largest size for the
+    rollout.
     """
     if args.multi_patch_sizes is None:
         return ()
-    if not args.value_space_objective:
-        raise SystemExit("--multi-patch-sizes gives each patch size its own "
-                         "value head, and only --value-space-objective "
-                         "trains one (#417).")
+    if int(os.environ.get("WORLD_SIZE", "1")) > 1:
+        raise SystemExit("--multi-patch-sizes runs its patch-size groups on one "
+                         "rank: two ranks draw different sizes, so their "
+                         "gathers and gradient averages do not match. Run it "
+                         "on one GPU.")
+    refusal = row_mask_refusal("--multi-patch-sizes", args)
+    if refusal:
+        raise SystemExit(refusal)
+    if not args.value_space_objective and args.cpc_infonce_weight > 0:
+        raise SystemExit("--multi-patch-sizes: the CPC auxiliary "
+                         "(--cpc-infonce-weight) does not run on the common "
+                         "grid of the patch sizes (#412).")
     try:
         sizes = tuple(sorted({int(s) for s in args.multi_patch_sizes.split(",")}))
         check_patch_sizes(sizes, base_size=MODEL_CONFIG["W"])
@@ -1271,7 +1668,9 @@ def resume_state(model, args):
     """
     state = torch.load(args.resume, map_location=next(model.parameters()).device)
     trained = gru_input_bound_of(state)
-    if trained and trained != args.gru_input_bound:
+    # The checkpoint holds the bound as float32: compare at that precision.
+    if trained and trained != float(torch.tensor(args.gru_input_bound,
+                                                 dtype=torch.float32)):
         raise SystemExit(f"{args.resume} trained with --gru-input-bound "
                          f"{trained:g}. Resume it with the same bound.")
     for key, value in model.state_dict().items():
@@ -1283,7 +1682,7 @@ def resume_state(model, args):
 def save_snapshot(model, optimizer, path, step, best_gap, best_gap_step,
                   best_loss, best_loss_step, ema_loss=None, ema_gap=None,
                   hf_rows_consumed=0, synth_rows_consumed=0,
-                  lr_schedule=None):
+                  lr_schedule=None, spike_norms=None):
     # Rank-0 only — concurrent writers to one path corrupt the checkpoint.
     # Centralised here so every call site (NaN/periodic/best/final) is
     # covered. Params are kept in sync across ranks (broadcast at init +
@@ -1302,6 +1701,7 @@ def save_snapshot(model, optimizer, path, step, best_gap, best_gap_step,
         rng_state_torch=torch.get_rng_state(),
         rng_state_numpy=_np.random.get_state(),
         lr_schedule=lr_schedule,
+        spike_norms=spike_norms,
     )
     print(f"  -> Saved {path}")
 
@@ -1383,6 +1783,7 @@ VALUE_SPACE_FLAGS = frozenset((
     "log_attn_amplitude", "log_attn_amplitude_every",
     # The optimizer and the rate schedule.
     "batch_size", "lr", "lr_final", "lr_cosine_steps", "lr_warmup_steps",
+    "lr_decay_shape",
     "grad_clip", "weight_decay", "adam_beta1", "adam_beta2", "seed",
     # The data.
     "hf_repo", "hf_path", "split", "mix_ratio", "crossfade_ratio",
@@ -1460,10 +1861,11 @@ def check_gift_pretrain(args):
 def gift_contrastive_gap(args):
     """The first contrastive setting of this run that cannot skip the zero
     padding (#419), or None. Masked: the rep_only L_rep with or without MoCo
-    keys, L_align (in the loss or alone), the matched CPC auxiliary and both
-    SIGReg terms."""
+    keys, L_pred and L_rep of the split shape with or without MoCo
+    negatives and keys (#412), L_align (in the loss or alone), the matched
+    CPC auxiliary and both SIGReg terms."""
     if (not args.no_main_contrastive_loss
-            and args.loss_shape != "cosine_similarity_batch_rep_only"):
+            and args.loss_shape not in ROW_MASK_SHAPES):
         return f"--loss-shape {args.loss_shape}"
     if args.align_moco_loss_weight > 0:
         return "--align-moco-loss-weight"
@@ -1472,6 +1874,68 @@ def gift_contrastive_gap(args):
     if args.subtract_contrastive_floor:
         return "--subtract-contrastive-floor"
     return None
+
+
+def moirai_contrastive(args):
+    """True for a contrastive run that keeps a part of the Moirai copy
+    (#412): the mean/std scaling, several patch sizes or the row drop. Such
+    a run trains the contrastive objective by row (``contrastive_objective``)."""
+    return (not args.value_space_objective
+            and (args.rev_norm_kind == "meanstd"
+                 or args.multi_patch_sizes is not None
+                 or args.skip_nan_samples))
+
+
+def row_mask_refusal(flag, args):
+    """Why ``flag`` cannot run on this objective (#412), or None.
+
+    The value-space objective reads each row on its own. The contrastive
+    objective takes the Moirai parts by row, through the masks of #419, so
+    each of its terms must take one: L_rep of the rep_only shape, with or
+    without MoCo keys, L_pred and L_rep of the split shape, L_align, the
+    matched CPC auxiliary and SIGReg.
+    """
+    if args.value_space_objective:
+        return None
+    gap = gift_contrastive_gap(args)
+    if gap is None:
+        return None
+    return (f"{flag} reaches the contrastive objective by row (#412), and "
+            f"{gap} takes no row mask. Use --value-space-objective, or the "
+            f"contrastive terms that take one: --loss-shape "
+            f"cosine_similarity_batch_rep_only or "
+            f"cosine_similarity_batch_split_pred_rep, with their add-ons.")
+
+
+def check_patch_stats(args):
+    """Refuse --patch-stats where its statistics cannot be right (#419,
+    #421, #412 review). They come from the normaliser of the whole batch:
+    the zero padding moves them, a row group of one patch size or a dropped
+    row reads the statistics of other rows, and the mean/std scaling has
+    one statistic per window."""
+    if args.patch_stats == "none":
+        return
+    clash = [flag for flag, on in (
+        ("--gift-pretrain", args.gift_pretrain),
+        ("--rev-norm-kind meanstd", args.rev_norm_kind == "meanstd"),
+        ("--multi-patch-sizes", args.multi_patch_sizes is not None),
+        ("--skip-nan-samples", args.skip_nan_samples)) if on]
+    if clash:
+        raise SystemExit(f"--patch-stats {args.patch_stats} does not run with "
+                         f"{', '.join(clash)}. Use --patch-stats none.")
+
+
+def check_contrastive_rows(args):
+    """Refuse a contrastive run by row (#412) this trainer cannot run."""
+    if not moirai_contrastive(args):
+        return
+    if int(os.environ.get("WORLD_SIZE", "1")) > 1:
+        raise SystemExit("The contrastive objective by row (#412) runs its "
+                         "patch-size groups on one rank. Run it on one GPU.")
+    if args.forecaster_kind != "transformer":
+        raise SystemExit("The contrastive objective by row (#412) needs the "
+                         "single transformer forecaster; got "
+                         f"--forecaster-kind {args.forecaster_kind}.")
 
 
 def check_patch_rms(args):
@@ -1490,16 +1954,15 @@ def check_patch_rms(args):
 
 
 def check_skip_nan(args):
-    """Refuse --skip-nan-samples where rows are not independent units."""
+    """Refuse --skip-nan-samples where a row cannot leave every term."""
     if args.skip_spike_samples > 0 and not args.skip_nan_samples:
         raise SystemExit("--skip-spike-samples uses the row search of "
                          "--skip-nan-samples. Add --skip-nan-samples.")
     if not args.skip_nan_samples:
         return
-    if not args.value_space_objective:
-        raise SystemExit("--skip-nan-samples drops single rows, and only the "
-                         "value-space objective reads each row on its own. "
-                         "Add --value-space-objective.")
+    refusal = row_mask_refusal("--skip-nan-samples", args)
+    if refusal:
+        raise SystemExit(refusal)
     if int(os.environ.get("WORLD_SIZE", "1")) > 1:
         raise SystemExit("--skip-nan-samples runs extra passes on one rank "
                          "only, and a distributed run waits for all ranks.")
@@ -1510,16 +1973,17 @@ def check_skip_nan(args):
 
 
 def check_mean_std(args):
-    """Refuse the mean/std scaling (#421) outside the value-space objective.
+    """Refuse the mean/std scaling (#421) where no split can be drawn.
 
-    Its statistics read the context before a split, and only the value-space
-    objective draws one. A contrastive run would scale each window by its
+    Its statistics read the context before a split. The value-space
+    objective and the contrastive objective by row (#412) draw one per
+    window. Every other contrastive run would scale each window by its
     whole length, future values included.
     """
-    if args.rev_norm_kind == "meanstd" and not args.value_space_objective:
-        raise SystemExit("--rev-norm-kind meanstd takes its statistics from "
-                         "the context before a split that only "
-                         "--value-space-objective draws (#421). Add it.")
+    if args.rev_norm_kind == "meanstd":
+        refusal = row_mask_refusal("--rev-norm-kind meanstd", args)
+        if refusal:
+            raise SystemExit(refusal)
     if ("meanstd_z_max" in named_on_command_line()
             and args.rev_norm_kind != "meanstd"):
         raise SystemExit("--meanstd-z-max filters the windows of "
@@ -1535,18 +1999,240 @@ def check_mean_std(args):
 
 
 def contrastive_padding(model, args):
-    """``[B, T, C]``: the zero-padded patches of the batch the model has just
-    normalised, which no contrastive term may read (#419). None when the run
-    pads nothing, or trains the value objective, which masks its own."""
+    """``[B, T, C]``: the patches of the batch the model has just normalised
+    which no contrastive term may read: the zero padding (#419), and the
+    patches whose next patch starts in the EWMA's first window
+    (start_window_anchors). None when the run pads nothing, or trains the
+    value objective, which masks its own."""
     if not args.gift_pretrain or args.value_space_objective:
         return None
-    return patch_padding(model.rev_norm.pad_mask, model.W)
+    pad = patch_padding(model.rev_norm.pad_mask, model.W)
+    start = getattr(model.rev_norm, "start_mask", None)
+    return pad if start is None else pad | start_window_anchors(start, model.W)
+
+
+def forecaster_depths(model, f_lat, args):
+    """f^(1) .. f^(k) of the forward output ``f_lat`` (#373): the one place
+    the trainer composes the forecaster on its own output, for the whole
+    batch and for each patch-size group (#412)."""
+    return rollout_forecaster_latents(model, f_lat, args.train_rollout_depth)
+
+
+def value_diagnostic_padding(model, inputs):
+    """``[n, T, C]``: the padded patches of the rows whose latents the value
+    objective returns for the diagnostics (#419, #417), or None."""
+    pad, sizes = inputs["pad_mask"], inputs["sample_sizes"]
+    if pad is None:
+        return None
+    if sizes is None:
+        return patch_padding(pad, model.W)
+    size, rows = diagnostic_rows(sizes, model.W)
+    return patch_padding(pad[rows.to(pad.device)], size)
+
+
+def clean_rows(pad_patches, n):
+    """The rows the step diagnostics read: those with no padded patch
+    (#419). A padded patch has a near-constant latent, which biases ff, the
+    AUC and the dimension usage. Every row when nothing is padded, or when
+    fewer than two rows are clean."""
+    if pad_patches is None:
+        return slice(None)
+    keep = ~pad_patches.reshape(n, -1).any(dim=1)
+    return keep if int(keep.sum()) >= 2 else slice(None)
 
 
 def real_positions(latent, pad_patches):
     """The ``[N, H]`` vectors of the real positions of a ``[B, T, C, H]``
     latent (#419), or the latent itself when nothing is padded."""
     return latent if pad_patches is None else latent[~pad_patches]
+
+
+@torch.no_grad()
+def tau_reference(f_lat, o_lat, pad_patches, args):
+    """The ``loss_tau_ref`` column: the main contrastive loss at a fixed
+    τ = 0.07, with no gradient. Comparable across runs whatever --tau or
+    --learnable-tau says.
+
+    It is a proper normalized InfoNCE (positive in the numerator and the
+    denominator), so the column is always 0 or more, unlike the training
+    loss, whose negatives-only form goes negative once the positives
+    separate. The split shapes (#374) take no such flag: their L_pred is
+    normalized already, and their own default at τ = 0.07 is the reference.
+    It stays a pure student-side reference: no L_align, no floor, no MoCo
+    keys or negatives. Depth 0 only, on a --train-rollout-depth run too
+    (#373), so one curve compares across k. It skips the padding as the
+    loss does, where its shape can (#419). The split shape takes its masked
+    terms for that (#412).
+    """
+    tau = torch.tensor(0.07, device=f_lat.device, dtype=f_lat.dtype)
+    if pad_patches is not None and args.loss_shape == SPLIT_SHAPE:
+        ref = (pred_term(f_lat.detach(), o_lat.detach(), LOSS_SPEC,
+                         pad_patches, tau_override=tau, moco_negatives=False)
+               + rep_only_term(o_lat.detach(), LOSS_SPEC, pad_patches,
+                               tau_override=tau, moco_rep_keys=False))
+        return ref.item()
+    pos_in_denom = args.loss_shape not in (
+        "cosine_similarity_batch_split_pred_rep",
+        "cosine_similarity_batch_rep_only")
+    ref = contrastive_latent_loss(
+        (f_lat.detach(), o_lat.detach()), validation=False, spec=LOSS_SPEC,
+        tau_override=tau,
+        include_positive_in_denominator=pos_in_denom, align_loss_weight=0.0,
+        subtract_contrastive_floor=False, moco_negatives=False,
+        moco_rep_keys=False, train_rollout_depth=0,
+        pad_patches=(pad_patches if args.loss_shape ==
+                     "cosine_similarity_batch_rep_only" else None))
+    return ref.item()
+
+
+def configure_loss_spec(args):
+    """Set the run-level keys of ``LOSS_SPEC`` from the command line
+    (LOSS_SPEC is a module-level default)."""
+    LOSS_SPEC.train_configuration["loss_shape"] = args.loss_shape
+    LOSS_SPEC.train_configuration["include_positive_in_denominator"] = args.pos_in_denominator
+    LOSS_SPEC.train_configuration["stopgrad_positive_h"] = args.stopgrad_positive_h
+    LOSS_SPEC.train_configuration["align_loss_weight"] = args.align_loss_weight
+    LOSS_SPEC.train_configuration["align_target"] = args.align_target
+    LOSS_SPEC.train_configuration["subtract_contrastive_floor"] = args.subtract_contrastive_floor
+    LOSS_SPEC.train_configuration["moco_negatives"] = args.moco_negatives
+    LOSS_SPEC.train_configuration["moco_rep_keys"] = args.moco_rep_keys
+    LOSS_SPEC.train_configuration["pred_loss_weight"] = args.pred_loss_weight
+    LOSS_SPEC.train_configuration["rep_loss_weight"] = args.rep_loss_weight
+    LOSS_SPEC.train_configuration["train_rollout_depth"] = args.train_rollout_depth
+    LOSS_SPEC.train_configuration["train_rollout_reduce"] = args.train_rollout_reduce
+    if args.tau is not None:
+        LOSS_SPEC.train_configuration["contrastive_divergence_temperature"] = args.tau
+    if args.tau_rep is not None:
+        # #379 — separate temperature for the L_rep term of split shapes.
+        # When unset the loss code falls back to `tau` (see src/loss.py's
+        # split_pred_rep / rep_only branches), preserving historical
+        # objectives byte-for-byte.
+        LOSS_SPEC.train_configuration["contrastive_divergence_temperature_rep"] = args.tau_rep
+
+
+def main_contrastive_term(lat, args, rep_w_now, tau, pad_patches, terms):
+    """The main contrastive loss of one forward, or L_align alone under
+    --no-main-contrastive-loss. ``rep_w_now`` is the L_rep weight of the
+    step (#409). ``terms`` receives the unweighted terms the loss computes.
+    The split shape on a padded batch runs its masked terms (#412)."""
+    if args.no_main_contrastive_loss:
+        return lat.f.new_zeros(()) + align_term(lat, args, pad_patches)
+    if pad_patches is not None and args.loss_shape == SPLIT_SHAPE:
+        return split_masked_term(lat, args, rep_w_now, tau, pad_patches,
+                                 terms)
+    return contrastive_latent_loss(
+        (lat.f, lat.o), validation=False, spec=LOSS_SPEC,
+        tau_override=tau, teacher_original_latent=lat.teacher,
+        rollout_latents=lat.rollout, rep_loss_weight=rep_w_now,
+        term_out=terms, pad_patches=pad_patches)
+
+
+def split_masked_term(lat, args, rep_w, tau, pad_patches, terms):
+    """The split shape on a padded batch of one patch size (#412): L_pred
+    (``pred_term``), L_rep with its MoCo keys (``rep_only_term``) and
+    L_align, each without the padding. ``contrastive_latent_loss`` takes no
+    padding mask for this shape."""
+    loss = pred_term(lat.f, lat.o, LOSS_SPEC, pad_patches, tau_override=tau,
+                     teacher_original_latent=lat.teacher,
+                     rollout_latents=lat.rollout,
+                     depth_reduce=args.train_rollout_reduce, term_out=terms)
+    loss = loss + rep_only_term(
+        lat.o, LOSS_SPEC, pad_patches, tau_override=tau,
+        teacher_original_latent=lat.teacher, rep_loss_weight=rep_w,
+        term_out=terms)
+    return loss + align_term(lat, args, pad_patches, terms)
+
+
+def align_term(lat, args, pad_patches, terms=None):
+    """L_align of one forward, weighted, with its rollout depths (#373), or
+    0.0 when it is off. ``terms`` receives its unweighted depth-0 value."""
+    if args.align_loss_weight <= 0:
+        return 0.0
+    # #388: `raise`, not `assert`, so `python -O` cannot fall back to the
+    # student target, the #382 defect --align-target teacher removes.
+    if args.align_target == "teacher" and lat.teacher is None:
+        raise SystemExit("--align-target teacher but no teacher latents at "
+                         "the loss call. Falling back to the student target "
+                         "is the #382 defect this flag removes.")
+    target = lat.teacher if args.align_target == "teacher" else None
+    return align_loss(
+        lat.f, lat.o, args.align_loss_weight, target_latent=target,
+        rollout_latents=lat.rollout, depth_reduce=args.train_rollout_reduce,
+        pad_patches=pad_patches, term_out=terms)
+
+
+def align_moco_term(lat, args, tau):
+    """The #374 arm 6 MoCo alignment, weighted, or None when it is off."""
+    if args.align_moco_loss_weight <= 0:
+        return None
+    if lat.teacher is None:
+        raise SystemExit("--align-moco-loss-weight > 0 requires an EMA "
+                         "teacher (--ema-encoder). teacher_o_lat is None.")
+    tau_am = float(tau.detach()) if tau is not None else args.tau
+    return align_moco_loss(lat.o, lat.teacher, tau=tau_am,
+                           weight=args.align_moco_loss_weight)
+
+
+def cpc_aux_term(model, lat, args, pad_patches):
+    """The CPC InfoNCE auxiliary (#344), unweighted, or None when off."""
+    if args.cpc_infonce_weight <= 0:
+        return None
+    if args.cpc_infonce_negs == "matched":
+        return cpc_infonce_aux_loss(
+            lat.f, lat.o, model.cpc_w1, rollout_latents=lat.rollout,
+            depth_reduce=args.train_rollout_reduce, pad_patches=pad_patches)
+    return cpc_infonce_all_loss(
+        lat.f, lat.o, model.cpc_w1,
+        marginal_only=(args.cpc_infonce_negs == "cross"),
+        rollout_latents=lat.rollout, depth_reduce=args.train_rollout_reduce)
+
+
+def sigreg_term(latent, args, pad_patches):
+    """SIGReg (#355) on the real positions of one latent, unweighted."""
+    return sigreg_loss(real_positions(latent, pad_patches), M=args.sigreg_m,
+                       T_knots=args.sigreg_t_knots,
+                       post_normalize=args.sigreg_post_normalization,
+                       n_chunk=args.sigreg_n_chunk)
+
+
+def no_contrastive_values():
+    """The add-on values of a step that computes none of them."""
+    return dict(terms={}, align_moco=float("nan"), cpc_aux=float("nan"),
+                sigreg_e=float("nan"), sigreg_h=float("nan"))
+
+
+def contrastive_terms(model, lat, args, rep_w, tau, pad_patches):
+    """The contrastive objective of one forward, in the trainer's order: the
+    main loss (or L_align alone), align_moco, the CPC auxiliary, then SIGReg
+    on e and on h.
+
+    ``lat`` holds the latents ``f``, ``o``, ``teacher``, ``e`` and
+    ``rollout``. ``tau`` is the learnable temperature, None for the spec's.
+    Returns ``(loss, values)``: ``values["terms"]`` holds the unweighted
+    L_pred / L_rep / L_align the loss computed, and each add-on its value
+    (NaN when it is off).
+    """
+    values = no_contrastive_values()
+    loss = main_contrastive_term(lat, args, rep_w, tau, pad_patches,
+                                 values["terms"])
+    moco = align_moco_term(lat, args, tau)
+    if moco is not None:
+        loss = loss + moco
+        values["align_moco"] = moco.item()
+    cpc = cpc_aux_term(model, lat, args, pad_patches)
+    if cpc is not None:
+        loss = loss + args.cpc_infonce_weight * cpc
+        values["cpc_aux"] = cpc.item()
+    for on, weight, key, latent in (
+            (args.sigreg_embedding, args.sigreg_embedding_weight, "sigreg_e",
+             lat.e),
+            (args.sigreg_encoding, args.sigreg_encoding_weight, "sigreg_h",
+             lat.o)):
+        if on:
+            term = sigreg_term(latent, args, pad_patches)
+            loss = loss + weight * term
+            values[key] = term.item()
+    return loss, values
 
 
 def gift_rows(args, C, position):
@@ -1595,7 +2281,7 @@ class CSVLogger:
         # A k = 0 run writes no such column — its depth-0 curve is 1 − ff.
         self.rollout_depth = int(rollout_depth)
         # What the per-depth columns measure. `cos_err_d*` is #373's latent
-        # error 1 - cos(f^(j)_t, h_{t+1+j}); a value-space run (#415) writes
+        # error 1 - cos(f^(j)_t, h_{t+1+j}). a value-space run (#415) writes
         # `val_err_d*`, the pinball loss of depth j against the actual
         # values. One name per quantity, so no reader has to know the
         # objective to read the column.
@@ -1826,7 +2512,7 @@ class LatentDriftProbe:
         teacher too when the model has one.
 
         Teacher presence is read off ``ConfigurableModel.ema_embedding`` /
-        ``.ema_encoder``; both are pinned by
+        ``.ema_encoder``. Both are pinned by
         ``tests/test_388_align_teacher_ema_schedule.py`` so a rename cannot
         quietly drop every ``teacher_h`` row.
         """
@@ -1900,7 +2586,7 @@ class AttnAmplitudeCSV:
 
     def __init__(self, path):
         self.path = path
-        # Rank-0 only (shared sidecar file); no-op on other ranks.
+        # Rank-0 only (shared sidecar file). No-op on other ranks.
         self._enabled = is_main_process()
         if not self._enabled:
             self._file = None
@@ -1939,13 +2625,17 @@ def cosine_lr(step, lr_start, lr_final, total):
         1.0 + math.cos(math.pi * t / total))
 
 
-def scheduled_lr(step, lr_start, lr_final, total, warmup=0):
-    """A linear warmup over `warmup` steps, then one cosine anneal from
-    `lr_start` to `lr_final` that ends at step `total`. This is the shape of
-    the Moirai schedule (uni2ts `get_scheduler`, #415). With no warmup it is
-    `cosine_lr` itself."""
+def scheduled_lr(step, lr_start, lr_final, total, warmup=0, shape="cosine"):
+    """A linear warmup over `warmup` steps, then one anneal from `lr_start`
+    to `lr_final` that ends at step `total` and holds after it. The cosine
+    anneal is the shape of the Moirai schedule (uni2ts `get_scheduler`,
+    #415). With no warmup it is `cosine_lr` itself. `shape="linear"` makes
+    the anneal a straight line (#412ow2)."""
     if step < warmup:
         return lr_start * step / warmup
+    if shape == "linear":
+        t = min(step - warmup, total - warmup)
+        return lr_start + (lr_final - lr_start) * t / (total - warmup)
     return cosine_lr(step - warmup, lr_start, lr_final, total - warmup)
 
 
@@ -1983,7 +2673,7 @@ def main():
             raise SystemExit(
                 "--value-space-objective trains on the actual values and "
                 "reads no contrastive term, no teacher, no EMA, no CPC "
-                "auxiliary, no SIGReg and no gradient clip. This command "
+                "auxiliary and no SIGReg. This command "
                 "line still names " + ", ".join(clash) + ". Drop them "
                 "(#415).")
         if args.forecaster_kind != "transformer":
@@ -1996,6 +2686,14 @@ def main():
     check_mean_std(args)
     check_skip_nan(args)
     check_patch_rms(args)
+    check_contrastive_rows(args)
+    check_patch_stats(args)
+    # #412: the Moirai parts reach the contrastive objective by row. The
+    # value-space objective reads rows on its own already. Both are row
+    # objectives: one input step (the split, the sizes, the filter) feeds
+    # them, and the row search of --skip-nan-samples calls them again.
+    rows_contrastive = moirai_contrastive(args)
+    row_objective = args.value_space_objective or rows_contrastive
 
     # Distributed (opt-in, env-driven): launch with
     #   torchrun --nproc_per_node=N experiments/.../train.py ...
@@ -2008,7 +2706,7 @@ def main():
         args.device = f"cuda:{local_rank}"
 
     device = torch.device(args.device)
-    # Identical model init on every rank (also broadcast post-build); data
+    # Identical model init on every rank (also broadcast post-build). Data
     # RNG is offset per rank below so each rank streams DIFFERENT samples.
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
@@ -2142,7 +2840,7 @@ def main():
     # dataloader construction — the parser raises SystemExit on bad input.
     _extra_save_steps = parse_extra_save_steps(args.extra_save_steps)
     # α = 1.0 is a legal END value (a teacher frozen at the end of the
-    # budget); it is not a legal start value, since a teacher that never
+    # budget). It is not a legal start value, since a teacher that never
     # moves at all is a plain frozen init.
     if args.ema_tau_end is not None and not (0.0 < args.ema_tau_end <= 1.0):
         raise SystemExit("--ema-tau-end must be in (0, 1]; got "
@@ -2260,27 +2958,7 @@ def main():
             "L_rep and align_moco carry no f. Add --align-loss-weight or "
             "--cpc-infonce-weight, change the main term, or drop "
             "--train-rollout-depth (#373).")
-    # Override the loss_shape from CLI (LOSS_SPEC is a module-level default).
-    LOSS_SPEC.train_configuration["loss_shape"] = args.loss_shape
-    LOSS_SPEC.train_configuration["include_positive_in_denominator"] = args.pos_in_denominator
-    LOSS_SPEC.train_configuration["stopgrad_positive_h"] = args.stopgrad_positive_h
-    LOSS_SPEC.train_configuration["align_loss_weight"] = args.align_loss_weight
-    LOSS_SPEC.train_configuration["align_target"] = args.align_target
-    LOSS_SPEC.train_configuration["subtract_contrastive_floor"] = args.subtract_contrastive_floor
-    LOSS_SPEC.train_configuration["moco_negatives"] = args.moco_negatives
-    LOSS_SPEC.train_configuration["moco_rep_keys"] = args.moco_rep_keys
-    LOSS_SPEC.train_configuration["pred_loss_weight"] = args.pred_loss_weight
-    LOSS_SPEC.train_configuration["rep_loss_weight"] = args.rep_loss_weight
-    LOSS_SPEC.train_configuration["train_rollout_depth"] = args.train_rollout_depth
-    LOSS_SPEC.train_configuration["train_rollout_reduce"] = args.train_rollout_reduce
-    if args.tau is not None:
-        LOSS_SPEC.train_configuration["contrastive_divergence_temperature"] = args.tau
-    if args.tau_rep is not None:
-        # #379 — separate temperature for the L_rep term of split shapes.
-        # When unset the loss code falls back to `tau` (see src/loss.py's
-        # split_pred_rep / rep_only branches), preserving historical
-        # objectives byte-for-byte.
-        LOSS_SPEC.train_configuration["contrastive_divergence_temperature_rep"] = args.tau_rep
+    configure_loss_spec(args)
     model = ConfigurableModel(**model_config).to(device)
     optimizer = optim.AdamW(
         model.parameters(),
@@ -2309,6 +2987,7 @@ def main():
                 args.lr_final = saved_sched["lr_final"]
                 args.lr_cosine_steps = saved_sched["cosine_steps"]
                 args.lr_warmup_steps = saved_sched.get("warmup_steps", 0)
+                args.lr_decay_shape = saved_sched.get("decay_shape", "cosine")
                 print(f"  [lr] resumed schedule from the checkpoint: "
                       f"{args.lr:g} to {args.lr_final:g} over "
                       f"{args.lr_cosine_steps} steps, warmup "
@@ -2316,10 +2995,11 @@ def main():
             else:
                 live = (args.lr, args.lr_final,
                         args.lr_cosine_steps or args.total_steps,
-                        args.lr_warmup_steps)
+                        args.lr_warmup_steps, args.lr_decay_shape)
                 held = (saved_sched["lr_start"], saved_sched["lr_final"],
                         saved_sched["cosine_steps"],
-                        saved_sched.get("warmup_steps", 0))
+                        saved_sched.get("warmup_steps", 0),
+                        saved_sched.get("decay_shape", "cosine"))
                 if live != held:
                     print(f"  [lr] WARNING: the checkpoint holds {held} and "
                           f"the command line names {live}. The command line "
@@ -2371,18 +3051,36 @@ def main():
               f"depth {args.train_rollout_depth} in value space, "
               f"reduce={args.train_rollout_reduce}. No teacher, no EMA, no "
               f"L_rep, no L_align, no CPC, no SIGReg.")
+    if rows_contrastive:
+        print("Objective (#412): the contrastive objective by row. Each row "
+              "reads its own patch size. L_rep, its MoCo keys and SIGReg "
+              "read every row of the step, on the time grid of the finest "
+              "size, where a latent of size P repeats P/G times; L_align "
+              "pulls each patch toward the next patch of its own row. A "
+              "dropped row reads zeros and counts as padding, so it leaves "
+              "every term."
+              + (" L_pred pairs each patch with the next patch of its own "
+                 "row, rollout depths included, and each pair fills P/G "
+                 "positions of the same grid, so its negatives read every "
+                 "row." if args.loss_shape == SPLIT_SHAPE
+                 and not args.no_main_contrastive_loss else ""))
     if multi_patch_sizes:
-        print(f"Multi-patch (#417): one patch encoder and one value head per "
+        heads = (" and one value head" if args.value_space_objective
+                 else " (and its EMA teacher copy)"
+                 if args.ema_embedding else "")
+        print(f"Multi-patch (#417): one patch encoder{heads} per "
               f"patch size {multi_patch_sizes}. Each sample draws its size "
               f"from its frequency's range; a sample with no frequency label "
               f"draws from every size.")
     if args.rev_norm_kind == "meanstd":
-        print("Scaling (#421): the mean/std scaling of Moirai 1.0. Each "
-              "window draws a target fraction r ~ U[0.15, 0.5] of its whole "
-              "patches of real values. loc and scale come from the observed "
-              "values before the split, and the loss counts only the patches "
-              "after it. A size needs two whole patches of real values "
-              "(uni2ts GetPatchSize).")
+        counted = ("the loss counts only the patches after it"
+                   if args.value_space_objective
+                   else "the contrastive terms keep every real position")
+        print(f"Scaling (#421): the mean/std scaling of Moirai 1.0. Each "
+              f"window draws a target fraction r ~ U[0.15, 0.5] of its whole "
+              f"patches of real values. loc and scale come from the observed "
+              f"values before the split, and {counted}. A size needs two "
+              f"whole patches of real values (uni2ts GetPatchSize).")
         if args.meanstd_z_max > 0:
             print(f"Window filter (#421, Moirai 2.0): a window whose target "
                   f"part holds a |z| above {args.meanstd_z_max:g} leaves the "
@@ -2567,7 +3265,7 @@ def main():
                       ema_loss=ema_loss, ema_gap=ema_gap,
                       hf_rows_consumed=hf_rows_consumed,
                       synth_rows_consumed=synth_rows_consumed,
-                      lr_schedule=lr_schedule)
+                      lr_schedule=lr_schedule, spike_norms=guard_history())
         csv_logger.close()
         if attn_amp_csv is not None:
             attn_amp_csv.close()
@@ -2577,6 +3275,14 @@ def main():
     skipped_in_a_row = 0
     spike_guard = (SpikeGuard(args.skip_spike_samples, args.grad_clip or 1.0)
                    if args.skip_spike_samples > 0 else None)
+    if spike_guard is not None and restored.get("spike_norms"):
+        # The history of the checkpoint: the reference stays the median of
+        # the last clean steps, and the prior does not come back.
+        spike_guard.norms = list(restored["spike_norms"])
+
+    def guard_history():
+        """The norms of the spike guard, saved with each snapshot."""
+        return None if spike_guard is None else list(spike_guard.norms)
 
     # -- Training loop --------------------------------------------------------
     t0 = time.time()
@@ -2592,12 +3298,14 @@ def main():
     cosine_steps = args.lr_cosine_steps or args.total_steps
     lr_schedule = None if args.lr_final is None else {
         "lr_start": args.lr, "lr_final": args.lr_final,
-        "cosine_steps": cosine_steps, "warmup_steps": args.lr_warmup_steps}
+        "cosine_steps": cosine_steps, "warmup_steps": args.lr_warmup_steps,
+        "decay_shape": args.lr_decay_shape}
     for step in range(start_step + 1, args.total_steps + 1):
         t_step_start = time.perf_counter()
         if args.lr_final is not None:
             lr_now = scheduled_lr(step, args.lr, args.lr_final,
-                                  cosine_steps, args.lr_warmup_steps)
+                                  cosine_steps, args.lr_warmup_steps,
+                                  args.lr_decay_shape)
             for group in optimizer.param_groups:
                 group["lr"] = lr_now
         model.train()
@@ -2666,6 +3374,17 @@ def main():
             ATTN_AMP_DIAG.set_active(True)
 
         t_fwd_start = time.perf_counter()
+        # #409: L_rep's weight for THIS step. Constant at --rep-loss-weight
+        # unless --rep-loss-weight-end sets a decay, which spans
+        # --total-steps unless --rep-loss-weight-ramp-steps anchors it to a
+        # fixed step. It travels as a function argument, not through
+        # LOSS_SPEC, so the run's fixed base weight stays what the
+        # `loss_tau_ref` diagnostic reads. The value used here is the one
+        # logged to the losses CSV. The contrastive objective by row (#412)
+        # reads it in its forward, so it is set before it.
+        rep_w_now = linear_schedule_at_step(
+            step, args.total_steps, args.rep_loss_weight,
+            args.rep_loss_weight_end, args.rep_loss_weight_ramp_steps)
         use_ema = args.ema_embedding or args.ema_encoder
         use_sigreg = args.sigreg_embedding or args.sigreg_encoding
         # e_lat is captured under either SIGReg flag: it powers the u_*_e
@@ -2675,7 +3394,7 @@ def main():
         # gather it never consumes (#356-P4).
         want_embed = use_sigreg
         value_depths = None
-        if args.value_space_objective:
+        if row_objective:
             # #415. One reversible-norm call for the whole step: every
             # rollout depth reads the SAME statistics, so a predicted patch
             # is not rescaled by its own spread. The objective then runs the
@@ -2683,10 +3402,12 @@ def main():
             # for the diagnostics below.
             # #419: with zero left padding the normaliser marks the padded
             # values, and the objective skips them. None on every other run.
+            # #412: the contrastive objective by row reads the same inputs.
             if args.rev_norm_kind == "meanstd":
                 # #421: the sizes, then one split per window. loc and scale
-                # read the context before the split, and the loss counts
-                # the patches after it only.
+                # read the context before the split. The value loss counts
+                # the patches after it only. The contrastive terms keep
+                # every real position (#412).
                 x_norm, sample_sizes, target_mask = mean_std_inputs(
                     model, x, freq_ids, multi_patch_sizes)
                 pad_mask = model.rev_norm.pad_mask
@@ -2735,28 +3456,38 @@ def main():
                         scale=getattr(model.rev_norm, "stdev", None))
             # #417: with several patch sizes each sample reads the size its
             # frequency draws, and the batch trains one group per size.
-            value_inputs = dict(
+            step_inputs = dict(
                 x_norm=x_norm, sample_sizes=sample_sizes,
                 target_mask=target_mask, pad_mask=pad_mask,
+                start_mask=getattr(model.rev_norm, "start_mask", None),
                 freq_ids=freq_ids, freq_embs=freq_embs,
                 seasonality_ids=seasonality_ids,
                 seasonality_embs=seasonality_embs)
+            if rows_contrastive and filter_on and dropped_share == 1.0:
+                # #412: every window is far. drop_far_windows kept them all
+                # at zero, and no contrastive term may read one.
+                step_inputs["active"] = torch.zeros(
+                    x_norm.shape[0], dtype=torch.bool, device=x_norm.device)
             if args.skip_nan_samples:
                 # #421: the input gradient of each row ranks the rows of a
                 # bad step (rank_rows).
-                value_inputs["x_norm"] = x_norm.detach().requires_grad_(True)
+                step_inputs["x_norm"] = x_norm.detach().requires_grad_(True)
                 # #421: the random state a pass without some rows replays.
                 skip_rng = rng_state(device)
                 skip_meta.update(x_norm=x_norm,
                                  patch_size=sample_sizes)
                 if "partner" in mixup_info:
-                    value_inputs["label_embs"] = mixed_label_embeddings(
+                    step_inputs["label_embs"] = mixed_label_embeddings(
                         model, mixup_info, skip_meta["freq_ids"],
                         skip_meta["seasonality_ids"], skip_meta["kept"])
-            value_loss, f_lat, o_lat, value_depths = value_objective(
-                model, value_inputs, args, multi_patch_sizes)
-            teacher_o_lat = None
-            e_lat = None
+            # The value objective (#415), or the contrastive objective by
+            # row (#412). A row search of --skip-nan-samples calls it again.
+            objective = step_objective(args, rep_w_now)
+            row_loss, f_lat, o_lat, row_extra = (objective or value_objective)(
+                model, step_inputs, args, multi_patch_sizes)
+            value_depths = None if rows_contrastive else row_extra
+            teacher_o_lat = row_extra.teacher if rows_contrastive else None
+            e_lat = row_extra.e if rows_contrastive else None
         elif use_ema:
             res = forward_step(
                 model, x,
@@ -2798,7 +3529,15 @@ def main():
             teacher_o_lat = teacher_o_lat.float()
         if e_lat is not None:
             e_lat = e_lat.float()
-        pad_patches = contrastive_padding(model, args)
+        # #412: the contrastive objective by row returns the padding and the
+        # depths of its diagnostic group.
+        pad_patches = (row_extra.pad if rows_contrastive
+                       else contrastive_padding(model, args))
+        value_pad = (value_diagnostic_padding(model, step_inputs)
+                     if args.value_space_objective else None)
+        # The padding of this rank's rows, before any gather: e_lat keeps
+        # them when only --sigreg-encoding reads it.
+        local_pad = value_pad if pad_patches is None else pad_patches
         # Rollout depth (#373): f^(1)..f^(k), the forecaster re-applied to
         # its own output. Built from the LOCAL f_lat — the operator runs per
         # sequence — then gathered like f_lat below so every depth pools the
@@ -2812,9 +3551,12 @@ def main():
         # `forecaster_forward` under the same fp32-tail policy.
         # #415 rolls the forecast out in VALUE space instead, inside
         # `value_space_objective` above, so no latent depth is built here.
-        rollout_lats = ([] if args.value_space_objective
-                        else rollout_forecaster_latents(
-                            model, f_lat, args.train_rollout_depth))
+        if args.value_space_objective:
+            rollout_lats = []
+        elif rows_contrastive:
+            rollout_lats = row_extra.rollout
+        else:
+            rollout_lats = forecaster_depths(model, f_lat, args)
         # DDP: gather latents across ranks so the contrastive loss pools
         # negatives over the GLOBAL (W*B) batch — 2-GPU @ B/2 == 1-GPU @ B.
         # Strict no-op single-GPU. Done on the fp32 latents so loss,
@@ -2836,7 +3578,9 @@ def main():
             if pad_patches is not None:
                 # #419: the padding pools over the same global batch.
                 pad_patches = gather_mask(pad_patches)
-            # Same global pooling for every rollout depth (#373); no-op
+            if value_pad is not None:
+                value_pad = gather_mask(value_pad)
+            # Same global pooling for every rollout depth (#373). No-op
             # single-GPU, ONE all-gather per depth under torchrun (a depth is
             # a lone tensor, so it takes the single-tensor form).
             rollout_lats = [gather_latent(f_j) for f_j in rollout_lats]
@@ -2848,7 +3592,7 @@ def main():
                 # SIGReg-on-e pools its statistic over the global batch —
                 # same gather contract as the contrastive loss. Skip the
                 # gather when only --sigreg-encoding is on (no SIGReg
-                # consumer for e_lat); the u_*_e diagnostics are per-rank
+                # consumer for e_lat). The u_*_e diagnostics are per-rank
                 # marginal reads and work fine without a gather (#356-P4).
                 _dummy, e_lat = gather_latents(e_lat, e_lat)
         # CPC multi-step (#316): f_lat is [B,T,C,K,H]. The loss / loss_tau_ref
@@ -2862,177 +3606,44 @@ def main():
         # as tau_override so gradient reaches log_inv_tau. Otherwise the
         # loss uses LOSS_SPEC.train_configuration's scalar.
         tau_tensor = model.tau() if args.learnable_tau else None
-        # #409: L_rep's weight for THIS step. Constant at --rep-loss-weight
-        # unless --rep-loss-weight-end sets a decay, which spans
-        # --total-steps unless --rep-loss-weight-ramp-steps anchors it to a
-        # fixed step. It travels as a function argument, not through
-        # LOSS_SPEC, so the run's fixed base weight stays what the
-        # `loss_tau_ref` diagnostic below reads. The value used here is the
-        # one logged to the losses CSV.
-        rep_w_now = linear_schedule_at_step(
-            step, args.total_steps, args.rep_loss_weight,
-            args.rep_loss_weight_end, args.rep_loss_weight_ramp_steps)
-        # Per-term readout for the losses CSV: the loss fills this dict with
-        # the UNWEIGHTED L_pred / L_rep / L_align it computes, and leaves the
-        # key out for a term it skips.
-        loss_terms = {}
         with torch.amp.autocast('cuda', enabled=False):
             tau_tensor_loss = (tau_tensor.float()
                                if tau_tensor is not None else None)
             if args.value_space_objective:
                 # The whole objective (#415): the pinball loss on the actual
-                # values, already reduced over the depths. Every term below
-                # is refused on this path, so nothing is added to it.
+                # values, already reduced over the depths. Every contrastive
+                # term is refused on this path, so nothing is added to it.
                 #
                 # Under torchrun this loss is per-rank on purpose: it pools
                 # no negatives, so the mean of the rank losses IS the global
                 # loss and `average_gradients` gives the global gradient.
-                loss = value_loss
-            elif args.no_main_contrastive_loss:
-                # #344 follow-up arm: drop the main contrastive loss. Train only
-                # on the auxiliary terms. Skip contrastive_latent_loss (no
-                # xshh_allt Gram backward) and add the BYOL align term standalone
-                # (same form, encoder target stop-gradded). L_cpc is added below.
-                loss = f_lat.new_zeros(())
-                if args.align_loss_weight > 0:
-                    # #388: --align-target teacher swaps the target for the
-                    # EMA teacher's h_{t+1} (the BYOL form). Argparse rejects
-                    # `teacher` without a teacher — re-check it here too,
-                    # where the value is used: a None target silently falls
-                    # back to the student, which is the #382 bug this flag
-                    # fixes. `raise`, not `assert`: `python -O` strips
-                    # asserts and would reinstate that exact fallback.
-                    if args.align_target == "teacher" and teacher_o_lat is None:
-                        raise SystemExit(
-                            "--align-target teacher but no teacher latents "
-                            "at the loss call. Falling back to the student "
-                            "target is the #382 defect this flag removes.")
-                    align_target = (teacher_o_lat
-                                    if args.align_target == "teacher" else None)
-                    loss = loss + align_loss(
-                        f_lat, o_lat, args.align_loss_weight,
-                        target_latent=align_target,
-                        rollout_latents=rollout_lats,
-                        depth_reduce=args.train_rollout_reduce,
-                        pad_patches=pad_patches)
+                loss, step_values = row_loss, no_contrastive_values()
+            elif rows_contrastive:
+                # #412: the objective summed its terms over its groups.
+                loss, step_values = row_loss, row_extra.values
             else:
-                loss = contrastive_latent_loss(
-                    (f_lat, o_lat), validation=False,
-                    spec=LOSS_SPEC, tau_override=tau_tensor_loss,
-                    teacher_original_latent=teacher_o_lat,
-                    rollout_latents=rollout_lats,
-                    rep_loss_weight=rep_w_now,
-                    term_out=loss_terms,
-                    pad_patches=pad_patches)
-            # #374 arm 6: MoCo-style alignment on the encoder side (student
-            # query, teacher key). Requires teacher_o_lat.
-            align_moco_val = float('nan')
-            if args.align_moco_loss_weight > 0:
-                if teacher_o_lat is None:
-                    raise SystemExit(
-                        "--align-moco-loss-weight > 0 requires an EMA teacher "
-                        "(--ema-encoder). teacher_o_lat is None.")
-                _tau_am = (float(tau_tensor.detach()) if tau_tensor is not None
-                           else args.tau)
-                align_moco = align_moco_loss(
-                    o_lat, teacher_o_lat, tau=_tau_am,
-                    weight=args.align_moco_loss_weight)
-                loss = loss + align_moco
-                align_moco_val = align_moco.item()
-            # CPC InfoNCE auxiliary (#344): total = contrastive + λ·L_cpc,
-            # equal weight at λ=1. f_lat is the AR context h_t (4-D here. The
-            # cpc_multistep stack is 5-D and returns earlier in the loss), o_lat
-            # the encoder embeddings e. Same fp32 block as the contrastive loss.
-            cpc_aux_val = float('nan')
-            if args.cpc_infonce_weight > 0:
-                if args.cpc_infonce_negs == "matched":
-                    cpc_aux = cpc_infonce_aux_loss(
-                        f_lat, o_lat, model.cpc_w1,
-                        rollout_latents=rollout_lats,
-                        depth_reduce=args.train_rollout_reduce,
-                        pad_patches=pad_patches)
-                else:  # "cross" (strict marginal) or "all" (full batch×time grid)
-                    cpc_aux = cpc_infonce_all_loss(
-                        f_lat, o_lat, model.cpc_w1,
-                        marginal_only=(args.cpc_infonce_negs == "cross"),
-                        rollout_latents=rollout_lats,
-                        depth_reduce=args.train_rollout_reduce)
-                loss = loss + args.cpc_infonce_weight * cpc_aux
-                cpc_aux_val = cpc_aux.item()
-            # LeJEPA SIGReg (#355): regularise the pooled marginal of e_t
-            # (patch-embed) and/or h_t (encoding) toward Unif(S^{K-1}). The
-            # statistic is stateless (no buffers. M projections resampled
-            # every forward); λ is per-term (#359) so the two sides can be
-            # tuned independently.
-            sigreg_e_val = float('nan')
-            sigreg_h_val = float('nan')
-            if args.sigreg_embedding:
-                sigreg_e = sigreg_loss(
-                    real_positions(e_lat, pad_patches),
-                    M=args.sigreg_m, T_knots=args.sigreg_t_knots,
-                    post_normalize=args.sigreg_post_normalization,
-                    n_chunk=args.sigreg_n_chunk)
-                loss = loss + args.sigreg_embedding_weight * sigreg_e
-                sigreg_e_val = sigreg_e.item()
-            if args.sigreg_encoding:
-                sigreg_h = sigreg_loss(
-                    real_positions(o_lat, pad_patches),
-                    M=args.sigreg_m, T_knots=args.sigreg_t_knots,
-                    post_normalize=args.sigreg_post_normalization,
-                    n_chunk=args.sigreg_n_chunk)
-                loss = loss + args.sigreg_encoding_weight * sigreg_h
-                sigreg_h_val = sigreg_h.item()
-        # Diagnostic: same loss with fixed τ=0.07 (no gradient). Comparable
-        # across runs regardless of --tau / --learnable-tau, useful as a
-        # cross-experiment baseline curve. Re-uses the already-forwarded
-        # latents so the only extra cost is one similarity-matrix softmax
-        # under no_grad (target <5% step-time overhead).
-        # include_positive_in_denominator=True makes this a proper
-        # normalized InfoNCE (positive in both numerator and denominator)
-        # so the column is always ≥ 0 — unlike the training `loss` above,
-        # whose negatives-only objective is intentionally unchanged and
-        # goes negative once positives separate. ONLY this diagnostic
-        # call passes the flag. The training loss keeps the default.
-        # #415 keeps no contrastive term, so there is no shape to take the
-        # reference at and the CSV drops the column. The `auc`, `gap` and
-        # `r2_*` columns still read the latents, which is what tells whether
-        # a value-trained cell separates futures from pasts.
-        loss_tau_ref_val = None
-        if not args.value_space_objective:
-            with torch.no_grad():
-                # `cosine_similarity_batch_split_pred_rep` (#374) is L_pred +
-                # L_rep where L_pred is ALREADY normalized-InfoNCE. The shape
-                # rejects `include_positive_in_denominator` as a semantic no-op.
-                # Its own default at τ=0.07 IS the correct reference.
-                _pos_in_denom_ref = (
-                    args.loss_shape not in (
-                        "cosine_similarity_batch_split_pred_rep",
-                        "cosine_similarity_batch_rep_only"))
-                loss_tau_ref = contrastive_latent_loss(
-                    (f_lat.detach(), o_lat.detach()),
-                    validation=False, spec=LOSS_SPEC,
-                    tau_override=torch.tensor(
-                        0.07, device=f_lat.device, dtype=f_lat.dtype),
-                    include_positive_in_denominator=_pos_in_denom_ref,
-                    # Keep this a PURE contrastive reference regardless of the
-                    # run's --align-loss-weight / --subtract-contrastive-floor
-                    # / --moco-negatives (the diagnostic doesn't have a teacher
-                    # to route through anyway. Force off to keep it a fixed
-                    # student-side reference).
-                    align_loss_weight=0.0,
-                    subtract_contrastive_floor=False,
-                    moco_negatives=False,
-                    moco_rep_keys=False,
-                    # Depth-0 reference on a --train-rollout-depth run too (#373):
-                    # one curve comparable across k, and the extra depths are the
-                    # thing the run varies.
-                    train_rollout_depth=0,
-                    # #419: the reference skips the padding as the loss does,
-                    # where its shape can.
-                    pad_patches=(pad_patches if args.loss_shape ==
-                                 "cosine_similarity_batch_rep_only" else None),
-                )
-            loss_tau_ref_val = loss_tau_ref.item()
+                # The contrastive objective (`contrastive_terms`), in fp32:
+                # the main loss or L_align alone, the MoCo alignment (#374),
+                # the CPC auxiliary (#344) and SIGReg on e and h (#355).
+                step_lat = SimpleNamespace(
+                    f=f_lat, o=o_lat, teacher=teacher_o_lat, e=e_lat,
+                    rollout=rollout_lats)
+                loss, step_values = contrastive_terms(
+                    model, step_lat, args, rep_w_now, tau_tensor_loss,
+                    pad_patches)
+        # Per-term readout for the losses CSV: the UNWEIGHTED L_pred / L_rep /
+        # L_align the loss computed. A term it skipped has no key.
+        loss_terms = step_values["terms"]
+        cpc_aux_val = step_values["cpc_aux"]
+        sigreg_e_val = step_values["sigreg_e"]
+        sigreg_h_val = step_values["sigreg_h"]
+        # Diagnostic: the loss at a fixed τ=0.07, with no gradient
+        # (`tau_reference`). #415 keeps no contrastive term, so the CSV drops
+        # the column. The `auc`, `gap` and `r2_*` columns still read the
+        # latents, which is what tells whether a value-trained cell separates
+        # futures from pasts.
+        loss_tau_ref_val = (None if args.value_space_objective
+                            else tau_reference(f_lat, o_lat, pad_patches, args))
         t_fwd_end = time.perf_counter()
 
         if nan_debug is not None:
@@ -3060,54 +3671,80 @@ def main():
         # #421 --skip-nan-samples: a non-finite step drops its bad rows.
         nan_dropped, spike_dropped, step_skipped = 0, 0, False
         step_grad_norm = None
+        # #412: every window of the step is far from its context. No term
+        # reads a row, so the step is skipped: no weight moves, the teacher
+        # waits, and the spike guard records no norm. No row is bad, so the
+        # step does not count toward MAX_SKIPPED_IN_A_ROW.
+        far_skipped = rows_contrastive and "active" in step_inputs
+        step_skipped = far_skipped
+        # The last pass of a row search: the step trains on it, and every
+        # diagnostic below reads it.
+        adopted = None
+        # #412: on the contrastive objective by row, the rows of the first
+        # pass whose forward is not finite. The coupled terms make every
+        # input gradient of their group NaN, so the search reads these.
+        first_faults = row_extra.faults if rows_contrastive else None
         if args.skip_nan_samples and not is_finite_step(loss_val, model):
             if not weights_are_finite(model):
                 stop_on_nan(step, " The weights are not finite, so no row "
                             "to drop can help.")
             t_skip = time.perf_counter()
-            found = skip_nan_rows(model, value_inputs, args,
+            found = skip_nan_rows(model, step_inputs, args,
                                   multi_patch_sizes, skip_rng, device,
-                                  value_inputs["x_norm"].grad)
+                                  step_inputs["x_norm"].grad, objective,
+                                  first_faults)
             nan_dropped = announce_dropped(
                 "nan", step, found, time.perf_counter() - t_skip, skip_meta,
                 args)
             step_skipped = found[2] is None
-            if not step_skipped:
-                loss, f_lat, o_lat, value_depths = found[2]
-                loss_val = loss.item()
-                f1_lat, o_lat = f_lat.float(), o_lat.float()
+            adopted = found[2]
         # #421 --skip-spike-samples: a step whose gradient norm is a spike
         # drops the rows that cause it.
         if args.skip_nan_samples and not step_skipped:
             step_grad_norm = total_grad_norm(model)
-            rows_now = value_inputs["x_norm"].shape[0]
+            rows_now = step_inputs["x_norm"].shape[0]
             if (spike_guard is not None
                     and spike_guard.is_spike(step_grad_norm, rows_now)):
                 t_skip = time.perf_counter()
                 extra = (f", grad norm {step_grad_norm:.3g} against a "
                          f"reference of {spike_guard.reference():.3g}")
-                found = skip_spike_rows(model, value_inputs, args,
+                found = skip_spike_rows(model, step_inputs, args,
                                         multi_patch_sizes, skip_rng, device,
                                         spike_guard,
-                                        value_inputs["x_norm"].grad)
+                                        step_inputs["x_norm"].grad, objective,
+                                        first_faults)
                 spike_dropped = announce_dropped(
                     "spike", step, found, time.perf_counter() - t_skip,
                     skip_meta, args, extra)
                 step_skipped = found[2] is None
                 step_grad_norm = None
                 if not step_skipped:
-                    loss, f_lat, o_lat, value_depths = found[2]
-                    loss_val = loss.item()
-                    f1_lat, o_lat = f_lat.float(), o_lat.float()
+                    adopted = found[2]
                     step_grad_norm = total_grad_norm(model)
             if spike_guard is not None and step_grad_norm is not None:
                 spike_guard.record(step_grad_norm)
-        if step_skipped:
+        if adopted is not None:
+            loss, f_lat, o_lat, row_extra = adopted
+            loss_val = loss.item()
+            f1_lat, o_lat = f_lat.float(), o_lat.float()
+            if rows_contrastive:
+                # #412: the diagnostic group of the last pass, and its terms.
+                e_lat, rollout_lats = row_extra.e, row_extra.rollout
+                pad_patches, step_values = row_extra.pad, row_extra.values
+                loss_terms = step_values["terms"]
+                cpc_aux_val = step_values["cpc_aux"]
+                sigreg_e_val = step_values["sigreg_e"]
+                sigreg_h_val = step_values["sigreg_h"]
+                loss_tau_ref_val = tau_reference(f_lat, o_lat, pad_patches,
+                                                 args)
+            else:
+                value_depths = row_extra
+        if step_skipped and not far_skipped:
             skipped_in_a_row += 1
             if skipped_in_a_row == MAX_SKIPPED_IN_A_ROW:
                 stop_on_nan(step, f" {skipped_in_a_row} steps in a row were "
                             f"skipped, each with every row bad.")
-        else:
+        elif not step_skipped:
             skipped_in_a_row = 0
         grad_norm = None
         if args.grad_clip is not None and not step_skipped:
@@ -3135,7 +3772,9 @@ def main():
             ema_tau_now = ema_tau_at_step(
                 step, args.total_steps, args.ema_tau, args.ema_tau_end,
                 args.ema_tau_ramp_steps)
-            model.update_teacher(ema_tau_now)
+            # A skipped step (#412) moves no weight, so the teacher waits.
+            if not step_skipped:
+                model.update_teacher(ema_tau_now)
         t_bwd_end = time.perf_counter()
         t_step_end = time.perf_counter()
 
@@ -3146,6 +3785,14 @@ def main():
         timing_count += 1
 
         with torch.no_grad():
+            rows = f1_lat.shape[0]
+            keep = clean_rows(value_pad if pad_patches is None else pad_patches,
+                              rows)
+            f1_lat, o_lat = f1_lat[keep], o_lat[keep]
+            if e_lat is not None:
+                e_lat = e_lat[keep if e_lat.shape[0] == rows
+                              else clean_rows(local_pad, e_lat.shape[0])]
+            rollout_lats = [f_j[keep] for f_j in rollout_lats]
             val_ff, val_fp, val_tp, val_cb = compute_metrics(f1_lat, o_lat, CLD)
             # Per-batch backbone diagnostic metrics. Convention matches
             # experiments/2026-05-05_exp_qhead_improvements/scripts/eval_backbone_metrics.py:
@@ -3257,8 +3904,12 @@ def main():
             if args.patch_rms_weight > 0:
                 tau_str += (f"  patch_rms="
                             f"{getattr(model, 'last_patch_rms', float('nan')):.3f}")
-            print(f"[{step:>7d}] loss={loss_val:.4f}  ema_loss={ema_loss:.4f}  "
-                  f"gap={gap_val:.4f}  ema_gap={ema_gap:.4f}  "
+            # A run whose first steps were all skipped (#421, #412) holds
+            # no running mean yet.
+            ema_loss_str = "-" if ema_loss is None else f"{ema_loss:.4f}"
+            ema_gap_str = "-" if ema_gap is None else f"{ema_gap:.4f}"
+            print(f"[{step:>7d}] loss={loss_val:.4f}  ema_loss={ema_loss_str}  "
+                  f"gap={gap_val:.4f}  ema_gap={ema_gap_str}  "
                   f"mixup={mixup_applied_count}/{timing_count}  "
                   f"{sps:.1f} sps  ETA {eta:.1f}h{tau_str}")
             print(f"              R²_rand={r2_random_val:.4f}  "
@@ -3276,7 +3927,7 @@ def main():
             mixup_applied_count = 0
             dropped_sum = 0.0
 
-            if ema_gap > best_gap:
+            if ema_gap is not None and ema_gap > best_gap:
                 best_gap, best_gap_step = ema_gap, step
                 path = os.path.join(args.save_dir, f"{args.run_name}_best_gap.pth")
                 save_snapshot(model, optimizer, path, step,
@@ -3284,8 +3935,8 @@ def main():
                               ema_loss=ema_loss, ema_gap=ema_gap,
                               hf_rows_consumed=hf_rows_consumed,
                               synth_rows_consumed=synth_rows_consumed,
-                          lr_schedule=lr_schedule)
-            if ema_loss < best_loss:
+                          lr_schedule=lr_schedule, spike_norms=guard_history())
+            if ema_loss is not None and ema_loss < best_loss:
                 best_loss, best_loss_step = ema_loss, step
                 path = os.path.join(args.save_dir, f"{args.run_name}_best_loss.pth")
                 save_snapshot(model, optimizer, path, step,
@@ -3293,7 +3944,7 @@ def main():
                               ema_loss=ema_loss, ema_gap=ema_gap,
                               hf_rows_consumed=hf_rows_consumed,
                               synth_rows_consumed=synth_rows_consumed,
-                          lr_schedule=lr_schedule)
+                          lr_schedule=lr_schedule, spike_norms=guard_history())
 
         if should_snapshot(step, args.save_every, _extra_save_steps):
             path = os.path.join(args.save_dir, f"{args.run_name}_{step // 1000}k.pth")
@@ -3302,7 +3953,7 @@ def main():
                           ema_loss=ema_loss, ema_gap=ema_gap,
                           hf_rows_consumed=hf_rows_consumed,
                           synth_rows_consumed=synth_rows_consumed,
-                          lr_schedule=lr_schedule)
+                          lr_schedule=lr_schedule, spike_norms=guard_history())
 
         if args.traj_save_every > 0 and step % args.traj_save_every == 0:
             path = os.path.join(args.save_dir, f"{args.run_name}_step{step}.pth")
@@ -3311,7 +3962,7 @@ def main():
                           ema_loss=ema_loss, ema_gap=ema_gap,
                           hf_rows_consumed=hf_rows_consumed,
                           synth_rows_consumed=synth_rows_consumed,
-                          lr_schedule=lr_schedule)
+                          lr_schedule=lr_schedule, spike_norms=guard_history())
 
         if latent_drift_probe is not None and drift_every > 0 \
                 and step % drift_every == 0:
@@ -3323,7 +3974,7 @@ def main():
                   ema_loss=ema_loss, ema_gap=ema_gap,
                   hf_rows_consumed=hf_rows_consumed,
                   synth_rows_consumed=synth_rows_consumed,
-                  lr_schedule=lr_schedule)
+                  lr_schedule=lr_schedule, spike_norms=guard_history())
     if latent_drift_probe is not None:
         # One final probe at total_steps so the CSV covers the run's tail.
         if latent_drift_probe.prev_step != args.total_steps:

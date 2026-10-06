@@ -121,18 +121,27 @@ export PYTHONPATH="$CF415_WT" PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export OMP_NUM_THREADS=8
 export FCST_GRAD_CKPT=1 PATCH_ENC_CKPT=1 PATCH_ENC_CHUNK=4
 
+# A checkpoint counts only with its optimizer file, as run.sh's stop_ready
+# reads it. A save that a full disk cut short can keep its weights file and
+# lose its optimizer file (#414), and a resume from it starts again at step 0.
+resumable(){  # <checkpoint path>
+  [ -n "$1" ] && [ -f "${1%.pth}_optimizer.pth" ]
+}
+
 # Idempotent: a stop already on disk is a no-op, so a re-fired leg after a
 # crash costs nothing.
 target_k=$(( TARGET_STEPS / 1000 ))
 done_ckpt="$(ckpt_at_step "$CELL_RUNS" "$NAME" "$target_k")"
-[ -n "$done_ckpt" ] && {
+resumable "$done_ckpt" && {
   log "SKIP: $(basename "$done_ckpt") already on disk"; exit 0; }
 
 # Resume from the FURTHEST checkpoint, chosen by the step in its name, with
 # its optimizer state. A fresh start throws away every step the run holds, so
 # it is correct only when the run holds nothing.
 RESUME=()
-latest="$(newest_ckpt "$CELL_RUNS" "$NAME")"
+latest="$(ls "$CELL_RUNS"/leg_*/"$NAME"*_[0-9]*k.pth 2>/dev/null \
+  | while read -r f; do resumable "$f" && printf '%s\n' "$f"; done \
+  | sed -E 's|.*_([0-9]+)k\.pth$|\1 &|' | sort -k1,1n | tail -1 | cut -d' ' -f2-)"
 if [ -n "$latest" ]; then
   RESUME=(--resume "$latest")
   log "RESUME from $(basename "$latest") (step $(ckpt_step_k "$latest")k)"

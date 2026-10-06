@@ -317,7 +317,7 @@ class HFStreamingLoader:
         Each row is ``{"series": [float, ...], "source_id": int}`` matching
         the schema produced by ``datasets.load_dataset``. ``within_shard_skip``
         drops the first N rows of the FIRST shard only (used by the resume
-        path); subsequent shards are fully consumed.
+        path). Subsequent shards are fully consumed.
 
         Bypassing ``load_dataset`` here means we never trigger the
         per-file ``resolve_path`` thread pool against
@@ -370,7 +370,7 @@ class HFStreamingLoader:
         """Return row counts per shard from the FIRST shard's metadata.
 
         Assumes uniform shard sizing: shards 0..N-2 share the same row count
-        (read from shard 0's parquet footer); only the last shard may be
+        (read from shard 0's parquet footer). Only the last shard may be
         shorter. This is true for our HF datasets which are written by the
         same upload pipeline.
 
@@ -1073,7 +1073,7 @@ class MixedForkedArmaLoader:
             x_hf, hf_labels = _split_real_batch(hf_batch, self.emit_freq_ids)
             hf_bs = x_hf.shape[0]
 
-            # Block order is [HF | forked-arma | crossfade]; the fork block is
+            # Block order is [HF | forked-arma | crossfade]. The fork block is
             # built first so cross_bs==0 leaves the fork-only RNG draws (and the
             # output) byte-identical to #318/#322.
             blocks = [x_hf]
@@ -1161,14 +1161,14 @@ def create_mixed_forked_arma_dataloader(
     zero_padding: bool = False,
 ) -> "MixedForkedArmaLoader":
     """HF + forked-continuation-ARIMA synth mix, optionally plus a regime-
-    crossfade stream (#325); same contract as the composite factory.
+    crossfade stream (#325). Same contract as the composite factory.
 
     The batch splits as ``[hf_bs | synth_bs | cross_bs]`` where
     ``synth_bs = round(batch_size * mix_ratio)`` (forked-arma) and
     ``cross_bs = round(batch_size * crossfade_ratio)`` (crossfade rows blended
     from the ``hf_bs`` real rows). ``cross_triplets`` additionally appends
     ``3 * cross_triplets`` (A_norm, B_norm, C) rows ON TOP (the total batch
-    becomes ``batch_size + 3 * cross_triplets``; #328). With
+    becomes ``batch_size + 3 * cross_triplets``. #328). With
     ``crossfade_ratio == 0`` and ``cross_triplets == 0`` this is the #318/#322
     fork-only loader unchanged. `synth_kwargs` forwards forked-ARMA knobs
     (integrate, perturb_sigma, fork_frac_range, std, dimension).

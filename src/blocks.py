@@ -35,6 +35,11 @@ class _AttnAmpDiag:
     def record(self, layer_idx, block, qk_logit_maxabs,
                sa_in_maxabs, sa_out_maxabs, resid_post_sa_maxabs,
                resid_post_ffn_maxabs):
+        # One row per (layer, block) and step: the first forward's. A step
+        # can run the cell again (a rollout depth on forecast inputs, a
+        # second patch-size group, a pass of --skip-nan-samples).
+        if any(r[0] == layer_idx and r[1] == block for r in self._rows):
+            return
         self._rows.append((layer_idx, block, qk_logit_maxabs,
                            sa_in_maxabs, sa_out_maxabs,
                            resid_post_sa_maxabs, resid_post_ffn_maxabs))
@@ -120,9 +125,9 @@ class DecoderOnlyTransformerLayer(nn.Module):
         factory_kwargs = {'device': device, 'dtype': dtype}
         super().__init__()
         # Four independent precision knobs (see module-level docstring).
-        # The residual stream + LayerNorm run in `residual_dtype`; the SA
-        # matmuls run in `attn_dtype`; the FFN matmuls run in `ffn_dtype`;
-        # the depthwise conv runs in `conv_dtype` (None → inherit
+        # The residual stream + LayerNorm run in `residual_dtype`. The SA
+        # matmuls run in `attn_dtype`. The FFN matmuls run in `ffn_dtype`.
+        # The depthwise conv runs in `conv_dtype` (None → inherit
         # residual_dtype, that is the legacy behaviour). When an inner block
         # dtype differs from residual_dtype, its output is cast back to
         # residual_dtype before the residual ADD so the residual stream
@@ -168,7 +173,7 @@ class DecoderOnlyTransformerLayer(nn.Module):
         # Sandwich norm on the ATTENTION OUTPUT only (Gemma2-style post-sublayer
         # RMSNorm): bounds sa_out — #322's residual-runaway driver — before it
         # enters the residual stream. Attention only (the FFN output does not grow,
-        # measured); add to the FFN later only if it does.
+        # measured). Add to the FFN later only if it does.
         self.attn_out_norm = bool(attn_out_norm)
         self._attn_dropout_p = float(dropout)
         head_dim = d_model // nhead
@@ -233,7 +238,7 @@ class DecoderOnlyTransformerLayer(nn.Module):
                 tgt_key_padding_mask: Optional[Tensor] = None,
                 tgt_is_causal: bool = False) -> Tensor:
         # Outer autocast = residual_dtype. fp32 is a *disabled* autocast
-        # (no-op); fp16/bf16 enable mixed precision for the residual stream
+        # (no-op). fp16/bf16 enable mixed precision for the residual stream
         # + LayerNorm. The inner SA/FFN/conv blocks open their own autocast
         # contexts at attn_dtype/ffn_dtype/conv_dtype if those differ from
         # residual_dtype, and cast their outputs back to residual_dtype
@@ -402,7 +407,7 @@ class DecoderOnlyTransformerLayer(nn.Module):
         is wasteful but only fires every N steps when the flag is on.
 
         The residual-stream max-abs is filled in later by
-        TransformerBlock (it owns the residual tensor); here we stash a
+        TransformerBlock (it owns the residual tensor). Here we stash a
         partial row keyed by (block, layer_idx) via ATTN_AMP_DIAG and the
         caller patches resid_maxabs.
         """
@@ -433,7 +438,7 @@ class DecoderOnlyTransformerLayer(nn.Module):
                 xin32, Wq32, bq.float() if bq is not None else None)
             k = torch.nn.functional.linear(
                 xin32, Wk32, bk.float() if bk is not None else None)
-            # (B, T, d) → (B, nhead, T, hd); scaled dot product matches
+            # (B, T, d) → (B, nhead, T, hd). Scaled dot product matches
             # nn.MultiheadAttention's internal pre-softmax scores.
             B, T, _ = q.shape
             hd = d // self.nhead
@@ -619,8 +624,8 @@ class TransformerBlock(nn.Module):
         if forecaster_kind == "linear_cpc":
             # CPC multi-step with LINEAR heads (#316, study arm #2/#3). K linear
             # maps W_k: H → H on the encoder output h_t, head k → h_{t+k}. This
-            # is the linear-forecaster family (vs the transformer-head 'cpc');
-            # it confounds forecaster-type with k vs β, so it is a control
+            # is the linear-forecaster family (vs the transformer-head 'cpc').
+            # It confounds forecaster-type with k vs β, so it is a control
             # family for the trend-consistency check, not the headline.
             self.fcst_down_proj = nn.Identity()
             self.fcst_up_proj = nn.Identity()
@@ -633,7 +638,7 @@ class TransformerBlock(nn.Module):
             # CPC multi-step (#316). K independent forecaster heads, each
             # architecturally IDENTICAL to β's forecaster (Linear down →
             # `num_layers` causal transformer layer(s) → Linear up). Head k
-            # forecasts the encoder latent k steps ahead (h_{t+k}); for K = 1
+            # forecasts the encoder latent k steps ahead (h_{t+k}). For K = 1
             # the single head is byte-identical to β's forecaster. ONLY the
             # number of forecast steps differs from β — the per-head
             # architecture (a transformer 1L with the d=128 bottleneck) is
@@ -826,7 +831,7 @@ class TransformerBlock(nn.Module):
         Checkpointing is BYTE-IDENTICAL in the forward — it only trades stored
         activations for recompute in the backward. The attention mask is built
         outside and captured here, so it is the same tensor on forward and
-        recompute (no RNG dependence); any layer-internal dropout is matched by
+        recompute (no RNG dependence). Any layer-internal dropout is matched by
         checkpoint's preserve_rng_state. Env-gated (BACKBONE_CKPT=1, training
         only) so the default path is unchanged. It lets global batch 2048 fit the
         backbone-transformer forward on one 24 GB card (the GRU-encoder path's
@@ -840,7 +845,7 @@ class TransformerBlock(nn.Module):
     def forward(self, x, return_multi=False, return_embed=False):
         # Apply input_to_latent if provided. Capture the patch-embedding
         # output e_t when requested (#355 SIGReg attaches a regulariser to
-        # this pre-encoder latent); the captured tensor is in [B,T,C,H]
+        # this pre-encoder latent). The captured tensor is in [B,T,C,H]
         # layout, before the [B*C,T,H] reshape used inside this block.
         if self.input_to_latent is not None:
             x = self.input_to_latent(x)
@@ -917,7 +922,7 @@ class TransformerBlock(nn.Module):
         # encoder output h_t to a prediction of the latent k steps ahead.
         # Computed in fp32 (x is already fp32 at the encoder boundary). The full
         # [B*C, T, K, H] stack feeds the multi-step InfoNCE loss
-        # (return_multi=True); the default path returns only the next-step (k=1)
+        # (return_multi=True). The default path returns only the next-step (k=1)
         # head so all existing callers — ConfigurableModel.forward,
         # extract_forecaster_latents — see the usual [B*C, T, H] forecaster
         # latent (the analogue of β's forecaster output).

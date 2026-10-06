@@ -115,7 +115,7 @@ def float_column(schema, name):
 
     Returns ``(variates per row, node of the floats, buffer of the offsets,
     buffer of the float validity)``. A ``list<float>`` column has 1 variate
-    per row; a ``fixed_size_list<list<float>>[D]`` column has D, and its
+    per row. a ``fixed_size_list<list<float>>[D]`` column has D, and its
     offsets are those of the inner list. The float values follow the
     validity buffer.
     """

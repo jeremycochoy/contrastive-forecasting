@@ -78,8 +78,8 @@ def test_the_bisection_finds_the_culprits(culprits):
 
 @pytest.mark.parametrize("position", [0, 2, 9, 31])
 def test_a_ranking_orders_the_passes_and_finds_the_same_culprit(position):
-    """Culprit 17 at a given place of the ranking: first, it takes one pass;
-    later, the search finds it with the ranked rows, or with every row."""
+    """Culprit 17 at a given place of the ranking: first, it takes one pass.
+    Later, the search finds it with the ranked rows, or with every row."""
     ranked = [r for r in range(32) if r != 17]
     ranked.insert(position, 17)
     found, passes, clean = find_culprits(bad_rows([17]), range(32), ranked)
@@ -90,10 +90,21 @@ def test_a_ranking_orders_the_passes_and_finds_the_same_culprit(position):
         assert passes <= 3 + 2 * 2 + 1
 
 
-def test_the_outliers_go_in_one_pass():
-    found, passes, clean = find_culprits(
+def test_every_outlier_that_is_a_culprit_goes():
+    found, _, clean = find_culprits(
         bad_rows([4, 9, 20]), range(32), outliers=[4, 9, 20])
-    assert sorted(found) == [4, 9, 20] and passes == 1 and clean
+    assert sorted(found) == [4, 9, 20] and clean
+
+
+def test_an_outlier_that_causes_nothing_stays():
+    """A large input gradient alone drops no row (#422 review)."""
+    found, _, clean = find_culprits(bad_rows([3]), range(32), outliers=[3, 6])
+    assert found == [3] and clean
+
+
+def test_one_outlier_that_is_the_culprit_takes_one_pass():
+    found, passes, clean = find_culprits(bad_rows([4]), range(32), outliers=[4])
+    assert found == [4] and passes == 1 and clean
 
 
 def test_outliers_that_miss_a_culprit_fall_back_to_the_search():
