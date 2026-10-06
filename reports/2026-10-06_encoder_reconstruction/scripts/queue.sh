@@ -89,7 +89,8 @@ job_env(){  # <lane> <stop k>
 score_job(){  # <tag> <backbone> <stop k> <lane>
   local rc
   env $(job_env "$4" "$3") CF_BB_SHAPE="--d-model 384 --n-heads 8 --num-layers 3" \
-    bash "$RUNNER" "$1" "$2" student "$HEAD_STEPS" >>"$RES/scores.log" 2>&1
+    bash "$RUNNER" "$1" "$2" student "$HEAD_STEPS" >>"$RES/scores.log" 2>&1 \
+    </dev/null
   rc=$?
   [ "$rc" -eq 0 ] || mark_failed "$1" "score rc=$rc"
   log "score $1 rc=$rc"
@@ -107,10 +108,11 @@ take_job(){  # <lane>
     if ! flock -n 3; then exec 3>&-; continue; fi
     if [ -s "$RES/score_$tag.txt" ]; then exec 3>&-; continue; fi
     log "lane $lane: $code ${stop}k (tier $tier) -> $tag"
+    # stdin is the job list of this loop, so the runner gets /dev/null.
     env $(job_env "$lane" "$stop") CF_SKIP_EVAL=1 \
       CF_BB_SHAPE="--d-model 384 --n-heads 8 --num-layers 3" \
       bash "$RUNNER" "$tag" "$CK/$ckpt" student "$HEAD_STEPS" \
-      >>"$RES/heads.log" 2>&1
+      >>"$RES/heads.log" 2>&1 </dev/null
     rc=$?
     if [ "$rc" -ne 0 ]; then
       log "lane $lane: head $tag rc=$rc"
@@ -126,6 +128,9 @@ take_job(){  # <lane>
 }
 
 run_lane(){  # <lane>
+  # The queue lock stays with the queue: a head or a score that outlives it
+  # must not stop a new queue. The job locks keep each job single.
+  exec 9>&-
   mkdir -p "/tmp/cf425_lane$1"
   while take_job "$1"; do :; done
   log "lane $1: no job left. Waiting for its scores."

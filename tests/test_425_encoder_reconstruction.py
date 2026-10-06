@@ -933,6 +933,46 @@ def test_the_queue_scores_every_job_once(queue_box):
     assert all(c[2] == "encoder" for c in calls(res))
 
 
+def test_a_runner_that_reads_stdin_takes_no_job_of_the_list(queue_box):
+    """A lane reads the job list on stdin, and the runner gets /dev/null.
+    A runner that reads its stdin changes no job of the queue."""
+    tmp_path, res, env = queue_box
+    stub = tmp_path / "runner.sh"
+    stub.write_text(QUEUE_STUB.replace("tag=\"$1\";", "cat >/dev/null; tag=\"$1\";"))
+    r = run_queue(dict(env, CF425_LANES="1"))
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert len(list(res.glob("score_*.txt"))) == 3
+
+
+def test_a_score_that_outlives_its_queue_leaves_the_queue_lock_free(queue_box):
+    """Kill the queue while a score runs. A new queue starts at once, and it
+    leaves the running job to the score that holds its lock."""
+    import signal
+    import time
+    tmp_path, res, env = queue_box
+    stub = tmp_path / "runner.sh"
+    stub.write_text(QUEUE_STUB.replace("sleep 0.2", "sleep 4"))
+    first = subprocess.Popen(["bash", str(SCRIPTS / "queue.sh")],
+                             env=dict(env, CF425_LANES="1"),
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        deadline = time.time() + 30
+        while time.time() < deadline:
+            log = res / "calls.log"
+            if log.exists() and " score " in log.read_text():
+                break
+            time.sleep(0.1)
+        first.send_signal(signal.SIGKILL)
+        first.wait()
+        again = run_queue(dict(env, CF425_LANES="1"), timeout=120)
+    finally:
+        subprocess.run(["pkill", "-f", str(stub)])
+    assert again.returncode == 0, again.stdout + again.stderr
+    assert "another queue holds" not in again.stdout
+    scored = [c[0] for c in calls(res) if c[1] == "score"]
+    assert len(scored) == len(set(scored))
+
+
 def test_the_queue_takes_tier_1_first(queue_box):
     _, res, env = queue_box
     r = run_queue(dict(env, CF425_LANES="1"))
