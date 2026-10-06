@@ -203,7 +203,7 @@ def test_the_loss_reads_the_actual_values():
     with torch.no_grad():
         far, _, _, _ = value_space_objective(model, x_norm, depth=0)
         near, _, _, _ = value_space_objective(model, x_norm * 0.0, depth=0)
-    # x_norm = 0 makes every target 0; a random head is further from 0 than
+    # x_norm = 0 makes every target 0. a random head is further from 0 than
     # from nothing only by chance, so compare against a shifted series.
     with torch.no_grad():
         shifted, _, _, _ = value_space_objective(model, x_norm * 50.0, depth=0)

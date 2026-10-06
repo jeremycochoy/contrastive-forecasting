@@ -24,6 +24,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from .nan_debug import PROBE
+from .norm import RevMeanStdNorm, leading_zero_count, patch_padding
+from .patch_size import MIN_TIME_PATCHES, draw_patch_sizes, patch_size_choices
+
 
 W = 16  # Patch size (must match backbone)
 FORECAST_LEN = 128  # Output horizon per patch
@@ -91,7 +95,7 @@ class QuantileForecastingHead(nn.Module):
     Output: (B*C, T, num_quantiles, forecast_len)
 
     Trained with pinball loss averaged over quantiles. Median (q=0.5) gives
-    the point forecast comparable to the MSE head; other quantiles let the
+    the point forecast comparable to the MSE head. Other quantiles let the
     model express uncertainty (which the MSE head couldn't, leading to the
     amplitude-damping failure noted in the 2026-04-27_periodic-synth-mix report).
     """
@@ -153,7 +157,7 @@ class TransformerQuantileForecastingHead(nn.Module):
     Causality (``causal=True``, default) imposes a triangular mask so the
     head can't peek at future tokens — matches the backbone's
     training-time causality. With ``causal=False`` the head sees the full
-    sequence both directions; for predictions further than W=16 ahead
+    sequence both directions. For predictions further than W=16 ahead
     (``forecast_len > W``), the bidir variant is necessary so the head
     can use ``f_t, f_{t+1}, …, f_{t+k}`` to reconstruct multiple future
     patches from position t (the eval-time B1/B2/B3 strategies feed the
@@ -395,13 +399,14 @@ def quantile_loss(predicted, target, quantile_levels=QUANTILE_LEVELS):
     err = target - predicted                                 # (..., Q, L)
     q = predicted.new_tensor(list(quantile_levels)).view(
         *([1] * (predicted.dim() - 2)), -1, 1)               # (..., Q, 1)
-    # max(q*err, (q-1)*err) is the standard pinball form; equivalent to
+    # max(q*err, (q-1)*err) is the standard pinball form, equivalent to
     # q*relu(err) + (1-q)*relu(-err) when err ∈ R.
     return torch.maximum(q * err, (q - 1) * err).mean()
 
 
 def extract_forecaster_latents(backbone, x, freq_ids=None,
-                                seasonality_ids=None):
+                                seasonality_ids=None, patch_size=None,
+                                normalised=False):
     """Extract f_lat from backbone for forecasting head input.
 
     Applies RevEWMNorm, patches the input (incl. patch-stats, freq-emb,
@@ -416,9 +421,14 @@ def extract_forecaster_latents(backbone, x, freq_ids=None,
         seasonality_ids: LongTensor (B,) of seasonality class ids when the
             backbone has a seasonality embedding. Defaults to class 0
             (unknown) if missing.
+        patch_size: the patch size a multi-patch backbone reads (#417).
+            None reads the backbone's one size, W.
+        normalised: True when ``x`` is already normalised (#421): the
+            normaliser does not run, and its statistics stay as they are.
     """
+    size_kwarg = {} if patch_size is None else {"patch_size": patch_size}
     with torch.no_grad():
-        if backbone.rev_norm is not None:
+        if backbone.rev_norm is not None and not normalised:
             x_norm = backbone.rev_norm(x, mode='norm')
         else:
             x_norm = x
@@ -434,7 +444,8 @@ def extract_forecaster_latents(backbone, x, freq_ids=None,
             seasonality_ids = torch.full((B,), default, dtype=torch.long, device=x.device)
 
         xr = backbone.prepare_encoder_input(
-            x_norm, freq_ids=freq_ids, seasonality_ids=seasonality_ids)
+            x_norm, freq_ids=freq_ids, seasonality_ids=seasonality_ids,
+            **size_kwarg)
 
         f_flat, _ = backbone.transformer(xr)
 
@@ -633,7 +644,8 @@ def forecast_autoregressive(backbone, head, x_context, horizon, device):
 # Latent-space rollout infrastructure
 # ============================================================================
 
-def extract_encoder_latents(backbone, x, freq_ids=None, seasonality_ids=None):
+def extract_encoder_latents(backbone, x, freq_ids=None, seasonality_ids=None,
+                            patch_size=None):
     """Extract encoder latents e[t] and RevEWMNorm stats.
 
     Returns the same tensor used as the contrastive target ``o_lat``
@@ -649,11 +661,14 @@ def extract_encoder_latents(backbone, x, freq_ids=None, seasonality_ids=None):
         freq_ids, seasonality_ids: optional LongTensors (B,). When the
             backbone has the corresponding embedding configured but the
             id tensor is missing, falls back to class 0 (unknown).
+        patch_size: the patch size a multi-patch backbone reads (#417,
+            #412). None reads the backbone's one size, W.
 
     Returns:
         e_bc: (B*C, T, H) encoder latents (detached)
         x_norm: (B, T_raw, C) normalized input
     """
+    size_kwarg = {} if patch_size is None else {"patch_size": patch_size}
     with torch.no_grad():
         if backbone.rev_norm is not None:
             x_norm = backbone.rev_norm(x, mode='norm')
@@ -671,7 +686,8 @@ def extract_encoder_latents(backbone, x, freq_ids=None, seasonality_ids=None):
             seasonality_ids = torch.full((B,), default, dtype=torch.long, device=x.device)
 
         xr = backbone.prepare_encoder_input(
-            x_norm, freq_ids=freq_ids, seasonality_ids=seasonality_ids)
+            x_norm, freq_ids=freq_ids, seasonality_ids=seasonality_ids,
+            **size_kwarg)
 
         e = backbone.transformer.input_to_latent(xr)  # (B, T, C, H)
         B, T, C, H = e.size()
@@ -806,7 +822,7 @@ def rollout_forecaster_latents(backbone, forecasted_latent, depth):
         depth: k, how many further applications to compose.
 
     Returns:
-        list of k tensors (B, T, C, H); entry j−1 is f^(j).
+        list of k tensors (B, T, C, H). Entry j−1 is f^(j).
     """
     if depth <= 0:
         return []
@@ -884,7 +900,8 @@ def value_patches_to_series(v_hat, q_index):
 
 
 def value_space_forward(model, x_norm, freq_ids=None, freq_embs=None,
-                        seasonality_ids=None, seasonality_embs=None):
+                        seasonality_ids=None, seasonality_embs=None,
+                        patch_size=None):
     """One forecast step: normalised values in, the next patch's values out.
 
     Runs the cell unchanged — the input head (``prepare_encoder_input`` +
@@ -895,23 +912,28 @@ def value_space_forward(model, x_norm, freq_ids=None, freq_embs=None,
     per step (in the caller) rather than once per rollout depth. Re-running
     it on a predicted series would rescale the forecast by its own statistics.
 
+    ``patch_size`` picks the patch encoder and the value head of a
+    multi-patch model (#417). None is the model's one size, W.
+
     Returns ``(f_lat, o_lat, v_hat)`` with ``f_lat``/``o_lat`` in the
     ``[B, T, C, H]`` layout the trainer's diagnostics read, and ``v_hat`` in
-    ``[B, T, C, Q, W]``.
+    ``[B, T, C, Q, P]``.
     """
     B, T_raw, C = x_norm.shape
     H = model.H
-    T = T_raw // model.W
+    P = model.W if patch_size is None else int(patch_size)
+    T = T_raw // P
     xr = model.prepare_encoder_input(
         x_norm, freq_ids=freq_ids, freq_embs=freq_embs,
-        seasonality_ids=seasonality_ids, seasonality_embs=seasonality_embs)
+        seasonality_ids=seasonality_ids, seasonality_embs=seasonality_embs,
+        patch_size=P)
     f_flat, o_flat = model.transformer(xr)
     f_lat = f_flat.reshape(B, C, T, H).permute(0, 2, 1, 3)
     o_lat = o_flat.reshape(B, C, T, H).permute(0, 2, 1, 3)
     # fp32 into the value head, so the pinball loss and the values the next
     # depth reads are fp32 whatever `--residual-dtype` the body runs at. That
     # is the trainer's own convention for everything downstream of a latent.
-    return f_lat, o_lat, model.value_forward(f_lat.float())
+    return f_lat, o_lat, model.value_forward(f_lat.float(), patch_size=P)
 
 
 def masked_quantile_loss(predicted, target, keep,
@@ -941,14 +963,23 @@ def shift_pad(pad_mask, W, j):
     return out
 
 
-def _depth_loss(v_hat, x_norm, W, j, pad_mask, quantile_levels):
-    """The pinball term of depth j, over the real target values only when
-    ``pad_mask`` marks left padding."""
-    targets, t_valid = patch_value_targets(x_norm, W, shift=j)
+def target_keep(pad_mask, target_mask):
+    """``[B, T_raw, C]`` bool: the values a loss term may predict. A value
+    counts when it is not left padding (#419) and lies after its window's
+    split (#421). None when every value counts."""
     if pad_mask is None:
+        return target_mask
+    return ~pad_mask if target_mask is None else ~pad_mask & target_mask
+
+
+def _depth_loss(v_hat, x_norm, W, j, keep, quantile_levels):
+    """The pinball term of depth j, over the kept target values only when
+    ``keep`` (:func:`target_keep`) marks them."""
+    targets, t_valid = patch_value_targets(x_norm, W, shift=j)
+    if keep is None:
         return quantile_loss(v_hat[:, :t_valid], targets, quantile_levels)
-    keep, _ = patch_value_targets(~pad_mask, W, shift=j)
-    return masked_quantile_loss(v_hat[:, :t_valid], targets, keep,
+    kept, _ = patch_value_targets(keep, W, shift=j)
+    return masked_quantile_loss(v_hat[:, :t_valid], targets, kept,
                                 quantile_levels)
 
 
@@ -956,7 +987,7 @@ def value_space_objective(model, x_norm, *, depth=0, reduce="sum",
                           quantile_levels=QUANTILE_LEVELS,
                           freq_ids=None, freq_embs=None,
                           seasonality_ids=None, seasonality_embs=None,
-                          pad_mask=None):
+                          patch_size=None, pad_mask=None, target_mask=None):
     """Pinball loss on the actual future values, rolled out in value space.
 
     Depth 0 predicts patch t + 1 from position t. Depth j re-runs the whole
@@ -970,6 +1001,9 @@ def value_space_objective(model, x_norm, *, depth=0, reduce="sum",
     forecast side ``depth + 1`` times its depth-0 weight, ``'mean'`` holds
     it. The two agree exactly at depth 0.
 
+    ``patch_size`` is the size P every sample of the batch reads (#417),
+    W by default. Each depth then advances the forecast by P values.
+
     Returns ``(loss, f_lat, o_lat, per_depth)``. ``f_lat`` / ``o_lat`` are
     depth 0's, the latents the trainer's diagnostics read. ``per_depth[j]``
     is the unweighted pinball loss of depth j.
@@ -978,10 +1012,17 @@ def value_space_objective(model, x_norm, *, depth=0, reduce="sum",
     ``RevEWMNorm(skip_leading_zeros=True)`` leaves it after the norm call.
     A padded value is no target, and each rolled input keeps its padding at
     0, as the context of the eval rollout does. None: every value counts.
+
+    ``target_mask`` (#421), ``[B, T_raw, C]``, marks the values after the
+    split of each window (:func:`mean_std_inputs`). A loss term counts only
+    when its predicted patch lies there, at every depth. None: every
+    position trains, as before.
     """
     if reduce not in ("sum", "mean"):
         raise ValueError(f"reduce must be 'sum' or 'mean'; got {reduce!r}")
     q_index = median_quantile_index(quantile_levels)
+    P = model.W if patch_size is None else int(patch_size)
+    keep = target_keep(pad_mask, target_mask)
     x_in = x_norm
     f_lat0 = o_lat0 = None
     per_depth = []
@@ -989,22 +1030,354 @@ def value_space_objective(model, x_norm, *, depth=0, reduce="sum",
         f_lat, o_lat, v_hat = value_space_forward(
             model, x_in, freq_ids=freq_ids, freq_embs=freq_embs,
             seasonality_ids=seasonality_ids,
-            seasonality_embs=seasonality_embs)
+            seasonality_embs=seasonality_embs, patch_size=P)
         if j == 0:
             f_lat0, o_lat0 = f_lat, o_lat
-        per_depth.append(_depth_loss(v_hat, x_norm, model.W, j, pad_mask,
+        per_depth.append(_depth_loss(v_hat, x_norm, P, j, keep,
                                      quantile_levels))
+        # CF_NAN_DEBUG (#421): the term, and the values the next depth
+        # reads. A no-op when off.
+        PROBE.note(f"loss P{P} depth {j}", per_depth[-1])
         if j < depth:
             x_in = value_patches_to_series(v_hat, q_index)
             if pad_mask is not None:
-                x_in = x_in.masked_fill(shift_pad(pad_mask, model.W, j + 1),
-                                        0.0)
+                x_in = x_in.masked_fill(shift_pad(pad_mask, P, j + 1), 0.0)
+            PROBE.record(f"rollout feedback P{P} depth {j + 1}", x_in)
     loss = per_depth[0]
     for term in per_depth[1:]:
         loss = loss + term
     if reduce == "mean":
         loss = loss / len(per_depth)
     return loss, f_lat0, o_lat0, per_depth
+
+
+def patch_size_groups(sample_sizes):
+    """``{P: row indices}`` for a batch whose sample i reads size
+    ``sample_sizes[i]``, in increasing P (#417)."""
+    return {int(p): (sample_sizes == p).nonzero().squeeze(1)
+            for p in sample_sizes.unique().tolist()}
+
+
+def _rows(tensor, rows):
+    """``tensor[rows]``, or None for an input the batch does not carry."""
+    return None if tensor is None else tensor[rows.to(tensor.device)]
+
+
+def _diagnostic_latents(latents, base_size):
+    """``(f_lat, o_lat)`` of the base size's group, else of the largest."""
+    size = (base_size if base_size in latents
+            else max(latents, key=lambda s: latents[s][0]))
+    return latents[size][1:]
+
+
+def diagnostic_rows(sample_sizes, base_size):
+    """``(size, rows)`` of the group whose latents the diagnostics read, by
+    the rule of :func:`_diagnostic_latents`: the base size's group, else the
+    largest, the smallest size first among equals."""
+    sizes, counts = sample_sizes.unique(return_counts=True)
+    size = (base_size if bool((sizes == base_size).any())
+            else int(sizes[counts.argmax()]))
+    return size, (sample_sizes == size).nonzero().squeeze(1)
+
+
+def patch_rms_terms(pre_norm, patch_pad, n):
+    """--patch-rms-weight (#421), for n rows: the mean over each row's real
+    patches of (RMS(v) - 1)^2, with gradient, and the mean RMS, without.
+    v is the vector a patch encoder feeds its LayerNorm (one per patch).
+    ``patch_pad`` (``[n, T, C]``, True on a padded patch) leaves padding
+    out. None counts every patch. One channel: ``pre_norm`` and ``patch_pad``
+    hold the patches of a row in the same order."""
+    rms = pre_norm.float().pow(2).mean(-1).sqrt().reshape(n, -1)
+    if patch_pad is None:
+        keep = torch.ones_like(rms)
+    else:
+        assert patch_pad.numel() == rms.numel(), "one channel only"
+        keep = (~patch_pad).reshape(n, -1).to(rms.dtype)
+    count = keep.sum(1).clamp(min=1.0)
+    penalty = (((rms - 1.0) ** 2) * keep).sum(1) / count
+    return penalty, (rms.detach() * keep).sum(1) / count
+
+
+def multi_patch_value_objective(model, x_norm, sample_sizes, *, depth=0,
+                                reduce="sum", quantile_levels=QUANTILE_LEVELS,
+                                active=None, rms_weight=0.0, **conditioning):
+    """:func:`value_space_objective` when each sample has its own patch size.
+
+    The batch splits by patch size (#417). Each group runs the objective at
+    its size P: its own patch encoder, its own value head, and a rollout
+    that advances P values per depth. A group's loss is the mean over its
+    samples, so a weight of (group size / batch size) makes the total the
+    mean over all samples. The same weights combine ``per_depth``.
+
+    ``sample_sizes`` is a LongTensor of one size per sample.
+    ``conditioning`` takes the per-sample inputs of
+    :func:`value_space_objective`: ``freq_*``, ``seasonality_*``, the
+    ``pad_mask`` of #419 and the ``target_mask`` of #421, one row per sample.
+
+    ``active`` (bool, one per sample, #421 --skip-nan-samples) counts only
+    the active samples in the group weights. The trainer makes the other
+    samples inert. None: every sample counts.
+
+    ``rms_weight`` (#421 --patch-rms-weight) adds, per group, rms_weight
+    times the mean over its active samples of patch_rms_terms on the depth-0
+    patches: the vector each GRU patch encoder feeds its LayerNorm keeps an
+    RMS near 1. ``model.last_patch_rms`` then holds the mean RMS.
+
+    Returns ``(loss, f_lat, o_lat, per_depth)``. The trainer's diagnostics
+    read one sequence length, so the latents are those of the base size
+    W's group, or of the largest group when no sample reads W.
+    """
+    n = x_norm.shape[0] if active is None else int(active.sum())
+    loss, per_depth, latents = 0.0, [0.0] * (depth + 1), {}
+    rms_sum, rms_rows = 0.0, 0
+    for size, rows in patch_size_groups(sample_sizes).items():
+        part = {k: _rows(v, rows) for k, v in conditioning.items()}
+        encoder = model.encoder.encoders[str(size)] if rms_weight else None
+        if encoder is not None:
+            encoder.pre_norm_sink = []
+        try:
+            g_loss, f_lat, o_lat, g_depths = value_space_objective(
+                model, _rows(x_norm, rows), depth=depth, reduce=reduce,
+                quantile_levels=quantile_levels, patch_size=size, **part)
+            pre_norm = encoder.pre_norm_sink[0] if encoder is not None else None
+        finally:
+            if encoder is not None:
+                encoder.pre_norm_sink = None
+        if pre_norm is not None:
+            pad = part.get("pad_mask")
+            pad = None if pad is None else patch_padding(pad, size)
+            penalty, row_rms = patch_rms_terms(pre_norm, pad, len(rows))
+            on = (torch.ones_like(penalty) if active is None
+                  else active[rows.to(active.device)].to(penalty.dtype))
+            g_loss = g_loss + rms_weight * (penalty * on).sum() / on.sum().clamp(min=1.0)
+            rms_sum += float((row_rms * on).sum())
+            rms_rows += int(on.sum())
+        PROBE.note(f"group P{size}", {"rows": rows, "loss": g_loss})
+        share = (len(rows) if active is None
+                 else int(active[rows.to(active.device)].sum())) / n
+        loss = loss + share * g_loss
+        per_depth = [a + share * b for a, b in zip(per_depth, g_depths)]
+        latents[size] = (len(rows), f_lat, o_lat)
+    f_lat, o_lat = _diagnostic_latents(latents, model.W)
+    if rms_weight:
+        model.last_patch_rms = rms_sum / max(rms_rows, 1)
+    return loss, f_lat, o_lat, per_depth
+
+
+# ---------------------------------------------------------------------------
+# The mean/std scaling of Moirai 1.0 (#421): the split of a training window
+#
+# uni2ts `MaskedPrediction` (min_mask_ratio 0.15, max_mask_ratio 0.5 in
+# moirai_{small,base,large}.yaml) draws r ~ U[0.15, 0.5] per sample. The
+# last max(1, round(r * patches)) patches are the prediction range, and
+# `PackedStdScaler` reads the observed values before it. The model here
+# predicts the next patch at every position, so the split only decides
+# which values the statistics read and which predictions the loss counts.
+# ---------------------------------------------------------------------------
+
+TARGET_RATIO_RANGE = (0.15, 0.5)
+
+
+def draw_context_ends(real_lengths, sample_sizes, T_raw):
+    """Where the context of each series window ends (#421).
+
+    ``real_lengths`` (``[B, 1, C]``) counts the real values of each window,
+    its length after the left padding. ``sample_sizes`` (``[B]``) is the
+    patch size P of each sample. As uni2ts ``MaskedPrediction`` does, each
+    sample draws one r ~ U[0.15, 0.5], and the last max(1, round(r n)) of
+    the n whole patches of real values are the target. uni2ts crops a
+    series to whole patches, so n does not count a first patch that holds
+    padding too. That patch stays in the context. A window with fewer than
+    two whole patches (length < 2 P) has no target: its context ends at
+    ``T_raw``, and the loss counts none of its terms.
+
+    Returns a CPU LongTensor ``[B, 1, C]``: the index of the first value
+    after the context, a multiple of P. The draw uses torch's CPU generator.
+    """
+    lengths = real_lengths.detach().cpu().long()
+    P = sample_sizes.detach().cpu().long().view(-1, 1, 1)
+    low, high = TARGET_RATIO_RANGE
+    ratio = low + (high - low) * torch.rand((lengths.shape[0], 1, 1),
+                                            dtype=torch.float64)
+    targets = torch.round(lengths // P * ratio).long().clamp(min=1)
+    ends = (T_raw // P - targets) * P
+    return torch.where(lengths < MIN_TIME_PATCHES * P, T_raw, ends)
+
+
+def mean_std_inputs(model, x, freq_ids=None, multi_patch_sizes=()):
+    """``(x_norm, sample_sizes, target_mask)`` of one value-space step under
+    the mean/std scaling (#421).
+
+    1. Each sample draws its patch size from its frequency's range, among
+       the sizes that cut its real values into two patches (uni2ts
+       ``GetPatchSize``). A single-patch model reads W.
+    2. Each window draws its split in patches of that size
+       (:func:`draw_context_ends`).
+    3. loc and scale come from the observed values before the split and
+       normalise the whole window. No value after the split enters them.
+
+    ``target_mask`` (``[B, T_raw, C]``) marks the values after the split.
+    ``sample_sizes`` is None for a single-patch model.
+    """
+    B, T_raw, C = x.shape
+    if model.rev_norm.skip_leading_zeros:
+        lengths = T_raw - leading_zero_count(x).cpu()
+    else:
+        lengths = torch.full((B, 1, C), T_raw)
+    sizes = torch.full((B,), model.W)
+    if multi_patch_sizes:
+        sizes = draw_patch_sizes(freq_ids, multi_patch_sizes, B,
+                                 lengths=lengths.amax(dim=(1, 2)))
+    ends = draw_context_ends(lengths, sizes, T_raw).to(x.device)
+    x_norm = model.rev_norm(x, mode='norm', context_end=ends)
+    t = torch.arange(T_raw, device=x.device).view(1, -1, 1)
+    return x_norm, (sizes if multi_patch_sizes else None), t >= ends
+
+
+# ---------------------------------------------------------------------------
+# The window filter of Moirai 2.0 (arXiv 2511.11698, Sec. 3): a sample is
+# filtered out when its later segment deviates far from the segment its
+# statistics came from. Here the measure is the max |z| of the target part,
+# with z = (x - loc) / scale. A context value cannot pass sqrt(n) (at most
+# 32 for 1,024 values), so a kept window feeds the model no value above
+# max(32, z_max).
+# ---------------------------------------------------------------------------
+
+def window_max_z(x_norm, target_mask, pad_mask=None):
+    """``[B]``: per window, the max |z| over the observed values of its
+    target part. ``x_norm`` holds z there (#421). 0 for a window with no
+    target, NaN for a window with a NaN in its target part."""
+    real = target_mask if pad_mask is None else target_mask & ~pad_mask
+    return x_norm.detach().abs().masked_fill(~real, 0.0).amax(dim=(1, 2))
+
+
+def drop_far_windows(z_max, x_norm, target_mask, pad_mask, *per_sample):
+    """Drop each window whose target part lies more than ``z_max`` scales
+    from its context loc (#421).
+
+    A dropped window leaves the batch: it adds no loss term, and none of its
+    values reaches the model. ``per_sample`` holds the other per-sample
+    inputs of the step (tensors or None), cut to the same rows. When no
+    window is left, the batch stays whole but inert: zero inputs and no
+    target, so the step trains on nothing.
+
+    Returns ``((x_norm, target_mask, pad_mask, *per_sample), dropped share)``.
+    """
+    far = ~(window_max_z(x_norm, target_mask, pad_mask) <= z_max)
+    tensors = (x_norm, target_mask, pad_mask, *per_sample)
+    if bool(far.all()):
+        inert = (torch.zeros_like(x_norm), torch.zeros_like(target_mask))
+        return inert + tensors[2:], 1.0
+    keep = ~far
+    kept = tuple(None if t is None else t[keep.to(t.device)] for t in tensors)
+    return kept, far.float().mean().item()
+
+
+# ---------------------------------------------------------------------------
+# The head bank (#412): one forecasting head per patch size
+#
+# A multi-patch backbone (#417) reads each series at its frequency's patch
+# size. Its scoring head therefore has the structure of the value heads of
+# the Moirai copy (#421f, `value_heads.<P>`): one head per size P, which
+# decodes the Q quantiles of the P values of the next patch. The head of
+# size P reads the forecaster latents of the backbone at size P.
+# ---------------------------------------------------------------------------
+
+class ForecastingHeadBank(nn.Module):
+    """One forecasting head per patch size (#412).
+
+    ``heads`` maps each size P to a quantile head whose ``forecast_len`` is
+    P. Each head keeps its size as ``patch_size``, so :func:`forecast_B4`
+    reads the context in patches of that size and decodes P values per
+    rolled position. The state dict holds ``heads.<P>.*``.
+    """
+
+    def __init__(self, heads):
+        super().__init__()
+        self.heads = nn.ModuleDict({str(p): heads[p] for p in sorted(heads)})
+        for size, head in self.heads.items():
+            if head.forecast_len != int(size):
+                raise ValueError(f"head {size} decodes {head.forecast_len} "
+                                 f"values, not {size}")
+            head.patch_size = int(size)
+
+    @property
+    def sizes(self):
+        return tuple(int(p) for p in self.heads)
+
+    def head_for(self, size):
+        """The head that decodes patches of ``size`` values."""
+        return self.heads[str(int(size))]
+
+    def for_frequency(self, backbone, freq):
+        """The head of one eval config: its frequency's inference patch
+        size (:mod:`src.patch_size`), or W for a single-size backbone."""
+        sizes = getattr(backbone, "multi_patch_sizes", ())
+        if not sizes:
+            return self.head_for(backbone.W)
+        (size,) = patch_size_choices(freq, sizes, training=False)
+        return self.head_for(size)
+
+
+def head_bank_sizes(state_dict):
+    """The patch sizes of a head-bank checkpoint (#412), read off its keys
+    ``heads.<P>.*``, or () for a checkpoint of one head."""
+    found = [k.split(".")[1] for k in state_dict if k.startswith("heads.")]
+    return tuple(sorted({int(p) for p in found if p.isdigit()}))
+
+
+def bank_training_inputs(backbone, x, freq_ids, sizes):
+    """``(x_norm, sample_sizes, keep)`` of one head-training step (#412).
+
+    Each row draws its patch size from its frequency's training range and,
+    under the mean/std scaling, its split, as the backbone trained
+    (:func:`mean_std_inputs`): loc and scale read only the observed values
+    before the split. ``keep`` (``[B, T_raw, C]``) marks the values a head
+    is scored on: real values after the split. Before the split a target
+    value is part of its own statistics, so it counts in no term. An EWMA
+    backbone draws the sizes only and keeps every real value.
+    """
+    if isinstance(backbone.rev_norm, RevMeanStdNorm):
+        x_norm, drawn, target = mean_std_inputs(backbone, x, freq_ids, sizes)
+    else:
+        x_norm = (backbone.rev_norm(x, mode='norm')
+                  if backbone.rev_norm is not None else x)
+        drawn = draw_patch_sizes(freq_ids, sizes, x.shape[0]) if sizes else None
+        target = None
+    if drawn is None:
+        drawn = torch.full((x.shape[0],), backbone.W, dtype=torch.long)
+    pad = getattr(backbone.rev_norm, "pad_mask", None)
+    return x_norm, drawn, target_keep(pad, target)
+
+
+def _bank_group_loss(backbone, head, x_norm, keep, size, labels):
+    """The pinball loss of the head of ``size`` on its rows: at each patch
+    t, the quantiles of the P values of patch t + 1, over the kept targets."""
+    f_bc, _ = extract_forecaster_latents(backbone, x_norm, patch_size=size,
+                                         normalised=True, **labels)
+    targets, t_valid = compute_valid_targets(x_norm, W=size, forecast_len=size)
+    preds = head(f_bc)[:, :t_valid]
+    if keep is None:
+        return quantile_loss(preds, targets)
+    kept, _ = compute_valid_targets(keep.float(), W=size, forecast_len=size)
+    return masked_quantile_loss(preds, targets, kept > 0.5)
+
+
+def bank_quantile_loss(backbone, bank, x_norm, sample_sizes, keep=None,
+                       freq_ids=None, seasonality_ids=None):
+    """The loss of a head bank on one batch (#412): each row trains the
+    head of its patch size, on the frozen backbone's latents at that size.
+    A group's loss counts with its share of the rows, as the backbone's
+    groups do (#417)."""
+    loss = 0.0
+    for size, rows in patch_size_groups(sample_sizes).items():
+        labels = dict(freq_ids=_rows(freq_ids, rows),
+                      seasonality_ids=_rows(seasonality_ids, rows))
+        part = _bank_group_loss(backbone, bank.head_for(size),
+                                _rows(x_norm, rows), _rows(keep, rows), size,
+                                labels)
+        loss = loss + len(rows) / x_norm.shape[0] * part
+    return loss
 
 
 def _get_denorm_stats(backbone, C):
@@ -1055,16 +1428,23 @@ class ValueHeadForecaster(nn.Module):
     shape the A strategies read: from each forecaster latent, the Q
     quantiles of the next W values. Under :func:`forecast_A2` the model then
     forecasts on its own, autoregressively in value space, the way it
-    trained. No separate head is trained."""
+    trained. No separate head is trained.
 
-    def __init__(self, backbone, quantile_levels=QUANTILE_LEVELS):
+    ``patch_size`` picks one size of a multi-patch backbone (#417): its
+    value head decodes P values, and :func:`forecast_A2` reads the context
+    in patches of P and steps by P. None keeps the backbone's one size W.
+    """
+
+    def __init__(self, backbone, quantile_levels=QUANTILE_LEVELS,
+                 patch_size=None):
         super().__init__()
-        if backbone.value_head is None:
+        if backbone.value_head_quantiles <= 0:
             raise ValueError("the backbone has no value head; train it with "
                              "--value-space-objective")
-        self.value_head = backbone.value_head
+        self.patch_size = patch_size
+        self.value_head = backbone.value_head_for(patch_size)
         self.num_quantiles = backbone.value_head_quantiles
-        self.forecast_len = backbone.W
+        self.forecast_len = backbone.W if patch_size is None else int(patch_size)
         self.quantile_levels = list(quantile_levels)
         if len(self.quantile_levels) != self.num_quantiles:
             raise ValueError(f"{self.num_quantiles} quantiles in the value "
@@ -1076,6 +1456,20 @@ class ValueHeadForecaster(nn.Module):
             -1, (self.num_quantiles, self.forecast_len))
 
 
+def native_value_head(backbone, freq=None):
+    """The backbone's own value head for one eval config (#415, #417).
+
+    A multi-patch backbone reads the config at its frequency's inference
+    patch size (:mod:`src.patch_size`). A single-patch backbone reads every
+    config at W, as it did before #417.
+    """
+    if not getattr(backbone, "multi_patch_sizes", ()):
+        return ValueHeadForecaster(backbone)
+    (size,) = patch_size_choices(freq, backbone.multi_patch_sizes,
+                                 training=False)
+    return ValueHeadForecaster(backbone, patch_size=size)
+
+
 def forecast_A2(backbone, head, x_context, horizon, device):
     """A2: Value-space rollout with W-value head.
 
@@ -1085,9 +1479,20 @@ def forecast_A2(backbone, head, x_context, horizon, device):
     (#415) returns ``(num_quantiles, horizon, C)``, the shape
     :func:`forecast_B4` returns for one, and rolls its MEDIAN forward as the
     next patch.
+
+    A head with a ``patch_size`` (the value head of a multi-patch backbone,
+    #417) makes the backbone read the context in patches of that size, and
+    the rollout then slides by that size.
+
+    A backbone with the mean/std scaling (#421) takes loc and scale from the
+    observed values of the full context, once. The rollout then feeds the
+    normalised median back, as the training rollout does, so loc and scale
+    stay fixed over the whole horizon, and every forecast is de-normalised
+    with them.
     """
     forecast_len = head.forecast_len  # should be W (16)
-    W_bb = backbone.W
+    patch_size = getattr(head, "patch_size", None)
+    fixed_scale = isinstance(backbone.rev_norm, RevMeanStdNorm)
 
     if x_context.dim() == 2:
         x_context = x_context.unsqueeze(0)
@@ -1097,10 +1502,16 @@ def forecast_A2(backbone, head, x_context, horizon, device):
     all_preds = []
     remaining = horizon
     current_context = x_context.clone()
+    if fixed_scale:
+        # From here on the context is in normalised units (#421).
+        with torch.no_grad():
+            current_context = backbone.rev_norm(current_context, mode='norm')
 
     while remaining > 0:
         with torch.no_grad():
-            f_bc, x_norm = extract_forecaster_latents(backbone, current_context)
+            f_bc, _ = extract_forecaster_latents(
+                backbone, current_context, patch_size=patch_size,
+                normalised=fixed_scale)
             pred_last = _last_forecast(head, f_bc)  # (C, L) or (C, Q, L)
 
             mean_c, stdev_c = _get_denorm_stats(backbone, C)
@@ -1121,6 +1532,12 @@ def forecast_A2(backbone, head, x_context, horizon, device):
             remaining -= n_take
 
             if remaining > 0:
+                if fixed_scale:
+                    # #421: the normalised median rolls forward.
+                    rolled = pred_last
+                    if rolled.dim() == 3:
+                        rolled = rolled[:, median_quantile_index(
+                            head.quantile_levels)]
                 new_values = rolled[:, :forecast_len].T.unsqueeze(0)
                 current_context = torch.cat([
                     current_context[:, forecast_len:, :],
@@ -1133,11 +1550,12 @@ def forecast_A2(backbone, head, x_context, horizon, device):
     return forecast.T.numpy()
 
 
-def _b_variant_setup(backbone, x_context, device):
+def _b_variant_setup(backbone, x_context, device, patch_size=None):
     """Extract encoder latents and denorm stats for latent-space rollout.
 
     Returns e[0], ..., e[k] (encoder latents for context patches)
-    and denormalization statistics.
+    and denormalization statistics. ``patch_size`` cuts the context into
+    patches of that size (#412). None: the backbone's one size, W.
     """
     if x_context.dim() == 2:
         x_context = x_context.unsqueeze(0)
@@ -1145,7 +1563,8 @@ def _b_variant_setup(backbone, x_context, device):
     B, T_ctx, C = x_context.shape
 
     with torch.no_grad():
-        e_ctx, x_norm = extract_encoder_latents(backbone, x_context)  # (BC, n_ctx, H)
+        e_ctx, x_norm = extract_encoder_latents(
+            backbone, x_context, patch_size=patch_size)  # (BC, n_ctx, H)
         mean_c, stdev_c = _get_denorm_stats(backbone, C)
 
     n_ctx = e_ctx.size(1)
@@ -1170,7 +1589,7 @@ def _b_variant_decode(head, e_ctx, rolled_f, n_ctx):
     """
     seq = torch.cat([e_ctx, rolled_f], dim=1)   # (BC, n_ctx+m, H)
     all_out = head(seq)
-    # Gaussian heads return (mu, log_var); convert to quantile shape so
+    # Gaussian heads return (mu, log_var). Convert to quantile shape so
     # downstream forecast_* code can treat them like quantile heads.
     if isinstance(all_out, tuple):
         mu, log_var = all_out
@@ -1246,7 +1665,7 @@ def forecast_B3(backbone, head, x_context, horizon, device, recon_mode=None):
 
     Sequence: [e[0], ..., e[k], f[k+1], ..., f[k+m]]
     Take FIRST position in each group of (output_len/W) tokens.
-    Position 0 → p[k+1..k+output_len/W], position stride → next block, etc.
+    Position 0 → p[k+1..k+output_len/W], position stride → next block, and so on.
     """
     W_bb = backbone.W
     output_len = head.forecast_len
@@ -1283,11 +1702,18 @@ def forecast_B4(backbone, head, x_context, horizon, device):
     For an MSE head, returns ``(horizon, C)``.
     For a QuantileForecastingHead, returns ``(num_quantiles, horizon, C)``
     so the eval predictor can build a real probabilistic forecast.
+
+    A head with a ``patch_size`` (one head of a :class:`ForecastingHeadBank`,
+    #412) makes the backbone read the context in patches of that size, and
+    each rolled position then decodes that many values. The forecast is
+    unscaled with the context's statistics: for the mean/std scaling (#421),
+    the loc and the scale of the whole context.
     """
-    W_bb = backbone.W
+    patch_size = getattr(head, "patch_size", None)
+    W_bb = patch_size or backbone.W
 
     e_ctx, mean_c, stdev_c, n_ctx, C = _b_variant_setup(
-        backbone, x_context, device)
+        backbone, x_context, device, patch_size=patch_size)
 
     is_quantile = isinstance(
         head, (QuantileForecastingHead, LinearQuantileForecastingHead,

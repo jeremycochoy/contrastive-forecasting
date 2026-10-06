@@ -67,8 +67,8 @@ def compute_patch_stats(mean: torch.Tensor, stdev: torch.Tensor,
           barely changes within a patch, so this is essentially the
           mid-patch value, but it is well-defined for any span.
         - When ``rev_norm`` is RevIN (single per-series mean/std),
-          ``mean`` and ``stdev`` are constant along T after broadcast;
-          the resulting diffs/centred values are all 0. This module
+          ``mean`` and ``stdev`` are constant along T after broadcast,
+          so the resulting diffs/centred values are all 0. This module
           therefore carries zero information for RevIN — callers should
           guard against that combination.
     """
@@ -89,7 +89,7 @@ def compute_patch_stats(mean: torch.Tensor, stdev: torch.Tensor,
     if kind == 'diff':
         # dmean[t] = (mean_p[t] - mean_p[t-1]) / std_p[t-1]
         dmean = (mean_p[:, 1:] - mean_p[:, :-1]) / std_p[:, :-1].clamp(min=eps)
-        # F.pad pads the trailing dims; for [B, T_p-1, C] we want to pad
+        # F.pad pads the trailing dims. For [B, T_p-1, C] we want to pad
         # the T axis (dim=1) on the LEFT with one zero row, leaving the
         # C axis untouched. The pad spec for dim=-2 is (left, right).
         dmean = F.pad(dmean, (0, 0, 1, 0), 'constant', 0.0)  # [B, T_p, C]
@@ -133,6 +133,19 @@ def patch_padding(pad_mask: torch.Tensor, W: int) -> torch.Tensor:
     return pad_mask.reshape(B, T_raw // W, W, C).all(dim=2)
 
 
+def start_window_anchors(start_mask: torch.Tensor, P: int) -> torch.Tensor:
+    """``[B, T_raw // P, C]`` bool: the patches whose next patch starts in the
+    first window of an EWMA (``RevEWMNorm.start_mask``).
+
+    The EWMA starts from the mean and variance of that window. So the input
+    of such a patch reads values of its depth-0 target: at P < W, and when
+    the left padding does not end on a patch boundary. No term may read it.
+    """
+    B, T_raw, C = start_mask.shape
+    nxt = start_mask[:, P::P]                # the first value of patch p + 1
+    return torch.cat([nxt, nxt.new_zeros(B, 1, C)], dim=1)
+
+
 def leading_zero_count(x: torch.Tensor) -> torch.Tensor:
     """Exact zeros before the first nonzero value: ``[B, T, C]`` → ``[B, 1, C]``.
 
@@ -144,10 +157,26 @@ def leading_zero_count(x: torch.Tensor) -> torch.Tensor:
     return torch.where(nonzero.any(dim=1, keepdim=True), first, full)
 
 
+def zero_union_padding(values: torch.Tensor,
+                       *sources: torch.Tensor) -> torch.Tensor:
+    """``values`` with the leading padding of each row set to exactly 0.
+    The padding of a row is the longest padding of that row in ``sources``,
+    their union (#421).
+
+    A transform that builds a row from several rows (mixup, a crossfade)
+    calls it, so it never writes values into padding: its values exist only
+    where every source row holds real values. All tensors are ``[B, T, C]``.
+    A row with no padding in any source keeps its values.
+    """
+    z = torch.stack([leading_zero_count(s) for s in sources]).amax(dim=0)
+    t = torch.arange(values.shape[1], device=values.device).view(1, -1, 1)
+    return values.masked_fill(t < z, 0.0)
+
+
 def _masked_first_patch(xs: torch.Tensor, n_real: torch.Tensor, W: int):
     """Mean and variance of the first ``min(W, n_real)`` values of ``xs``.
 
-    ``xs`` is ``[B, T, C]`` with the real values first; ``n_real`` is
+    ``xs`` is ``[B, T, C]`` with the real values first, and ``n_real`` is
     ``[B, 1, C]``. A series with no real value gets mean 0 and variance 0,
     as the plain first patch of an all-zero series does.
     """
@@ -209,7 +238,7 @@ class RevEWMNorm(nn.Module):
         self.alpha = 2.0 / (span + 1.0)
         self.affine = affine
         # Dtype for the output cast of this module. The internal cumsum
-        # statistics math is always fp64 (see _compute_statistics); only the
+        # statistics math is always fp64 (see _compute_statistics). Only the
         # final cast and downstream arithmetic in the normalise/denormalise
         # paths are governed by this knob.
         self.patch_emb_dtype = patch_emb_dtype
@@ -221,6 +250,9 @@ class RevEWMNorm(nn.Module):
         # 'norm' call. None when the mode is off.
         self.skip_leading_zeros = bool(skip_leading_zeros)
         self.pad_mask = None
+        # The values of the first window of the last 'norm' call, which the
+        # EWMA starts from: ``[B, T, C]`` bool (start_window_anchors).
+        self.start_mask = None
         if self.skip_leading_zeros:
             self.register_buffer("leading_zero_pad",
                                  torch.ones((), dtype=torch.bool))
@@ -239,7 +271,7 @@ class RevEWMNorm(nn.Module):
             Tensor of the same shape as ``x``.
         """
         # Run the normalise/denormalise math under the chosen patch-emb
-        # autocast context. fp32 = disabled autocast (no-op);
+        # autocast context. fp32 = disabled autocast (no-op).
         # fp16/bf16 = enabled at that dtype. The fp64 cumsum inside
         # `_compute_statistics` is unaffected (autocast doesn't downcast
         # explicit `.to(float64)` operations).
@@ -319,6 +351,7 @@ class RevEWMNorm(nn.Module):
 
         self.mean = ema_mean.to(dtype).detach()  # [B, T, C]
         self.stdev = torch.sqrt(ema_var).to(dtype).detach()  # [B, T, C]
+        self.start_mask = (arange < W).view(1, T, 1).expand(B, T, C)
 
     def _compute_statistics_skip_zeros(self, x: torch.Tensor):
         """Statistics from the real values only (#419).
@@ -326,7 +359,7 @@ class RevEWMNorm(nn.Module):
         Each series is shifted left past its leading zeros, the plain
         first-patch EWMA runs on what remains, and the result is shifted
         back. A padded position keeps the statistics of the first real
-        value; its normalised value is 0 whatever they are.
+        value. Its normalised value is 0 whatever they are.
         """
         T = x.shape[1]
         z = leading_zero_count(x)                                # [B, 1, C]
@@ -338,6 +371,7 @@ class RevEWMNorm(nn.Module):
         self.mean = mean.gather(1, back).to(x.dtype).detach()
         self.stdev = torch.sqrt(var.gather(1, back)).to(x.dtype).detach()
         self.pad_mask = t < z
+        self.start_mask = t < z + self.patch_size
 
     def _normalize(self, x: torch.Tensor) -> torch.Tensor:
         x = x - self.mean
@@ -357,7 +391,7 @@ class RevEWMNorm(nn.Module):
 
 
 class RevIN(nn.Module):
-    """Standard reversible instance normalisation (Kim et al., ICLR 2022).
+    """Standard reversible instance normalisation (Kim and others, ICLR 2022).
 
     A single per-instance, per-channel mean+std is computed over the entire
     context window, then subtracted/divided away before the backbone and
@@ -409,3 +443,103 @@ class RevIN(nn.Module):
             return x * self.stdev + self.mean
         else:
             raise ValueError(f"Unknown mode '{mode}'. Expected 'norm' or 'denorm'.")
+
+
+# ── The mean/std scaling of Moirai 1.0 (#421) ───────────────────────────────
+#
+# uni2ts `PackedStdScaler` (uni2ts/module/packed_scaler.py) gives each series
+# window one loc and one scale, from its observed context values, in float64:
+#
+#   n     = the count of observed context values
+#   loc   = sum(x) / n
+#   var   = sum((x - loc)^2) / (n - 1)        (correction 1)
+#   scale = sqrt(var + 1e-5)                  (minimum_scale 1e-5)
+#
+# Its `safe_div` divides by 1 where a count is 0. So a context with no
+# observed value gets loc 0 and scale sqrt(1e-5), and a context with one
+# observed value gets loc = that value and scale sqrt(1e-5). Moirai reads the
+# observed values outside the prediction range, and scales the whole window
+# with the result.
+
+MEAN_STD_CORRECTION = 1
+MEAN_STD_MINIMUM_SCALE = 1e-5
+
+
+def safe_div(numer: torch.Tensor, denom: torch.Tensor) -> torch.Tensor:
+    """uni2ts ``safe_div``: ``numer / denom``, with 1 where ``denom`` is 0."""
+    return numer / torch.where(denom == 0, torch.ones_like(denom), denom)
+
+
+def mean_std_statistics(x: torch.Tensor, observed: torch.Tensor,
+                        correction: int = MEAN_STD_CORRECTION,
+                        minimum_scale: float = MEAN_STD_MINIMUM_SCALE):
+    """``(loc, scale)`` of uni2ts ``PackedStdScaler``, one pair per series.
+
+    ``x`` is ``[B, T, C]``, and ``observed`` (bool, the same shape) marks
+    the values the statistics read. The sums run in float64, and the result
+    is float32, as in uni2ts. Each output is ``[B, 1, C]``.
+    """
+    x64 = x.to(torch.float64)
+    obs = observed.to(torch.float64)
+    n = obs.sum(dim=1, keepdim=True)
+    loc = safe_div((x64 * obs).sum(dim=1, keepdim=True), n)
+    var = safe_div((((x64 - loc) ** 2) * obs).sum(dim=1, keepdim=True),
+                   n - correction)
+    return loc.float(), torch.sqrt(var + minimum_scale).float()
+
+
+class RevMeanStdNorm(nn.Module):
+    """The mean/std scaling of Moirai 1.0 (#421).
+
+    One loc and one scale per series window (per row and channel), from the
+    observed values of its context (:func:`mean_std_statistics`). The whole
+    window is normalised with them, so a value after the context changes
+    neither the statistics nor a normalised context value.
+
+    ``forward(x, 'norm', context_end)``: ``context_end`` (``[B, 1, C]``, a
+    value index) ends the context of each window. None: the whole window is
+    context, as at inference.
+
+    Args:
+        num_features: Number of channels (C).
+        skip_leading_zeros: As in :class:`RevEWMNorm` (#419). The zeros
+            before the first nonzero value are left padding: the statistics
+            skip them, they stay 0 after normalisation, and ``pad_mask``
+            marks them. The buffer ``leading_zero_pad`` records the mode.
+
+    The buffer ``mean_std_scaling`` names the kind in the state dict, so the
+    eval and the backbone loader rebuild it from a checkpoint.
+    """
+
+    def __init__(self, num_features: int, skip_leading_zeros: bool = False):
+        super().__init__()
+        self.num_features = num_features
+        self.skip_leading_zeros = bool(skip_leading_zeros)
+        # The statistics and the padding of the last 'norm' call.
+        self.mean = self.stdev = self.pad_mask = None
+        self.register_buffer("mean_std_scaling",
+                             torch.ones((), dtype=torch.bool))
+        if self.skip_leading_zeros:
+            self.register_buffer("leading_zero_pad",
+                                 torch.ones((), dtype=torch.bool))
+
+    def forward(self, x: torch.Tensor, mode: str,
+                context_end: torch.Tensor | None = None) -> torch.Tensor:
+        if mode == 'norm':
+            return self._normalize(x, context_end)
+        if mode == 'denorm':
+            if self.mean is None or self.stdev is None:
+                raise RuntimeError(
+                    "Cannot denormalize before normalizing. Call with mode='norm' first.")
+            return x * self.stdev + self.mean
+        raise ValueError(f"Unknown mode '{mode}'. Expected 'norm' or 'denorm'.")
+
+    def _normalize(self, x: torch.Tensor, context_end):
+        t = torch.arange(x.shape[1], device=x.device).view(1, -1, 1)
+        pad = (t < leading_zero_count(x) if self.skip_leading_zeros
+               else torch.zeros_like(x, dtype=torch.bool))
+        observed = ~pad if context_end is None else ~pad & (t < context_end)
+        loc, scale = mean_std_statistics(x, observed)
+        self.mean, self.stdev = loc.detach(), scale.detach()
+        self.pad_mask = pad if self.skip_leading_zeros else None
+        return ((x - self.mean) / self.stdev).masked_fill(pad, 0.0)

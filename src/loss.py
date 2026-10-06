@@ -1,5 +1,6 @@
 import math
 import os
+from types import SimpleNamespace
 
 import torch
 import torch.distributed as dist
@@ -195,8 +196,11 @@ def _xx_lse_masked(hx_norm, hx_key, pad_x, tau):
     return torch.logsumexp((sims / tau).masked_fill(drop, NEG_INF), dim=2)
 
 
-def _hh_all_lse_masked(hx_norm, key, pad, tau):
-    """L_rep's within-series all-time family, padded keys dropped."""
+def _hh_all_lse_masked(hx_norm, key, pad, tau, same_token=None):
+    """L_rep's within-series all-time family, padded keys dropped.
+    ``same_token`` (``[B, T]``, #412): the patch each position of a common
+    time grid repeats. A key of the anchor's own patch is no negative, as
+    the anchor's own position is not."""
     T = key.shape[1]
     sims = torch.matmul(hx_norm.permute(0, 2, 1, 3),
                         key.permute(0, 2, 3, 1))              # [B, C, T-1, T]
@@ -204,6 +208,9 @@ def _hh_all_lse_masked(hx_norm, key, pad, tau):
     l_idx = torch.arange(T, device=sims.device).view(1, T)
     drop = ((l_idx == t_idx).view(1, 1, T - 1, T)
             | pad.permute(0, 2, 1).unsqueeze(2))
+    if same_token is not None:
+        drop = drop | (same_token[:, None, :-1, None]
+                       == same_token[:, None, None, :])
     return torch.logsumexp((sims / tau).masked_fill(drop, NEG_INF),
                            dim=3).permute(0, 2, 1)
 
@@ -236,18 +243,20 @@ def _xs_allt_lse_masked(hx_norm, key, pad, tau, chunk):
     return run.permute(0, 2, 1)
 
 
-def rep_only_loss_masked(hx_norm, orig_norm, teacher_norm, pad, tau, chunk):
+def rep_only_loss_masked(hx_norm, orig_norm, teacher_norm, pad, tau, chunk,
+                         same_token=None):
     """L_rep of ``cosine_similarity_batch_rep_only`` without the padding.
 
     ``teacher_norm`` given: the MoCo form, with teacher keys and the positive
     cos(h_t, h^T_t). None: student keys and no positive. The negatives pool
     over the real anchors of each time step, as the unmasked branch pools
-    over all of them.
+    over all of them. ``same_token``: see ``_hh_all_lse_masked``.
     """
     key = orig_norm if teacher_norm is None else teacher_norm
     pad_x = pad[:, :-1]
     negs = torch.stack([_xx_lse_masked(hx_norm, key[:, :-1], pad_x, tau),
-                        _hh_all_lse_masked(hx_norm, key, pad, tau),
+                        _hh_all_lse_masked(hx_norm, key, pad, tau,
+                                           same_token),
                         _xs_allt_lse_masked(hx_norm, key, pad, tau, chunk)])
     per_anchor = torch.logsumexp(negs, dim=0).masked_fill(pad_x, NEG_INF)
     total = torch.logsumexp(per_anchor, dim=0, keepdim=True)  # [1, T-1, C]
@@ -259,6 +268,47 @@ def rep_only_loss_masked(hx_norm, orig_norm, teacher_norm, pad, tau, chunk):
     return masked_mean(denom - log_pos, ~pad_x)
 
 
+def rep_only_term(original_latent, spec, pad_patches, *, tau_override=None,
+                  teacher_original_latent=None, moco_rep_keys=None,
+                  rep_loss_weight=None, same_token=None, term_out=None):
+    """The weighted L_rep of ``cosine_similarity_batch_rep_only`` on a padded
+    batch (#419). The masked branch of :func:`contrastive_latent_loss` calls
+    it, and so does the trainer for the whole-batch L_rep of a step whose
+    rows read several patch sizes (#412). It reads h, its MoCo keys and the
+    padding only, so it carries no rollout depth and no L_align. Weight 0:
+    a zero, no work and no ``l_rep`` key. ``same_token``: see
+    ``_hh_all_lse_masked``."""
+    train_config = spec.train_configuration
+    weight = resolve_rep_loss_weight(train_config, rep_loss_weight)
+    if weight == 0.0:
+        return original_latent.new_zeros(())
+    if tau_override is not None:
+        tau_rep = tau_override
+    else:
+        tau_rep = train_config.get('contrastive_divergence_temperature_rep')
+        if tau_rep is None:
+            tau_rep = train_config.get('contrastive_divergence_temperature',
+                                       1.0)
+    moco_rep = (moco_rep_keys if moco_rep_keys is not None
+                else bool(train_config.get('moco_rep_keys', False)))
+    if moco_rep and teacher_original_latent is None:
+        # The guard of contrastive_latent_loss. The trainer also calls this
+        # function directly (#412), and student keys must not replace the
+        # teacher keys without a word.
+        raise ValueError(
+            "moco_rep_keys requires an EMA teacher (pass "
+            "teacher_original_latent, i.e. --ema-embedding / "
+            "--ema-encoder at training time).")
+    orig_norm = F.normalize(original_latent, p=2, dim=-1)
+    teacher_keys = (F.normalize(teacher_original_latent, p=2, dim=-1)
+                    if moco_rep else None)
+    loss_rep = rep_only_loss_masked(
+        orig_norm[:, :-1, :, :], orig_norm, teacher_keys, pad_patches,
+        tau_rep, _xs_allt_chunk_for_mask(), same_token)
+    _record_term(term_out, 'l_rep', loss_rep)
+    return weight * loss_rep
+
+
 def _xs_allt_chunk_for_mask():
     """The xs_allt chunk size. The fused and sharded kernels take no mask,
     so a padded batch refuses them rather than train on its padding."""
@@ -268,6 +318,195 @@ def _xs_allt_chunk_for_mask():
             "XSHH_ALLT_FUSED / XSHH_ALLT_SHARD take no padding mask; unset "
             "them to train on zero-padded windows (#419).")
     return int(os.environ.get('XSHH_ALLT_CHUNK', '8'))
+
+
+# --- L_pred of the split shape on a padded batch (#412) ---------------------
+#
+# L_pred of ``cosine_similarity_batch_split_pred_rep`` is a normalized
+# InfoNCE. Its positive is cos(f_t, h_{t+1}) / tau, with the teacher's h when
+# a teacher exists. Its negatives are the forecasts f_{t+1} of each channel
+# (zy) and the keys of the other rows at the same index (cross-batch). The
+# negatives of each anchor pool over the batch. The functions below give the
+# same value without the padding: a padded anchor leaves with its pair, and
+# a padded key leaves the zy family and the cross-batch family.
+#
+# A "pair" holds one anchor, its positive and its keys at one index. A group
+# of rows at patch size P makes its pairs on its own grid: copy j ties
+# f^(j)_t to the key 1 + j patches ahead, as `align_loss` does. A step with
+# several sizes then puts the pairs on the grid of its finest size G. Each
+# pair fills r = P / G positions, so the anchor and its positive move
+# together, and a coarse pair counts r times, as on the grid of L_rep. The
+# positions after the last pair of a group hold no pair. They leave as
+# anchors and as keys.
+#
+# At grid index p, the cross-batch key of another row is the key of its own
+# pair at p: the patch after the row's own patch at p. When the rows have
+# different sizes, this patch is not at the horizon of the anchor. The two
+# agree when all the rows have one size. This choice (the PR #423 review)
+# keeps one matmul for the keys of every row.
+
+def _zy_lse_masked(zy, anchor, zy_drop, tau):
+    """L_pred's adjacent family: cos(f_{t+1, c'}, f_{t, c}) over the
+    channels c', padded keys dropped."""
+    sims = cosine_similarity_from_normalized(
+        zy.unsqueeze(3), anchor.unsqueeze(2))                # [B, L, C, C]
+    return torch.logsumexp(
+        (sims / tau).masked_fill(zy_drop.unsqueeze(3), NEG_INF), dim=2)
+
+
+def _cross_batch_lse_masked(anchor, key, key_drop, tau):
+    """L_pred's cross-batch family: the keys of the other rows at the index
+    of the anchor, padded keys dropped. The layout is that of the unmasked
+    branch, so a batch with no padding gives the same bits."""
+    B = anchor.shape[0]
+    sims = torch.matmul(
+        anchor.permute(1, 2, 0, 3), key.permute(1, 2, 0, 3).transpose(-2, -1)
+    ).permute(2, 3, 0, 1).contiguous()                       # [B, B, L, C]
+    drop = (torch.eye(B, dtype=torch.bool, device=sims.device)
+            .view(B, B, 1, 1) | key_drop.unsqueeze(0))
+    return torch.logsumexp((sims / tau).masked_fill(drop, NEG_INF), dim=1)
+
+
+def pred_anchor_losses(pairs, tau):
+    """``(values, keep)``: the L_pred of each anchor of one copy, ``[B, L,
+    C]``, and the anchors that count. The copy is the masked mean."""
+    log_pos = cosine_similarity_from_normalized(
+        pairs['pos'], pairs['anchor']) / tau
+    negs = torch.stack([
+        _zy_lse_masked(pairs['zy'], pairs['anchor'], pairs['zy_drop'], tau),
+        _cross_batch_lse_masked(pairs['anchor'], pairs['key'],
+                                pairs['key_drop'], tau)])
+    per_anchor = torch.logsumexp(negs, dim=0).masked_fill(
+        pairs['drop'], NEG_INF)
+    total = torch.logsumexp(per_anchor, dim=0, keepdim=True)  # [1, L, C]
+    denom = torch.logsumexp(
+        torch.stack([log_pos, total.expand_as(log_pos)], dim=0), dim=0)
+    return denom - log_pos, ~pairs['drop']
+
+
+def pred_pairs(group, depth, moco_negatives, stopgrad_positive):
+    """The pairs of copy ``depth`` of L_pred on the grid of ``group``.
+
+    ``group`` holds ``f``, ``o``, ``teacher``, ``rollout`` (f^(1)..f^(k))
+    and ``pad``, the depth-0 padding (None: no padding). The copy reads the
+    views of :func:`rollout_depth_views`. The anchor f^(j)_t and its zy key
+    f^(j)_{t+1} take the padding of their positions. The positive and the
+    cross-batch key, h_{t+1+j}, take the padding of theirs. Copy 0 reads
+    the latents with no view, as the unmasked branch does, so the
+    gradients of the copies add up in the same order.
+    """
+    f_view, h_view, t_view = (
+        (group.f, group.o, group.teacher) if depth == 0 else
+        rollout_depth_views(group.rollout[depth - 1], group.o, depth,
+                            group.teacher))
+    pad = group.pad if group.pad is not None else torch.zeros(
+        group.o.shape[:3], dtype=torch.bool, device=group.o.device)
+    pad_f, pad_h = pad[:, :f_view.shape[1]], pad[:, depth:]
+    fore = F.normalize(f_view, p=2, dim=-1)
+    orig = F.normalize(h_view, p=2, dim=-1)
+    teach = None if t_view is None else F.normalize(t_view, p=2, dim=-1)
+    pos = teach if teach is not None else (
+        orig.detach() if stopgrad_positive else orig)
+    key = teach if moco_negatives and teach is not None else orig
+    return dict(anchor=fore[:, :-1], zy=fore[:, 1:], pos=pos[:, 1:],
+                key=key[:, 1:], drop=pad_f[:, :-1] | pad_h[:, 1:],
+                zy_drop=pad_f[:, 1:], key_drop=pad_h[:, 1:])
+
+
+def pairs_on_grid(pairs, ratio, length):
+    """The pairs of one group on the grid of the finest size: each pair
+    fills ``ratio`` positions. The positions after the last pair, up to
+    ``length``, hold zero vectors, and their masks drop them."""
+    def stretch(t):
+        t = t.repeat_interleave(ratio, dim=1)
+        fill = True if t.dtype == torch.bool else 0.0   # a mask drops it
+        tail = t.new_full((t.shape[0], length - t.shape[1], *t.shape[2:]),
+                          fill)
+        return torch.cat([t, tail], dim=1)
+    return {name: stretch(t) for name, t in pairs.items()}
+
+
+def grid_pairs(groups, depth, moco_negatives, stopgrad_positive):
+    """The pairs of copy ``depth`` of every group on one grid (#412).
+
+    Each group carries ``ratio``: its patch size over the finest size of
+    the step. One group is its own grid, as it is.
+    """
+    parts = [(pred_pairs(g, depth, moco_negatives, stopgrad_positive),
+              g.ratio) for g in groups]
+    if len(parts) == 1:
+        return parts[0][0]
+    length = max(p['anchor'].shape[1] * r for p, r in parts)
+    grids = [pairs_on_grid(p, r, length) for p, r in parts]
+    return {name: torch.cat([g[name] for g in grids]) for name in grids[0]}
+
+
+def _pred_settings(train_config, tau_override, moco_negatives, groups):
+    """``(tau, moco, stopgrad)`` of the masked L_pred. It refuses what the
+    unmasked split branch refuses too."""
+    if train_config.get('include_positive_in_denominator'):
+        raise NotImplementedError(
+            "include_positive_in_denominator is not implemented for the "
+            "split shape: its L_pred holds the positive already.")
+    moco = (moco_negatives if moco_negatives is not None
+            else bool(train_config.get('moco_negatives', False)))
+    if moco and any(g.teacher is None for g in groups):
+        raise ValueError(
+            "moco_negatives requires an EMA teacher (pass "
+            "teacher_original_latent, i.e. --ema-embedding / "
+            "--ema-encoder at training time).")
+    tau = (tau_override if tau_override is not None else
+           train_config.get('contrastive_divergence_temperature', 1.0))
+    return tau, moco, bool(train_config.get('stopgrad_positive_h', False))
+
+
+def grid_pred_term(groups, spec, *, tau_override=None, moco_negatives=None,
+                   depth_reduce=None, term_out=None):
+    """The weighted L_pred of ``cosine_similarity_batch_split_pred_rep``
+    over the rows of every group, with the rollout depths (#412).
+
+    ``groups``: see :func:`pred_pairs` and :func:`grid_pairs`. Each depth
+    copy runs on one grid. ``depth_reduce`` (else the config key) combines
+    the copies (:func:`reduce_depth_terms`). ``term_out`` receives the
+    unweighted depth-0 copy as ``l_pred``. Weight 0: a zero and no key.
+    """
+    train_config = spec.train_configuration
+    weight = float(train_config.get('pred_loss_weight', 1.0))
+    if weight == 0.0:
+        return groups[0].f.new_zeros(())
+    tau, moco, stopgrad = _pred_settings(train_config, tau_override,
+                                         moco_negatives, groups)
+    copies = []
+    for depth in range(len(groups[0].rollout) + 1):
+        pairs = grid_pairs(groups, depth, moco, stopgrad)
+        copy = masked_mean(*pred_anchor_losses(pairs, tau))
+        if depth == 0:
+            _record_term(term_out, 'l_pred', copy)
+        copies.append(weight * copy)
+    return reduce_depth_terms(copies, resolve_rollout_reduce(
+        depth_reduce, train_config.get('train_rollout_reduce')))
+
+
+def pred_term(forecasted_latent, original_latent, spec, pad_patches, *,
+              tau_override=None, teacher_original_latent=None,
+              moco_negatives=None, rollout_latents=None, depth_reduce=None,
+              term_out=None):
+    """The weighted L_pred of ``cosine_similarity_batch_split_pred_rep`` on
+    a padded batch of one patch size (#412), with its rollout depths.
+
+    No padded position enters it (#419). With no padding, its value and its
+    gradients are those of the L_pred of :func:`contrastive_latent_loss`,
+    bit for bit on the CPU. It holds no L_rep and no L_align: the trainer
+    adds :func:`rep_only_term` and :func:`align_loss`. ``pad_patches``
+    None: no padding.
+    """
+    group = SimpleNamespace(f=forecasted_latent, o=original_latent,
+                            teacher=teacher_original_latent,
+                            rollout=list(rollout_latents or ()),
+                            pad=pad_patches, ratio=1)
+    return grid_pred_term([group], spec, tau_override=tau_override,
+                          moco_negatives=moco_negatives,
+                          depth_reduce=depth_reduce, term_out=term_out)
 
 
 def _cpc_time_lse_masked(q_a, e, pad_e):
@@ -313,7 +552,7 @@ def cpc_infonce_aux_masked(forecasted_latent, original_latent, w1, pad,
                            depth, chunk):
     """One depth copy of :func:`cpc_infonce_aux_loss` without the padding.
 
-    ``pad`` is the depth-0 padding ``[B, T, C]``; the copy reads the views of
+    ``pad`` is the depth-0 padding ``[B, T, C]``. The copy reads the views of
     :func:`rollout_depth_views`. The anchors and the cross-time keys take
     ``pad[:, :steps]``: a row then drops its first ``depth`` real positions
     as keys, as the unmasked view drops the first ``depth`` positions of an
@@ -372,7 +611,7 @@ def _split_pred_rep_floors(tau, B, T, C, tau_rep=None):
     for any temperature — the τ divisor cancels between the exponents and
     the resulting logsumexp — so `tau_rep` does not enter that expression.
     `tau_rep` is accepted for symmetry with the split branch's `tau` /
-    `tau_rep` wiring (#379); it's a no-op here. The moco_rep_keys shape,
+    `tau_rep` wiring (#379). It is a no-op here. The moco_rep_keys shape,
     which does depend on τ_rep via `log(1 + N_rep · e^(−1/τ_rep))`, is not
     currently routed through `_split_pred_rep_floors` — no bimoco arm sets
     `--subtract-contrastive-floor` in #374/#379.
@@ -434,7 +673,7 @@ def _full_hh_negs_terms(hy_hat_norm, hx_norm, hy_norm, hz_hat_norm, orig_norm,
     xx, zy, the encoder all-time `hh`, and cross-batch — including the
     batch-pooling of `log_neg_total` (logsumexp over the batch axis). Verified
     numerically equal to that branch by scripts/test_cpc.py (#316 review).
-    log_pos: [B, T-1, C]; log_neg_total: [1, T-1, C].
+    log_pos: [B, T-1, C]. log_neg_total: [1, T-1, C].
     """
     neg_inf = float('-inf')
     log_pos = cosine_similarity_from_normalized(hy_norm, hy_hat_norm) / tau
@@ -484,7 +723,7 @@ def cpc_multistep_loss(forecasted_multi, original_latent, tau,
         original_latent:  [B, T, C, H]    — encoder latents h (targets).
         tau: scalar or 0-d tensor temperature.
         include_positive_in_denominator: normalized InfoNCE (loss ≥ 0) when
-            True (β's --pos-in-denominator); negatives-only form when False.
+            True (β's --pos-in-denominator). Negatives-only form when False.
 
     Returns: scalar loss (mean over k of the per-step InfoNCE on β's negatives).
     """
@@ -524,7 +763,7 @@ def cpc_multistep_cpcnegs_loss(forecasted_multi, original_latent, tau,
     """CPC multi-step with CPC-CANONICAL negatives (#316 study arm #3) — the
     ORIGINAL loss that trained the linear+CPC-negs k=12 backbones, kept so
     that family's k=1 baseline is matched. For each k the InfoNCE positive is
-    cos(f^{(k)}_t, h_{t+k}); negatives are encoder latents h from (a) other
+    cos(f^{(k)}_t, h_{t+k}). Negatives are encoder latents h from (a) other
     sequences at the matched target time (cross-batch) and (b) all other times
     in the same sequence (the target l = t+k masked). NOT β's negatives — this
     is the confounded control family, per-anchor (not batch-pooled). Averaged
@@ -588,7 +827,7 @@ def cpc_infonce_aux_loss(forecasted_latent, original_latent, w1,
 
     Roles, matched to the existing 1-step positive (f_t ↔ h_{t+1}):
         ``h_t = forecasted_latent[:, t]`` — the AR context ``g_ar(e_{≤t})``
-            (the paper's ``c_t``), a tensor distinct from ``e_t``;
+            (the paper's ``c_t``), a tensor distinct from ``e_t``.
         ``e_t = original_latent[:, t]``   — the per-step encoder embedding
             (the paper's ``z_t``), L2-normalised here.
 
@@ -602,7 +841,7 @@ def cpc_infonce_aux_loss(forecasted_latent, original_latent, w1,
     CPC-canonical set as :func:`cpc_multistep_cpcnegs_loss` (per-anchor, NOT
     batch-pooled):
         (a) cross-batch: ``e_{b', t+1}`` for every other sequence ``b' ≠ b``
-            at the matched target step ``t+1``;
+            at the matched target step ``t+1``.
         (b) cross-time: ``e_{b, l}`` for every other step ``l ≠ t+1`` in the
             same sequence.
     The cross-batch Gram ``[B, B, T−1]`` (~1 GB at B=1024, T=256) is
@@ -653,7 +892,7 @@ def cpc_infonce_aux_loss(forecasted_latent, original_latent, w1,
     q_a = q[:, :-1]                                      # anchors h_t,  t=0..T-2 [B,T-1,C,H]
     e_pos = e[:, 1:]                                     # target e_{t+1}         [B,T-1,C,H]
 
-    # Positive log-score  e_{t+1}^T W_1 h_t  (no τ; W_1 carries the scale).
+    # Positive log-score  e_{t+1}^T W_1 h_t  (no τ. W_1 carries the scale).
     log_pos = (q_a * e_pos).sum(-1)                      # [B,T-1,C]
 
     # (b) cross-time negatives: e_{b,l} for all l != t+1, same sequence.
@@ -735,7 +974,7 @@ def cpc_infonce_all_loss(forecasted_latent, original_latent, w1, source_chunk=8,
         independent of the context ``c_t`` — genuine marginal ``p(z_{t+1})``
         draws — so van den Oord's Theorem 1 holds: the unique optimum is
         ``f_k ∝ p(z|c)/p(z)`` and the loss attains the bound
-        ``I(z_{t+1}; c_t) >= log N − L_N``. This is the strict,
+        ``I(z_{t+1}, c_t) >= log N − L_N``. This is the strict,
         information-theoretically grounded form.
     ``marginal_only=False``: ``X`` additionally includes the SAME sequence's
         other steps (the literal full batch×time grid). Those are temporally
@@ -805,11 +1044,11 @@ def cpc_infonce_all_loss(forecasted_latent, original_latent, w1, source_chunk=8,
 
     # Denominator Σ_{x_j ∈ X} f_k(x_j, c_t) (Eq. 4) — the positive z_{t+1} is
     # always one of its terms. marginal_only=True (default, strict van den Oord):
-    # X = {positive} ∪ {all OTHER-sequence embeddings}; the negatives are i.i.d.
+    # X = {positive} ∪ {all OTHER-sequence embeddings}. The negatives are i.i.d.
     # marginal draws (independent of c_t), so Theorem 1 holds EXACTLY — the unique
     # optimum is the density ratio p(z|c)/p(z), maximizing the I >= log N − L
     # bound. marginal_only=False: X also includes the SAME sequence's other steps
-    # (the literal full batch×time grid); those are correlated with c_t (not
+    # (the literal full batch×time grid). Those are correlated with c_t (not
     # marginal draws), so the MI bound is only approximate.
     if marginal_only:
         log_denom = torch.logsumexp(
@@ -861,7 +1100,7 @@ def sigreg_loss(z, sigma2=None, M=1024, T_knots=17, W=None,
     the principled choice — no Beta-target needed.
 
     Args:
-        z: tensor with feature axis ``K = z.shape[-1]``; every other axis
+        z: tensor with feature axis ``K = z.shape[-1]``. Every other axis
             is flattened into the sample axis ``N``.
         sigma2: target projected variance. ``None`` → ``1/K`` (auto-scale
             with the latent dim, matching the K-d-sphere marginal).
@@ -951,7 +1190,7 @@ def sigreg_loss(z, sigma2=None, M=1024, T_knots=17, W=None,
 
 def align_loss(forecasted_latent, original_latent, weight=1.0,
                target_latent=None, rollout_latents=None,
-               depth_reduce='sum', pad_patches=None):
+               depth_reduce='sum', pad_patches=None, term_out=None):
     """BYOL/SimSiam alignment term, standalone (#344 follow-up arm).
 
     ``L_align = weight · (2 − 2·cos(f_t, sg(h_{t+1}))).mean()`` — pull the
@@ -979,6 +1218,9 @@ def align_loss(forecasted_latent, original_latent, weight=1.0,
     the positions of ``forecasted_latent``. Given, the mean runs over the
     pairs with a real anchor f_t only. None: every pair, as before.
 
+    ``term_out`` (#412): receives the unweighted depth-0 value as
+    ``l_align``, as :func:`contrastive_latent_loss` records it.
+
     forecasted_latent, original_latent, target_latent: ``[B, T, C, H]``.
     Returns scalar.
     """
@@ -989,10 +1231,11 @@ def align_loss(forecasted_latent, original_latent, weight=1.0,
     hy_norm = targ_norm[:, 1:, :, :].detach()          # sg(target_{t+1})
     cos_align = cosine_similarity_from_normalized(hy_hat_norm, hy_norm)
     if pad_patches is None:
-        copies = [weight * (2.0 - 2.0 * cos_align).mean()]
+        depth0 = (2.0 - 2.0 * cos_align).mean()
     else:
-        copies = [weight * masked_mean(2.0 - 2.0 * cos_align,
-                                       ~pad_patches[:, :-1])]
+        depth0 = masked_mean(2.0 - 2.0 * cos_align, ~pad_patches[:, :-1])
+    _record_term(term_out, 'l_align', depth0)
+    copies = [weight * depth0]
     for depth, f_depth in enumerate(rollout_latents or (), start=1):
         f_view, o_view, target_view = rollout_depth_views(
             f_depth, original_latent, depth, target_latent)
@@ -1043,7 +1286,7 @@ def align_moco_loss(original_latent, teacher_original_latent, tau=0.10, weight=1
 #
 #   XSHH_ALLT_FUSED=1  — replace the per-chunk `torch.utils.checkpoint` with a
 #       hand-written autograd.Function. Forward streams the chunks and keeps
-#       only the final logsumexp `m`; backward recomputes each chunk's Gram,
+#       only the final logsumexp `m`. Backward recomputes each chunk's Gram,
 #       forms the softmax weights w = exp(score − m) and accumulates the
 #       anchor/source grads with one matmul each — same FLOPs as checkpoint
 #       (the score recompute is the FlashAttention constraint) but without the
@@ -1121,7 +1364,7 @@ def _xs_allt_chunked_grads(anchor, src, anchor_ids, src_ids, run, grad_out,
             anchor.unsqueeze(1),
             src[s:e].permute(0, 1, 3, 2).unsqueeze(0),
         ) / tau                                               # [B, ch, C, T-1, T]
-        # Softmax weight w = exp(score − m); self-pairs contribute exactly 0
+        # Softmax weight w = exp(score − m). Self-pairs contribute exactly 0
         # (masked after the exp so an all-masked row's −inf−(−inf) NaN is
         # zeroed, not propagated).
         w = torch.exp(score.masked_fill(same, neg_inf) - m).masked_fill(same, 0.0)
@@ -1129,7 +1372,7 @@ def _xs_allt_chunked_grads(anchor, src, anchor_ids, src_ids, run, grad_out,
         grad_anchor += torch.einsum('bjctl,jclh->bcth', gw, src[s:e]) / tau
         grad_src[s:e] = torch.einsum('bjctl,bcth->jclh', gw, anchor) / tau
         if need_tau:
-            # ∂score/∂τ = −score/τ; `score` is finite (pre-mask) and gw is 0 at
+            # ∂score/∂τ = −score/τ. `score` is finite (pre-mask) and gw is 0 at
             # masked positions, so the product is NaN-free.
             term = (gw * (-score / tau)).sum()
             grad_tau = term if grad_tau is None else grad_tau + term
@@ -1248,7 +1491,8 @@ def contrastive_latent_loss(predicted_position, validation, spec,
                             f_terms_only=False,
                             rep_loss_weight=None,
                             term_out=None,
-                            pad_patches=None):
+                            pad_patches=None,
+                            same_token=None):
     """Compute the contrastive divergence loss.
 
     Args:
@@ -1286,7 +1530,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             `cosine_similarity_batch_full_fh_hh_negs`,
             `cosine_similarity_batch_full_hh_ff_negs`,
             `cosine_similarity_batch_full_fh_hh_ff_negs`,
-            `cosine_similarity_batch_full_hh_negs_xbfree`); requesting it
+            `cosine_similarity_batch_full_hh_negs_xbfree`). Requesting it
             with any other `loss_shape` raises NotImplementedError rather
             than silently returning an unintended value.
 
@@ -1294,7 +1538,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     `tau_override` is a tensor, gradient flows through the loss back to
     the caller's parameter (CLIP-style learnable temperature, #28).
 
-    `align_loss_weight` (λ; default None → config key `align_loss_weight`,
+    `align_loss_weight` (λ, default None → config key `align_loss_weight`,
     default 0.0 = off) adds a BYOL/SimSiam alignment term
     λ·(2 − 2·cos(f_t, sg(h_{t+1}))) on top of the contrastive loss — a
     non-saturating positive: its per-cosine gradient is a constant −2,
@@ -1303,7 +1547,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     (default None → config key, default False) re-bases the loss by the
     constant `infonce_floor(τ, N)` (gradient-neutral. Logged-value only).
     `align_loss_weight` applies to ANY `loss_shape` (it needs only the
-    positive pair); `subtract_contrastive_floor` is restricted to
+    positive pair). `subtract_contrastive_floor` is restricted to
     `_NORMALIZED_FORM_SHAPES` with positive-in-denominator (it is the floor
     of THAT objective). An explicit function arg overrides the config key
     (the `loss_tau_ref` diagnostic passes 0/False to stay a pure
@@ -1363,7 +1607,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     Rollout depth (#373. Config key ``train_rollout_depth``, default 0 →
     historical objective unchanged). ``rollout_latents`` carries
     f^(1)..f^(k), the forecaster applied to its own output (see
-    `src.forecasting_head.rollout_forecaster_latents`); ``k`` copies of
+    `src.forecasting_head.rollout_forecaster_latents`). ``k`` copies of
     every f-bearing term are then built beside the depth-0 one, copy ``j``
     tying f^(j)_t to h_{t+1+j}. ``train_rollout_depth`` is the function-arg
     override of the config key, with the usual precedence.
@@ -1392,8 +1636,14 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     positives (:func:`rep_only_loss_masked`), and L_align averages over the
     pairs with a real anchor. The loss then equals the loss of the batch
     with its padded positions removed. Only ``cosine_similarity_batch_
-    rep_only`` takes it; every other shape raises. None (default): the
-    unchanged code path of every other run.
+    rep_only`` takes it. Every other shape raises. The split shape on a
+    padded batch has :func:`pred_term` and :func:`rep_only_term` (#412).
+    None (default): the unchanged code path of every other run.
+
+    ``same_token`` (#412): ``[B, T]``, the patch each position of a common
+    time grid repeats, when the rows of the batch read different patch
+    sizes. L_rep then drops every key of an anchor's own patch from its
+    within-row negatives. It needs ``pad_patches``.
     """
     forecasted_latent, original_latent = predicted_position
     train_config = spec.train_configuration
@@ -1420,6 +1670,9 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             "pad_patches (zero-padded windows, #419) is implemented for "
             "loss_shape='cosine_similarity_batch_rep_only' only; got "
             f"{train_config.get('loss_shape')!r}.")
+    if same_token is not None and pad_patches is None:
+        raise ValueError("same_token (#412) needs pad_patches: it is read "
+                         "by the masked L_rep only.")
 
     # CPC multi-step (#316): the forecaster latent is a [B,T,C,K,H] stack of
     # K linear-head predictions, so the 4-D unpack/positives below do not
@@ -1475,7 +1728,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     # (for example via the training script's --tau-rep flag), the split_pred_rep
     # and rep_only branches use it for the h-anchored family LSE terms
     # (log_neg_xx, log_neg_hh_all, log_neg_xs_allt, and log_pos_h when
-    # moco_rep_keys is on); L_pred stays on `tau`. tau_override still wins
+    # moco_rep_keys is on). L_pred stays on `tau`. tau_override still wins
     # for both (it's the learnable-τ / loss_tau_ref pipeline).
     if tau_override is not None:
         tau_rep = tau_override
@@ -1649,10 +1902,10 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # forecaster–encoder negative (`log_neg_xy_hat` = cos(h_t, f_t)) is
         # REPLACED by the full set of (f_t, h_l) negatives over EVERY time
         # position l, excluding only the positive target l = t+1. Anchor
-        # f_t is the forecaster at index t (t = 0..T-2); h_l is the encoder
+        # f_t is the forecaster at index t (t = 0..T-2). h_l is the encoder
         # at index l (l = 0..T-1), same (b, c). The l = t slice equals the
         # old same-channel xy_hat term (identical for C = 1, the training
-        # config); l ∈ {0..t-1, t+2..T-1} are the genuinely new negatives.
+        # config). l ∈ {0..t-1, t+2..T-1} are the genuinely new negatives.
         # All other terms (xy, xx, zy, cross-batch) are byte-for-byte
         # unchanged from `cosine_similarity_batch`. Numerically stable
         # logsumexp form — same shape contract and cross-batch pooling.
@@ -1664,7 +1917,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
 
         # REPLACES log_neg_xy_hat: full (f_t, h_l) negatives for all l != t+1.
         # sims_fh[b, c, t, l] = cos(f_t^{b,c}, h_l^{b,c}). One batched matmul
-        # (no Python loop, no [B,T-1,C,T,H] broadcast intermediate); for
+        # (no Python loop, no [B,T-1,C,T,H] broadcast intermediate). For
         # unit-normalised vectors cos(u, v) = u · v. Kept in [B,C,T-1,T] so
         # logsumexp reduces the contiguous last (l) axis and only the small
         # [B,T-1,C] result is permuted — avoids a full-size transpose-copy.
@@ -1672,8 +1925,8 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             hy_hat_norm.permute(0, 2, 1, 3),            # [B, C, T-1, H]  (f_t)
             orig_norm.permute(0, 2, 3, 1),              # [B, C, H, T]    (h_l)
         )                                               # [B, C, T-1, T]
-        # Mask only the positive target l = t+1 for each anchor t (0..T-2);
-        # every other l (incl. l = t) stays an active negative.
+        # Mask only the positive target l = t+1 for each anchor t (0..T-2).
+        # Every other l (incl. l = t) stays an active negative.
         t_idx = torch.arange(T - 1, device=sims_fh.device).view(T - 1, 1)
         l_idx = torch.arange(T, device=sims_fh.device).view(1, T)
         pos_mask = (l_idx == t_idx + 1).view(1, 1, T - 1, T)
@@ -1758,11 +2011,11 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # `cosine_similarity_batch_full_hh_negs_xbfree` arm, which is the
         # only one that also alters the cross-batch axis).
         # These are the time-crossed (l ≠ t / l ≠ t+1, same b,c) siblings
-        # of (A); distinct from the batch-crossed h×h / f×f already in
+        # of (A). Distinct from the batch-crossed h×h / f×f already in
         # `cosine_similarity_batch_square` (b ≠ b', fixed t). Anchor index
-        # t = 0..T-2 (the [B,T-1,C] contract); l ranges over all T encoder
+        # t = 0..T-2 (the [B,T-1,C] contract). l ranges over all T encoder
         # / forecaster positions. (h_t, h_t) and (f_t, f_t) are cos = 1
-        # self-pairs (masked); for (A) the masked l = t+1 is the positive
+        # self-pairs (masked). For (A) the masked l = t+1 is the positive
         # target. All other terms (xy, xx, zy, cross-batch) are
         # byte-for-byte identical to `cosine_similarity_batch`.
         # Numerically stable logsumexp form. --pos-in-denominator
@@ -1800,9 +2053,9 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         log_neg_zy = torch.logsumexp(sims_zy / tau, dim=2)
 
         # Shared all-time crossed-negative builder. anchor_t is the anchor
-        # at t = 0..T-2 ([B,T-1,C,H]); src_l is the full l = 0..T-1 stack
+        # at t = 0..T-2 ([B,T-1,C,H]). src_l is the full l = 0..T-1 stack
         # ([B,T,C,H]). One batched matmul (no Python loop, no
-        # [B,T-1,C,T,H] broadcast); for unit-normalised vectors
+        # [B,T-1,C,T,H] broadcast). For unit-normalised vectors
         # cos(u, v) = u · v. Kept in [B,C,T-1,T] so logsumexp reduces the
         # contiguous last (l) axis. Only the small [B,T-1,C] result is
         # permuted (avoids a full-size transpose-copy). `drop_l` selects
@@ -1882,14 +2135,14 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # two within-branch square edges are kept instead —
         #   cross_ff: f_b ↔ f_b'        at same t, b ≠ b'
         #   cross_hh: h_{b,t+1} ↔ h_{b',t+1} at same t, b ≠ b'
-        # NET: NO f↔h NEGATIVE anywhere (neither all-time nor cross-batch);
-        # the f↔h *positive* (log_pos = cos(h_{t+1}, f_t)) is retained.
+        # NET: NO f↔h NEGATIVE anywhere (neither all-time nor cross-batch).
+        # The f↔h *positive* (log_pos = cos(h_{t+1}, f_t)) is retained.
         # xy (cos(h_t,h_{t+1}) cross-channel = h–h), xx (h–h cross-channel
         # same-time), zy (f_{t+1}↔f_t cross-channel = f–f) are byte-for-byte
         # identical to `cosine_similarity_batch` and are all within-branch
         # (no f↔h). square's cross_ff/cross_hh are written here in the
         # matmul form, NOT square's [B,B,T-1,C,H] broadcast (that is ~10 TB
-        # at the of-record T=4096,B=128); this is the memory-safe exact
+        # at the of-record T=4096,B=128). This is the memory-safe exact
         # equivalent (logsumexp over the other-batch axis of a symmetric
         # f·f / h·h Gram, diagonal masked), pinned in tests. Numerically
         # stable logsumexp. --pos-in-denominator supported via the shared
@@ -1926,7 +2179,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
 
         # Within-branch cross-batch edges (square's log_neg_cross_ff /
         # log_neg_cross_hh), matmul form. sims is the symmetric f·f / h·h
-        # Gram over the batch axis (per t, c); diagonal b1=b2 masked.
+        # Gram over the batch axis (per t, c). Diagonal b1=b2 masked.
         # logsumexp over the other-batch axis — exactly square's
         # broadcast + logsumexp(dim=1). The f↔h `log_neg_cross_fe` is
         # intentionally ABSENT (the experiment's defining change).
@@ -1987,7 +2240,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         # Everything else (`log_pos`, xx, zy, the all-time hh term, and the
         # cross-batch f↔h `log_neg_cross_batch`) is byte-for-byte (B). The new
         # edge uses the memory-safe matmul Gram form over the batch axis (NOT a
-        # [B,B,T-1,C,H] broadcast); diagonal b = b' (cos ≡ 1 self-pair) masked.
+        # [B,B,T-1,C,H] broadcast). Diagonal b = b' (cos ≡ 1 self-pair) masked.
         # Numerically stable logsumexp. --pos-in-denominator supported via the
         # shared tail below. See #318.
         neg_inf = float('-inf')
@@ -2008,7 +2261,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
 
         # (B) all-time term: (h_t, h_l) ∀ l ≠ t. Byte-for-byte the
         # `cosine_similarity_batch_full_hh_negs` builder/mask (l = t self-pair
-        # dropped); the l = t+1 slice it contains is what edit (2) removed the
+        # dropped). The l = t+1 slice it contains is what edit (2) removed the
         # duplicate of.
         t_idx = torch.arange(T - 1, device=orig_norm.device).view(T - 1, 1)
         l_idx = torch.arange(T, device=orig_norm.device).view(1, T)
@@ -2354,7 +2607,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             # h-anchored family 3: cross-series all-time h↔h' (xs_allt),
             # gradient-checkpointed via the same chunked path as
             # `..._xshh_allt`. With moco_rep_keys on, the KEY side uses
-            # teacher_orig_norm (see `orig_key` selection above); the anchor
+            # teacher_orig_norm (see `orig_key` selection above). The anchor
             # stays student-side.
             anchor = hx_norm.permute(0, 2, 1, 3).contiguous()
             src = orig_key.permute(0, 2, 1, 3).contiguous()
@@ -2389,7 +2642,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
 
             # Without moco_rep_keys: student anchor + student keys everywhere.
             # The same-batch same-time <h_{b,t}, h_{b,t}> pair is trivially 1
-            # (self-cosine); we omit it (adds a constant to the loss,
+            # (self-cosine). We omit it (adds a constant to the loss,
             # gradient-neutral). With moco_rep_keys: keys are teacher-side.
             # The same-batch same-time pair becomes the non-trivial
             # student↔teacher <h_{b,t}, h^T_{b,t}>, so the loss becomes a
@@ -2443,17 +2696,11 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             and pad_patches is not None:
         # #419: the branch below with the zero-padded positions left out, as
         # anchors, as keys and as MoCo positives. Same weight, same keys.
-        moco_rep = (
-            moco_rep_keys if moco_rep_keys is not None
-            else bool(train_config.get('moco_rep_keys', False)))
-        teacher_keys = (
-            F.normalize(teacher_original_latent, p=2, dim=-1)
-            if moco_rep and teacher_original_latent is not None else None)
-        loss_rep = rep_only_loss_masked(
-            hx_norm, orig_norm, teacher_keys, pad_patches, tau_rep,
-            _xs_allt_chunk_for_mask())
-        _record_term(term_out, 'l_rep', loss_rep)
-        loss = resolve_rep_loss_weight(train_config, rep_loss_weight) * loss_rep
+        loss = rep_only_term(
+            original_latent, spec, pad_patches, tau_override=tau_override,
+            teacher_original_latent=teacher_original_latent,
+            moco_rep_keys=moco_rep_keys, rep_loss_weight=rep_loss_weight,
+            same_token=same_token, term_out=term_out)
 
     elif train_config.get('loss_shape') == 'cosine_similarity_batch_rep_only':
         # #374 follow-up arm: drop L_pred from the split shape and pair
@@ -2839,7 +3086,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             sims_skip = (f_t_pre * f_t_post).sum(dim=-1)         # [B, T-2, C]
             neg_skip_f_unpadded = torch.exp(sims_skip / tau)     # [B, T-2, C]
             # Pad time dim from T-2 to T-1 with zeros at the end. Tensor is
-            # [B, T-2, C]; F.pad uses last-dim-first ordering, so to add 1
+            # [B, T-2, C]. F.pad uses last-dim-first ordering, so to add 1
             # zero at the END of dim=1 (T axis) we pass (0, 0, 0, 1):
             # (left_C=0, right_C=0, left_T=0, right_T=1). Result: [B, T-1, C].
             neg_skip_f = F.pad(neg_skip_f_unpadded, (0, 0, 0, 1))
@@ -3150,7 +3397,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
         if pad_patches is None:
             loss_align = (2.0 - 2.0 * cos_align).mean()
         else:
-            # #419: the pairs with a real anchor f_t; their targets are real.
+            # #419: the pairs with a real anchor f_t. Their targets are real.
             loss_align = masked_mean(2.0 - 2.0 * cos_align,
                                      ~pad_patches[:, :-1])
         _record_term(term_out, 'l_align', loss_align)
@@ -3167,7 +3414,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
                 'cosine_similarity_batch_split_pred_rep':
             # Split shape has TWO independent terms. Subtract each side's
             # own floor. L_pred is normalized-InfoNCE by construction (its
-            # own floor is the InfoNCE floor at its negative count);
+            # own floor is the InfoNCE floor at its negative count).
             # L_rep has no positive, so its floor is log(#terms). A
             # rollout-depth copy (#373) carries L_pred only, so it re-bases
             # by that side's floor alone.

@@ -48,7 +48,7 @@ def expected_shares(families, with_covariates=True):
 
 
 def run(stream, batches):
-    """Iterate the stream; count windows per family and the padding."""
+    """Iterate the stream. Count windows per family and the padding."""
     padded = pad_values = 0
     it = iter(stream)
     t0 = time.time()
@@ -60,6 +60,9 @@ def run(stream, batches):
         padded += int((z > 0).sum())
         pad_values += int(z.sum())
     rate = (batches - 10) / (time.time() - t0) if batches > 10 else float("nan")
+    # Stop the prefetch thread before the caller reads stream.counts: it
+    # counts each batch it fetches, up to `prefetch` batches ahead.
+    it.close()
     return rate, padded, pad_values
 
 

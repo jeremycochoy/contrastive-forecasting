@@ -28,7 +28,7 @@ def rss_mb():
 
 
 def consume(it, rate, minutes):
-    """Read ``rate`` batches a second; print the resident size each 30 s."""
+    """Read ``rate`` batches a second. Print the resident size each 30 s."""
     t0 = last = time.time()
     n = 0
     while time.time() - t0 < minutes * 60:

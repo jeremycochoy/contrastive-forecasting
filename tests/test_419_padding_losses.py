@@ -297,8 +297,9 @@ def test_a_few_contrastive_steps_on_the_stream(corpus, tmp_path):
 
 
 @pytest.mark.parametrize("extra,why", [
-    (("--loss-shape", "cosine_similarity_batch_split_pred_rep"),
-     "--loss-shape cosine_similarity_batch_split_pred_rep"),
+    # Since #412 the split shape takes a mask (tests/test_412_bimoco.py).
+    (("--loss-shape", "cosine_similarity_batch_full_hh_negs_xshh_allt"),
+     "--loss-shape cosine_similarity_batch_full_hh_negs_xshh_allt"),
     (("--align-moco-loss-weight", "1.0"), "--align-moco-loss-weight"),
     (("--cpc-infonce-weight", "1.0", "--cpc-infonce-negs", "all"),
      "--cpc-infonce-negs all")])
