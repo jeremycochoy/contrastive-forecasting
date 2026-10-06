@@ -262,13 +262,17 @@ class ContrastiveForecasterPredictor(RepresentablePredictor):
             return target
         first_valid = np.where(~mask)[0][0]
         if self.context_pad == 'zeros':
-            target = target[first_valid:]
+            target, mask = target[first_valid:], mask[first_valid:]
         else:
             target[:first_valid] = target[first_valid]
-        for i in range(1, len(target)):
-            if np.isnan(target[i]):
-                target[i] = target[i - 1]
-        return target
+            mask[:first_valid] = False
+        # Forward fill: each missing value takes the last observed value
+        # before it, in one numpy pass. The Python loop it replaces gave the
+        # same values and took 9 ms on each window of a 26,000-value history,
+        # 70 of the 116 seconds of an R score of electricity/H/short (#425).
+        last = np.where(mask, 0, np.arange(len(target)))
+        np.maximum.accumulate(last, out=last)
+        return target[last]
 
     def predict_item(self, item) -> QuantileForecast:
         target = self._fill_missing(
@@ -354,11 +358,11 @@ def fill_horizon(values: np.ndarray, last: float) -> np.ndarray:
     it. The first value before the horizon is ``last``, the end of the
     filled context. The metrics skip a missing label, so the filled values
     only keep the encoder input finite."""
-    values = np.asarray(values, dtype=np.float32).copy()
-    for i in range(len(values)):
-        if np.isnan(values[i]):
-            values[i] = last if i == 0 else values[i - 1]
-    return values
+    values = np.concatenate([[last], np.asarray(values, dtype=np.float32)])
+    values = values.astype(np.float32)
+    known = np.where(np.isnan(values), 0, np.arange(len(values)))
+    np.maximum.accumulate(known, out=known)
+    return values[known][1:]
 
 
 class ReconstructionPredictor(ContrastiveForecasterPredictor):
@@ -372,7 +376,7 @@ class ReconstructionPredictor(ContrastiveForecasterPredictor):
     config share their lengths, so ``batch_size`` windows run in one pass.
     """
 
-    def __init__(self, *args, labels, batch_size=256, **kwargs):
+    def __init__(self, *args, labels, batch_size=64, **kwargs):
         super().__init__(*args, **kwargs)
         self.labels = labels
         self.batch_size = batch_size

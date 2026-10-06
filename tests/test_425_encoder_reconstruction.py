@@ -431,6 +431,48 @@ def test_a_missing_horizon_value_takes_the_value_before_it():
     assert module.fill_horizon(full, last=9.0).tolist() == full.tolist()
 
 
+def loop_fill(target, context_pad):
+    """The forward fill of the eval before #425, one value at a time."""
+    if not np.isnan(target).any():
+        return target
+    target = target.copy()
+    mask = np.isnan(target)
+    if mask.all():
+        target[:] = 0.0
+        return target
+    first_valid = np.where(~mask)[0][0]
+    if context_pad == "zeros":
+        target = target[first_valid:]
+    else:
+        target[:first_valid] = target[first_valid]
+    for i in range(1, len(target)):
+        if np.isnan(target[i]):
+            target[i] = target[i - 1]
+    return target
+
+
+@pytest.mark.parametrize("context_pad", ["first", "zeros"])
+def test_the_fill_of_a_context_gives_the_values_of_the_loop(context_pad):
+    """The eval fills a missing context value in one numpy pass now. It must
+    give every B4 score the values it had."""
+    module = load_eval_module()
+    predictor = module.ContrastiveForecasterPredictor(
+        backbone=None, head=None, prediction_length=8, device=CPU,
+        context_pad=context_pad)
+    rng = np.random.default_rng(0)
+    for n in (1, 5, 300):
+        for share in (0.0, 0.05, 0.5, 0.95, 1.0):
+            for _ in range(5):
+                x = rng.standard_normal(n).astype(np.float32)
+                x[rng.random(n) < share] = np.nan
+                if share == 0.5:
+                    x[: n // 3] = np.nan               # a missing start
+                got = predictor._fill_missing(x.copy())
+                want = loop_fill(x.copy(), context_pad)
+                assert got.dtype == want.dtype == np.float32
+                assert np.array_equal(got, want), (n, share)
+
+
 def gluonts_test_data(h=24, windows=2, n=3, length=900):
     import pandas as pd
     from gluonts.dataset.common import ListDataset
