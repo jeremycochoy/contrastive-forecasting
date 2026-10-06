@@ -51,8 +51,9 @@ SOURCES = {
     "cf412or2": (["cf-412or2/leg_40k", "cf-412or2/leg_100k", "cf-412or2/leg_200k"], "cf412or2_k3_losses.csv", 1),
     "cf412ol2": (["cf-412ol2/leg_40k"], "cf412ol2_k3_losses.csv", 1),
     "cf412bm": ([f"cf-412bm/leg_{k}k" for k in (10, 25, 50, 75)], "cf412bm_k3_losses.csv", 4),
-    "cf412bw": ([f"cf-412bw/leg_{k}k" for k in (10, 25, 50)], "cf412bw_k3_losses.csv", 4),
-    "cf412al": ([f"cf-412al/leg_{k}k" for k in (10, 25, 50)], "cf412al_k3_losses.csv", 4),
+    "cf412bw": ([f"cf-412bw/leg_{k}k" for k in (10, 25, 50, 75)], "cf412bw_k3_losses.csv", 4),
+    "cf412al": ([f"cf-412al/leg_{k}k" for k in (10, 25, 50, 75)], "cf412al_k3_losses.csv", 4),
+    "cf419ms": ([f"cf-419ms/leg_{k}k" for k in (40, 100, 200)], "cf419ms_k3_losses.csv", 1),
     CYAN: ([f"{CYAN}/arm6_v2_combab_alignT/leg_665k"],
            "cf393_arm6_v2_combab_alignT_cf373k3_cf412_" + CYAN + "_losses.csv", 1),
 }
@@ -69,6 +70,7 @@ LABEL = {"cf412om": "Ours + patch sizes + mean/std + Moirai recipe, loss bug (ba
          "cf412bm": "As OMF, bimoco: L_pred + L_rep with MoCo, tau 1, no L_align (batch 256)",
          "cf412bw": "As OBM, with OWF's lr and the L_rep weight from 1 to 0 by 10k (batch 256)",
          "cf412al": "As OAF, at batch 256",
+         "cf419ms": "BLK with mean/std: one patch size, lr cosine by 200k (batch 64)",
          CYAN: "cyan: ours, one patch size, EWMA (batch 64)"}
 LABEL = {run: tagged(run, text) for run, text in LABEL.items()}
 PANEL = {"gm": "GM-Relative MASE (lower is better)",
@@ -192,7 +194,7 @@ def plot():
         ax.set_xticklabels([f"{t // 1000}k" for t in ticks])
     for ax in axes[-1]:
         ax.set_xlabel("Data seen, in batch-64 steps. One OMB, OMF, OBM, OBW or OAL step counts 4.")
-    fig.suptitle("OMB, OCB, OCF, OEF, OMF, OAF, OWF, OWR, OWL, OBM, OBW and OAL against CYN: the score and the training-loss terms on one axis\n"
+    fig.suptitle("OMB, OCB, OCF, OEF, OMF, OAF, OWF, OWR, OWL, OBM, OBW, OAL and BMS against CYN: the score and the training-loss terms on one axis\n"
                  "Each point is the median over 4,000 batch-64 steps. The contrastive terms "
                  "compare rows within a batch,\nso their level depends on the batch size "
                  "(256 for OMB, OMF, OBM, OBW and OAL, 64 for the others): compare the shapes of the curves.",

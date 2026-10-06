@@ -17,6 +17,9 @@ STUDY = Path(__file__).resolve().parent.parent
 TSV = STUDY / "results" / "gm_trajectories.tsv"
 OUT = STUDY / "plots" / "gm_mase_rates.png"
 OUT_ALL = STUDY / "plots" / "gm_mase_rates_all.png"
+# One figure per legend group of GROUPS, in its order: every run of the group.
+OUT_CATEGORY = [STUDY / "plots" / f"gm_mase_rates_{name}.png"
+                for name in ("ours_one_patch_size", "ours_patch_sizes", "moirai")]
 
 # One legend column per group of runs: the group's name, then per run its
 # arm, label, line width and marker. The colour and the line style come from
@@ -26,7 +29,7 @@ OUT_ALL = STUDY / "plots" / "gm_mase_rates_all.png"
 # cf415_moirai (a separate head, a mistake). Their scores stay in
 # results/gm_trajectories.tsv.
 GROUPS = [
-    ("Ours, one patch size, EWMA, batch 64", [
+    ("Ours, one patch size, batch 64, EWMA (BMS: mean/std)", [
         (P + "_lr10x",    "lr 5.6e-5, old data",                      3.4, "o"),
         (P + "_lr10xb",   "lr 5.6e-5, old data, second seed",         3.4, "s"),
         (P + "_lr30x",    "lr 1.8e-5, old data",                      4.0, "o"),
@@ -34,6 +37,7 @@ GROUPS = [
         (P + "_cos665k",  "lr cosine 6e-5→1e-6 over 665k, old data", 4.0, "D"),
         (P + "_cos200k",  "lr cosine 5e-5→1e-6 by 200k, old data",   4.0, "v"),
         ("cf419_cos200k", "lr cosine by 200k, new data",              4.0, "*"),
+        ("cf419ms",       "as BLK, mean/std in place of EWMA",        4.0, (7, 1, 0)),
     ]),
     ("Ours, patch sizes 8 to 128, new data", [
         ("cf412om",  "mean/std, lr 1e-3 cosine by 166k, batch 256, loss bug",   4.4, "h"),
@@ -69,14 +73,10 @@ XSCALE = {"cf415_moirai": 4, "cf415_moirai_native": 4, "cf419_moirai_native": 4,
 END_LABEL_OFFSET = {P + "_lr100x": (9, 4), P + "_cos200k": (9, -12), "cf412om": (-62, 6),
                     "cf412oc2": (9, 6), "cf412oa2": (9, 7), "cf412oe2": (9, 5), "cf412om2": (-22, -18),
                     "cf412ow2": (9, -9), "cf412ol2": (9, 2), "cf419_cos200k": (9, -13),
-                    "cf412or2": (9, 5), "cf412bm": (9, -12), "cf412al": (-52, -4),
+                    "cf412or2": (9, 5), "cf412bm": (9, -12), "cf412al": (9, -14),
                     "cf421ew_moirai_native": (-45, -18), "cf421n_moirai_native": (-48, -16)}
 # A white outline keeps a score label readable where a line crosses it.
 HALO = [patheffects.withStroke(linewidth=3, foreground="white")]
-# How far left of its point an off-the-chart label starts, so two such labels part.
-OFF_LABEL_DIV = {"cf412om": 2.4}
-# How far below the top an off-the-chart label sits, so two labels at one step part.
-OFF_LABEL_DY = {"cf412bm": -0.030}
 BEST, BAND, PROJECT_BEST = 1.1369, 0.008, 1.0651
 YMIN, YMAX = 0.90, 1.70
 
@@ -98,7 +98,8 @@ def line_points(y, shown):
 
 
 def draw_series(ax, arm, width, marker, points):
-    """One run's line and its score labels. Returns the line."""
+    """One run's line and its score labels. Returns the line and the points
+    above the chart, which draw_off_chart labels."""
     x, y = zip(*sorted(points))
     x = [v * XSCALE.get(arm, 1) for v in x]
     shown = [min(v, YMAX - 0.004) for v in y]
@@ -107,25 +108,35 @@ def draw_series(ax, arm, width, marker, points):
                       marker=marker, ms=8, zorder=3)
     ax.plot(x, shown, linestyle="none", color=hue, marker=marker, ms=8, zorder=3)
     above = [(xi, yi) for xi, yi in zip(x, y) if yi > YMAX]
-    if above:
-        # One label lists the points off the chart and points at the last of
-        # them. It sits inside the axes, clear of the title: right of a point
-        # near the left edge, left of any other. The arrow leaves the label
-        # from its side nearest the point.
-        xi = above[-1][0]
-        right_of_point = xi < 100000
-        label_x = xi * 1.12 if right_of_point else xi / OFF_LABEL_DIV.get(arm, 1.9)
-        values = ", ".join(f"{yi:.4f}" for _, yi in above)
-        ax.annotate(f"{values}, off the chart", (xi, YMAX - 0.004),
-                    xytext=(label_x, YMAX - 0.012 + OFF_LABEL_DY.get(arm, 0.0)), va="center",
-                    fontsize=9, color=hue, weight="bold", path_effects=HALO,
-                    arrowprops=dict(arrowstyle="->", color=hue, lw=1,
-                                    relpos=(0, 0.5) if right_of_point else (1, 0.5)))
     if y[-1] <= YMAX:
         ax.annotate(f"{y[-1]:.4f}", (x[-1], shown[-1]), textcoords="offset points",
                     xytext=END_LABEL_OFFSET.get(arm, (9, -3)), fontsize=9,
                     color=hue, weight="bold", path_effects=HALO)
-    return handle
+    return handle, (above, hue)
+
+
+def draw_off_chart(fig, ax, off):
+    """The scores above the chart, in one strip over the axes, clear of the
+    lines: each run's values in its colour, left to right by step, with an
+    arrow down to its last point on the top edge."""
+    off = sorted((pts[-1][0], arm, pts, hue) for arm, (pts, hue) in off.items() if pts)
+    if not off:
+        return
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    box = ax.get_window_extent(renderer)
+    width = lambda artist: artist.get_window_extent(renderer).width / box.width
+    head = ax.text(0, 1.022, "Above the chart:", transform=ax.transAxes, fontsize=9,
+                   color="#555555", va="bottom")
+    cursor = width(head) + 0.025
+    for xi, arm, pts, hue in off:
+        at = (ax.transData.transform((xi, YMAX))[0] - box.x0) / box.width
+        text = ax.annotate(", ".join(f"{yi:.4f}" for _, yi in pts), (xi, YMAX - 0.004),
+                           xytext=(max(at - 0.02, cursor), 1.022), textcoords="axes fraction",
+                           va="bottom", fontsize=9, color=hue, weight="bold",
+                           annotation_clip=False,
+                           arrowprops=dict(arrowstyle="->", color=hue, lw=1, relpos=(0.15, 0)))
+        cursor = max(at - 0.02, cursor) + width(text) + 0.015
 
 
 def draw_legend(ax, groups, handles):
@@ -137,7 +148,7 @@ def draw_legend(ax, groups, handles):
         column = [(blank, name)] + [(handles[arm], tagged(arm, label))
                                     for arm, label, *_ in runs if arm in handles]
         entries += column + [(blank, "")] * (rows - len(column))
-    legend = ax.legend(*zip(*entries), ncol=len(GROUPS), fontsize=10, loc="upper center",
+    legend = ax.legend(*zip(*entries), ncol=len(groups), fontsize=10, loc="upper center",
                        bbox_to_anchor=(0.5, -0.115), framealpha=0.94)
     for text in legend.get_texts()[::rows]:
         text.set_fontweight("bold")
@@ -169,7 +180,8 @@ def style_axes(ax):
                  "our copy of Moirai, trained on the values with its schedule.\n"
                  "Old data: GiftEvalPretrain series of 4,096 points or more. "
                  "New data: all of GiftEvalPretrain.\n"
-                 "Loss bug: the contrastive terms of a patch-size run read the rows of one patch size at a time.")
+                 "Loss bug: the contrastive terms of a patch-size run read the rows of one patch size at a time.",
+                 pad=26)
     ax.grid(alpha=0.3)
     ax.set_ylim(YMIN, YMAX)
     ax.set_xlim(left=28000)  # room for a label left of a 40k point
@@ -178,10 +190,12 @@ def style_axes(ax):
 def draw_figure(groups, out):
     points = load_points()
     fig, ax = plt.subplots(figsize=(12.5, 9.0))
-    handles = {arm: draw_series(ax, arm, width, marker, points[arm])
-               for _, runs in groups for arm, _, width, marker in runs if arm in points}
+    drawn = {arm: draw_series(ax, arm, width, marker, points[arm])
+             for _, runs in groups for arm, _, width, marker in runs if arm in points}
+    handles = {arm: handle for arm, (handle, _) in drawn.items()}
     draw_references(ax)
     style_axes(ax)
+    draw_off_chart(fig, ax, {arm: off for arm, (_, off) in drawn.items()})
     draw_legend(ax, groups, handles)
     fig.tight_layout()
     fig.savefig(out, dpi=135, bbox_inches="tight")
@@ -193,6 +207,8 @@ def main():
     followed = [(name, [run for run in runs if run[0] not in OFF_MAIN]) for name, runs in GROUPS]
     draw_figure(followed, OUT)
     draw_figure(GROUPS, OUT_ALL)
+    for group, out in zip(GROUPS, OUT_CATEGORY):
+        draw_figure([group], out)
 
 
 main()
