@@ -43,3 +43,39 @@
 [10-07 05:58:08] [cf412om2_bb10k_h30k_recon] head argv -> /workspace/results/cf-425/waves/gift_pretrain_1007_055808_g7Vn/jobs.jsonl reconstruction=encoder
 [10-07 05:58:08] [cf412om2_bb125k_h30k_recon] head argv -> /workspace/results/cf-425/waves/gift_pretrain_1007_055808_g7Vn/jobs.jsonl reconstruction=encoder
 [10-07 05:58:08] [cf412oa2_bb40k_h30k_recon] head argv -> /workspace/results/cf-425/waves/gift_pretrain_1007_055808_g7Vn/jobs.jsonl reconstruction=encoder
+[10-07 10:23:19] [k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon] head-train SKIP (final exists)
+[10-07 10:23:19] [k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon] head-train SKIP (final exists)
+[10-07 10:23:19] [k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon] head-train SKIP (final exists)
+[10-07 10:23:19] [k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon] head-train SKIP (final exists)
+[10-07 10:23:19] [k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon] head-train SKIP (final exists)
+[10-07 10:23:19] [k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-07 10:23:19] [k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-07 10:23:19] [k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon] head-train SKIP (final exists)
+[10-07 10:23:19] [k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-07 10:23:19] [k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-07 10:23:19] [k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon] head-train SKIP (final exists)
+[10-07 10:23:19] [k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-07 10:23:19] [k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon] head-train SKIP (final exists)
+[10-07 10:23:19] [k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-07 10:23:19] [k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-07 10:23:19] [k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon] head-train SKIP (final exists)
+[10-07 10:23:19] [k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-07 10:23:19] [k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-07 10:35:52] [k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon] eval rc=0
+[10-07 10:35:52] [k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon] DONE — GM-Relative MASE 0.0301
+[10-07 10:36:10] [k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon] eval rc=0
+[10-07 10:36:10] [k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon] DONE — GM-Relative MASE 0.0351
+[10-07 10:48:33] [k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon] eval rc=0
+[10-07 10:48:33] [k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon] DONE — GM-Relative MASE 0.0293
+[10-07 10:48:50] [k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon] eval rc=0
+[10-07 10:48:50] [k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon] DONE — GM-Relative MASE 0.0372
+[10-07 11:01:15] [k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon] eval rc=0
+[10-07 11:01:15] [k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon] DONE — GM-Relative MASE 0.0543
+[10-07 11:01:34] [k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon] eval rc=0
+[10-07 11:01:34] [k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon] DONE — GM-Relative MASE 0.0462
+[10-07 11:13:47] [k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon] eval rc=0
+[10-07 11:13:47] [k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon] DONE — GM-Relative MASE 0.0451
+[10-07 11:14:30] [k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon] eval rc=0
+[10-07 11:14:30] [k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon] DONE — GM-Relative MASE 0.0373
+[10-07 11:26:19] [k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon] eval rc=0
+[10-07 11:26:19] [k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon] DONE — GM-Relative MASE 0.0274
