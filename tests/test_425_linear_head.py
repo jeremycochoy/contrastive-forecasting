@@ -451,7 +451,7 @@ def linear_queue(queue_box):
     res = tmp_path / "res_lin"
     res.mkdir()
     env = dict(env, CF425_HEAD_ARCH="linear", CF425_RES=str(res),
-               CF425_TEST_RES=str(res))
+               CF425_TEST_RES=str(res), CF425_SCORE_VRAM_MIB="0")
     env.pop("CF425_ROOT")
     return tmp_path, res, env
 
@@ -526,6 +526,79 @@ def test_the_two_queues_run_together_and_share_the_gpu_lock(queue_box):
     assert len(starts) >= 6          # the waves of 2 lanes of 2 queues
     assert all(end <= later for (_, end), (later, _)
                in zip(starts, starts[1:])), starts
+
+
+FREE_NVIDIA_SMI = """#!/bin/bash
+# The free memory of the GPU comes from a file of the test.
+cat "$CF425_TEST_FREE"
+"""
+
+
+def gated_queue(queue_box, free):
+    """The linear queue of ``queue_box`` on a GPU with ``free`` MiB free: a
+    wave needs 6,000 MiB, a score 3,000 MiB, and the box has 2 eval slots."""
+    tmp_path, res, env = linear_queue(queue_box)
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "nvidia-smi").write_text(FREE_NVIDIA_SMI)
+    (bin_dir / "nvidia-smi").chmod(0o755)
+    (tmp_path / "free").write_text(f"{free}\n")
+    slots = tmp_path / "slots"
+    slots.mkdir()
+    env = dict(env, PATH=f"{bin_dir}:{os.environ['PATH']}",
+               CF425_TEST_FREE=str(tmp_path / "free"),
+               CF425_WAVE_VRAM_MIB="6000", CF425_SCORE_VRAM_MIB="3000",
+               CF425_EVAL_SLOTS="2", CF425_EVAL_SLOTDIR=str(slots),
+               CF425_VRAM_POLL="1", CF425_WAVE_SIZE="3")
+    return tmp_path, res, slots, env
+
+
+def test_a_wave_leaves_room_for_the_scores_that_can_start(queue_box):
+    """A score has no memory gate, and the queue of the transformer heads
+    scores on the same GPU. So a wave of the linear queue starts only when
+    the GPU has its memory and the memory of a score for each eval slot
+    with no score. Here 10,000 MiB are free: less than 6,000 and 2 times
+    3,000. The wave waits, and it starts when 12,000 MiB are free."""
+    tmp_path, res, _, env = gated_queue(queue_box, 10000)
+    queue = subprocess.Popen(["bash", str(SCRIPTS / "queue.sh")], env=env,
+                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                             text=True)
+    time.sleep(4)
+    assert queue.poll() is None and not (res / "calls.log").exists() or not \
+        waves(res)
+    (tmp_path / "free").write_text("12000\n")
+    out = queue.communicate(timeout=120)[0]
+    assert queue.returncode == 0, out
+    assert "10000 MiB free on the GPU" in out and "6000 stay free" in out
+    assert sorted(p.name[6:-4] for p in res.glob("score_*.txt")) == LIN_GOOD
+
+
+def test_a_score_that_runs_needs_no_room(queue_box):
+    """An eval slot with a score holds its memory now, so the free memory
+    counts it: with 1 of 2 slots in use, a wave needs 6,000 and 3,000."""
+    tmp_path, res, slots, env = gated_queue(queue_box, 9000)
+    holder = subprocess.Popen(["flock", str(slots / "slot_0"), "sleep", "60"])
+    try:
+        time.sleep(0.5)
+        r = run_queue(dict(env, CF425_SCORE="0"))
+    finally:
+        holder.kill()
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "stay free" not in r.stdout          # no wave waited
+    assert len(waves(res)) == 3
+
+
+def test_the_queue_gives_its_eval_slots_to_each_score(queue_box):
+    """The scores of the two queues count in one set of eval slots."""
+    tmp_path, res, env = linear_queue(queue_box)
+    (tmp_path / "runner.sh").write_text(base.QUEUE_STUB.replace(
+        "$CF_RECONSTRUCTION", "$CF393_EVAL_SLOTDIR $CF393_EVAL_SLOTS"))
+    r = run_queue(dict(env, CF425_EVAL_SLOTDIR="/tmp/some_slots",
+                       CF425_EVAL_SLOTS="3"))
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert {tuple(c[2:4]) for c in job_calls(res)} == {("/tmp/some_slots", "3")}
+    r = run_queue(dict(env, CF425_DRY_RUN="1"))
+    assert r.returncode == 0
 
 
 def real_job_box(tmp_path):
@@ -617,9 +690,10 @@ def test_the_sync_hands_its_roots_to_the_prune_of_the_box(sync_box):
 
 def test_the_linear_sync_reads_and_writes_its_own_folders(tmp_path):
     """CF425_HEAD_ARCH=linear: the sync reads the folders of the linear
-    queue on the box, writes its own mirror folders on elisa, and gives the
-    prune of the linear code the folders of the linear queue. No command
-    names a folder of the queue of the transformer heads."""
+    queue on the box, and gives the prune of the linear code these folders.
+    On elisa it writes the folders of the linear queue of elisa
+    (queue_elisa.sh), so the two machines fill one layout. No command names
+    a folder of the queue of the transformer heads."""
     import re
     ssh = tmp_path / "ssh.sh"
     ssh.write_text(RECORDING_SSH)
@@ -633,10 +707,9 @@ def test_the_linear_sync_reads_and_writes_its_own_folders(tmp_path):
                        capture_output=True, text=True, env=env, timeout=120)
     assert r.returncode == 0, r.stdout + r.stderr
     backup = tmp_path / "checkpoints_backup"
-    assert (backup / "cf-412" / "vast_lr100x" / "cf-425-lin").is_dir()
+    assert (backup / "cf-425-lin" / "ckpt").is_dir()
     assert (backup / "cf-425-lin" / "box_results").is_dir()
-    assert not (backup / "cf-425").exists()
-    assert not (backup / "cf-412" / "vast_lr100x" / "cf-425").exists()
+    assert not (backup / "cf-425").exists() and not (backup / "cf-412").exists()
     sent = commands.read_text()
     assert "cd '/workspace/ckpt/cf-425-lin'" in sent
     assert "cd '/workspace/results/cf-425-lin'" in sent
@@ -714,11 +787,12 @@ def test_the_parity_script_reads_heads_after_its_flag(tmp_path, capsys,
 
 
 FAKE_NVIDIA_SMI = """#!/bin/bash
-# The whole GPU: "used, util". The compute apps: the python processes.
+# The whole GPU: "used, util", 9366 MiB at first and 16511 MiB while a wave
+# trains. The compute apps: the python processes.
 case "$*" in
   *query-compute-apps*) for p in $(pgrep -f trainer.py); do echo "$p, 1234"; done ;;
   *memory.free*) echo 30000 ;;
-  *) echo "5000, 50" ;;
+  *) if pgrep -f trainer.py >/dev/null; then echo "16511, 50"; else echo "9366, 50"; fi ;;
 esac
 """
 
@@ -754,4 +828,407 @@ def test_the_probe_trains_wave_1_of_each_lane_and_scores_nothing(
     calls = job_calls(res / "queue")
     assert calls and all(c[1] == "argv" and c[3] == "7" for c in calls)
     assert r.stdout.count("peak 1234 MiB") == 2      # one line for each wave
-    assert "5000 MiB" in r.stdout                    # the whole GPU
+    assert r.stdout.count("% of one CPU core") == 2
+    assert "all processes: 16511 MiB" in r.stdout    # the whole GPU
+
+
+# ---------------------------------------------------------------------------
+# 7. The lanes of a queue: several GPUs, a stop file, a limit of CPU threads
+# ---------------------------------------------------------------------------
+
+# A shared trainer that records the GPU and the CPU threads of each wave.
+LANE_TRAINER = base.TRAINER_STUB.replace(
+    'f.write("wave " + " ".join(names) + "\\n")',
+    'f.write("wave " + " ".join(names) + "\\n")\n'
+    '    f.write("on " + os.environ.get("CUDA_VISIBLE_DEVICES", "unset") + " "\n'
+    '            + os.environ.get("OMP_NUM_THREADS", "unset") + " "\n'
+    '            + os.environ.get("MKL_NUM_THREADS", "unset") + " "\n'
+    '            + " ".join(names) + "\\n")')
+# A runner that records the GPU and the eval slots of each score.
+LANE_RUNNER = base.QUEUE_STUB.replace(
+    'echo "$tag score $CF_RECONSTRUCTION"',
+    'echo "$tag score $BB_GPU $CF393_EVAL_SLOTDIR"')
+
+
+def lane_box(queue_box, lanes, **knobs):
+    """The linear queue of ``queue_box`` with the lanes ``lanes``."""
+    tmp_path, res, env = linear_queue(queue_box)
+    (tmp_path / "trainer.py").write_text(LANE_TRAINER)
+    (tmp_path / "runner.sh").write_text(LANE_RUNNER)
+    env = dict(env, CF425_LANES=lanes, CF425_EVAL_SLOTDIR=str(tmp_path / "slots"),
+               **knobs)
+    env.pop("OMP_NUM_THREADS", None)
+    env.pop("MKL_NUM_THREADS", None)
+    return tmp_path, res, env
+
+
+def wave_gpus(res):
+    """``{job tag: GPU of the wave that trained it}``, from the last try."""
+    return {tag: c[1] for c in base.calls(res) if c[0] == "on" for tag in c[4:]}
+
+
+def score_calls(res):
+    """``{job tag: (GPU, eval slot folder)}`` of each score call."""
+    return {c[0]: (c[2], c[3]) for c in job_calls(res) if c[1] == "score"}
+
+
+def is_old(tag):
+    return tag.startswith(("arm_c", "arm_d"))
+
+
+def test_each_lane_trains_and_scores_on_its_gpu(queue_box):
+    """CF425_LANES gives each lane its streams and its GPU. A wave trains
+    on the GPU of its lane, and each job gets its score on the GPU that
+    trained it. A lane on another GPU than the GPU of the queue counts its
+    scores in its own eval slots."""
+    tmp_path, res, env = lane_box(queue_box, "gift_pretrain:0 old:1")
+    r = run_queue(env)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert sorted(p.name[6:-4] for p in res.glob("score_*.txt")) == LIN_GOOD
+    trained, scored = wave_gpus(res), score_calls(res)
+    assert sorted(scored) == LIN_GOOD
+    slots = str(tmp_path / "slots")
+    for tag in LIN_GOOD:
+        gpu = "1" if is_old(tag) else "0"
+        assert trained[tag] == gpu
+        assert scored[tag] == (gpu, slots + "_gpu1" if is_old(tag) else slots)
+
+
+def test_two_lanes_of_one_stream_train_two_waves_at_one_time(queue_box):
+    """Two lanes can take their waves from one stream: each wave has its
+    own jobs, and the two waves train at the same time."""
+    _, res, env = lane_box(queue_box, "gift_pretrain:0 gift_pretrain:1",
+                           CF425_WAVE_SIZE="1", CF425_TEST_TRAIN_SLEEP="1.5",
+                           CF425_TRIES="1")
+    r = run_queue(env)
+    assert r.returncode == 0, r.stdout + r.stderr
+    order = [c[0] for c in base.calls(res) if c[0] in ("wave", "wave_end")]
+    assert order[:3] == ["wave", "wave", "wave_end"]
+    gift = [wave for wave in waves(res)]
+    assert all(len(wave) == 1 for wave in gift)
+    assert sorted(wave[0] for wave in gift) == sorted(
+        tag + "_lin" for tag in (base.GOOD[0], base.GOOD[1], base.BAD))
+    assert {wave_gpus(res)[tag] for tag in LIN_GOOD[:2]} <= {"0", "1"}
+    assert sorted(p.name[6:-4] for p in res.glob("score_*.txt")) == LIN_GOOD[:2]
+
+
+def test_a_lane_takes_its_next_stream_when_the_first_has_no_job(queue_box):
+    """A lane with the streams old,gift_pretrain trains the old-data jobs,
+    then the GiftEvalPretrain jobs. So its GPU does not stay idle."""
+    _, res, env = lane_box(queue_box, "old,gift_pretrain:1",
+                           CF425_WAVE_SIZE="3")
+    r = run_queue(env)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert sorted(p.name[6:-4] for p in res.glob("score_*.txt")) == LIN_GOOD
+    first, later = waves(res)[0], waves(res)[1:]
+    assert all(is_old(tag) for tag in first)
+    assert later and not any(is_old(tag) for wave in later for tag in wave)
+    assert set(wave_gpus(res).values()) == {"1"}
+
+
+@pytest.mark.parametrize("lanes", ["gift_pretrain", "gift_pretrain:x",
+                                   "moon:0", "old:0 gift:1"])
+def test_a_wrong_lane_starts_no_queue(queue_box, lanes):
+    _, res, env = lane_box(queue_box, lanes)
+    r = run_queue(env)
+    assert r.returncode == 2 and "CF425_LANES" in r.stdout
+    assert not (res / "calls.log").exists()
+
+
+def test_the_trainer_of_a_wave_gets_a_limit_of_cpu_threads(queue_box):
+    """CF425_TRAIN_THREADS: the CPU threads of each trainer process, so a
+    queue does not take each core of a machine that it shares. Unset, the
+    queue sets no limit, as before."""
+    _, res, env = lane_box(queue_box, "gift_pretrain:0 old:0",
+                           CF425_TRAIN_THREADS="3")
+    r = run_queue(env)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert {tuple(c[2:4]) for c in base.calls(res) if c[0] == "on"} == {("3", "3")}
+
+
+def test_a_queue_with_no_thread_limit_sets_none(queue_box):
+    _, res, env = lane_box(queue_box, "gift_pretrain:0 old:0")
+    r = run_queue(env)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert {tuple(c[2:4]) for c in base.calls(res) if c[0] == "on"} == {
+        ("unset", "unset")}
+
+
+def test_two_lanes_on_two_gpus_start_their_waves_at_one_time(queue_box):
+    """The start lock is for one GPU: it counts the free memory of that
+    GPU. So lanes on two GPUs do not wait for each other."""
+    tmp_path, res, env = lane_box(queue_box, "gift_pretrain:0 old:1",
+                                  CF425_WAVE_SIZE="3")
+    (tmp_path / "trainer.py").write_text(SLOW_START_TRAINER)
+    events = tmp_path / "events.log"
+    r = run_queue(dict(env, CF425_TEST_EVENTS=str(events)))
+    assert r.returncode == 0, r.stdout + r.stderr
+    (a, a_end), (b, b_end) = sorted(tuple(map(float, line.split()))
+                                    for line in open(events))[:2]
+    assert b < a_end                 # the second wave starts before the
+    assert (tmp_path / "gpu.lock_gpu1").exists()   # first step of the first
+
+
+def run_until_wave(env, res, then, timeout=60):
+    """Start the queue, call ``then`` when its first wave trains, and
+    return the output of the queue."""
+    queue = subprocess.Popen(["bash", str(SCRIPTS / "queue.sh")], env=env,
+                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                             text=True)
+    deadline = time.time() + timeout
+    while time.time() < deadline and not (
+            (res / "calls.log").exists() and waves(res)):
+        time.sleep(0.05)
+    then()
+    out = queue.communicate(timeout=120)[0]
+    assert queue.returncode == 0, out
+    return out
+
+
+def test_a_stop_file_gives_a_gpu_back_at_the_end_of_a_wave(queue_box):
+    """stop_gpu<N> in the results folder: each lane of that GPU trains its
+    wave to the end, then starts no score and no wave. The lanes of the
+    other GPU go on. A new queue, with no stop file, scores the head that
+    the lane left and trains the jobs that it did not start."""
+    _, res, env = lane_box(queue_box, "gift_pretrain:0 old:1",
+                           CF425_WAVE_SIZE="1", CF425_TEST_TRAIN_SLEEP="1.5",
+                           CF425_LANE_STAGGER="0")
+    out = run_until_wave(env, res, (res / "stop_gpu0").touch)
+    gift = [wave for wave in waves(res) if not is_old(wave[0])]
+    assert gift == [[LIN_GOOD[0]]]                 # one wave, to its end
+    scored = sorted(p.name[6:-4] for p in res.glob("score_*.txt"))
+    assert scored == LIN_GOOD[2:]                  # the old-data jobs only
+    assert "stop file" in out
+    heads = res.parent / "ckpt" / "cf-425-lin" / "recon" / "eval"
+    assert list((heads / LIN_GOOD[0]).glob("*_final.pth"))
+    assert not (res / "failed").exists() or not list((res / "failed").iterdir())
+
+    (res / "stop_gpu0").unlink()
+    again = run_queue(dict(env, CF425_TRIES="1"))
+    assert again.returncode == 0, again.stdout + again.stderr
+    assert sorted(p.name[6:-4] for p in res.glob("score_*.txt")) == LIN_GOOD
+    trained = [tag for wave in waves(res) for tag in wave]
+    assert trained.count(LIN_GOOD[0]) == 1         # scored, not trained again
+    assert not any(is_old(tag) for wave in waves(res)[3:] for tag in wave)
+
+
+def test_the_stop_file_of_the_queue_ends_each_lane(queue_box):
+    _, res, env = lane_box(queue_box, "gift_pretrain:0 old:1",
+                           CF425_WAVE_SIZE="1", CF425_OLD_WAVE_SIZE="1",
+                           CF425_TEST_TRAIN_SLEEP="1.5", CF425_LANE_STAGGER="0")
+    run_until_wave(env, res, (res / "stop").touch)
+    assert len(waves(res)) <= 2 and not list(res.glob("score_*.txt"))
+
+
+def test_a_wave_that_fails_under_a_stop_file_counts_no_try(queue_box):
+    """An owner who needs the GPU now writes the stop file and stops the
+    trainer of the lane. The jobs of that wave keep all their tries."""
+    _, res, env = lane_box(queue_box, "gift_pretrain:0", CF425_WAVE_SIZE="3",
+                           CF425_TEST_TRAIN_SLEEP="1.5")
+    out = run_until_wave(env, res, (res / "stop_gpu0").touch)
+    assert len(waves(res)) == 1 and base.BAD + "_lin" in waves(res)[0]
+    assert not (res / "failed").exists() or not list((res / "failed").iterdir())
+    assert "counts no try" in out
+
+
+def test_the_probe_can_take_more_waves_of_each_stream(queue_box):
+    """CF425_PROBE_WAVES=2: the first two waves of each stream, for a probe
+    of a queue with two lanes on one stream."""
+    tmp_path, _, env = queue_box
+    res = tmp_path / "probe_res"
+    env = dict(env, CF425_PROBE_RES=str(res), CF425_HEAD_ARCH="linear",
+               CF425_PROBE_ROOT=str(tmp_path / "probe_root"),
+               CF425_TEST_RES=str(res / "queue"), CF425_TRIES="1",
+               CF425_PROBE_SAMPLE="0.5", CF425_PROBE_WAVES="2",
+               CF425_LANES="gift_pretrain:0 gift_pretrain:0 old:0")
+    r = subprocess.run(["bash", str(SCRIPTS / "probe.sh"), "7"],
+                       capture_output=True, text=True, env=env, timeout=120)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "probe: 5 jobs, 7 steps" in r.stdout
+    assert len(waves(res / "queue")) == 3
+
+
+# ---------------------------------------------------------------------------
+# 8. The linear queue on elisa: queue_elisa.sh and deploy_elisa.sh
+# ---------------------------------------------------------------------------
+
+ALWAYS_FREE_NVIDIA_SMI = "#!/bin/bash\necho 24000\n"
+
+
+def elisa_home(tmp_path, rows=None):
+    """A home folder as on elisa: the input checkpoints of ``rows`` (the
+    real job table when None) as sparse files, the seasonal-naive reference,
+    and a GPU tool that reports free memory."""
+    home = tmp_path / "home"
+    ck = home / "checkpoints_backup" / "cf-412" / "vast_lr100x"
+    for row in base.job_rows() if rows is None else rows:
+        (ck / row[4]).parent.mkdir(parents=True, exist_ok=True)
+        with open(ck / row[4], "wb") as f:
+            f.truncate(int(row[5]))
+    ref = home / "workspaces" / "gift-eval" / "results" / "seasonal_naive"
+    ref.mkdir(parents=True)
+    with open(ref / "all_results.csv", "wb") as f:
+        f.truncate(24831)
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "nvidia-smi").write_text(ALWAYS_FREE_NVIDIA_SMI)
+    (bin_dir / "nvidia-smi").chmod(0o755)
+    env = {k: v for k, v in os.environ.items() if not k.startswith("CF425_")
+           and k not in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "GIFT_EVAL")}
+    env.update(HOME=str(home), CF425_CODE=str(REPO_ROOT),
+               PATH=f"{bin_dir}:{os.environ['PATH']}")
+    return home, env
+
+
+def run_elisa(env, *args, timeout=180):
+    return subprocess.run(["bash", str(SCRIPTS / "queue_elisa.sh"), *args],
+                          capture_output=True, text=True, env=env,
+                          timeout=timeout)
+
+
+def test_the_elisa_queue_plans_the_56_jobs_under_its_home_folder(tmp_path):
+    """queue_elisa.sh: the linear queue with the folders of elisa. Each
+    folder is under ~/checkpoints_backup/cf-425-lin, so a restart of elisa
+    keeps the heads, the scores and the logs."""
+    home, env = elisa_home(tmp_path)
+    r = run_elisa(dict(env, CF425_DRY_RUN="1"))
+    assert r.returncode == 0, r.stdout + r.stderr
+    plan = [line.split() for line in r.stdout.splitlines()]
+    assert len({p[5] for p in plan}) == 56
+    assert all(p[5].endswith("_recon_lin") for p in plan)
+    lin = home / "checkpoints_backup" / "cf-425-lin"
+    assert (lin / "results").is_dir() and (lin / "ckpt" / "recon").is_dir()
+    gift = [int(p[1]) for p in plan if p[0] == "gift_pretrain"]
+    assert max(gift.count(wave) for wave in set(gift)) <= 8
+
+
+def test_the_elisa_queue_uses_two_gpus_and_keeps_no_state_in_tmp(tmp_path,
+                                                                 queue_box):
+    """The lanes of elisa train on GPU 0 and GPU 1, each trainer has its
+    limit of CPU threads, each job gets its score on the GPU of its wave,
+    and the locks and the eval slots are in the results folder."""
+    box, _, _ = queue_box
+    rows = [row for row in base.job_rows(box / "jobs.tsv")]
+    home, env = elisa_home(tmp_path / "e", rows)
+    (box / "trainer.py").write_text(LANE_TRAINER)
+    (box / "runner.sh").write_text(LANE_RUNNER)
+    lin = home / "checkpoints_backup" / "cf-425-lin"
+    res = lin / "results"
+    env = dict(env, CF425_JOBS=str(box / "jobs.tsv"),
+               CF425_RUNNER=str(box / "runner.sh"),
+               CF425_TRAINER=str(box / "trainer.py"),
+               CF425_TEST_RES=str(res), CF425_LANE_STAGGER="0",
+               CF425_GPU_POLL="0.1", CF425_WAVE_SIZE="1")
+    r = run_elisa(env)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert sorted(p.name[6:-4] for p in res.glob("score_*.txt")) == LIN_GOOD
+    trained, scored = wave_gpus(res), score_calls(res)
+    assert set(trained.values()) == {"0", "1"}
+    for tag in LIN_GOOD:
+        gpu, slots = scored[tag]
+        assert gpu == trained[tag] and slots.startswith(str(res))
+    threads = {c[2] for c in base.calls(res) if c[0] == "on"}
+    assert len(threads) == 1 and 1 <= int(threads.pop()) <= 8
+    assert list((lin / "ckpt" / "recon" / "eval").iterdir())
+    assert (res / "locks" / "gpu_start.lock").exists()
+
+
+def test_the_elisa_queue_goes_on_after_a_stop(tmp_path, queue_box):
+    """The same command after a restart of elisa or a stop: a job with a
+    score is not trained and not scored again, a job with a head gets its
+    score, and the other jobs train."""
+    box, _, _ = queue_box
+    rows = [row for row in base.job_rows(box / "jobs.tsv")
+            if "bad" not in row[1]]
+    (box / "good.tsv").write_text("".join("\t".join(row) + "\n" for row in rows))
+    home, env = elisa_home(tmp_path / "e", rows)
+    (box / "trainer.py").write_text(LANE_TRAINER)
+    (box / "runner.sh").write_text(LANE_RUNNER)
+    res = home / "checkpoints_backup" / "cf-425-lin" / "results"
+    env = dict(env, CF425_JOBS=str(box / "good.tsv"),
+               CF425_RUNNER=str(box / "runner.sh"),
+               CF425_TRAINER=str(box / "trainer.py"),
+               CF425_TEST_RES=str(res), CF425_LANE_STAGGER="0",
+               CF425_GPU_POLL="0.1", CF425_WAVE_SIZE="1",
+               CF425_OLD_WAVE_SIZE="1", CF425_TEST_TRAIN_SLEEP="1")
+    res.mkdir(parents=True)
+    (res / "stop").touch()                      # a stop before the first wave
+    r = run_elisa(env)
+    assert r.returncode == 0 and not (res / "calls.log").exists()
+    (res / "stop").unlink()
+    queue = subprocess.Popen(["bash", str(SCRIPTS / "queue_elisa.sh")],
+                             env=env, stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL)
+    while not ((res / "calls.log").exists() and waves(res)):
+        time.sleep(0.05)
+    (res / "stop").touch()
+    assert queue.wait(timeout=120) == 0
+    done = {p.name[6:-4] for p in res.glob("score_*.txt")}
+    first = [tag for wave in waves(res) for tag in wave]
+    assert 0 < len(first) < 4 and not done      # heads, and no score yet
+    (res / "stop").unlink()
+    r = run_elisa(env)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert sorted(p.name[6:-4] for p in res.glob("score_*.txt")) == LIN_GOOD
+    trained = [tag for wave in waves(res) for tag in wave]
+    assert sorted(trained) == LIN_GOOD          # each job trains one time
+    again = run_elisa(env)
+    assert again.returncode == 0
+    assert [tag for wave in waves(res) for tag in wave] == trained
+    assert len([c for c in job_calls(res) if c[1] == "score"]) == 4
+
+
+def deploy(env, *args):
+    return subprocess.run(["bash", str(SCRIPTS / "deploy_elisa.sh"), *args],
+                          capture_output=True, text=True, env=env, timeout=120)
+
+
+def test_the_deploy_puts_the_committed_code_in_the_elisa_folder(tmp_path):
+    """deploy_elisa.sh: the code of the last commit, the name of that
+    commit and the Hugging Face token, in the code folder of the linear
+    queue of elisa. A restart of elisa keeps that folder, and its path
+    shows cf-425 in each process of the queue."""
+    token = tmp_path / "token.txt"
+    token.write_text("hf_test\n")
+    env = dict(os.environ, HOME=str(tmp_path), CF425_HF_TOKEN_FILE=str(token))
+    env.pop("CF425_ELISA_BASE", None)
+    r = deploy(env)
+    assert r.returncode == 0, r.stdout + r.stderr
+    code = tmp_path / "checkpoints_backup" / "cf-425-lin" / "code"
+    head = subprocess.run(["git", "-C", str(REPO_ROOT), "rev-parse",
+                           "--short=8", "HEAD"], capture_output=True,
+                          text=True).stdout.strip()
+    assert (code / "DEPLOYED_COMMIT").read_text().strip() == head
+    assert (code / "experiments" / "hf_token.txt").read_text() == "hf_test\n"
+    for rel in ("reports/2026-10-06_encoder_reconstruction/scripts/queue.sh",
+                "reports/2026-08-08_rollout_depth/scripts/head_eval_bb.sh",
+                "reports/2026-08-08_rollout_depth/results/config_costs.csv",
+                "experiments/2026-04-13_gift-eval/scripts/"
+                "train_forecasting_heads_shared.py",
+                "src/forecasting_head.py"):
+        assert (code / rel).is_file(), rel
+    assert not (code / "tests").exists()
+    (code / "stale.txt").write_text("an old file")
+    assert deploy(env).returncode == 0          # a new deploy replaces it
+    assert not (code / "stale.txt").exists()
+
+
+def test_the_deploy_changes_no_code_under_a_queue_that_runs(tmp_path):
+    """bash reads a script while it runs it. So the deploy refuses when a
+    queue holds the queue lock of the results folder."""
+    token = tmp_path / "token.txt"
+    token.write_text("hf_test\n")
+    env = dict(os.environ, HOME=str(tmp_path), CF425_HF_TOKEN_FILE=str(token))
+    assert deploy(env).returncode == 0
+    lin = tmp_path / "checkpoints_backup" / "cf-425-lin"
+    (lin / "code" / "mark.txt").write_text("the code of the queue")
+    (lin / "results").mkdir()
+    holder = subprocess.Popen(["flock", str(lin / "results" / "queue.lock"),
+                               "sleep", "30"])
+    try:
+        time.sleep(0.5)
+        r = deploy(env)
+    finally:
+        holder.kill()
+    assert r.returncode != 0 and "queue" in r.stdout + r.stderr
+    assert (lin / "code" / "mark.txt").exists()

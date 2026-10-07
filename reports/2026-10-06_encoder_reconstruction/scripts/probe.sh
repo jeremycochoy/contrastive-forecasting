@@ -6,9 +6,13 @@
 # that the queue never reads.
 #
 # For each wave: the last reports of its trainer (the step rate, the share of
-# time that it waited for its stream, the memory that torch holds), and the
-# peak memory of its process on the GPU. Other processes can use the GPU
-# during a probe, so the probe also gives the peak of the whole GPU.
+# time that it waited for its stream, the memory that torch holds), the peak
+# memory of its process on the GPU, and the CPU time of its process as a
+# share of one core. Other processes can use the GPU during a probe, so the
+# probe also gives the peak of the whole GPU.
+#
+# CF425_PROBE_WAVES=<n> takes the first n waves of each stream, for a queue
+# with n lanes on one stream (CF425_LANES).
 #
 # Usage, on the box:  bash probe.sh [steps]      (default 500)
 #   HEAD_LOG_EVERY=50 CF425_HEAD_ARCH=linear CF425_WAVE_SIZE=47 bash probe.sh 200
@@ -22,10 +26,12 @@ JOBS="${CF425_JOBS:-$HERE/jobs.tsv}"
 case "${CF425_HEAD_ARCH:-transformer}" in linear) NAME=cf-425-lin ;; *) NAME=cf-425 ;; esac
 RES="${CF425_PROBE_RES:-/workspace/results/$NAME/probe}"
 ROOT="${CF425_PROBE_ROOT:-/workspace/ckpt/$NAME/probe}"
+GPU="${CF425_GPU:-0}"
 
 mkdir -p "$RES"
 # The jobs of wave 1 of each lane, from the plan of the queue: "<code> <stop>k".
-CF425_DRY_RUN=1 bash "$HERE/queue.sh" | awk '$2 == 1 { print $4, $5 }' >"$RES/wave1.txt"
+CF425_DRY_RUN=1 bash "$HERE/queue.sh" \
+  | awk -v n="${CF425_PROBE_WAVES:-1}" '$2 <= n { print $4, $5 }' >"$RES/wave1.txt"
 awk -F'\t' 'NR == FNR { want[$1] = 1; next }
   /^#/ || ($1 " " $3 "k") in want' "$RES/wave1.txt" "$JOBS" >"$RES/jobs.tsv"
 echo "probe: $(grep -vc '^#' "$RES/jobs.tsv") jobs, $STEPS steps"
@@ -34,14 +40,15 @@ echo "probe: $(grep -vc '^#' "$RES/jobs.tsv") jobs, $STEPS steps"
 # process of each wave of the probe.
 ( while :; do
     now=$(date +%T)
-    echo "$now total $(nvidia-smi --query-gpu=memory.used,utilization.gpu \
+    echo "$now total $(nvidia-smi --id="$GPU" --query-gpu=memory.used,utilization.gpu \
       --format=csv,noheader,nounits)"
     for pid in $(pgrep -f "$RES/queue/waves/"); do
       wave=$(tr '\0' ' ' <"/proc/$pid/cmdline" 2>/dev/null \
         | grep -o 'waves/[^/ ]*' | head -1)
-      mib=$(nvidia-smi --query-compute-apps=pid,used_memory \
+      mib=$(nvidia-smi --id="$GPU" --query-compute-apps=pid,used_memory \
         --format=csv,noheader,nounits | awk -F', *' -v p="$pid" '$1 == p { print $2 }')
-      [ -n "$wave" ] && [ -n "$mib" ] && echo "$now wave ${wave#waves/} $mib"
+      [ -n "$wave" ] && [ -n "$mib" ] \
+        && echo "$now wave ${wave#waves/} $mib $(ps -o %cpu= -p "$pid" | tr -d ' ')"
     done
     sleep "${CF425_PROBE_SAMPLE:-10}"
   done ) >"$RES/gpu.log" &
@@ -56,8 +63,8 @@ for log in "$RES"/queue/waves/*/train.log; do
   wave=$(basename "$(dirname "$log")")
   echo "$wave: $(grep -c . "$(dirname "$log")/jobs.jsonl") jobs"
   grep '^\[shared\]' "$log" | tail -2
-  awk -v w="$wave" '$2 == "wave" && $3 == w && $4 > m { m = $4 }
-    END { print "peak " m + 0 " MiB of GPU memory for the process of this wave" }' "$RES/gpu.log"
+  awk -v w="$wave" '$2 == "wave" && $3 == w { cpu = $5; if ($4 + 0 > m) m = $4 + 0 }
+    END { print "peak " m + 0 " MiB of GPU memory for the process of this wave, and " cpu + 0 "% of one CPU core" }' "$RES/gpu.log"
 done
-awk '$2 == "total" { gsub(",", "", $3); if ($3 > m) m = $3 }
+awk '$2 == "total" { gsub(",", "", $3); if ($3 + 0 > m) m = $3 + 0 }
   END { print "peak GPU memory, all processes:", m + 0, "MiB" }' "$RES/gpu.log"

@@ -17,8 +17,14 @@
 # one wave at a time. A lane takes the first CF425_OLD_WAVE_SIZE or
 # CF425_WAVE_SIZE jobs of its stream with no head and no score, trains them,
 # starts their scores in the background, and takes the next wave. A score
-# waits for one of CF393_EVAL_SLOTS slots and runs on the GPU
+# waits for one of CF425_EVAL_SLOTS slots and runs on the GPU
 # (CF425_EVAL_DEVICE). A job with a head and no score gets its score only.
+#
+# CF425_LANES gives other lanes: "<streams>:<GPU>" for each lane, for a
+# machine with more GPUs or more cores. A lane takes its waves from the
+# first of its streams (a comma list) that has a job, and it trains and
+# scores on its GPU. Two lanes can share a stream: each wave has its own
+# jobs. Each GPU has its own start lock and its own eval slots.
 #
 # Order: tier, then row of jobs.tsv. Tier 1 holds the first and the last
 # stop of each run, so each run has its two ends before the stops between.
@@ -36,11 +42,19 @@
 #
 # Before a wave, the lane waits for CF425_MIN_FREE_GB of free disk (the sync
 # frees the box copies that elisa holds), then for CF425_WAVE_VRAM_MIB of
-# free GPU memory. One lock, for both lanes, holds from that GPU check until
-# the trainer ends its first step, so two waves never count the same free
-# memory. The queue starts after forecast_scores.sh, which uses the same
-# GPU with other locks, and only when the seasonal-naive reference of the
-# score is on the box.
+# free GPU memory. One lock, for the lanes of one GPU, holds from that GPU
+# check until the trainer ends its first step, so two waves never count the
+# same free memory. A score has no memory check. So with
+# CF425_SCORE_VRAM_MIB, a wave also leaves that memory free for each eval
+# slot that has no score. The queue starts after forecast_scores.sh, which
+# uses the same GPU with other locks, and only when the seasonal-naive
+# reference of the score is on the box.
+#
+# To give a GPU back, write the file `stop_gpu<N>` in the results folder
+# (`stop`: each GPU). Each lane of that GPU trains its wave to the end, then
+# starts no score and no wave. To get the GPU at once, write the file and
+# then stop the trainer of the lane: its jobs lose no try. A new queue, with
+# no stop file, scores each head with no score and trains the other jobs.
 #
 # The linear queue (CF425_HEAD_ARCH=linear) gives each job a linear head: one
 # linear map from each encoder latent to the quantiles of the values of its
@@ -54,18 +68,31 @@
 #   CF425_DRY_RUN=1 bash queue.sh     # the waves and the input check only
 #   CF425_SCORE=0 ...                 # train the heads, and score nothing
 #   CF425_GPU=1 ...                   # the GPU of the waves and the scores
+#   CF425_TRAIN_THREADS=4 ...         # the CPU threads of each trainer
 #   CF425_HEAD_ARCH=linear nohup setsid bash queue.sh \
 #     >>/workspace/results/cf-425-lin/queue.log 2>&1 &     # the linear queue
+# The linear queue on elisa, on two GPUs: queue_elisa.sh.
 set -uo pipefail
 
-# The head of the queue: its folders, the end of its tags, the jobs of a
-# wave of each stream, and the free GPU memory that a wave needs.
+GPU="${CF425_GPU:-0}"
+# The head of the queue: its folders, the end of its tags, its lanes, the
+# jobs of a wave of each stream, the free GPU memory that a wave needs, and
+# the memory that it leaves free for a score.
+#
+# The linear numbers come from probe.sh on the box (10-07), beside a wave of
+# the transformer heads: a wave of 25 linear heads on GiftEvalPretrain
+# trains 19.5 job steps/s in 7,140 MiB, and the 9 old-data jobs train 24.5
+# job steps/s in 5,964 MiB. The frozen backbone sets the rate, not the head,
+# so the size of a wave changes no job step rate. 25 jobs: the first wave
+# holds tier 1. The GiftEvalPretrain lane goes first: it is the long one.
 ARCH="${CF425_HEAD_ARCH:-transformer}"
 case "$ARCH" in
   transformer) NAME=cf-425; SUFFIX=recon; WHO="queue"
-               OLD_WAVE=9; GIFT_WAVE=12; WAVE_VRAM=12000 ;;
+               DEFAULT_LANES="old:$GPU gift_pretrain:$GPU"
+               OLD_WAVE=9; GIFT_WAVE=12; WAVE_VRAM=12000; SCORE_VRAM=0 ;;
   linear) NAME=cf-425-lin; SUFFIX=recon_lin; WHO="linear queue"
-          OLD_WAVE=9; GIFT_WAVE=12; WAVE_VRAM=12000 ;;
+          DEFAULT_LANES="gift_pretrain:$GPU old:$GPU"
+          OLD_WAVE=9; GIFT_WAVE=25; WAVE_VRAM=8000; SCORE_VRAM=4800 ;;
   *) echo "[#425 queue] ABORT: CF425_HEAD_ARCH=$ARCH. Use transformer or linear."
      exit 2 ;;
 esac
@@ -80,7 +107,12 @@ TRIES="${CF425_TRIES:-2}"
 STAGGER="${CF425_LANE_STAGGER:-120}"
 HEAD_STEPS="${CF425_HEAD_STEPS:-30000}"
 SCORE="${CF425_SCORE:-1}"
-GPU="${CF425_GPU:-0}"
+LANES="${CF425_LANES:-$DEFAULT_LANES}"
+THREADS="${CF425_TRAIN_THREADS:-}"
+# The eval slots of the GPU of the queue. The two queues of the box share
+# them, so the box runs no more scores than one queue plans.
+SLOTDIR="${CF425_EVAL_SLOTDIR:-/tmp/cf425_evalslots}"
+SLOTS="${CF425_EVAL_SLOTS:-2}"
 RUNNER="${CF425_RUNNER:-$CODE/reports/2026-08-08_rollout_depth/scripts/head_eval_bb.sh}"
 TRAINER="${CF425_TRAINER:-$CODE/experiments/2026-04-13_gift-eval/scripts/train_forecasting_heads_shared.py}"
 GPU_LOCK="${CF425_GPU_LOCK:-/tmp/cf425_gpu_start.lock}"
@@ -166,8 +198,7 @@ job_env(){  # <stop k>
     GIFT_EVAL="${GIFT_EVAL:-/workspace/gift-eval-data}" \
     EVAL_SHARDS="${CF425_EVAL_SHARDS:-2}" \
     EVAL_DEVICE="${CF425_EVAL_DEVICE:-cuda}" \
-    CF393_EVAL_SLOTS="${CF425_EVAL_SLOTS:-2}" \
-    CF393_EVAL_SLOTDIR=/tmp/cf425_evalslots \
+    CF393_EVAL_SLOTS="$SLOTS" CF393_EVAL_SLOTDIR="$SLOTDIR" \
     BB_GPU="$GPU" HEAD_VRAM_MIB="${CF425_HEAD_VRAM_MIB:-9000}" \
     GPU_GATE_LOCKDIR=/tmp/cf425_gpu \
     CF_RECONSTRUCTION=encoder CF_HEAD_ARCH="$ARCH" HEAD_SAVE_EVERY=1000000
@@ -194,6 +225,7 @@ unlock_all(){
 start_score(){  # <tag> <ckpt> <stop k>
   local tag="$1" other fd rc
   [ "$SCORE" = 1 ] || return 0
+  stop_asked && return 0
   (
     for other in "${!FD[@]}"; do
       [ "$other" = "$tag" ] || { fd=${FD[$other]}; exec {fd}>&-; }
@@ -229,12 +261,17 @@ pick_wave(){  # <stream>
   done < <(ordered_jobs)
 }
 
-wait_for_disk(){  # <stream>
+# A stop file for the GPU of the lane, or for the queue.
+stop_asked(){ [ -e "$RES/stop" ] || [ -e "$RES/stop_gpu$GPU" ]; }
+
+# Wait for the free disk of a wave. Returns 1 when a stop file comes first.
+wait_for_disk(){
   local need="${CF425_MIN_FREE_GB:-8}" free
   while :; do
     free=$(df -BG --output=avail "$RES" | tail -1 | tr -dc 0-9)
     [ "${free:-0}" -ge "$need" ] && return 0
-    log "lane $1: ${free} GB free, a wave needs $need GB. The sync frees the box copies."
+    stop_asked && return 1
+    log "lane $LANE: ${free} GB free, a wave needs $need GB. The sync frees the box copies."
     sleep 300
   done
 }
@@ -244,28 +281,46 @@ gpu_free(){  # MiB, or nothing with no nvidia-smi
     2>/dev/null | head -1 | tr -dc 0-9
 }
 
+# The GPU memory that a wave leaves free for the scores: a score has no
+# memory check, so each eval slot with no score counts the memory of one.
+score_reserve(){
+  local each="${CF425_SCORE_VRAM_MIB:-$SCORE_VRAM}" i idle=0
+  [ "$each" -gt 0 ] || { echo 0; return; }
+  for (( i = 0; i < SLOTS; i++ )); do
+    if [ ! -e "$SLOTDIR/slot_$i" ] || flock -n "$SLOTDIR/slot_$i" true 2>/dev/null; then
+      idle=$(( idle + 1 ))
+    fi
+  done
+  echo $(( idle * each ))
+}
+
 # Start the trainer of a wave in the background (TRAINER_PID) when the GPU
 # has the free memory of a wave. The GPU lock holds until the trainer ends
-# its first step, or ends, and the trainer does not inherit it.
-start_trainer(){  # <stream> <wave dir>
-  local need="${CF425_WAVE_VRAM_MIB:-$WAVE_VRAM}" lk free waited=0
+# its first step, or ends, and the trainer does not inherit it. Returns 1,
+# with no trainer, when a stop file comes first.
+start_trainer(){  # <wave dir>
+  local need="${CF425_WAVE_VRAM_MIB:-$WAVE_VRAM}" poll="${CF425_VRAM_POLL:-30}"
+  local lk free keep waited=0
   exec {lk}>>"$GPU_LOCK"
   flock "$lk"
   while :; do
-    free=$(gpu_free)
-    { [ -z "$free" ] || [ "$free" -ge "$need" ]; } && break
-    [ $(( waited % 600 )) -eq 0 ] && log "lane $1: $free MiB free on the GPU, a wave needs $need"
-    sleep 30; waited=$(( waited + 30 ))
+    free=$(gpu_free); keep=$(score_reserve)
+    { [ -z "$free" ] || [ "$free" -ge $(( need + keep )) ]; } && break
+    if stop_asked; then exec {lk}>&-; return 1; fi
+    [ $(( waited % 600 )) -eq 0 ] && log "lane $LANE: $free MiB free on the GPU, a wave needs $need, and $keep stay free for the scores"
+    sleep "$poll"; waited=$(( waited + poll ))
   done
   ( exec {lk}>&-
+    [ -z "$THREADS" ] || export OMP_NUM_THREADS="$THREADS" \
+      MKL_NUM_THREADS="$THREADS" OPENBLAS_NUM_THREADS="$THREADS"
     exec env PYTHONPATH="$CODE" CUDA_VISIBLE_DEVICES="$GPU" \
       PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
       HF_TOKEN="$(cat "$CODE/experiments/hf_token.txt" 2>/dev/null)" \
-      python3 -u "$TRAINER" --jobs "$2/jobs.jsonl" >>"$2/train.log" 2>&1 \
+      python3 -u "$TRAINER" --jobs "$1/jobs.jsonl" >>"$1/train.log" 2>&1 \
       </dev/null ) &
   TRAINER_PID=$!
   waited=$SECONDS
-  until grep -q '^\[shared\] 1 steps' "$2/train.log" 2>/dev/null \
+  until grep -q '^\[shared\] 1 steps' "$1/train.log" 2>/dev/null \
       || ! kill -0 "$TRAINER_PID" 2>/dev/null \
       || (( SECONDS - waited >= ${CF425_GPU_SETTLE_MAX:-1800} )); do
     sleep "${CF425_GPU_POLL:-5}"
@@ -284,21 +339,36 @@ train_wave(){  # <stream>
     env $(job_env "$stop") CF_BB_SHAPE="$SHAPE" \
       CF_HEAD_ARGV_TO="$dir/jobs.jsonl" \
       bash "$RUNNER" "$tag" "$CK/$ckpt" student "$HEAD_STEPS" \
-      >>"$RES/heads.log" 2>&1 </dev/null || log "lane $1: no flags for $tag"
+      >>"$RES/heads.log" 2>&1 </dev/null || log "lane $LANE: no flags for $tag"
   done
-  log "lane $1: wave $dir: ${#WAVE[@]} jobs: $(printf '%s ' "${WAVE[@]%% *}")"
-  start_trainer "$1" "$dir"
+  log "lane $LANE: wave $dir: ${#WAVE[@]} jobs: $(printf '%s ' "${WAVE[@]%% *}")"
+  start_trainer "$dir" || return 1
   wait "$TRAINER_PID"
 }
 
-run_lane(){  # <stream>
-  local stream="$1" job tag ckpt stop rc
+# One lane: its GPU, and the streams that give it its waves, in order.
+run_lane(){  # <lane number> <streams, comma separated> <GPU>
+  local streams="${2//,/ }" stream job tag ckpt stop rc
+  # A lane on another GPU than the GPU of the queue has its own start lock
+  # and its own eval slots: both count the memory of one GPU.
+  if [ "$3" != "$GPU" ]; then
+    GPU_LOCK="${GPU_LOCK}_gpu$3"; SLOTDIR="${SLOTDIR}_gpu$3"
+  fi
+  GPU="$3"
+  LANE="$1 ($2, GPU $3)"
   # The queue lock stays with the queue: a wave or a score that outlives it
   # must not stop a new queue. The job locks keep each job single.
   exec 9>&-
   mkdir -p /tmp/cf425_gpu
   while :; do
-    pick_wave "$stream"
+    if stop_asked; then
+      log "lane $LANE: a stop file: the lane starts no wave and no score"
+      break
+    fi
+    for stream in $streams; do
+      pick_wave "$stream"
+      [ "${#WAVE[@]}" -eq 0 ] && [ "${#SCORE_ONLY[@]}" -eq 0 ] || break
+    done
     if [ "${#WAVE[@]}" -eq 0 ] && [ "${#SCORE_ONLY[@]}" -eq 0 ]; then
       # A score of the lane that fails gets its next try from the lane. So
       # the lane stops only when none of its scores runs.
@@ -310,15 +380,16 @@ run_lane(){  # <stream>
       read -r tag ckpt stop <<<"$job"
       start_score "$tag" "$ckpt" "$stop"
     done
-    if [ "${#WAVE[@]}" -gt 0 ]; then
-      wait_for_disk "$stream"
+    if [ "${#WAVE[@]}" -gt 0 ] && wait_for_disk; then
       train_wave "$stream"
       rc=$?
-      log "lane $stream: wave rc=$rc"
+      log "lane $LANE: wave rc=$rc"
       for job in "${WAVE[@]}"; do
         read -r tag ckpt stop <<<"$job"
         if has_head "$tag"; then
           start_score "$tag" "$ckpt" "$stop"
+        elif stop_asked; then
+          log "lane $LANE: $tag has no head, and a stop file exists: this counts no try"
         else
           mark_failed "$tag" "wave rc=$rc"
         fi
@@ -326,13 +397,27 @@ run_lane(){  # <stream>
     fi
     unlock_all
   done
-  log "lane $stream: done"
+  unlock_all
+  wait
+  log "lane $LANE: done"
+}
+
+# Each lane names streams of the job table and a GPU number.
+check_lanes(){
+  local spec stream
+  for spec in $LANES; do
+    [[ "$spec" =~ ^[a-z_,]+:[0-9]+$ ]] || { log "ABORT: CF425_LANES: '$spec' is not <streams>:<GPU>"; return 1; }
+    for stream in $(tr ',' ' ' <<<"${spec%:*}"); do
+      [[ " $STREAMS " == *" $stream "* ]] || { log "ABORT: CF425_LANES: no stream '$stream'. The streams: $STREAMS"; return 1; }
+    done
+  done
 }
 
 mkdir -p "$RES" "$LOCKS" "$FAILED" "$ROOT"
 [ -f "$JOBS" ] || { log "ABORT: no job table at $JOBS"; exit 2; }
 [ -f "$RUNNER" ] || { log "ABORT: no runner at $RUNNER"; exit 2; }
 [ -f "$TRAINER" ] || { log "ABORT: no shared trainer at $TRAINER"; exit 2; }
+check_lanes || exit 2
 check_inputs || exit 3
 if [ -n "${CF425_DRY_RUN:-}" ]; then
   plan
@@ -342,9 +427,11 @@ fi
 exec 9>>"$RES/queue.lock"
 flock -n 9 || { log "ABORT: another queue holds $RES/queue.lock"; exit 4; }
 wait_for_others
-log "start: $(ordered_jobs | wc -l) jobs, $ARCH heads, lanes: $STREAMS, code $CODE ($(cat "$CODE/DEPLOYED_COMMIT" 2>/dev/null))"
-for stream in $STREAMS; do
-  run_lane "$stream" &
+log "start: $(ordered_jobs | wc -l) jobs, $ARCH heads, lanes: $LANES, code $CODE ($(cat "$CODE/DEPLOYED_COMMIT" 2>/dev/null))"
+n=0
+for spec in $LANES; do
+  n=$(( n + 1 ))
+  run_lane "$n" "${spec%:*}" "${spec##*:}" &
   sleep "$STAGGER"
 done
 wait

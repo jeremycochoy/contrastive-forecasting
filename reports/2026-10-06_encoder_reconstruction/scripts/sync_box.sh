@@ -22,9 +22,13 @@
 # or an older copy: another loop can copy a `*_best.pth` while its head still
 # trains, and the head writes that file again at the same size.
 #
-# The linear queue (CF425_HEAD_ARCH=linear, see queue.sh) has its own folders
-# on the box and on elisa: `cf-425-lin` in place of `cf-425` in each path
-# above. It needs its own loop, beside the loop of the transformer heads.
+# The linear queue runs on elisa (queue_elisa.sh), and needs no sync. Its
+# fallback on the box (CF425_HEAD_ARCH=linear, see queue.sh) has its own box
+# folders, `cf-425-lin` in place of `cf-425`, and needs its own loop. That
+# loop writes the folders of the linear queue of elisa: the heads go to
+# ~/checkpoints_backup/cf-425-lin/ckpt, and the box results to
+# ~/checkpoints_backup/cf-425-lin/box_results. So collect.py reads one
+# layout for the two machines.
 # The prune runs on the box with the environment of the box, so each tick
 # gives it the two box folders of its queue.
 #
@@ -33,9 +37,14 @@
 #                   CF425_HEAD_ARCH=linear bash sync_box.sh --loop 900
 set -uo pipefail
 
+BACKUP="$HOME/checkpoints_backup"
 case "${CF425_HEAD_ARCH:-transformer}" in
-  transformer) NAME=cf-425; WHO="sync" ;;
-  linear) NAME=cf-425-lin; WHO="linear sync" ;;
+  transformer) NAME=cf-425; WHO="sync"
+               MIRROR="$BACKUP/cf-412/vast_lr100x/cf-425"
+               RES_MIRROR="$BACKUP/cf-425/box_results" ;;
+  linear) NAME=cf-425-lin; WHO="linear sync"
+          MIRROR="$BACKUP/cf-425-lin/ckpt"
+          RES_MIRROR="$BACKUP/cf-425-lin/box_results" ;;
   *) echo "ABORT: CF425_HEAD_ARCH=$CF425_HEAD_ARCH. Use transformer or linear." >&2
      exit 2 ;;
 esac
@@ -43,8 +52,8 @@ HOST="${CF425_HOST:-root@ssh5.vast.ai}"
 PORT="${CF425_PORT:-31200}"
 CK_ROOT="${CF425_BOX_ROOT:-/workspace/ckpt/$NAME}"
 BOX_RES="${CF425_RES:-/workspace/results/$NAME}"
-MIRROR="${CF425_MIRROR:-$HOME/checkpoints_backup/cf-412/vast_lr100x}/$NAME"
-RES_MIRROR="${CF425_RESULTS_MIRROR:-$HOME/checkpoints_backup/$NAME/box_results}"
+[ -z "${CF425_MIRROR:-}" ] || MIRROR="$CF425_MIRROR/$NAME"
+RES_MIRROR="${CF425_RESULTS_MIRROR:-$RES_MIRROR}"
 PRUNE="${CF425_PRUNE:-/workspace/$NAME/reports/2026-10-06_encoder_reconstruction/scripts/prune.sh}"
 PRUNE_ROOT="${CF425_PRUNE_ROOT:-$CK_ROOT}"
 # CF425_SSH replaces the whole command, for a test that runs the box locally.
