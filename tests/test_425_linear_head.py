@@ -351,6 +351,18 @@ def test_the_flags_of_the_transformer_head_stay_as_they_were(stub_checkout,
             bb, out, tag, recon=bool(mode))
 
 
+def test_a_probe_reads_a_step_rate_more_often(stub_checkout):
+    """HEAD_LOG_EVERY: the steps between two log lines of the head trainer.
+    Unset, 500 (the golden flags above)."""
+    tmp_path = stub_checkout[0]
+    tag = "arm_bb40k_h30k_recon_lin"
+    r = head_eval(stub_checkout, tag, CF_SKIP_EVAL="1", HEAD_LOG_EVERY="50",
+                  **LINEAR)
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    head = recorded(tmp_path / "root" / "eval" / tag / "head_argv.json")
+    assert head[head.index("--log-every") + 1] == "50"
+
+
 def test_the_linear_arch_reaches_the_head_and_the_score(stub_checkout):
     """CF_HEAD_ARCH=linear: one linear map in place of the transformer
     head, each other flag as it was, and the R score under the linear tag."""

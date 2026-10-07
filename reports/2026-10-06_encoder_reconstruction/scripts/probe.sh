@@ -11,8 +11,9 @@
 # during a probe, so the probe also gives the peak of the whole GPU.
 #
 # Usage, on the box:  bash probe.sh [steps]      (default 500)
-#   CF425_HEAD_ARCH=linear CF425_WAVE_SIZE=47 bash probe.sh 300
-#                       a wave of 47 linear heads, and the old-data wave
+#   HEAD_LOG_EVERY=50 CF425_HEAD_ARCH=linear CF425_WAVE_SIZE=47 bash probe.sh 200
+#                       a wave of 47 linear heads and the old-data wave, with
+#                       a report every 50 steps
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

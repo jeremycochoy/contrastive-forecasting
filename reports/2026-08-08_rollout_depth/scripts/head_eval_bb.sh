@@ -19,6 +19,9 @@
 #                              that reconstruction of the true horizon
 #                              (strategy R). The tag must end in `_recon`.
 #   HEAD_SAVE_EVERY            the head snapshot interval (default 5000).
+#   HEAD_LOG_EVERY             the steps between two log lines of the head
+#                              trainer (default 500). A short probe of a
+#                              wave sets it lower, to read a step rate.
 #   CF_SKIP_EVAL=1             train the head, then stop before the eval.
 #   CF_HEAD_ARGV_TO=<file>     add the flags of the head trainer to <file>, as
 #                              one JSON line, and stop. A shared trainer
@@ -166,7 +169,7 @@ HEAD_ARGS=(--backbone-path "$BB"
            --quantile-head --grad-clip 1.0
            --forecast-len 16 --batch-size 256 --lr 1e-3
            --total-steps "$HEAD_STEPS" --save-every "${HEAD_SAVE_EVERY:-5000}"
-           --log-every 500
+           --log-every "${HEAD_LOG_EVERY:-500}"
            --save-dir "$OUT" --run-name "$HEAD_NAME" --seed "$HEAD_SEED"
            --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1
            "${ARCH_ARGS[@]}" "${RECON_ARGS[@]}"

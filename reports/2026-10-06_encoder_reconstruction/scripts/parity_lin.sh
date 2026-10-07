@@ -13,7 +13,9 @@
 #
 # Every file goes to test folders that the linear queue never reads. The
 # waves take the GPU lock of the queues, so the test can run beside a queue.
-# The scores take their own eval slot: they are short.
+# The scores take their own eval slot: they are short. Each trainer process
+# holds about 5 GiB of GPU memory, so the two solo runs end before the two
+# waves start.
 #
 # Usage, on the box:  bash parity_lin.sh
 set -uo pipefail
@@ -63,12 +65,13 @@ for pair in $PAIRS; do
   log "solo $pair: $STEPS steps, code $(cat "$CODE/DEPLOYED_COMMIT" 2>/dev/null)"
   WT="$CODE" CF373_ROOT="$OUT/solo" CF_RESULTS="$RES/solo" CF_STOP_K="${pair#*:}" \
     CF_RECONSTRUCTION=encoder CF_HEAD_ARCH=linear HEAD_SAVE_EVERY=1000000 \
-    CF_SKIP_EVAL=1 CF_BB_SHAPE="$SHAPE" BB_GPU="$GPU" HEAD_VRAM_MIB=4000 \
+    CF_SKIP_EVAL=1 CF_BB_SHAPE="$SHAPE" BB_GPU="$GPU" HEAD_VRAM_MIB=7000 \
     GPU_GATE_LOCKDIR="/tmp/cf425_parity_lin_${pair%:*}" \
     bash "$B4/head_eval_bb.sh" "$tag" "$CK/$ckpt" student "$STEPS" \
     >"$RES/solo_${pair%:*}.out" 2>&1 </dev/null &
   pids+=($!)
 done
+for pid in "${pids[@]}"; do wait "$pid" || log "a solo run failed: see $RES/solo_*.out"; done
 
 log "waves: $(grep -vc '^#' "$RES/jobs.tsv") jobs, $STEPS steps"
 CF425_HEAD_ARCH=linear CF425_CODE="$CODE" CF425_CK="$CK" CF425_JOBS="$RES/jobs.tsv" \
@@ -76,7 +79,6 @@ CF425_HEAD_ARCH=linear CF425_CODE="$CODE" CF425_CK="$CK" CF425_JOBS="$RES/jobs.t
   CF425_RES="$RES/queue" CF425_LANE_STAGGER=30 CF425_GPU="$GPU" \
   bash "$HERE/queue.sh" >"$RES/queue.out" 2>&1
 log "waves rc=$?"
-for pid in "${pids[@]}"; do wait "$pid" || log "a solo run failed: see $RES/solo_*.out"; done
 
 csvs=(); heads=()
 for pair in $PAIRS; do
