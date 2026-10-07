@@ -42,19 +42,40 @@
 # GPU with other locks, and only when the seasonal-naive reference of the
 # score is on the box.
 #
+# The linear queue (CF425_HEAD_ARCH=linear) gives each job a linear head: one
+# linear map from each encoder latent to the quantiles of the values of its
+# patch, with the other B4 settings and the same score. Its tags end in
+# `_recon_lin`, and its code, its heads and its results have their own
+# folders (cf-425-lin). So it runs beside the queue of the transformer heads.
+# The two queues share the GPU lock, the eval slots and the disk floor.
+#
 # Usage, on the box:
 #   nohup setsid bash queue.sh >>/workspace/results/cf-425/queue.log 2>&1 &
 #   CF425_DRY_RUN=1 bash queue.sh     # the waves and the input check only
 #   CF425_SCORE=0 ...                 # train the heads, and score nothing
 #   CF425_GPU=1 ...                   # the GPU of the waves and the scores
+#   CF425_HEAD_ARCH=linear nohup setsid bash queue.sh \
+#     >>/workspace/results/cf-425-lin/queue.log 2>&1 &     # the linear queue
 set -uo pipefail
+
+# The head of the queue: its folders, the end of its tags, the jobs of a
+# wave of each stream, and the free GPU memory that a wave needs.
+ARCH="${CF425_HEAD_ARCH:-transformer}"
+case "$ARCH" in
+  transformer) NAME=cf-425; SUFFIX=recon; WHO="queue"
+               OLD_WAVE=9; GIFT_WAVE=12; WAVE_VRAM=12000 ;;
+  linear) NAME=cf-425-lin; SUFFIX=recon_lin; WHO="linear queue"
+          OLD_WAVE=9; GIFT_WAVE=12; WAVE_VRAM=12000 ;;
+  *) echo "[#425 queue] ABORT: CF425_HEAD_ARCH=$ARCH. Use transformer or linear."
+     exit 2 ;;
+esac
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 JOBS="${CF425_JOBS:-$HERE/jobs.tsv}"
-CODE="${CF425_CODE:-/workspace/cf-425}"
+CODE="${CF425_CODE:-/workspace/$NAME}"
 CK="${CF425_CK:-/workspace/ckpt}"
-ROOT="${CF425_ROOT:-$CK/cf-425/recon}"
-RES="${CF425_RES:-/workspace/results/cf-425}"
+ROOT="${CF425_ROOT:-$CK/$NAME/recon}"
+RES="${CF425_RES:-/workspace/results/$NAME}"
 TRIES="${CF425_TRIES:-2}"
 STAGGER="${CF425_LANE_STAGGER:-120}"
 HEAD_STEPS="${CF425_HEAD_STEPS:-30000}"
@@ -74,13 +95,13 @@ SHAPE="--d-model 384 --n-heads 8 --num-layers 3"
 LOCKS="$RES/locks"
 FAILED="$RES/failed"
 
-log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#425 queue] $*"; }
+log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#425 $WHO] $*"; }
 
-tag_of(){ echo "${1}_bb${2}k_h30k_recon"; }   # <arm> <stop k>
+tag_of(){ echo "${1}_bb${2}k_h30k_$SUFFIX"; }   # <arm> <stop k>
 
 wave_size(){  # <stream>
-  if [ "$1" = old ]; then echo "${CF425_OLD_WAVE_SIZE:-9}"
-  else echo "${CF425_WAVE_SIZE:-12}"; fi
+  if [ "$1" = old ]; then echo "${CF425_OLD_WAVE_SIZE:-$OLD_WAVE}"
+  else echo "${CF425_WAVE_SIZE:-$GIFT_WAVE}"; fi
 }
 
 # The jobs in queue order:
@@ -149,7 +170,7 @@ job_env(){  # <stop k>
     CF393_EVAL_SLOTDIR=/tmp/cf425_evalslots \
     BB_GPU="$GPU" HEAD_VRAM_MIB="${CF425_HEAD_VRAM_MIB:-9000}" \
     GPU_GATE_LOCKDIR=/tmp/cf425_gpu \
-    CF_RECONSTRUCTION=encoder HEAD_SAVE_EVERY=1000000
+    CF_RECONSTRUCTION=encoder CF_HEAD_ARCH="$ARCH" HEAD_SAVE_EVERY=1000000
 }
 
 # The lock of each job of the lane: job tag -> file descriptor.
@@ -227,7 +248,7 @@ gpu_free(){  # MiB, or nothing with no nvidia-smi
 # has the free memory of a wave. The GPU lock holds until the trainer ends
 # its first step, or ends, and the trainer does not inherit it.
 start_trainer(){  # <stream> <wave dir>
-  local need="${CF425_WAVE_VRAM_MIB:-12000}" lk free waited=0
+  local need="${CF425_WAVE_VRAM_MIB:-$WAVE_VRAM}" lk free waited=0
   exec {lk}>>"$GPU_LOCK"
   flock "$lk"
   while :; do
@@ -321,10 +342,10 @@ fi
 exec 9>>"$RES/queue.lock"
 flock -n 9 || { log "ABORT: another queue holds $RES/queue.lock"; exit 4; }
 wait_for_others
-log "start: $(ordered_jobs | wc -l) jobs, lanes: $STREAMS, code $CODE ($(cat "$CODE/DEPLOYED_COMMIT" 2>/dev/null))"
+log "start: $(ordered_jobs | wc -l) jobs, $ARCH heads, lanes: $STREAMS, code $CODE ($(cat "$CODE/DEPLOYED_COMMIT" 2>/dev/null))"
 for stream in $STREAMS; do
   run_lane "$stream" &
   sleep "$STAGGER"
 done
 wait
-log "QUEUE_END: $(ls "$RES"/score_*_recon.txt 2>/dev/null | wc -l) scores"
+log "QUEUE_END: $(ls "$RES"/score_*_"$SUFFIX".txt 2>/dev/null | wc -l) scores"

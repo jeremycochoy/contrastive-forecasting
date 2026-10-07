@@ -4,6 +4,10 @@ the same head trained alone.
 Usage: python3 parity_compare.py <label> <wave CSV> <solo CSV> [...]
 Prints one line for each pair: the steps that both CSVs hold, how many rows
 are identical, the first step that differs, and the largest difference.
+
+Usage: python3 parity_compare.py --heads <label> <wave head> <solo head> [...]
+Prints one line for each pair of head files: the tensors of each head, and
+how many tensors of the wave head are identical in the solo head.
 """
 import csv
 import sys
@@ -28,10 +32,23 @@ def compare(label, wave_csv, solo_csv):
             f"{pairs[-1][1][1]:.6f} (solo)")
 
 
+def compare_heads(label, wave_head, solo_head):
+    import torch
+    wave, solo = (torch.load(path, map_location="cpu", weights_only=True)
+                  for path in (wave_head, solo_head))
+    same = sum(key in solo and torch.equal(wave[key], solo[key])
+               for key in wave)
+    return (f"{label}: {len(wave)} tensors in the wave head, {len(solo)} in "
+            f"the solo head, {same} identical")
+
+
 def main():
     args = sys.argv[1:]
+    one = compare
+    if args[:1] == ["--heads"]:
+        one, args = compare_heads, args[1:]
     for i in range(0, len(args), 3):
-        print(compare(*args[i:i + 3]))
+        print(one(*args[i:i + 3]))
 
 
 if __name__ == "__main__":

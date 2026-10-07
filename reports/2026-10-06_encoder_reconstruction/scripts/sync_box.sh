@@ -22,21 +22,35 @@
 # or an older copy: another loop can copy a `*_best.pth` while its head still
 # trains, and the head writes that file again at the same size.
 #
+# The linear queue (CF425_HEAD_ARCH=linear, see queue.sh) has its own folders
+# on the box and on elisa: `cf-425-lin` in place of `cf-425` in each path
+# above. It needs its own loop, beside the loop of the transformer heads.
+# The prune runs on the box with the environment of the box, so each tick
+# gives it the two box folders of its queue.
+#
 # Usage, on elisa:  bash sync_box.sh              # one tick
 #                   bash sync_box.sh --loop 900   # a tick every 15 minutes
+#                   CF425_HEAD_ARCH=linear bash sync_box.sh --loop 900
 set -uo pipefail
 
+case "${CF425_HEAD_ARCH:-transformer}" in
+  transformer) NAME=cf-425; WHO="sync" ;;
+  linear) NAME=cf-425-lin; WHO="linear sync" ;;
+  *) echo "ABORT: CF425_HEAD_ARCH=$CF425_HEAD_ARCH. Use transformer or linear." >&2
+     exit 2 ;;
+esac
 HOST="${CF425_HOST:-root@ssh5.vast.ai}"
 PORT="${CF425_PORT:-31200}"
-CK_ROOT="${CF425_BOX_ROOT:-/workspace/ckpt/cf-425}"
-BOX_RES="${CF425_RES:-/workspace/results/cf-425}"
-MIRROR="${CF425_MIRROR:-$HOME/checkpoints_backup/cf-412/vast_lr100x}/cf-425"
-RES_MIRROR="${CF425_RESULTS_MIRROR:-$HOME/checkpoints_backup/cf-425/box_results}"
-PRUNE="${CF425_PRUNE:-/workspace/cf-425/reports/2026-10-06_encoder_reconstruction/scripts/prune.sh}"
+CK_ROOT="${CF425_BOX_ROOT:-/workspace/ckpt/$NAME}"
+BOX_RES="${CF425_RES:-/workspace/results/$NAME}"
+MIRROR="${CF425_MIRROR:-$HOME/checkpoints_backup/cf-412/vast_lr100x}/$NAME"
+RES_MIRROR="${CF425_RESULTS_MIRROR:-$HOME/checkpoints_backup/$NAME/box_results}"
+PRUNE="${CF425_PRUNE:-/workspace/$NAME/reports/2026-10-06_encoder_reconstruction/scripts/prune.sh}"
+PRUNE_ROOT="${CF425_PRUNE_ROOT:-$CK_ROOT}"
 # CF425_SSH replaces the whole command, for a test that runs the box locally.
 read -r -a SSH <<<"${CF425_SSH:-ssh -p $PORT -o ConnectTimeout=20 -o ServerAliveInterval=30 $HOST}"
 
-log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#425 sync] $*"; }
+log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#425 $WHO] $*"; }
 
 # "<bytes>\t<mtime>\t<path>" of each file to bring from <box dir>. With
 # "final", only the files of a directory (or of a subdirectory of one) that
@@ -102,7 +116,7 @@ tick(){
   pull "$CK_ROOT" "$MIRROR" "$(wanted "$listing" "$MIRROR")"
   # The manifest: what elisa holds, at its size.
   (cd "$MIRROR" && find . -name '*.pth' -type f -printf '%s\t%P\n') \
-    | "${SSH[@]}" "cat > '$BOX_RES/elisa_manifest.tsv' && bash '$PRUNE' '$BOX_RES/elisa_manifest.tsv' ${CF425_PRUNE_DRY:+--dry-run}"
+    | "${SSH[@]}" "cat > '$BOX_RES/elisa_manifest.tsv' && CF425_PRUNE_ROOT='$PRUNE_ROOT' CF425_RES='$BOX_RES' bash '$PRUNE' '$BOX_RES/elisa_manifest.tsv' ${CF425_PRUNE_DRY:+--dry-run}"
   "${SSH[@]}" "df -h '$CK_ROOT' | tail -1" </dev/null | sed 's/^/  box disk: /'
 }
 

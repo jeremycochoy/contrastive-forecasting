@@ -118,12 +118,19 @@ def own_copy(batch):
     return batch.clone()
 
 
-def report(done, n_jobs, seconds, recent, device):
-    """The step rate of the process and its peak GPU memory."""
+def report(done, n_jobs, seconds, recent, device, waited):
+    """The step rate of the process, the share of the recent time that it
+    waited for a batch of the stream, and its peak GPU memory.
+
+    ``recent`` is ``(steps, seconds)`` since the last report, and ``waited``
+    the seconds of them in which the process waited for a batch. A process
+    that waits is as fast as its stream, so more jobs cost it no time. A
+    process that does not wait is as fast as its GPU."""
     rate, last = done / seconds, recent[0] / recent[1]
     line = (f"[shared] {done} steps: {rate:.2f} steps/s since the start, "
             f"{last:.2f} steps/s over the last {recent[0]}, "
-            f"{last * n_jobs:.1f} job steps/s")
+            f"{last * n_jobs:.1f} job steps/s, "
+            f"the stream took {100 * waited / recent[1]:.0f}% of that time")
     if device.type == "cuda":
         gib = 2 ** 30
         line += (f", peak {torch.cuda.max_memory_allocated(device) / gib:.2f}"
@@ -144,13 +151,15 @@ def train(members, loader):
             job.start()
     every = first.args.log_every
     t0 = last = time.time()
-    last_done = 0
+    last_done, waited = 0, 0.0
     for step in range(first.start_step + 1, first.args.total_steps + 1):
+        asked = time.time()
         try:
             batch = next(data_iter)
         except StopIteration:
             data_iter = iter(loader)
             batch = next(data_iter)
+        waited += time.time() - asked
         for member in members:
             with member.turn() as job:
                 job.train_step(step, own_copy(batch))
@@ -160,8 +169,8 @@ def train(members, loader):
         if step % every == 0 or done == 1:
             now = time.time()
             report(done, len(members), now - t0,
-                   (done - last_done, now - last), first.device)
-            last, last_done = now, done
+                   (done - last_done, now - last), first.device, waited)
+            last, last_done, waited = now, done, 0.0
     for member in members:
         with member.turn() as job:
             job.finish()
