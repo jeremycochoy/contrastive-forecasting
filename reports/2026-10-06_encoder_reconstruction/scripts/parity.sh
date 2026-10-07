@@ -31,19 +31,22 @@ SHAPE="--d-model 384 --n-heads 8 --num-layers 3"
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#425 parity] $*"; }
 
 mkdir -p "$OUT" "$RES"
-awk -F'\t' '/^#code/ || ($1 == "OMB" && $3 == 25) || ($1 == "BLK" && $3 == 200)
-  || ($1 == "BMS" && $3 == 40) || ($1 == "OAF" && $3 == 40)
-  || ($1 == "LOW" && $3 == 665) || ($1 == "TWN" && $3 == 100)' \
-  "$HERE/jobs.tsv" >"$RES/jobs.tsv"
+awk -F'\t' -v want=" OMB:25 BLK:200 BMS:40 OAF:40 LOW:665 TWN:100 " \
+  '/^#code/ || index(want, " " $1 ":" $3 " ")' "$HERE/jobs.tsv" >"$RES/jobs.tsv"
 
-log "solo: OMB 25k, 1,000 steps, code $(cat "$OLD/DEPLOYED_COMMIT")"
-WT="$OLD" CF373_ROOT="$OUT/solo" CF_RESULTS="$RES" CF_STOP_K=25 \
-  CF_RECONSTRUCTION=encoder HEAD_SAVE_EVERY=1000000 CF_SKIP_EVAL=1 \
-  CF_BB_SHAPE="$SHAPE" BB_GPU=0 HEAD_VRAM_MIB=4000 \
-  GPU_GATE_LOCKDIR=/tmp/cf425_parity_solo GIFT_EVAL=/workspace/gift-eval-data \
-  bash "$OLD/$B4/head_eval_bb.sh" omb25_solo_recon "$CK/$OMB" student 1000 \
-  >"$RES/solo.out" 2>&1 </dev/null &
-solo=$!
+SOLO="head_eval_bb.sh omb25_solo_recon"
+if [ -f "$OUT/solo/eval/omb25_solo_recon/qhead_omb25_solo_recon_s20260722_final.pth" ] \
+    || pgrep -f "$SOLO" >/dev/null; then
+  log "solo: it ended or it runs, so it does not start again"
+else
+  log "solo: OMB 25k, 1,000 steps, code $(cat "$OLD/DEPLOYED_COMMIT")"
+  WT="$OLD" CF373_ROOT="$OUT/solo" CF_RESULTS="$RES" CF_STOP_K=25 \
+    CF_RECONSTRUCTION=encoder HEAD_SAVE_EVERY=1000000 CF_SKIP_EVAL=1 \
+    CF_BB_SHAPE="$SHAPE" BB_GPU=0 HEAD_VRAM_MIB=4000 \
+    GPU_GATE_LOCKDIR=/tmp/cf425_parity_solo GIFT_EVAL=/workspace/gift-eval-data \
+    bash "$OLD/$B4/head_eval_bb.sh" omb25_solo_recon "$CK/$OMB" student 1000 \
+    >"$RES/solo.out" 2>&1 </dev/null &
+fi
 
 log "waves: $(grep -vc '^#' "$RES/jobs.tsv") jobs, 1,000 steps, code $(cat "$NEW/DEPLOYED_COMMIT")"
 CF425_CODE="$NEW" CF425_JOBS="$RES/jobs.tsv" CF425_HEAD_STEPS=1000 \
@@ -52,8 +55,8 @@ CF425_CODE="$NEW" CF425_JOBS="$RES/jobs.tsv" CF425_HEAD_STEPS=1000 \
   bash "$NEW/reports/2026-10-06_encoder_reconstruction/scripts/queue.sh" \
   >"$RES/queue.out" 2>&1
 log "waves rc=$?"
-wait "$solo"
-log "solo rc=$?"
+while pgrep -f "$SOLO" >/dev/null; do sleep 20; done
+log "solo: $(grep -h 'head-train rc' "$RES/stops.log" | tail -1)"
 
 for name in omb25_solo_recon cf412om_bb25k_h30k_recon; do
   dir=solo; [ "$name" = omb25_solo_recon ] || dir=queue

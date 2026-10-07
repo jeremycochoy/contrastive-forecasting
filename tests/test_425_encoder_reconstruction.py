@@ -1173,6 +1173,8 @@ res = os.environ["CF425_TEST_RES"]
 names = [a[a.index("--run-name") + 1][len("qhead_"):] for a in jobs]
 with open(os.path.join(res, "calls.log"), "a") as f:
     f.write("wave " + " ".join(names) + "\n")
+with open(os.path.join(res, "gpu.log"), "a") as f:
+    f.write(os.environ.get("CUDA_VISIBLE_DEVICES", "unset") + "\n")
 print("[shared] 1 steps: a stub", flush=True)
 time.sleep(float(os.environ.get("CF425_TEST_TRAIN_SLEEP", "0")))
 for a, name in zip(jobs, names):
@@ -1437,6 +1439,13 @@ def test_the_queue_hands_the_runner_the_b4_head_steps(queue_box):
     assert r.returncode == 0, r.stdout + r.stderr
     argv = {tuple(c[2:]) for c in job_calls(res) if c[1] == "argv"}
     assert argv == {("encoder", "30000", "1000000")}
+
+
+def test_the_waves_train_on_the_gpu_of_the_queue(queue_box):
+    _, res, env = queue_box
+    r = run_queue(dict(env, CF425_GPU="1"))
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert set((res / "gpu.log").read_text().split()) == {"1"}
 
 
 def test_the_score_knob_stops_each_lane_after_its_heads(queue_box):

@@ -41,6 +41,7 @@
 #   nohup setsid bash queue.sh >>/workspace/results/cf-425/queue.log 2>&1 &
 #   CF425_DRY_RUN=1 bash queue.sh     # the waves and the input check only
 #   CF425_SCORE=0 ...                 # train the heads, and score nothing
+#   CF425_GPU=1 ...                   # the GPU of the waves and the scores
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -53,6 +54,7 @@ TRIES="${CF425_TRIES:-2}"
 STAGGER="${CF425_LANE_STAGGER:-120}"
 HEAD_STEPS="${CF425_HEAD_STEPS:-30000}"
 SCORE="${CF425_SCORE:-1}"
+GPU="${CF425_GPU:-0}"
 RUNNER="${CF425_RUNNER:-$CODE/reports/2026-08-08_rollout_depth/scripts/head_eval_bb.sh}"
 TRAINER="${CF425_TRAINER:-$CODE/experiments/2026-04-13_gift-eval/scripts/train_forecasting_heads_shared.py}"
 GPU_LOCK="${CF425_GPU_LOCK:-/tmp/cf425_gpu_start.lock}"
@@ -140,7 +142,7 @@ job_env(){  # <stop k>
     EVAL_DEVICE="${CF425_EVAL_DEVICE:-cuda}" \
     CF393_EVAL_SLOTS="${CF425_EVAL_SLOTS:-2}" \
     CF393_EVAL_SLOTDIR=/tmp/cf425_evalslots \
-    BB_GPU=0 HEAD_VRAM_MIB="${CF425_HEAD_VRAM_MIB:-9000}" \
+    BB_GPU="$GPU" HEAD_VRAM_MIB="${CF425_HEAD_VRAM_MIB:-9000}" \
     GPU_GATE_LOCKDIR=/tmp/cf425_gpu \
     CF_RECONSTRUCTION=encoder HEAD_SAVE_EVERY=1000000
 }
@@ -212,7 +214,7 @@ wait_for_disk(){  # <stream>
 }
 
 gpu_free(){  # MiB, or nothing with no nvidia-smi
-  nvidia-smi --id=0 --query-gpu=memory.free --format=csv,noheader,nounits \
+  nvidia-smi --id="$GPU" --query-gpu=memory.free --format=csv,noheader,nounits \
     2>/dev/null | head -1 | tr -dc 0-9
 }
 
@@ -230,7 +232,7 @@ start_trainer(){  # <stream> <wave dir>
     sleep 30; waited=$(( waited + 30 ))
   done
   ( exec {lk}>&-
-    exec env PYTHONPATH="$CODE" CUDA_VISIBLE_DEVICES=0 \
+    exec env PYTHONPATH="$CODE" CUDA_VISIBLE_DEVICES="$GPU" \
       PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
       HF_TOKEN="$(cat "$CODE/experiments/hf_token.txt" 2>/dev/null)" \
       python3 -u "$TRAINER" --jobs "$2/jobs.jsonl" >>"$2/train.log" 2>&1 \
