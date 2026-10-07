@@ -17,8 +17,8 @@ and ``run_style.py``), so a run looks the same in every figure.
 
 The report holds the figures only. So a figure keeps each fact in its plot
 or in its legend, never in its title or in an annotation. The legend gives
-the first and the last R score of each run, the floor of each scaling setup
-with its score, and the key to the line styles.
+the first and the last R score of each run with their ratio, the floor of
+each scaling setup with its score, and the key to the line styles.
 
 The y axis is logarithmic: each graph shows the change of a score through
 training, so a ratio keeps the same height at each level. The range of an
@@ -265,13 +265,14 @@ def draw_break(top, bottom):
 
 
 def run_label(arm, label, recon):
-    """The legend label of a run: its code, its label, and its first and
-    last R score."""
+    """The legend label of a run: its code, its label, its first and last
+    R score, and the ratio of the last to the first."""
     scores = [recon[seen] for seen in sorted(recon)]
     if len(scores) == 1:
         numbers = f"R {scores[0]:.4f}"
     else:
-        numbers = f"R {scores[0]:.4f} → {scores[-1]:.4f}"
+        numbers = (f"R {scores[0]:.4f} → {scores[-1]:.4f}, "
+                   f"×{scores[-1] / scores[0]:.2f}")
     return f"{tagged(arm, label)}.  {numbers}"
 
 
@@ -288,7 +289,8 @@ def key_entries(overlay, floors, snapshots=(), floor_lines=None):
                 "horizon. A head decodes the horizon from the\n"
                 "encoder latents. One dot for each checkpoint,\n"
                 "one head with one seed for each dot."),
-               (blank, "R a → b: R at the first and the last checkpoint")]
+               (blank, "R a → b, ×c: R at the first and the last\n"
+                       "checkpoint, and the ratio b / a")]
     if snapshots:
         text = ("The same head at an earlier head step.\n"
                 "Its R there, then the R of the dot (step 30,000):\n")

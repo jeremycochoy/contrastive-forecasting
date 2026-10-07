@@ -1840,7 +1840,7 @@ def test_the_legend_gives_the_floor_of_the_runs(tmp_path):
 def test_the_facts_are_in_the_plot_and_the_legend(tmp_path):
     """The report holds the figures only. A figure has a short title of one
     line and no annotation. Its legends give the first and the last R score
-    of each run, the floor of its runs and the key to the line styles. An
+    of each run with their ratio, the floor of its runs and the key. An
     overlay breaks its y axis: the forecast curve at 50% opacity in the top
     panel, the R curve in the bottom panel, and one line for each
     checkpoint with both scores."""
@@ -1860,7 +1860,7 @@ def test_the_facts_are_in_the_plot_and_the_legend(tmp_path):
         title = fig.axes[0].get_title()
         assert title and "\n" not in title and len(title) <= 60
         texts = legend_texts(fig)
-        assert any(text.endswith("R 0.3100 → 0.2900") for text in texts)
+        assert any(text.endswith("R 0.3100 → 0.2900, ×0.94") for text in texts)
         assert "How to read" in texts
         assert any(text.endswith("mean/std: 1.5721") for text in texts)
         curves = [[line for line in ax.get_lines() if line.get_color() == hue]
