@@ -1374,6 +1374,29 @@ def test_collect_with_no_linear_score_writes_no_linear_table(tmp_path):
     assert not (results / "logs" / "linear").exists()
 
 
+def test_collect_with_no_linear_score_removes_the_linear_table_of_an_earlier_run(
+        tmp_path):
+    """The linear table holds the linear scores that exist now. With no
+    linear score, the table of an earlier run goes away. So the table of the
+    jobs and the figures show no linear score that no score file holds."""
+    collect, results = collect_with(tmp_path)
+    tag = "cf412om_bb10k_h30k_recon_lin"
+    linear_tree(tmp_path / "lin", tag, "0.7100\n")
+
+    def linear_column():
+        rows = (results / "job_scores.tsv").read_text().splitlines()[1:]
+        return {row.split("\t")[4] for row in rows}
+
+    collect.main()
+    assert (results / "recon_lin_trajectories.tsv").read_text() == (
+        "cf412om\t10\t0.7100\n")
+    assert linear_column() == {"", "0.7100"}
+    (tmp_path / "lin" / "results" / f"score_{tag}.txt").unlink()
+    collect.main()
+    assert not (results / "recon_lin_trajectories.tsv").exists()
+    assert linear_column() == {""}
+
+
 def test_collect_reads_the_job_tree_of_each_linear_source(tmp_path):
     """The queue of elisa and the box fallback keep the files of their jobs
     in two trees, ``ckpt`` and ``box_ckpt``. A job with a score from the two
@@ -1395,6 +1418,62 @@ def test_collect_reads_the_job_tree_of_each_linear_source(tmp_path):
         assert (results / "logs" / "jobs" / tag / "stop.log").read_text() == (
             f"stop of {source}\n")
         assert (results / "head_losses" / f"{tag}_losses.csv.gz").is_file()
+
+
+def test_collect_writes_one_table_of_the_scores_of_each_job(tmp_path):
+    """``job_scores.tsv``: one row for each job of jobs.tsv, in its order.
+    The columns: the code of the run, the stop, the B4 forecast, the R of the
+    transformer head and the R of the linear head. A score that does not
+    exist yet is an empty cell. The B4 forecast is the score of #412, or the
+    score of this card. For a stop with the two, the score of this card
+    wins, as in the figures."""
+    collect, results = collect_with(tmp_path)
+    collect.JOBS = tmp_path / "jobs.tsv"
+    collect.JOBS.write_text(
+        "# a comment\n"
+        "#code\tarm\tstop_k\ttier\tckpt\tbytes\tdata\n"
+        "OMB\tcf412om\t10\t1\ta.pth\t1\tgift_pretrain\n"
+        "OMB\tcf412om\t25\t2\tb.pth\t1\tgift_pretrain\n"
+        "LOW\tk3_x_lr30x\t665\t1\tc.pth\t1\told\n"
+        "OCB\tcf412oc\t40\t1\td.pth\t1\tgift_pretrain\n")
+    collect.FORECAST_412 = tmp_path / "gm_trajectories.tsv"
+    collect.FORECAST_412.write_text("cf412om\t10\t1.3782\ncf412om\t25\t1.3345\n"
+                                    "cf412om\t50\t1.4497\n"
+                                    "k3_x_lr30x\t665\t1.2550\n")
+    box = collect.BOX_RESULTS
+    (box / "score_cf412om_bb10k_h30k_recon.txt").write_text("0.3100\n")
+    (box / "score_k3_x_lr30x_bb665k_h30k_recon.txt").write_text("0.0451\n")
+    (box / "score_k3_x_lr30x_bb665k_h30k_student.txt").write_text("1.1913\n")
+    linear_tree(tmp_path / "lin", "cf412om_bb10k_h30k_recon_lin", "0.7100\n")
+    linear_tree(tmp_path / "lin", "cf412om_bb25k_h30k_recon_lin", "0.6500\n",
+                folder="box_results")
+    collect.main()
+    assert (results / "job_scores.tsv").read_text() == (
+        "run\tstop_k\tb4_forecast\tr_transformer_head\tr_linear_head\n"
+        "OMB\t10\t1.3782\t0.3100\t0.7100\n"
+        "OMB\t25\t1.3345\t\t0.6500\n"
+        "LOW\t665\t1.1913\t0.0451\t\n"
+        "OCB\t40\t\t\t\n")
+
+
+def test_the_table_of_the_jobs_holds_the_56_jobs_of_the_card(tmp_path):
+    """The real job table and the real scores of #412: 56 rows in the order
+    of the card. #412 gives the B4 forecast of each job but the 5 stops that
+    the card names: this card scores them (``forecast_425.tsv``)."""
+    collect = base.load_script("collect")
+    collect.RESULTS = tmp_path                      # no table of this card
+    rows = collect.job_scores()
+    assert len(rows) == 56
+    assert [row[:2] for row in rows] == [[job[0], job[2]]
+                                         for job in base.job_rows()]
+    assert {(row[0], row[1]) for row in rows if not row[2]} == {
+        ("LOW", "665"), ("LNG", "665"), ("MIN", "1080"), ("CYN", "1140"),
+        ("TWN", "420")}
+    assert all(row[3:] == ["", ""] for row in rows)
+    (tmp_path / "forecast_425.tsv").write_text(
+        "k3_r100_09_lr56_fix09_dec10k_lr30x\t665\t1.1913\n")
+    low, = [row for row in collect.job_scores() if row[0] == "LOW"]
+    assert low == ["LOW", "665", "1.1913", "", ""]
 
 
 def linear_figure(tmp_path, overlay, linear, name="f"):

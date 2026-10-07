@@ -30,7 +30,7 @@ Writes, in the results directory of the report:
   its head step and its score. Beside it, the per-config table and the logs
   of each snapshot.
 
-The linear heads come last. Their queue runs on elisa (queue_elisa.sh), and
+The linear heads come next. Their queue runs on elisa (queue_elisa.sh), and
 its fallback on the box. Each machine has its own folders in CF425_LINEAR
 (default ~/checkpoints_backup/cf-425-lin). The scores and the logs of elisa
 are in ``results``, and the folder of each of its jobs is in ``ckpt``. Those
@@ -46,6 +46,14 @@ the score, else the box. A linear job has the tag
 * ``logs/linear/<results or box_results>/``: the logs of the linear queue
   and of each of its waves.
 
+The last table joins the tables above:
+
+* ``job_scores.tsv``: one row for each job of jobs.tsv, in its order. The
+  columns: the code of the run, the stop in thousands of steps, the B4
+  forecast, the R of the transformer head and the R of the linear head. A
+  score that does not exist yet is an empty cell. The B4 forecast is the
+  score of #412 (its ``gm_trajectories.tsv``), or the score of this card.
+
 It copies no head file: the heads stay on elisa.
 """
 import gzip
@@ -56,6 +64,10 @@ from pathlib import Path
 
 STUDY = Path(__file__).resolve().parent.parent
 RESULTS = STUDY / "results"
+JOBS = STUDY / "scripts" / "jobs.tsv"
+# The B4 forecast scores of #412, in the layout of the tables of this card.
+FORECAST_412 = (STUDY.parent / "2026-09-06_moirai_small_size" / "results"
+                / "gm_trajectories.tsv")
 HOME = Path.home() / "checkpoints_backup"
 BOX_RESULTS = Path(os.environ.get("CF425_RESULTS_MIRROR",
                                   HOME / "cf-425" / "box_results"))
@@ -79,6 +91,8 @@ QUEUE_LOGS = ["queue.log", "scores.log", "heads.log", "stops.log",
 JOB_DIR = {"recon": ("recon", "gift_r", "eval_local_r.log"),
            "recon_lin": ("recon", "gift_r", "eval_local_r.log"),
            "student": ("forecast", "gift", "eval_local.log")}
+JOB_COLUMNS = ["run", "stop_k", "b4_forecast", "r_transformer_head",
+               "r_linear_head"]
 
 
 def scores(folder):
@@ -225,7 +239,9 @@ def collect_linear():
     their queue. Returns the count of each kind of file, or {} when no
     linear score exists. A job with a score from elisa and one from the box
     fallback keeps the score of elisa. The files of a job come from the tree
-    of the machine that gives its score."""
+    of the machine that gives its score. With no linear score, the table of
+    an earlier run goes away: each reader of the table sees the scores that
+    exist now."""
     scores, counts = {}, {}
     for name, tree in LINEAR_SOURCES:
         found = [row for row in linear_scores(LINEAR / name)
@@ -238,10 +254,52 @@ def collect_linear():
             LINEAR / name, RESULTS / "logs" / "linear" / name)
         for what, n in copied.items():
             counts[what] = counts.get(what, 0) + n
+    table = RESULTS / "recon_lin_trajectories.tsv"
     if scores:
-        write_table(sorted(scores.values()),
-                    RESULTS / "recon_lin_trajectories.tsv")
+        write_table(sorted(scores.values()), table)
+    else:
+        table.unlink(missing_ok=True)
     return counts
+
+
+def read_table(path):
+    """``{(arm, stop_k): score}`` of a table of arm, stop in thousands and
+    score. {} with no table."""
+    if not path.is_file():
+        return {}
+    rows = (row.split() for row in open(path))
+    return {(arm, int(stop_k)): float(score) for arm, stop_k, score in rows}
+
+
+def job_scores():
+    """One row for each job of jobs.tsv, in its order: the code of the run,
+    the stop in thousands of steps, the B4 forecast, the R of the transformer
+    head and the R of the linear head. The scores come from the tables of
+    the results directory, and a score that does not exist is an empty cell.
+    The B4 forecast is the score of #412, or the score of this card. For a
+    stop with the two, the score of this card wins, as in plot_recon.py."""
+    tables = [{**read_table(FORECAST_412),
+               **read_table(RESULTS / "forecast_425.tsv")},
+              read_table(RESULTS / "recon_trajectories.tsv"),
+              read_table(RESULTS / "recon_lin_trajectories.tsv")]
+    rows = []
+    for row in open(JOBS):
+        if not row.strip() or row.startswith("#"):
+            continue
+        code, arm, stop_k = row.rstrip("\n").split("\t")[:3]
+        scores = [table.get((arm, int(stop_k))) for table in tables]
+        rows.append([code, stop_k] + ["" if score is None else f"{score:.4f}"
+                                      for score in scores])
+    return rows
+
+
+def write_job_scores(path):
+    """The table of job_scores, under the names of its columns."""
+    rows = job_scores()
+    with open(path, "w") as out:
+        for row in [JOB_COLUMNS] + rows:
+            out.write("\t".join(row) + "\n")
+    print(f"{len(rows)} jobs -> {path}")
 
 
 def main():
@@ -258,6 +316,7 @@ def main():
     if linear:
         print("linear heads: "
               + ", ".join(f"{n} {what}" for what, n in linear.items()))
+    write_job_scores(RESULTS / "job_scores.tsv")
 
 
 if __name__ == "__main__":
