@@ -43,9 +43,16 @@ some heads (the head of the best training loss). A hollow marker shows that
 score under or above the dot of its checkpoint: the distance between the
 two is the change of R in the last steps of one head training.
 
-Reads results/recon_trajectories.tsv, results/forecast_425.tsv and
-results/snapshots/scores.tsv (collect.py), results/floors.tsv (floors.sh),
-and #412's results/gm_trajectories.tsv.
+A second head of each checkpoint is a linear head: one linear map decodes
+each encoder latent into the values of its patch. Its R curve has the colour
+of its run, a dashed thin line and small markers. The legend names it under
+its run, with its first and last R and their ratio. A figure with no linear
+score is the figure of the first heads.
+
+Reads results/recon_trajectories.tsv, results/forecast_425.tsv,
+results/snapshots/scores.tsv and results/recon_lin_trajectories.tsv
+(collect.py), results/floors.tsv (floors.sh), and #412's
+results/gm_trajectories.tsv.
 """
 import math
 import sys
@@ -71,6 +78,7 @@ FORECAST = [BASE / "results" / "gm_trajectories.tsv",
 RECON = STUDY / "results" / "recon_trajectories.tsv"
 FLOORS = STUDY / "results" / "floors.tsv"
 SNAPSHOTS = STUDY / "results" / "snapshots" / "scores.tsv"
+LINEAR = STUDY / "results" / "recon_lin_trajectories.tsv"
 PLOTS = STUDY / "plots"
 OURS = base.GROUPS[:2]
 GRAPHS = {
@@ -104,6 +112,11 @@ FLOOR_NAMES = {
     "ewma_old": "EWMA, old data",
     "meanstd": "mean/std",
 }
+# The curve of the linear head of a run: its dashes, its width as a share of
+# the width of the run, and the size of its markers.
+LINEAR_STYLE = (0, (3, 1.2))
+LINEAR_WIDTH = 0.5
+LINEAR_MARKER = 5
 KEY_COLOUR = "0.3"
 METRIC = "GM-Relative MASE, 97-config GIFT-Eval (log scale, lower is better)"
 # The ticks of a log y axis: in each decade, the values of one ladder. An
@@ -174,11 +187,12 @@ def floors_of(arms, floors):
 
 def near_floors(floors, recon):
     """The floors that a chart must hold: those with an R score of a run of
-    their setup FLOOR_REACH times under them, or nearer."""
+    their setup FLOOR_REACH times under them, or nearer. ``recon``:
+    ``{arm: [R score]}``, the scores of each head of the run."""
     near = []
     for floor in floors:
         scores = [score for arm in floor["arms"]
-                  for score in recon.get(arm, {}).values()]
+                  for score in recon.get(arm, ())]
         if scores and max(scores) * FLOOR_REACH >= floor["score"]:
             near.append(floor)
     return near
@@ -229,6 +243,18 @@ def draw_run(ax, arm, width, marker, points, alpha=1.0):
     return handle
 
 
+def draw_linear(ax, arm, width, marker, points):
+    """The R curve of the linear head of a run, or None when it has no
+    point: the colour of the run, dashed, thinner, with small markers."""
+    if not points:
+        return None
+    x = sorted(points)
+    handle, = ax.plot(x, [points[v] for v in x], color=colour(arm),
+                      ls=LINEAR_STYLE, lw=width * LINEAR_WIDTH, marker=marker,
+                      ms=LINEAR_MARKER, zorder=2.8)
+    return handle
+
+
 def draw_snapshots(ax, arm, marker, recon, snapshots):
     """A hollow marker at the R score of an earlier snapshot of a head, and
     a line from it to the dot of the final head. Both lie under the dot, so
@@ -267,22 +293,32 @@ def draw_break(top, bottom):
 def run_label(arm, label, recon):
     """The legend label of a run: its code, its label, its first and last
     R score, and the ratio of the last to the first."""
-    scores = [recon[seen] for seen in sorted(recon)]
+    return f"{tagged(arm, label)}.  {score_span(recon)}"
+
+
+def score_span(points):
+    """The first and the last R score of a curve, and their ratio."""
+    scores = [points[seen] for seen in sorted(points)]
     if len(scores) == 1:
-        numbers = f"R {scores[0]:.4f}"
-    else:
-        numbers = (f"R {scores[0]:.4f} → {scores[-1]:.4f}, "
-                   f"×{scores[-1] / scores[0]:.2f}")
-    return f"{tagged(arm, label)}.  {numbers}"
+        return f"R {scores[0]:.4f}"
+    return (f"R {scores[0]:.4f} → {scores[-1]:.4f}, "
+            f"×{scores[-1] / scores[0]:.2f}")
 
 
-def key_entries(overlay, floors, snapshots=(), floor_lines=None):
+def linear_label(points):
+    """The legend label of the linear head of a run, under the run."""
+    return f"        linear head.  {score_span(points)}"
+
+
+def key_entries(overlay, floors, snapshots=(), floor_lines=None,
+                linear=False):
     """The key: what R is, the earlier snapshots of a head, the floor of
     each scaling setup, and in an overlay, the forecast, the line that
     joins the two scores of a checkpoint and the break of the y axis.
     ``snapshots``: ``(run code, stop label, head step, score, score of
     the final head)`` of each. ``floor_lines``: ``{setup: line}`` of the
-    floors that the chart draws."""
+    floors that the chart draws. ``linear``: the chart holds the curve of a
+    linear head."""
     blank = Line2D([], [], linestyle="none")
     entries = [(Line2D([], [], color=KEY_COLOUR, lw=3, marker="o", ms=7),
                 "R: the encoder reads the context and the true\n"
@@ -291,6 +327,13 @@ def key_entries(overlay, floors, snapshots=(), floor_lines=None):
                 "one head with one seed for each dot."),
                (blank, "R a → b, ×c: R at the first and the last\n"
                        "checkpoint, and the ratio b / a")]
+    if linear:
+        entries.append((Line2D([], [], color=KEY_COLOUR, ls=LINEAR_STYLE,
+                               lw=3 * LINEAR_WIDTH, marker="o",
+                               ms=LINEAR_MARKER),
+                        "R with a linear head, dashed: one linear map\n"
+                        "decodes each encoder latent. Its other settings\n"
+                        "are those of the head of the thick line."))
     if snapshots:
         text = ("The same head at an earlier head step.\n"
                 "Its R there, then the R of the dot (step 30,000):\n")
@@ -389,35 +432,39 @@ def stop_label(arm, seen):
 
 
 def draw_figure(groups, forecast, recon, out, overlay, floors=(), title=None,
-                snapshots=None):
+                snapshots=None, linear=None):
     """One figure. Returns it, or None, and draws nothing, when no run of
-    the groups has a reconstruction score."""
+    the groups has a reconstruction score. ``linear``: the R scores of the
+    linear head of each run, as ``recon``."""
     # A run with no reconstruction score (ABC keeps no checkpoint) has no
     # pair to show, so its forecast stays in the #412 figures only.
     runs = [run for _, members in groups for run in members if recon.get(run[0])]
     if not runs:
         return None
     arms = [arm for arm, *_ in runs]
-    snapshots = snapshots or {}
+    snapshots, linear = snapshots or {}, linear or {}
     if overlay:
         fig, (top, ax) = plt.subplots(2, 1, sharex=True, figsize=(12.5, 11.5),
                                       gridspec_kw={"hspace": 0.06})
     else:
         fig, ax = plt.subplots(figsize=(12.5, 9.0))
         top = ax
-    handles = {}
+    handles, linear_handles = {}, {}
     for arm, _, width, marker in runs:
         if overlay:
             draw_run(top, arm, width, marker, forecast.get(arm),
                      alpha=FORECAST_ALPHA)
         handles[arm] = draw_run(ax, arm, width, marker, recon.get(arm))
+        linear_handles[arm] = draw_linear(ax, arm, width, marker,
+                                          linear.get(arm))
         draw_snapshots(ax, arm, marker, recon[arm], snapshots.get(arm, {}))
     floors = floors_of(arms, floors)
-    r_values = [v for arm in arms for v in recon[arm].values()]
+    r_scores = {arm: [*recon[arm].values(), *linear.get(arm, {}).values()]
+                for arm in arms}
+    r_values = [v for arm in arms for v in r_scores[arm]]
     r_values += [score for arm in arms for seen, (_, score)
                  in snapshots.get(arm, {}).items() if seen in recon[arm]]
-    r_values += [floor["score"] for floor in near_floors(
-        floors, {arm: recon[arm] for arm in arms})]
+    r_values += [floor["score"] for floor in near_floors(floors, r_scores)]
     style_x(ax)
     if overlay:
         style_y(top, [v for arm in arms for v in forecast.get(arm, {}).values()]
@@ -443,14 +490,23 @@ def draw_figure(groups, forecast, recon, out, overlay, floors=(), title=None,
         title = ("Reconstruction (R) and forecast (B4)" if overlay
                  else "Reconstruction (R)")
     top.set_title(title, fontsize=13, pad=10)
-    columns = [(name, [(handles[arm], run_label(arm, label, recon[arm]))
-                       for arm, label, *_ in members if arm in handles])
-               for name, members in groups]
-    columns = [(name, entries) for name, entries in columns if entries]
+    columns = []
+    for name, members in groups:
+        entries = []
+        for arm, label, *_ in members:
+            if arm in handles:
+                entries.append((handles[arm],
+                                run_label(arm, label, recon[arm])))
+            if linear_handles.get(arm):
+                entries.append((linear_handles[arm],
+                                linear_label(linear[arm])))
+        if entries:
+            columns.append((name, entries))
     shown = [(CODE[arm], stop_label(arm, seen), step, score, recon[arm][seen])
              for arm in arms for seen, (step, score)
              in sorted(snapshots.get(arm, {}).items()) if seen in recon[arm]]
-    key = key_entries(overlay, floors, shown, draw_floors(ax, floors))
+    key = key_entries(overlay, floors, shown, draw_floors(ax, floors),
+                      any(linear_handles.values()))
     draw_legend(ax, top, columns, ("How to read", key))
     fig.savefig(out, dpi=135, bbox_inches="tight")
     plt.close(fig)
@@ -459,16 +515,17 @@ def draw_figure(groups, forecast, recon, out, overlay, floors=(), title=None,
 
 
 def main():
-    forecast, recon = load(FORECAST), load([RECON])
+    forecast, recon, linear = load(FORECAST), load([RECON]), load([LINEAR])
     floors, snapshots = load_floors(FLOORS), load_snapshots(SNAPSHOTS)
     PLOTS.mkdir(parents=True, exist_ok=True)
     for name, groups in GRAPHS.items():
         runs = GRAPH_TITLES[name]
         draw_figure(groups, forecast, recon, PLOTS / f"recon_{name}.png",
-                    False, floors, f"Reconstruction (R): {runs}", snapshots)
+                    False, floors, f"Reconstruction (R): {runs}", snapshots,
+                    linear)
         draw_figure(groups, forecast, recon, PLOTS / f"overlay_{name}.png",
                     True, floors, f"Reconstruction (R) and forecast (B4): {runs}",
-                    snapshots)
+                    snapshots, linear)
 
 
 if __name__ == "__main__":

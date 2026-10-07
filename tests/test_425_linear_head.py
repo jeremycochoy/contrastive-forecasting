@@ -787,12 +787,13 @@ def test_the_parity_script_reads_heads_after_its_flag(tmp_path, capsys,
 
 
 FAKE_NVIDIA_SMI = """#!/bin/bash
-# The whole GPU: "used, util", 9366 MiB at first and 16511 MiB while a wave
-# trains. The compute apps: the python processes.
+# Each GPU: "index, used, util". GPU 0 has 9366 MiB at first and 16511 MiB
+# while a wave trains. The compute apps: the python processes.
 case "$*" in
   *query-compute-apps*) for p in $(pgrep -f trainer.py); do echo "$p, 1234"; done ;;
   *memory.free*) echo 30000 ;;
-  *) if pgrep -f trainer.py >/dev/null; then echo "16511, 50"; else echo "9366, 50"; fi ;;
+  *) if pgrep -f trainer.py >/dev/null; then echo "0, 16511, 50"; else echo "0, 9366, 50"; fi
+     echo "1, 77, 0" ;;
 esac
 """
 
@@ -829,7 +830,8 @@ def test_the_probe_trains_wave_1_of_each_lane_and_scores_nothing(
     assert calls and all(c[1] == "argv" and c[3] == "7" for c in calls)
     assert r.stdout.count("peak 1234 MiB") == 2      # one line for each wave
     assert r.stdout.count("% of one CPU core") == 2
-    assert "all processes: 16511 MiB" in r.stdout    # the whole GPU
+    assert "all processes, GPU 0: 16511 MiB" in r.stdout    # each whole GPU
+    assert "all processes, GPU 1: 77 MiB" in r.stdout
 
 
 # ---------------------------------------------------------------------------
@@ -1232,3 +1234,216 @@ def test_the_deploy_changes_no_code_under_a_queue_that_runs(tmp_path):
         holder.kill()
     assert r.returncode != 0 and "queue" in r.stdout + r.stderr
     assert (lin / "code" / "mark.txt").exists()
+
+
+# ---------------------------------------------------------------------------
+# 9. The report scripts: the linear scores in the tables and in the figures
+# ---------------------------------------------------------------------------
+
+def linear_tree(lin, tag, score, folder="results", wave="gift_x"):
+    """The files of one scored linear job, as queue_elisa.sh leaves them
+    (``results``) or as the sync of the box fallback does (``box_results``)."""
+    res = lin / folder
+    (res / "waves" / wave).mkdir(parents=True, exist_ok=True)
+    (res / f"score_{tag}.txt").write_text(score)
+    (res / "queue.log").write_text(f"queue of {folder}\n")
+    (res / "waves" / wave / "train.log").write_text("[shared] done\n")
+    job = lin / "ckpt" / "recon" / "eval" / tag
+    (job / "gift_r").mkdir(parents=True)
+    (job / "gift_r" / "all_results.csv").write_text("dataset,mase\n")
+    (job / "gift_r" / "summary.txt").write_text("summary\n")
+    (job / "stop.log").write_text("stop\n")
+    (job / f"qhead_{tag}_s20260722_final.pth").write_bytes(b"head")
+    (job / f"qhead_{tag}_s20260722_losses.csv").write_text("step,loss\n1,0.5\n")
+
+
+def collect_with(tmp_path):
+    collect = base.load_script("collect")
+    collect.BOX_RESULTS = tmp_path / "box"
+    collect.MIRROR = tmp_path / "mirror" / "cf-425"
+    collect.LINEAR = tmp_path / "lin"
+    collect.RESULTS = tmp_path / "results"
+    collect.SYNC_LOG = tmp_path / "no_sync.log"
+    collect.BOX_RESULTS.mkdir()
+    return collect, tmp_path / "results"
+
+
+def test_collect_gives_the_linear_scores_their_own_table(tmp_path):
+    """The linear scores come from the folder of the linear queue: the
+    queue of elisa, and the mirror of its box fallback. They get their own
+    table, and the table of the transformer heads does not hold them."""
+    import gzip
+    collect, results = collect_with(tmp_path)
+    (collect.BOX_RESULTS / "score_cf412om_bb10k_h30k_recon.txt").write_text(
+        "0.3100\n")
+    linear_tree(tmp_path / "lin", "cf412om_bb10k_h30k_recon_lin", "0.7100\n")
+    linear_tree(tmp_path / "lin", "cf412om_bb25k_h30k_recon_lin", "0.6500\n",
+                folder="box_results", wave="gift_y")
+    (tmp_path / "lin" / "results" / "score_cf412om_bb50k_h30k_recon_lin.txt"
+     ).write_text("")                                         # no score yet
+    collect.main()
+    assert (results / "recon_trajectories.tsv").read_text() == (
+        "cf412om\t10\t0.3100\n")
+    assert (results / "recon_lin_trajectories.tsv").read_text() == (
+        "cf412om\t10\t0.7100\ncf412om\t25\t0.6500\n")
+    for stop in (10, 25):
+        tag = f"cf412om_bb{stop}k_h30k_recon_lin"
+        assert (results / "scores" / f"score_{tag}.txt").is_file()
+        assert (results / "per_config" / f"{tag}.csv").is_file()
+        assert (results / "logs" / "jobs" / tag / "summary.txt").is_file()
+        assert (results / "logs" / "jobs" / tag / "stop.log").is_file()
+        packed = results / "head_losses" / f"{tag}_losses.csv.gz"
+        assert gzip.decompress(packed.read_bytes()) == b"step,loss\n1,0.5\n"
+    logs = results / "logs" / "linear"
+    assert (logs / "results" / "queue.log").read_text() == "queue of results\n"
+    assert (logs / "box_results" / "queue.log").is_file()
+    assert (logs / "results" / "waves" / "gift_x" / "train.log").is_file()
+    assert (logs / "box_results" / "waves" / "gift_y" / "train.log").is_file()
+    assert not list(results.rglob("*.pth"))
+
+
+def test_collect_with_no_linear_score_writes_no_linear_table(tmp_path):
+    collect, results = collect_with(tmp_path)
+    (collect.BOX_RESULTS / "score_cf412om_bb10k_h30k_recon.txt").write_text(
+        "0.3100\n")
+    collect.main()
+    assert (results / "recon_trajectories.tsv").is_file()
+    assert not (results / "recon_lin_trajectories.tsv").exists()
+    assert not (results / "logs" / "linear").exists()
+
+
+def linear_figure(tmp_path, overlay, linear, name="f"):
+    plot = base.load_script("plot_recon")
+    points = {"cf412om": {40000: 0.3100, 100000: 0.2900}}
+    forecast = {"cf412om": {40000: 1.3782, 100000: 1.3345}}
+    fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], forecast, points,
+                           tmp_path / f"{name}_{overlay}.png", overlay,
+                           title="Reconstruction (R): ours", linear=linear)
+    return plot, fig
+
+
+@pytest.mark.parametrize("overlay", [False, True])
+def test_a_figure_shows_the_linear_head_of_a_run_in_the_colour_of_the_run(
+        tmp_path, overlay):
+    """The curve of the linear head of a run has the colour of the run and
+    its own line style, in the panel of the R scores. The y range holds it.
+    The legend names it under the run, with its first and last R and their
+    ratio, and the key says what the line style is. The title and the
+    plot hold no fact."""
+    pytest.importorskip("matplotlib")
+    plot, fig = linear_figure(tmp_path, overlay,
+                              {"cf412om": {40000: 0.7100, 100000: 0.6500}})
+    ax = fig.axes[-1]                                   # the panel of R
+    hue = plot.colour("cf412om")
+    curves = [line for line in ax.get_lines() if line.get_color() == hue
+              and len(line.get_xdata()) == 2]
+    by_y = {tuple(line.get_ydata()): line for line in curves}
+    assert set(by_y) == {(0.31, 0.29), (0.71, 0.65)}
+    head, lin = by_y[(0.31, 0.29)], by_y[(0.71, 0.65)]
+    assert head.get_linestyle() == "-" and lin.get_linestyle() != "-"
+    assert lin.get_linewidth() < head.get_linewidth()
+    low, high = ax.get_ylim()
+    assert low < 0.29 and high > 0.71
+    texts = base.legend_texts(fig)
+    assert any("linear head" in text
+               and text.endswith("R 0.7100 → 0.6500, ×0.92") for text in texts)
+    assert any(text.endswith("R 0.3100 → 0.2900, ×0.94") for text in texts)
+    key = [text for text in texts if "one linear map" in text.lower()]
+    assert key and "0.7100" not in key[0]
+    assert all(len(axis.texts) == 0 for axis in fig.axes)
+    assert fig.axes[0].get_title() == "Reconstruction (R): ours"
+    # The legend row of the linear head shows its line style and its colour.
+    runs = fig.legends[0]
+    rows = dict(zip((t.get_text() for t in runs.get_texts()),
+                    runs.legend_handles))
+    row = next(handle for text, handle in rows.items() if "linear head" in text)
+    assert row.get_color() == hue and row.get_linestyle() != "-"
+
+
+def test_a_figure_with_no_linear_score_is_the_figure_of_the_transformer_heads(
+        tmp_path):
+    pytest.importorskip("matplotlib")
+    plot, fig = linear_figure(tmp_path, False, {})
+    ax, = fig.axes
+    hue = plot.colour("cf412om")
+    assert len([line for line in ax.get_lines() if line.get_color() == hue]) == 1
+    assert not any("linear" in text.lower() for text in base.legend_texts(fig))
+    _, same = linear_figure(tmp_path, False, None, name="g")
+    assert base.legend_texts(same) == base.legend_texts(fig)
+
+
+def test_a_floor_near_a_linear_score_is_on_the_chart(tmp_path):
+    """A linear score is an R score of its scaling setup: the chart holds
+    the floor of the setup when a linear score is near it."""
+    pytest.importorskip("matplotlib")
+    plot = base.load_script("plot_recon")
+    floors = [{"setup": "meanstd", "label": "mean/std floor",
+               "arms": {"cf412om"}, "score": 1.5721}]
+    points = {"cf412om": {40000: 0.31, 100000: 0.29}}
+    linear = {"cf412om": {40000: 1.20, 100000: 1.10}}
+    fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], {}, points,
+                           tmp_path / "f.png", False, floors, linear=linear)
+    ax, = fig.axes
+    flat = [line for line in ax.get_lines() if len(set(line.get_ydata())) == 1]
+    assert [float(line.get_ydata()[0]) for line in flat] == [1.5721]
+
+
+def test_the_figures_read_the_linear_table(tmp_path):
+    plot = base.load_script("plot_recon")
+    assert plot.LINEAR.name == "recon_lin_trajectories.tsv"
+    table = tmp_path / "lin.tsv"
+    table.write_text("cf412om\t10\t0.7100\n")
+    assert plot.load([table]) == {"cf412om": {40000: 0.71}}    # batch 256: x4
+
+
+def lin_check_tree(tmp_path, monkeypatch):
+    """check_scores.py for the linear jobs: the artefacts of one job."""
+    import gzip
+    monkeypatch.setenv("CF425_HEAD_ARCH", "linear")
+    check = base.load_script("check_scores")
+    tag = "cf412om_bb10k_h30k_recon_lin"
+    results, mirror = tmp_path / "results", tmp_path / "lin_ckpt"
+    logs = results / "logs" / "jobs" / tag
+    head = mirror / "recon" / "eval" / tag
+    for folder in (results / "scores", results / "per_config", logs,
+                   results / "head_losses", head):
+        folder.mkdir(parents=True)
+    jobs = tmp_path / "jobs.tsv"
+    jobs.write_text("#code\tarm\tstop_k\nOMB\tcf412om\t10\t1\tx.pth\t1\tgift\n")
+    (results / "scores" / f"score_{tag}.txt").write_text("0.5000\n")
+    configs = [f"data_{i}/H/short" for i in range(97)]
+    (results / "per_config" / f"{tag}.csv").write_text(
+        f"dataset,{check.MASE}\n" + "".join(f"{c},1.0\n" for c in configs))
+    (logs / "summary.txt").write_text(
+        "Config      MASE  SN_MASE   Relative\n"
+        + "".join(f"{c}    1.0000   2.0000     0.5000\n" for c in configs))
+    (logs / "stop.log").write_text(
+        "[10-07] [x] eval start (97 configs, R, forecast-len 16, cuda)\n")
+    with gzip.open(results / "head_losses" / f"{tag}_losses.csv.gz",
+                   "wt") as out:
+        out.write("step,loss\n1,0.5\n30000,0.1\n")
+    (head / "q_final.pth").write_bytes(b"head")
+    check.RESULTS, check.JOBS, check.MIRROR = results, jobs, mirror
+    return check, results
+
+
+def test_the_check_reads_the_linear_jobs_under_their_tag(tmp_path,
+                                                         monkeypatch):
+    """CF425_HEAD_ARCH=linear: the check of each linear job, in its own
+    table. The table of the transformer heads stays."""
+    check, results = lin_check_tree(tmp_path, monkeypatch)
+    assert check.main() == 0
+    row, = csv.DictReader(open(results / "checks_lin.tsv"), delimiter="\t")
+    assert row["result"] == "ok" and row["score"] == "0.5000"
+    assert not (results / "checks.tsv").exists()
+
+
+def test_the_default_check_reads_the_folder_of_the_linear_heads_of_elisa(
+        monkeypatch):
+    monkeypatch.setenv("CF425_HEAD_ARCH", "linear")
+    monkeypatch.delenv("CF425_MIRROR", raising=False)
+    check = base.load_script("check_scores")
+    assert str(check.MIRROR).endswith("checkpoints_backup/cf-425-lin/ckpt")
+    monkeypatch.delenv("CF425_HEAD_ARCH")
+    check = base.load_script("check_scores")
+    assert str(check.MIRROR).endswith("cf-412/vast_lr100x/cf-425")

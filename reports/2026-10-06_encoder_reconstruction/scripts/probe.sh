@@ -26,7 +26,6 @@ JOBS="${CF425_JOBS:-$HERE/jobs.tsv}"
 case "${CF425_HEAD_ARCH:-transformer}" in linear) NAME=cf-425-lin ;; *) NAME=cf-425 ;; esac
 RES="${CF425_PROBE_RES:-/workspace/results/$NAME/probe}"
 ROOT="${CF425_PROBE_ROOT:-/workspace/ckpt/$NAME/probe}"
-GPU="${CF425_GPU:-0}"
 
 mkdir -p "$RES"
 # The jobs of wave 1 of each lane, from the plan of the queue: "<code> <stop>k".
@@ -36,17 +35,17 @@ awk -F'\t' 'NR == FNR { want[$1] = 1; next }
   /^#/ || ($1 " " $3 "k") in want' "$RES/wave1.txt" "$JOBS" >"$RES/jobs.tsv"
 echo "probe: $(grep -vc '^#' "$RES/jobs.tsv") jobs, $STEPS steps"
 
-# Every 10 s: the memory and the use of the whole GPU, and the memory of the
-# process of each wave of the probe.
+# Every 10 s: the memory and the use of each GPU ("total <GPU> <MiB> <%>"),
+# and the memory and the CPU time of the process of each wave of the probe.
 ( while :; do
     now=$(date +%T)
-    echo "$now total $(nvidia-smi --id="$GPU" --query-gpu=memory.used,utilization.gpu \
-      --format=csv,noheader,nounits)"
+    nvidia-smi --query-gpu=index,memory.used,utilization.gpu \
+      --format=csv,noheader,nounits | sed -e 's/,//g' -e "s/^/$now total /"
+    apps=$(nvidia-smi --query-compute-apps=pid,used_memory --format=csv,noheader,nounits)
     for pid in $(pgrep -f "$RES/queue/waves/"); do
       wave=$(tr '\0' ' ' <"/proc/$pid/cmdline" 2>/dev/null \
         | grep -o 'waves/[^/ ]*' | head -1)
-      mib=$(nvidia-smi --id="$GPU" --query-compute-apps=pid,used_memory \
-        --format=csv,noheader,nounits | awk -F', *' -v p="$pid" '$1 == p { print $2 }')
+      mib=$(awk -F', *' -v p="$pid" '$1 == p { print $2 }' <<<"$apps")
       [ -n "$wave" ] && [ -n "$mib" ] \
         && echo "$now wave ${wave#waves/} $mib $(ps -o %cpu= -p "$pid" | tr -d ' ')"
     done
@@ -66,5 +65,6 @@ for log in "$RES"/queue/waves/*/train.log; do
   awk -v w="$wave" '$2 == "wave" && $3 == w { cpu = $5; if ($4 + 0 > m) m = $4 + 0 }
     END { print "peak " m + 0 " MiB of GPU memory for the process of this wave, and " cpu + 0 "% of one CPU core" }' "$RES/gpu.log"
 done
-awk '$2 == "total" { gsub(",", "", $3); if ($3 + 0 > m) m = $3 + 0 }
-  END { print "peak GPU memory, all processes:", m + 0, "MiB" }' "$RES/gpu.log"
+awk '$2 == "total" && $4 + 0 > m[$3] { m[$3] = $4 + 0 }
+  END { for (gpu in m) print "peak GPU memory, all processes, GPU " gpu ": " m[gpu] " MiB" }' \
+  "$RES/gpu.log" | sort

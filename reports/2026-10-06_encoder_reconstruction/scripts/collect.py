@@ -30,6 +30,19 @@ Writes, in the results directory of the report:
   its head step and its score. Beside it, the per-config table and the logs
   of each snapshot.
 
+The linear heads come last. Their queue runs on elisa (queue_elisa.sh), and
+its fallback on the box. Both fill the folder CF425_LINEAR (default
+~/checkpoints_backup/cf-425-lin): the scores and the logs of elisa are in
+``results``, those of the box fallback in ``box_results``, and the folder of
+each job in ``ckpt``. A linear job has the tag ``<arm>_bb<stop>k_h30k_recon_lin``.
+
+* ``recon_lin_trajectories.tsv``: arm, stop in thousands of steps, the
+  GM-Relative MASE of the linear head. Only when a linear score exists.
+* The raw artefacts of each linear job, under its tag, beside those of the
+  other jobs.
+* ``logs/linear/<results or box_results>/``: the logs of the linear queue
+  and of each of its waves.
+
 It copies no head file: the heads stay on elisa.
 """
 import gzip
@@ -46,7 +59,10 @@ BOX_RESULTS = Path(os.environ.get("CF425_RESULTS_MIRROR",
 MIRROR = Path(os.environ.get("CF425_MIRROR",
                              HOME / "cf-412" / "vast_lr100x")) / "cf-425"
 SYNC_LOG = Path(os.environ.get("CF425_SYNC_LOG", HOME / "cf-425" / "sync.log"))
+LINEAR = Path(os.environ.get("CF425_LINEAR", HOME / "cf-425-lin"))
+LINEAR_RESULTS = ("results", "box_results")
 SCORE = re.compile(r"score_(.+)_bb(\d+)k_h30k_(recon|student)\.txt")
+LINEAR_SCORE = re.compile(r"score_(.+)_bb(\d+)k_h30k_recon_lin\.txt")
 SNAPSHOT = re.compile(r"score_(.+)_bb(\d+)k_h30k_(best|final)_recon\.txt")
 # The last line of a head in the log of its wave: the step of its best head.
 BEST_STEP = r"\[qhead_{job}_s\d+\] Done in .* at step (\d+)"
@@ -55,6 +71,7 @@ QUEUE_LOGS = ["queue.log", "scores.log", "heads.log", "stops.log",
               "forecast_scores.log"]
 # The folder of a job in the mirror, and the folder of its eval, by kind.
 JOB_DIR = {"recon": ("recon", "gift_r", "eval_local_r.log"),
+           "recon_lin": ("recon", "gift_r", "eval_local_r.log"),
            "student": ("forecast", "gift", "eval_local.log")}
 
 
@@ -103,16 +120,19 @@ def gzip_copy(source, target):
     return 1
 
 
-def copy_jobs(found):
+def copy_jobs(found, box_results=None, mirror=None):
     """The score file, the per-config table, the logs and the head loss
-    CSV of each job with a score."""
+    CSV of each job with a score. ``box_results`` holds the score files and
+    ``mirror`` the folder of each job: by default, those of the queue of the
+    transformer heads."""
+    box_results, mirror = box_results or BOX_RESULTS, mirror or MIRROR
     counts = {"scores": 0, "per_config": 0, "logs": 0, "head_losses": 0}
     for kind, rows in found.items():
         root, gift, eval_log = JOB_DIR[kind]
         for arm, stop_k, _ in rows:
             tag = tag_of(arm, stop_k, kind)
-            job = MIRROR / root / "eval" / tag
-            counts["scores"] += copy(BOX_RESULTS / f"score_{tag}.txt",
+            job = mirror / root / "eval" / tag
+            counts["scores"] += copy(box_results / f"score_{tag}.txt",
                                      RESULTS / "scores" / f"score_{tag}.txt")
             counts["per_config"] += copy(job / gift / "all_results.csv",
                                          RESULTS / "per_config" / f"{tag}.csv")
@@ -127,16 +147,20 @@ def copy_jobs(found):
     return counts
 
 
+def copy_queue_logs(box_results, target):
+    """The logs of one queue and of each of its waves, into ``target``."""
+    copied = sum(copy(box_results / name, target / name)
+                 for name in QUEUE_LOGS)
+    for wave in sorted((box_results / "waves").glob("*/")):
+        for name in ("train.log", "jobs.jsonl"):
+            copied += copy(wave / name, target / "waves" / wave.name / name)
+    return copied
+
+
 def copy_logs():
     """The logs of the queue and of the sync, and of each wave."""
-    copied = sum(copy(BOX_RESULTS / name, RESULTS / "logs" / name)
-                 for name in QUEUE_LOGS)
-    copied += copy(SYNC_LOG, RESULTS / "logs" / "sync.log")
-    for wave in sorted((BOX_RESULTS / "waves").glob("*/")):
-        for name in ("train.log", "jobs.jsonl"):
-            copied += copy(wave / name,
-                           RESULTS / "logs" / "waves" / wave.name / name)
-    return copied
+    return (copy_queue_logs(BOX_RESULTS, RESULTS / "logs")
+            + copy(SYNC_LOG, RESULTS / "logs" / "sync.log"))
 
 
 def best_step(job):
@@ -178,6 +202,41 @@ def copy_snapshots():
     return len(rows)
 
 
+def linear_scores(folder):
+    """``[(arm, stop_k, score)]`` from the linear score files of ``folder``.
+    An empty file is no score."""
+    rows = []
+    for path in folder.glob("score_*_recon_lin.txt"):
+        match = LINEAR_SCORE.fullmatch(path.name)
+        text = path.read_text().strip()
+        if match and text:
+            rows.append((match.group(1), int(match.group(2)), float(text)))
+    return sorted(rows)
+
+
+def collect_linear():
+    """The table and the raw artefacts of the linear heads, and the logs of
+    their queue. Returns the count of each kind of file, or {} when no
+    linear score exists. A job with a score from elisa and one from the box
+    fallback keeps the score of elisa."""
+    scores, counts = {}, {}
+    for name in LINEAR_RESULTS:
+        found = [row for row in linear_scores(LINEAR / name)
+                 if row[:2] not in scores]
+        if not found:
+            continue
+        scores.update({row[:2]: row for row in found})
+        copied = copy_jobs({"recon_lin": found}, LINEAR / name, LINEAR / "ckpt")
+        copied["queue and wave logs"] = copy_queue_logs(
+            LINEAR / name, RESULTS / "logs" / "linear" / name)
+        for what, n in copied.items():
+            counts[what] = counts.get(what, 0) + n
+    if scores:
+        write_table(sorted(scores.values()),
+                    RESULTS / "recon_lin_trajectories.tsv")
+    return counts
+
+
 def main():
     RESULTS.mkdir(parents=True, exist_ok=True)
     found = scores(BOX_RESULTS)
@@ -188,6 +247,10 @@ def main():
     counts["snapshot scores"] = copy_snapshots()
     print(", ".join(f"{n} {what}" for what, n in counts.items()),
           f"-> {RESULTS}")
+    linear = collect_linear()
+    if linear:
+        print("linear heads: "
+              + ", ".join(f"{n} {what}" for what, n in linear.items()))
 
 
 if __name__ == "__main__":

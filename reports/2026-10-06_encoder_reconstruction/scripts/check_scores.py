@@ -16,6 +16,10 @@ A job passes when each of these holds:
 Writes ``results/checks.tsv``: the code of the run, the stop in thousands
 of steps, the score, the value of each check, and ``ok`` or the names of
 the checks that fail. Exits with 1 when a job does not pass.
+
+With CF425_HEAD_ARCH=linear, it checks the linear head of each job (the tag
+``..._recon_lin``, the heads in ~/checkpoints_backup/cf-425-lin/ckpt) and
+writes ``results/checks_lin.tsv``.
 """
 import csv
 import gzip
@@ -28,9 +32,17 @@ from pathlib import Path
 STUDY = Path(__file__).resolve().parent.parent
 RESULTS = STUDY / "results"
 JOBS = STUDY / "scripts" / "jobs.tsv"
-MIRROR = Path(os.environ.get(
-    "CF425_MIRROR", Path.home() / "checkpoints_backup" / "cf-412"
-    / "vast_lr100x")) / "cf-425"
+BACKUP = Path.home() / "checkpoints_backup"
+# For each head: the end of its tags, its table, and the folder of the heads
+# on elisa (CF425_MIRROR/<name> when CF425_MIRROR is set).
+SUFFIX, TABLE, NAME, HEADS = {
+    "transformer": ("recon", "checks.tsv", "cf-425",
+                    BACKUP / "cf-412" / "vast_lr100x" / "cf-425"),
+    "linear": ("recon_lin", "checks_lin.tsv", "cf-425-lin",
+               BACKUP / "cf-425-lin" / "ckpt"),
+}[os.environ.get("CF425_HEAD_ARCH", "transformer")]
+MIRROR = (Path(os.environ["CF425_MIRROR"]) / NAME
+          if os.environ.get("CF425_MIRROR") else HEADS)
 CONFIGS, HEAD_STEPS = 97, 30000
 MASE = "eval_metrics/MASE[0.5]"
 # A row of the eval summary: the config, its MASE, its seasonal-naive MASE
@@ -105,7 +117,7 @@ def head_bytes(folder):
 
 def check(code, arm, stop_k):
     """One row of checks.tsv."""
-    tag = f"{arm}_bb{stop_k}k_h30k_recon"
+    tag = f"{arm}_bb{stop_k}k_h30k_{SUFFIX}"
     score = read_score(RESULTS / "scores" / f"score_{tag}.txt")
     mase = config_mase(RESULTS / "per_config" / f"{tag}.csv")
     logs = RESULTS / "logs" / "jobs" / tag
@@ -131,7 +143,7 @@ def check(code, arm, stop_k):
 
 def main():
     rows = [check(*job) for job in jobs(JOBS)]
-    with open(RESULTS / "checks.tsv", "w", newline="") as out:
+    with open(RESULTS / TABLE, "w", newline="") as out:
         writer = csv.DictWriter(out, COLUMNS, delimiter="\t",
                                 lineterminator="\n")
         writer.writeheader()
@@ -140,7 +152,7 @@ def main():
     for row in bad:
         print(f"{row['code']} {row['stop_k']}k: {row['result']}")
     print(f"{len(rows) - len(bad)} of {len(rows)} jobs pass "
-          f"-> {RESULTS / 'checks.tsv'}")
+          f"-> {RESULTS / TABLE}")
     return 1 if bad else 0
 
 

@@ -192,6 +192,12 @@ floor of its own scaling.
 - `EVAL_STRATEGY=R0` runs R with `--zero-head`.
 - `CF_HEAD_ARGV_TO=<file>` writes the flags of the head trainer to the file
   and trains nothing.
+- `CF_HEAD_ARCH=linear` gives the reconstruction head one linear map from
+  each encoder latent to the quantiles of the values of its patch
+  (`--head-arch linear`), in place of the transformer head. Each other
+  setting stays. The tag must end in `_recon_lin`, so the two heads of one
+  checkpoint share no file. The eval reads the kind of a head from its file.
+- `HEAD_LOG_EVERY` sets the steps between two log lines of the head trainer.
 
 `train_forecasting_heads_shared.py --jobs <file>` (#425) trains the heads of
 some runs on one data stream. Each line of the file holds the flags of one
@@ -200,4 +206,6 @@ backbone, head, optimizer, seed and files. Each batch goes to each job in
 turn. Each job uses its own random state for its step. So each job gets the
 losses and the weights of its solo run, bit for bit. The script refuses jobs
 that read a different data stream: source, seed, vocabulary, batch size,
-start or step count.
+start or step count. Each report gives the step rate and the share of time
+that the process waited for a batch. A process that waits is as fast as its
+stream. A process that does not wait is as fast as its frozen backbones.
