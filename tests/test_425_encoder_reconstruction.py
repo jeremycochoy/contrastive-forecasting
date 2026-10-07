@@ -1674,6 +1674,37 @@ def test_collect_copies_the_raw_artefacts_and_no_head(tmp_path):
     assert not list(results.rglob("*.pth"))
 
 
+def test_collect_gives_the_snapshot_scores_their_own_table(tmp_path):
+    """The scores of snapshot_score.sh stay out of the table of the jobs.
+    Their own table gives the head step of each snapshot: the step of the
+    best head from the log of its wave, and 30,000 for the final head."""
+    collect = load_script("collect")
+    box, mirror = tmp_path / "box", tmp_path / "mirror" / "cf-425"
+    job = "cf412om_bb10k_h30k_recon"
+    (box / "snapshots").mkdir(parents=True)
+    (box / "waves" / "gift_x").mkdir(parents=True)
+    (box / "waves" / "gift_x" / "train.log").write_text(
+        f"[qhead_{job}_s20260722] Done in 4.5h. "
+        "Best loss=0.007695 at step 28500\n")
+    for snapshot, score in (("best", "0.3000\n"), ("final", "0.3100\n")):
+        tag = f"cf412om_bb10k_h30k_{snapshot}_recon"
+        (box / "snapshots" / f"score_{tag}.txt").write_text(score)
+        gift = mirror / "snapshots" / "eval" / tag / "gift_r"
+        gift.mkdir(parents=True)
+        (gift / "all_results.csv").write_text("dataset,mase\n")
+    results = tmp_path / "results"
+    collect.BOX_RESULTS, collect.MIRROR, collect.RESULTS = box, mirror, results
+    collect.SYNC_LOG = tmp_path / "no_sync.log"
+    collect.main()
+    assert (results / "recon_trajectories.tsv").read_text() == ""
+    assert (results / "snapshots" / "scores.tsv").read_text() == (
+        "arm\tstop_k\tsnapshot\thead_step\tscore\n"
+        "cf412om\t10\tbest\t28500\t0.3000\n"
+        "cf412om\t10\tfinal\t30000\t0.3100\n")
+    assert (results / "snapshots" / "per_config"
+            / "cf412om_bb10k_h30k_best_recon.csv").is_file()
+
+
 def check_tree(tmp_path, score="0.5000\n", steps=30000):
     """check_scores.py on the artefacts of one job: 97 configs with a MASE
     of 1 and a seasonal-naive MASE of 2, so the score is 0.5."""
@@ -1834,6 +1865,32 @@ def test_the_facts_are_in_the_plot_and_the_legend(tmp_path):
         assert len(links) == 2                    # 200k has no R score
         top, bottom = fig.axes
         assert top.get_ylim()[0] > bottom.get_ylim()[1]
+
+
+def test_a_hollow_marker_shows_an_earlier_snapshot_of_a_head(tmp_path):
+    """snapshot_score.sh scores an earlier snapshot of a head. A figure
+    shows that score as a hollow marker at the checkpoint of the head, its
+    y range holds it, and its key gives it beside the score of the final
+    head. The control score of a final head is no snapshot."""
+    pytest.importorskip("matplotlib")
+    plot = load_script("plot_recon")
+    table = tmp_path / "scores.tsv"
+    table.write_text("arm\tstop_k\tsnapshot\thead_step\tscore\n"
+                     "cf412om\t10\tbest\t28500\t0.2000\n"
+                     "cf412om\t10\tfinal\t30000\t0.3100\n")
+    snapshots = plot.load_snapshots(table)
+    assert snapshots == {"cf412om": {40000: (28500, 0.2)}}   # batch 256: x4
+    points = {"cf412om": {40000: 0.3100, 100000: 0.2900}}
+    fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], {}, points,
+                           tmp_path / "s.png", False, snapshots=snapshots)
+    ax, = fig.axes
+    hollow = [line for line in ax.get_lines()
+              if line.get_markerfacecolor() == "white"]
+    assert [list(line.get_ydata()) for line in hollow] == [[0.2]]
+    assert ax.get_ylim()[0] < 0.2
+    assert any("OMB 10k: R 0.2000 at step 28,500" in text
+               and "0.3100 at step 30,000" in text
+               for text in legend_texts(fig))
 
 
 def floor_checkout(stub_checkout):

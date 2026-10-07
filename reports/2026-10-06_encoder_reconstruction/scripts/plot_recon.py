@@ -36,9 +36,15 @@ it. An R score compares with the floor of its own setup. The legend gives
 the floors. The plot does not draw them: a floor line takes the height of
 the chart from the R curves.
 
-Reads results/recon_trajectories.tsv and results/forecast_425.tsv
-(collect.py), results/floors.tsv (floors.sh), and #412's
-results/gm_trajectories.tsv.
+Each R score comes from one head with one seed, so the figures cannot show
+the noise between two heads. snapshot_score.sh scores an earlier snapshot of
+some heads (the head of the best training loss). A hollow marker shows that
+score under or above the dot of its checkpoint: the distance between the
+two is the change of R in the last steps of one head training.
+
+Reads results/recon_trajectories.tsv, results/forecast_425.tsv and
+results/snapshots/scores.tsv (collect.py), results/floors.tsv (floors.sh),
+and #412's results/gm_trajectories.tsv.
 """
 import math
 import sys
@@ -57,12 +63,13 @@ STUDY = Path(__file__).resolve().parent.parent
 BASE = STUDY.parent / "2026-09-06_moirai_small_size"
 sys.path.insert(0, str(BASE / "scripts"))
 import plot_gm_rates as base  # noqa: E402
-from run_style import colour, line, tagged  # noqa: E402
+from run_style import CODE, colour, line, tagged  # noqa: E402
 
 FORECAST = [BASE / "results" / "gm_trajectories.tsv",
             STUDY / "results" / "forecast_425.tsv"]
 RECON = STUDY / "results" / "recon_trajectories.tsv"
 FLOORS = STUDY / "results" / "floors.tsv"
+SNAPSHOTS = STUDY / "results" / "snapshots" / "scores.tsv"
 PLOTS = STUDY / "plots"
 OURS = base.GROUPS[:2]
 GRAPHS = {
@@ -134,6 +141,21 @@ def load_floors(path):
              "score": float(score)} for setup, label, arms, score in rows]
 
 
+def load_snapshots(path):
+    """The R score of an earlier snapshot of a head:
+    ``{arm: {data seen: (head step, score)}}``. The final head is the dot
+    of the checkpoint, so its control score is not a snapshot here."""
+    points = defaultdict(dict)
+    if not Path(path).is_file():
+        return points
+    for row in list(open(path))[1:]:
+        arm, stop_k, snapshot, step, score = row.split()
+        if snapshot != "final":
+            seen = int(stop_k) * 1000 * base.XSCALE.get(arm, 1)
+            points[arm][seen] = (int(step), float(score))
+    return points
+
+
 def floors_of(arms, floors):
     """The floors of the setups of ``arms``."""
     return [floor for floor in floors if floor["arms"] & set(arms)]
@@ -174,6 +196,19 @@ def draw_run(ax, arm, width, marker, points, alpha=1.0):
     return handle
 
 
+def draw_snapshots(ax, arm, marker, recon, snapshots):
+    """A hollow marker at the R score of an earlier snapshot of a head, and
+    a line from it to the dot of the final head. Both lie under the dot, so
+    two equal scores show the dot."""
+    for seen, (_, score) in snapshots.items():
+        if seen not in recon:
+            continue
+        ax.plot([seen, seen], [score, recon[seen]], color=colour(arm),
+                lw=1.4, zorder=2.5)
+        ax.plot([seen], [score], linestyle="none", marker=marker, ms=8,
+                mfc="white", mec=colour(arm), mew=1.6, zorder=2.6)
+
+
 def draw_links(top, bottom, arm, forecast, recon):
     """A thin vertical line at each checkpoint with both scores, from its
     forecast point in the top panel to its R point in the bottom panel. It
@@ -207,10 +242,12 @@ def run_label(arm, label, recon):
     return f"{tagged(arm, label)}.  {numbers}"
 
 
-def key_entries(overlay, floors):
-    """The key: what R is, the floor of each scaling setup, and in an
-    overlay, the forecast, the line that joins the two scores of a
-    checkpoint and the break of the y axis."""
+def key_entries(overlay, floors, snapshots=()):
+    """The key: what R is, the earlier snapshots of a head, the floor of
+    each scaling setup, and in an overlay, the forecast, the line that
+    joins the two scores of a checkpoint and the break of the y axis.
+    ``snapshots``: ``(run code, stop label, head step, score, score of
+    the final head)`` of each."""
     blank = Line2D([], [], linestyle="none")
     entries = [(Line2D([], [], color=KEY_COLOUR, lw=3, marker="o", ms=7),
                 "R: the encoder reads the context and the true\n"
@@ -218,6 +255,14 @@ def key_entries(overlay, floors):
                 "encoder latents. One dot for each checkpoint,\n"
                 "one head with one seed for each dot."),
                (blank, "R a → b: R at the first and the last checkpoint")]
+    if snapshots:
+        text = "The same head at an earlier head step:\n"
+        text += "\n".join(
+            f"{code} {stop}: R {score:.4f} at step {step:,},\n"
+            f"    {final:.4f} at step 30,000 (the dot)"
+            for code, stop, step, score, final in snapshots)
+        entries.append((Line2D([], [], color=KEY_COLOUR, lw=0, marker="o",
+                               ms=7, mfc="white", mew=1.6), text))
     if overlay:
         entries += [
             (Line2D([], [], color=KEY_COLOUR, lw=3, marker="o", ms=7,
@@ -296,7 +341,13 @@ def style_y(ax, values, label):
     ax.grid(alpha=0.3)
 
 
-def draw_figure(groups, forecast, recon, out, overlay, floors=(), title=None):
+def stop_label(arm, seen):
+    """The stop of a checkpoint as its run counts it: 1080k."""
+    return f"{seen // (1000 * base.XSCALE.get(arm, 1))}k"
+
+
+def draw_figure(groups, forecast, recon, out, overlay, floors=(), title=None,
+                snapshots=None):
     """One figure. Returns it, or None, and draws nothing, when no run of
     the groups has a reconstruction score."""
     # A run with no reconstruction score (ABC keeps no checkpoint) has no
@@ -305,6 +356,7 @@ def draw_figure(groups, forecast, recon, out, overlay, floors=(), title=None):
     if not runs:
         return None
     arms = [arm for arm, *_ in runs]
+    snapshots = snapshots or {}
     if overlay:
         fig, (top, ax) = plt.subplots(2, 1, sharex=True, figsize=(12.5, 11.5),
                                       gridspec_kw={"hspace": 0.06})
@@ -317,12 +369,15 @@ def draw_figure(groups, forecast, recon, out, overlay, floors=(), title=None):
             draw_run(top, arm, width, marker, forecast.get(arm),
                      alpha=FORECAST_ALPHA)
         handles[arm] = draw_run(ax, arm, width, marker, recon.get(arm))
+        draw_snapshots(ax, arm, marker, recon[arm], snapshots.get(arm, {}))
+    r_values = [v for arm in arms for v in recon[arm].values()]
+    r_values += [score for arm in arms for seen, (_, score)
+                 in snapshots.get(arm, {}).items() if seen in recon[arm]]
     style_x(ax)
     if overlay:
         style_y(top, [v for arm in arms for v in forecast.get(arm, {}).values()]
                 or [1.0], "Forecast (B4)")
-        style_y(ax, [v for arm in arms for v in recon[arm].values()],
-                "Reconstruction (R)")
+        style_y(ax, r_values, "Reconstruction (R)")
         # The two panel labels at one distance from the axes, and the label
         # of their common y axis at their left.
         for panel in (top, ax):
@@ -338,7 +393,7 @@ def draw_figure(groups, forecast, recon, out, overlay, floors=(), title=None):
         for arm in arms:
             draw_links(top, ax, arm, forecast.get(arm, {}), recon[arm])
     else:
-        style_y(ax, [v for arm in arms for v in recon[arm].values()], METRIC)
+        style_y(ax, r_values, METRIC)
     if title is None:
         title = ("Reconstruction (R) and forecast (B4)" if overlay
                  else "Reconstruction (R)")
@@ -347,7 +402,10 @@ def draw_figure(groups, forecast, recon, out, overlay, floors=(), title=None):
                        for arm, label, *_ in members if arm in handles])
                for name, members in groups]
     columns = [(name, entries) for name, entries in columns if entries]
-    key = key_entries(overlay, floors_of(arms, floors))
+    shown = [(CODE[arm], stop_label(arm, seen), step, score, recon[arm][seen])
+             for arm in arms for seen, (step, score)
+             in sorted(snapshots.get(arm, {}).items()) if seen in recon[arm]]
+    key = key_entries(overlay, floors_of(arms, floors), shown)
     draw_legend(ax, top, columns, ("How to read", key))
     fig.savefig(out, dpi=135, bbox_inches="tight")
     plt.close(fig)
@@ -357,14 +415,15 @@ def draw_figure(groups, forecast, recon, out, overlay, floors=(), title=None):
 
 def main():
     forecast, recon = load(FORECAST), load([RECON])
-    floors = load_floors(FLOORS)
+    floors, snapshots = load_floors(FLOORS), load_snapshots(SNAPSHOTS)
     PLOTS.mkdir(parents=True, exist_ok=True)
     for name, groups in GRAPHS.items():
         runs = GRAPH_TITLES[name]
         draw_figure(groups, forecast, recon, PLOTS / f"recon_{name}.png",
-                    False, floors, f"Reconstruction (R): {runs}")
+                    False, floors, f"Reconstruction (R): {runs}", snapshots)
         draw_figure(groups, forecast, recon, PLOTS / f"overlay_{name}.png",
-                    True, floors, f"Reconstruction (R) and forecast (B4): {runs}")
+                    True, floors, f"Reconstruction (R) and forecast (B4): {runs}",
+                    snapshots)
 
 
 if __name__ == "__main__":

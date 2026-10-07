@@ -25,6 +25,11 @@ Writes, in the results directory of the report:
 * ``head_losses/<tag>_losses.csv.gz``: the loss of each step of each head.
   The gzip has no time stamp, so the same CSV gives the same bytes.
 
+* ``snapshots/``: the R score of other snapshots of some heads
+  (snapshot_score.sh). ``scores.tsv`` gives the arm, the stop, the snapshot,
+  its head step and its score. Beside it, the per-config table and the logs
+  of each snapshot.
+
 It copies no head file: the heads stay on elisa.
 """
 import gzip
@@ -42,6 +47,10 @@ MIRROR = Path(os.environ.get("CF425_MIRROR",
                              HOME / "cf-412" / "vast_lr100x")) / "cf-425"
 SYNC_LOG = Path(os.environ.get("CF425_SYNC_LOG", HOME / "cf-425" / "sync.log"))
 SCORE = re.compile(r"score_(.+)_bb(\d+)k_h30k_(recon|student)\.txt")
+SNAPSHOT = re.compile(r"score_(.+)_bb(\d+)k_h30k_(best|final)_recon\.txt")
+# The last line of a head in the log of its wave: the step of its best head.
+BEST_STEP = r"\[qhead_{job}_s\d+\] Done in .* at step (\d+)"
+HEAD_STEPS = 30000
 QUEUE_LOGS = ["queue.log", "scores.log", "heads.log", "stops.log",
               "forecast_scores.log"]
 # The folder of a job in the mirror, and the folder of its eval, by kind.
@@ -130,6 +139,45 @@ def copy_logs():
     return copied
 
 
+def best_step(job):
+    """The step of the best head of a job, from the log of its wave, or 0."""
+    pattern = re.compile(BEST_STEP.format(job=re.escape(job)))
+    for log in sorted((BOX_RESULTS / "waves").glob("*/train.log")):
+        found = pattern.findall(log.read_text(errors="replace"))
+        if found:
+            return int(found[-1])
+    return 0
+
+
+def copy_snapshots():
+    """The scores of snapshot_score.sh: one table, and the per-config table
+    and the logs of each snapshot. Returns the number of scores."""
+    rows = []
+    for path in sorted((BOX_RESULTS / "snapshots").glob("score_*.txt")):
+        match = SNAPSHOT.fullmatch(path.name)
+        text = path.read_text().strip()
+        if not (match and text):
+            continue
+        arm, stop_k, snapshot = match.groups()
+        job = tag_of(arm, stop_k, "recon")
+        step = HEAD_STEPS if snapshot == "final" else best_step(job)
+        rows.append((arm, int(stop_k), snapshot, step, float(text)))
+        tag = f"{arm}_bb{stop_k}k_h30k_{snapshot}_recon"
+        source = MIRROR / "snapshots" / "eval" / tag
+        target = RESULTS / "snapshots"
+        copy(source / "gift_r" / "all_results.csv",
+             target / "per_config" / f"{tag}.csv")
+        for name in ("stop.log", "gift_r/summary.txt"):
+            copy(source / name, target / "logs" / tag / Path(name).name)
+    if rows:
+        (RESULTS / "snapshots").mkdir(parents=True, exist_ok=True)
+        with open(RESULTS / "snapshots" / "scores.tsv", "w") as out:
+            out.write("arm\tstop_k\tsnapshot\thead_step\tscore\n")
+            for arm, stop_k, snapshot, step, score in sorted(rows):
+                out.write(f"{arm}\t{stop_k}\t{snapshot}\t{step}\t{score:.4f}\n")
+    return len(rows)
+
+
 def main():
     RESULTS.mkdir(parents=True, exist_ok=True)
     found = scores(BOX_RESULTS)
@@ -137,6 +185,7 @@ def main():
     write_table(found["student"], RESULTS / "forecast_425.tsv")
     counts = copy_jobs(found)
     counts["queue and wave logs"] = copy_logs()
+    counts["snapshot scores"] = copy_snapshots()
     print(", ".join(f"{n} {what}" for what, n in counts.items()),
           f"-> {RESULTS}")
 
