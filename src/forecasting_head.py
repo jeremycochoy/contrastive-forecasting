@@ -1881,6 +1881,29 @@ def reconstruct_windows(backbone, head, contexts, horizons, device):
     return values.permute(0, 2, 1).cpu().numpy()           # (B, h, C)
 
 
+class ZeroReconstructionHead(nn.Module):
+    """The floor of strategy R (#425): a head with no weights that gives the
+    normalised value 0 for each quantile of each value.
+
+    Unscaled, each value is then the mean that normalised it: under the
+    EWMA, the EWMA at that value, which reads the true horizon up to it.
+    Under the mean/std scaling, the loc of the context. The score of this
+    head is the part of an R score that the statistics give with no
+    encoder.
+    """
+
+    def __init__(self, patch_size, quantile_levels=QUANTILE_LEVELS):
+        super().__init__()
+        self.patch_size = self.forecast_len = patch_size
+        self.quantile_levels = list(quantile_levels)
+
+    def forward(self, latents, src_mask=None):
+        """``(B*C, T, H)`` latents to ``(B*C, T, Q, P)`` zeros."""
+        n, t = latents.shape[:2]
+        return latents.new_zeros(n, t, len(self.quantile_levels),
+                                 self.forecast_len)
+
+
 def reconstruct_horizon(backbone, head, x_context, horizon, device):
     """:func:`reconstruct_windows` of one window.
 

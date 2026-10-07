@@ -26,6 +26,7 @@ import os
 import sys
 import time
 
+import numpy as np
 import torch
 import torch.optim as optim
 
@@ -107,7 +108,7 @@ HEAD_CONFIG = dict(
 T_RAW = 1024
 
 
-def parse_args():
+def parse_args(argv=None):
     p = argparse.ArgumentParser(
         description="Train forecasting head on frozen contrastive backbone")
     p.add_argument("--backbone-path", required=True,
@@ -310,7 +311,7 @@ def parse_args():
                         "— matches the contrastive trainer's convention. "
                         "'fp16' = float16 autocast (no GradScaler, matching "
                         "the contrastive trainer).")
-    return p.parse_args()
+    return p.parse_args(argv)
 
 
 class CSVLogger:
@@ -396,43 +397,44 @@ def refuse_bank_flags(args):
                          "arch other than transformer-gaussian.")
 
 
-def main():
-    args = parse_args()
-    device = torch.device(args.device)
+def seed_everything(seed):
+    """Seed torch on the CPU and on each GPU, and numpy."""
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
 
-    # Reproducibility
-    torch.manual_seed(args.seed)
-    torch.cuda.manual_seed_all(args.seed)
-    import numpy as np
-    np.random.seed(args.seed)
 
-    os.makedirs(args.save_dir, exist_ok=True)
-
+def backbone_config(args, sd):
+    """``(config, head_config)``: the shape of the frozen backbone that the
+    checkpoint ``sd`` holds, from the defaults, the flags and what the
+    checkpoint names, and the head shape that reads it. Writes the values
+    it detects to ``args``. Each call starts from the defaults, so the jobs
+    of one process (#425) share no config."""
+    config, head_config = dict(BACKBONE_CONFIG), dict(HEAD_CONFIG)
     # -- Load frozen backbone --------------------------------------------------
-    # Backbone architecture overrides (CLI > defaults). HEAD_CONFIG['H']
+    # Backbone architecture overrides (CLI > defaults). head_config['H']
     # must follow the backbone's H so the head input width matches.
     global T_RAW
     if args.t_raw is not None:
         T_RAW = args.t_raw
     if args.n_channels is not None:
-        BACKBONE_CONFIG["C"] = args.n_channels
+        config["C"] = args.n_channels
     if args.d_model is not None:
-        BACKBONE_CONFIG["H"] = args.d_model
-        HEAD_CONFIG["H"] = args.d_model
+        config["H"] = args.d_model
+        head_config["H"] = args.d_model
     if args.n_heads is not None:
-        BACKBONE_CONFIG["nhead"] = args.n_heads
+        config["nhead"] = args.n_heads
     if args.num_layers is not None:
-        BACKBONE_CONFIG["num_layers"] = args.num_layers
+        config["num_layers"] = args.num_layers
     if args.forecaster_d_model is not None:
-        BACKBONE_CONFIG["forecaster_d_model"] = args.forecaster_d_model
+        config["forecaster_d_model"] = args.forecaster_d_model
     if args.forecaster_n_heads is not None:
-        BACKBONE_CONFIG["forecaster_n_heads"] = args.forecaster_n_heads
+        config["forecaster_n_heads"] = args.forecaster_n_heads
     if args.encoder_type is not None:
-        BACKBONE_CONFIG["encoder_type"] = args.encoder_type
+        config["encoder_type"] = args.encoder_type
 
     # Auto-detect freq_emb_dim and seasonality_emb_dim from the checkpoint
     # if not explicitly set.
-    sd = torch.load(args.backbone_path, map_location=device, weights_only=True)
     if args.freq_emb_dim is None:
         w = sd.get("freq_embedding.embedding.weight")
         if w is not None:
@@ -450,35 +452,34 @@ def main():
                   f"from backbone checkpoint")
         else:
             args.seasonality_emb_dim = 0
-    BACKBONE_CONFIG["freq_emb_dim"] = args.freq_emb_dim
-    BACKBONE_CONFIG["seasonality_emb_dim"] = args.seasonality_emb_dim
-    BACKBONE_CONFIG["rev_norm_kind"] = args.rev_norm_kind
+    config["freq_emb_dim"] = args.freq_emb_dim
+    config["seasonality_emb_dim"] = args.seasonality_emb_dim
+    config["rev_norm_kind"] = args.rev_norm_kind
     # #419: the frequency table's row count is the vocabulary (10: v1, every
     # earlier model), and a buffer marks a normaliser that skips zero
     # padding. Both rebuild the backbone the checkpoint trained.
     freq_w = sd.get("freq_embedding.embedding.weight")
     if freq_w is not None:
-        BACKBONE_CONFIG["num_freqs"] = freq_w.shape[0]
+        config["num_freqs"] = freq_w.shape[0]
     zero_pad = "rev_norm.leading_zero_pad" in sd
-    BACKBONE_CONFIG["rev_norm_skip_leading_zeros"] = zero_pad
+    config["rev_norm_skip_leading_zeros"] = zero_pad
     if not zero_pad and (args.gift_pretrain_index or args.gift_pretrain_root):
         raise SystemExit("--gift-pretrain-index and --gift-pretrain-root read "
                          "the stream of a zero-padding backbone (#419), and "
                          "this backbone has none: its head trains on "
                          "--hf-repo. Drop them.")
     # #421: the bound of the GRU input, when the backbone trained with one.
-    BACKBONE_CONFIG["gru_input_bound"] = gru_input_bound_of(sd)
-    freq_vocab = vocab_of_rows(freq_w.shape[0]) if freq_w is not None else "v1"
+    config["gru_input_bound"] = gru_input_bound_of(sd)
     # #412: the checkpoint names its patch sizes (#417) and the mean/std
     # scaling (#421). Such a backbone gets one head per patch size, trained
     # as the backbone trained: sizes, split and statistics per row.
     patch_sizes = multi_patch_sizes_of(sd)
-    BACKBONE_CONFIG["multi_patch_sizes"] = patch_sizes
+    config["multi_patch_sizes"] = patch_sizes
     if "rev_norm.mean_std_scaling" in sd and args.rev_norm_kind != "meanstd":
         print(f"  [head-train] the checkpoint names the mean/std scaling "
               f"(#421); --rev-norm-kind {args.rev_norm_kind} is not read")
         args.rev_norm_kind = "meanstd"
-    BACKBONE_CONFIG["rev_norm_kind"] = args.rev_norm_kind
+    config["rev_norm_kind"] = args.rev_norm_kind
     use_bank = bool(patch_sizes) or args.rev_norm_kind == "meanstd"
     if use_bank:
         refuse_bank_flags(args)
@@ -494,7 +495,7 @@ def main():
     # with learnable_tau=True so load_state_dict succeeds. The head loss
     # doesn't use τ, so this is just to keep the param around.
     if "log_inv_tau" in sd:
-        BACKBONE_CONFIG["learnable_tau"] = True
+        config["learnable_tau"] = True
         print(f"  [head-train] auto-detected learnable τ "
               f"(log_inv_tau={sd['log_inv_tau'].item():.4f}, "
               f"τ={float((-sd['log_inv_tau']).exp()):.4f}) from backbone checkpoint")
@@ -510,18 +511,18 @@ def main():
             except (IndexError, ValueError):
                 continue
     if enc_layer_idxs:
-        BACKBONE_CONFIG["num_encoder_layers"] = max(enc_layer_idxs) + 1
+        config["num_encoder_layers"] = max(enc_layer_idxs) + 1
         print(f"  [head-train] auto-detected num_encoder_layers="
-              f"{BACKBONE_CONFIG['num_encoder_layers']} from backbone checkpoint")
+              f"{config['num_encoder_layers']} from backbone checkpoint")
     # Auto-detect the b1024 collapse-fix norms (#322): QK-norm (q_norm/k_norm) and
     # attention-output RMSNorm (attn_out_rms) add per-layer params to encoder +
     # forecaster layers. Build with the matching flags so _qk_aon backbones load
     # cleanly. Absent keys -> flags stay False (older backbones unaffected).
     if any(k.endswith(".q_norm.weight") for k in sd):
-        BACKBONE_CONFIG["qk_norm"] = True
+        config["qk_norm"] = True
         print("  [head-train] auto-detected qk_norm=True from backbone checkpoint")
     if any(k.endswith(".attn_out_rms.weight") for k in sd):
-        BACKBONE_CONFIG["attn_out_norm"] = True
+        config["attn_out_norm"] = True
         print("  [head-train] auto-detected attn_out_norm=True from backbone checkpoint")
     # Auto-detect a CPC multi-step forecaster (#316). Two families:
     #   transformer.cpc_layers.<N>.*  → 'cpc'        (K transformer-1L heads, #1)
@@ -537,10 +538,10 @@ def main():
             except (IndexError, ValueError):
                 continue
     if lin_idxs:
-        BACKBONE_CONFIG["forecaster_kind"] = "linear_cpc"
-        BACKBONE_CONFIG["cpc_k_steps"] = max(lin_idxs) + 1
+        config["forecaster_kind"] = "linear_cpc"
+        config["cpc_k_steps"] = max(lin_idxs) + 1
         print(f"  [head-train] auto-detected linear_cpc forecaster "
-              f"(K={BACKBONE_CONFIG['cpc_k_steps']}) from checkpoint")
+              f"(K={config['cpc_k_steps']}) from checkpoint")
     cpc_head_idxs = set()
     for k in sd:
         if k.startswith("transformer.cpc_layers."):
@@ -549,24 +550,24 @@ def main():
             except (IndexError, ValueError):
                 continue
     if cpc_head_idxs:
-        BACKBONE_CONFIG["forecaster_kind"] = "cpc"
-        BACKBONE_CONFIG["cpc_k_steps"] = max(cpc_head_idxs) + 1
+        config["forecaster_kind"] = "cpc"
+        config["cpc_k_steps"] = max(cpc_head_idxs) + 1
         w = sd.get("transformer.cpc_down.0.weight")
         if w is not None:
-            BACKBONE_CONFIG["forecaster_d_model"] = w.shape[0]
+            config["forecaster_d_model"] = w.shape[0]
             args.forecaster_d_model = w.shape[0]
         print(f"  [head-train] auto-detected cpc forecaster "
-              f"(K={BACKBONE_CONFIG['cpc_k_steps']}, "
-              f"d={BACKBONE_CONFIG.get('forecaster_d_model')}) from checkpoint")
+              f"(K={config['cpc_k_steps']}, "
+              f"d={config.get('forecaster_d_model')}) from checkpoint")
     if args.rev_norm_kind == "ewma":
-        BACKBONE_CONFIG["rev_norm_span"] = args.rev_norm_span
+        config["rev_norm_span"] = args.rev_norm_span
     # Auto-detect patch_stats from the encoder's first projection input width.
     # The GRU encoder stores `encoder.skip.weight` of shape [H, encoder_input].
     # MLP-style encoders store `encoder.linear1.weight` similarly. Either way
     # the in-features tells us W + freq_emb_dim + (2 if patch_stats else 0).
     if args.patch_stats == "auto":
         from src.norm import PATCH_STATS_DIM
-        W = BACKBONE_CONFIG["W"]
+        W = config["W"]
         skip_w = sd.get("encoder.skip.weight")
         if skip_w is None:
             skip_w = sd.get(f"encoder.encoders.{W}.skip.weight")
@@ -589,9 +590,13 @@ def main():
                     f"({args.freq_emb_dim}) + seasonality_emb_dim "
                     f"({args.seasonality_emb_dim}) + 0 or {PATCH_STATS_DIM}.")
         print(f"  [head-train] auto-detected patch_stats={args.patch_stats}")
-    BACKBONE_CONFIG["patch_stats_kind"] = args.patch_stats
+    config["patch_stats_kind"] = args.patch_stats
+    return config, head_config
 
-    backbone = ConfigurableModel(**BACKBONE_CONFIG)
+
+def load_frozen_backbone(args, config, sd, device):
+    """The backbone of ``config`` with the weights of ``sd``, frozen."""
+    backbone = ConfigurableModel(**config)
     # Drops the pretraining-only branches (CPC-InfoNCE `cpc_w1.*`, the EMA
     # teacher's `teacher_*`) so the strict load matches the head-time
     # backbone, and — under --encoder-source teacher (#393) — promotes the
@@ -605,138 +610,194 @@ def main():
     print(f"Backbone loaded from {args.backbone_path} "
           f"({count_parameters(backbone):,} params, frozen, "
           f"encoder={args.encoder_source})")
+    return backbone
 
-    # -- Forecasting head ------------------------------------------------------
+
+def build_job_head(args, config, head_config, use_bank, device):
+    """``(head, kind)``: the head of one run, on ``device``."""
     if use_bank:
-        sizes = patch_sizes or (BACKBONE_CONFIG["W"],)
-        built = {p: build_head(args, HEAD_CONFIG, p) for p in sizes}
+        sizes = config["multi_patch_sizes"] or (config["W"],)
+        built = {p: build_head(args, head_config, p) for p in sizes}
         head = ForecastingHeadBank(
             {p: h for p, (h, _) in built.items()}).to(device)
         head_kind = (f"bank of {len(sizes)} heads, sizes {sizes}, each "
                      f"{built[sizes[0]][1]} decoding its P values (#412)")
     else:
-        head, head_kind = build_head(args, HEAD_CONFIG, args.forecast_len)
+        head, head_kind = build_head(args, head_config, args.forecast_len)
         head = head.to(device)
     n_head_params = count_parameters(head)
     print(f"Forecasting head [{head_kind}]: {n_head_params:,} trainable params")
+    return head, head_kind
 
-    optimizer = optim.AdamW(
-        head.parameters(),
-        lr=args.lr,
-        betas=(args.beta1, args.beta2),
-        weight_decay=args.weight_decay,
-        eps=args.eps,
-    )
 
-    # Schedule defaults: WSD → 80% stable + 20% cooldown if user didn't set.
-    if args.decay_start_step is None:
-        args.decay_start_step = int(0.8 * args.total_steps)
-    print(f"Optimizer: AdamW lr={args.lr} betas=({args.beta1},{args.beta2}) "
-          f"wd={args.weight_decay} eps={args.eps}")
-    print(f"Schedule: {args.schedule} warmup={args.warmup_steps} "
-          f"decay_start={args.decay_start_step} "
-          f"final_ratio={args.final_lr_ratio}")
+class HeadJob:
+    """One head on its frozen backbone: the state and the steps of one run
+    of this script.
 
-    # -- Resume ----------------------------------------------------------------
-    start_step = 0
-    best_loss = float("inf")
-    best_loss_step = 0
+    :func:`main` trains one job. ``train_forecasting_heads_shared.py``
+    (#425) trains several jobs on one data stream: each job keeps its own
+    backbone, head, optimizer, seed and files, and takes the steps of its
+    solo run.
+    """
 
-    if args.resume:
-        ckpt = torch.load(args.resume, map_location=device, weights_only=True)
-        head.load_state_dict(ckpt)
-        # Try loading optimizer + metadata from companion file
-        optim_path = args.resume.replace(".pth", "_optimizer.pth")
-        if os.path.exists(optim_path):
-            meta = torch.load(optim_path, map_location=device, weights_only=False)
-            optimizer.load_state_dict(meta["optimizer_state_dict"])
-            start_step = meta.get("step", 0)
-            best_loss = meta.get("best_loss", float("inf"))
-            best_loss_step = meta.get("best_loss_step", 0)
-            print(f"Resumed from {args.resume} at step {start_step} "
-                  f"(best_loss={best_loss:.6f})")
-        else:
-            print(f"Loaded head weights from {args.resume} (no optimizer state)")
-
-    # -- CSV logger ------------------------------------------------------------
-    csv_path = os.path.join(args.save_dir, f"{args.run_name}_losses.csv")
-    csv_logger = CSVLogger(csv_path)
-    print(f"Loss CSV: {csv_path}")
-
-    # -- Data ------------------------------------------------------------------
-    C = BACKBONE_CONFIG["C"]
-    rows_per_step = args.batch_size * C
-    if args.no_resume_data_skip:
-        hf_rows_consumed = args.skip_rows
-        print(f"  [data] --no-resume-data-skip: starting from HF offset "
-              f"{args.skip_rows} (NOT {start_step * rows_per_step + args.skip_rows})")
-    else:
-        hf_rows_consumed = start_step * rows_per_step + args.skip_rows
-
-    emit_labels = (args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0)
-    # #419: the head of a zero-padding backbone reads the stream the
-    # backbone trained on, in the vocabulary its checkpoint holds.
-    real_rows = None
-    if zero_pad:
-        from src.gift_pretrain import stream_factory
-        real_rows = stream_factory(
-            [args.seed, hf_rows_consumed], C, freq_vocab,
-            args.gift_pretrain_index, args.gift_pretrain_root)
-        print(f"Data: the backbone trained on GiftEvalPretrain with zero "
-              f"padding (#419): the head trains on the same stream, "
-              f"vocabulary {freq_vocab}, padded targets skipped. "
-              f"--hf-repo/--hf-path are not read.")
-    if args.mix_ratio > 0 or emit_labels:
-        # Use the mixed loader when we need labels, even if mix_ratio=0
-        # (it falls through to MixedPeriodicLoader with synth_bs=0 and
-        # yields the (x, freq_ids, seasonality_ids) tuples extract_*_latents
-        # consumes).
-        synth_seed = args.synth_seed if args.synth_seed is not None else args.seed + 20_000
-        data_loader = create_mixed_periodic_dataloader(
-            repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
-            mix_ratio=args.mix_ratio,
-            path_in_repo=args.hf_path, skip_rows=hf_rows_consumed,
-            seed=synth_seed, emit_freq_ids=emit_labels,
-            real_rows=real_rows,
+    def __init__(self, args):
+        self.args = args
+        device = self.device = torch.device(args.device)
+        # Reproducibility
+        seed_everything(args.seed)
+        os.makedirs(args.save_dir, exist_ok=True)
+        sd = torch.load(args.backbone_path, map_location=device, weights_only=True)
+        config, head_config = backbone_config(args, sd)
+        self.C = config["C"]
+        self.zero_pad = config["rev_norm_skip_leading_zeros"]
+        self.patch_sizes = config["multi_patch_sizes"]
+        self.use_bank = bool(self.patch_sizes) or args.rev_norm_kind == "meanstd"
+        freq_w = sd.get("freq_embedding.embedding.weight")
+        self.freq_vocab = vocab_of_rows(freq_w.shape[0]) if freq_w is not None else "v1"
+        self.emit_labels = (args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0)
+        self.backbone = load_frozen_backbone(args, config, sd, device)
+        head, _ = build_job_head(args, config, head_config, self.use_bank, device)
+        optimizer = optim.AdamW(
+            head.parameters(),
+            lr=args.lr,
+            betas=(args.beta1, args.beta2),
+            weight_decay=args.weight_decay,
+            eps=args.eps,
         )
-        synth_bs = int(round(args.batch_size * args.mix_ratio))
-        hf_bs = args.batch_size - synth_bs
-        print(f"Data: MIX {(1-args.mix_ratio)*100:.0f}% HF + "
-              f"{args.mix_ratio*100:.0f}% synth, hf_bs={hf_bs}, "
-              f"synth_bs={synth_bs}, synth_seed={synth_seed}, "
-              f"emit_labels={emit_labels}")
-    elif real_rows is not None:
-        data_loader = real_rows(args.batch_size, False)
-    else:
-        data_loader = create_hf_dataloader(
-            args.hf_repo, batch_size=args.batch_size, C=C,
-            path_in_repo=args.hf_path, skip_rows=hf_rows_consumed)
-        print(f"Data: HF streaming from {args.hf_repo}/{args.hf_path} "
-              f"(skip={hf_rows_consumed} rows)")
-    data_iter = iter(data_loader)
 
-    print(f"\nTraining for {args.total_steps} steps, bs={args.batch_size}, "
-          f"lr={args.lr}, forecast_len={args.forecast_len}")
-    if use_bank:
-        print(f"Head bank (#412): each row draws its patch size from its "
-              f"frequency's range {'and its split ' if args.rev_norm_kind == 'meanstd' else ''}"
-              f"as the backbone trained, and trains the head of that size. "
-              f"--forecast-len is not read.")
-    if args.reconstruction:
-        print(f"RECONSTRUCTION mode: {args.reconstruction} "
-              f"(head decodes what latent represents, not future)")
-    if args.mixed_rollout > 0:
-        print(f"Mixed-rollout mode: {args.mixed_rollout} rolled tokens per step "
-              f"(48 context patches + {args.mixed_rollout} rolled)")
-    print(f"Checkpoints: {args.save_dir}/{args.run_name}_*.pth")
-    sys.stdout.flush()
+        # Schedule defaults: WSD → 80% stable + 20% cooldown if user didn't set.
+        if args.decay_start_step is None:
+            args.decay_start_step = int(0.8 * args.total_steps)
+        print(f"Optimizer: AdamW lr={args.lr} betas=({args.beta1},{args.beta2}) "
+              f"wd={args.weight_decay} eps={args.eps}")
+        print(f"Schedule: {args.schedule} warmup={args.warmup_steps} "
+              f"decay_start={args.decay_start_step} "
+              f"final_ratio={args.final_lr_ratio}")
 
-    # -- Training loop ---------------------------------------------------------
-    t0 = time.time()
-    ema_loss = None
-    ema_decay = 0.99
+        # -- Resume --------------------------------------------------------
+        start_step = 0
+        best_loss = float("inf")
+        best_loss_step = 0
 
-    for step in range(start_step + 1, args.total_steps + 1):
+        if args.resume:
+            ckpt = torch.load(args.resume, map_location=device, weights_only=True)
+            head.load_state_dict(ckpt)
+            # Try loading optimizer + metadata from companion file
+            optim_path = args.resume.replace(".pth", "_optimizer.pth")
+            if os.path.exists(optim_path):
+                meta = torch.load(optim_path, map_location=device, weights_only=False)
+                optimizer.load_state_dict(meta["optimizer_state_dict"])
+                start_step = meta.get("step", 0)
+                best_loss = meta.get("best_loss", float("inf"))
+                best_loss_step = meta.get("best_loss_step", 0)
+                print(f"Resumed from {args.resume} at step {start_step} "
+                      f"(best_loss={best_loss:.6f})")
+            else:
+                print(f"Loaded head weights from {args.resume} (no optimizer state)")
+
+        rows_per_step = args.batch_size * self.C
+        if args.no_resume_data_skip:
+            hf_rows_consumed = args.skip_rows
+            print(f"  [data] --no-resume-data-skip: starting from HF offset "
+                  f"{args.skip_rows} (NOT {start_step * rows_per_step + args.skip_rows})")
+        else:
+            hf_rows_consumed = start_step * rows_per_step + args.skip_rows
+        self.head, self.optimizer = head, optimizer
+        self.start_step, self.best_loss = start_step, best_loss
+        self.best_loss_step = best_loss_step
+        self.rows_per_step, self.hf_rows_consumed = rows_per_step, hf_rows_consumed
+        self.ema_loss, self.ema_decay, self.nan_skips = None, 0.99, 0
+        self.csv_logger, self.t0 = None, None
+
+    def data_key(self):
+        """What decides the batches of this run. Runs with one key read the
+        same batches in the same order, so one stream feeds them all (#425).
+        """
+        args = self.args
+        stream = (("GiftEvalPretrain", args.seed, self.freq_vocab,
+                   args.gift_pretrain_index, args.gift_pretrain_root)
+                  if self.zero_pad else ("hf", args.hf_repo, args.hf_path))
+        synth = ((args.mix_ratio, args.synth_seed if args.synth_seed is not None
+                  else args.seed + 20_000) if args.mix_ratio > 0 else ())
+        return (stream, synth, self.emit_labels, self.C, args.batch_size,
+                self.hf_rows_consumed, self.start_step, args.total_steps)
+
+    def data_loader(self):
+        """The data stream of this run."""
+        args, C, freq_vocab = self.args, self.C, self.freq_vocab
+        zero_pad, emit_labels = self.zero_pad, self.emit_labels
+        hf_rows_consumed = self.hf_rows_consumed
+        # #419: the head of a zero-padding backbone reads the stream the
+        # backbone trained on, in the vocabulary its checkpoint holds.
+        real_rows = None
+        if zero_pad:
+            from src.gift_pretrain import stream_factory
+            real_rows = stream_factory(
+                [args.seed, hf_rows_consumed], C, freq_vocab,
+                args.gift_pretrain_index, args.gift_pretrain_root)
+            print(f"Data: the backbone trained on GiftEvalPretrain with zero "
+                  f"padding (#419): the head trains on the same stream, "
+                  f"vocabulary {freq_vocab}, padded targets skipped. "
+                  f"--hf-repo/--hf-path are not read.")
+        if args.mix_ratio > 0 or emit_labels:
+            # Use the mixed loader when we need labels, even if mix_ratio=0
+            # (it falls through to MixedPeriodicLoader with synth_bs=0 and
+            # yields the (x, freq_ids, seasonality_ids) tuples extract_*_latents
+            # consumes).
+            synth_seed = args.synth_seed if args.synth_seed is not None else args.seed + 20_000
+            data_loader = create_mixed_periodic_dataloader(
+                repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
+                mix_ratio=args.mix_ratio,
+                path_in_repo=args.hf_path, skip_rows=hf_rows_consumed,
+                seed=synth_seed, emit_freq_ids=emit_labels,
+                real_rows=real_rows,
+            )
+            synth_bs = int(round(args.batch_size * args.mix_ratio))
+            hf_bs = args.batch_size - synth_bs
+            print(f"Data: MIX {(1-args.mix_ratio)*100:.0f}% HF + "
+                  f"{args.mix_ratio*100:.0f}% synth, hf_bs={hf_bs}, "
+                  f"synth_bs={synth_bs}, synth_seed={synth_seed}, "
+                  f"emit_labels={emit_labels}")
+        elif real_rows is not None:
+            data_loader = real_rows(args.batch_size, False)
+        else:
+            data_loader = create_hf_dataloader(
+                args.hf_repo, batch_size=args.batch_size, C=C,
+                path_in_repo=args.hf_path, skip_rows=hf_rows_consumed)
+            print(f"Data: HF streaming from {args.hf_repo}/{args.hf_path} "
+                  f"(skip={hf_rows_consumed} rows)")
+        return data_loader
+
+    def start(self):
+        """Open the loss CSV, describe the run and start its clock."""
+        args = self.args
+        csv_path = os.path.join(args.save_dir, f"{args.run_name}_losses.csv")
+        self.csv_logger = CSVLogger(csv_path)
+        print(f"Loss CSV: {csv_path}")
+
+        print(f"\nTraining for {args.total_steps} steps, bs={args.batch_size}, "
+              f"lr={args.lr}, forecast_len={args.forecast_len}")
+        if self.use_bank:
+            print(f"Head bank (#412): each row draws its patch size from its "
+                  f"frequency's range {'and its split ' if args.rev_norm_kind == 'meanstd' else ''}"
+                  f"as the backbone trained, and trains the head of that size. "
+                  f"--forecast-len is not read.")
+        if args.reconstruction:
+            print(f"RECONSTRUCTION mode: {args.reconstruction} "
+                  f"(head decodes what latent represents, not future)")
+        if args.mixed_rollout > 0:
+            print(f"Mixed-rollout mode: {args.mixed_rollout} rolled tokens per step "
+                  f"(48 context patches + {args.mixed_rollout} rolled)")
+        print(f"Checkpoints: {args.save_dir}/{args.run_name}_*.pth")
+        sys.stdout.flush()
+        self.t0 = time.time()
+
+    def train_step(self, step, batch):
+        """One optimizer step on one batch of the stream."""
+        args, device = self.args, self.device
+        backbone, head, optimizer = self.backbone, self.head, self.optimizer
+        zero_pad, use_bank = self.zero_pad, self.use_bank
+        patch_sizes = self.patch_sizes
         head.train()
         optimizer.zero_grad()
 
@@ -747,13 +808,6 @@ def main():
         for g in optimizer.param_groups:
             g["lr"] = args.lr * mult
 
-        # Data loading — when emit_labels is on, the dataloader yields
-        # (x, freq_ids, seasonality_ids). Otherwise it yields just x.
-        try:
-            batch = next(data_iter)
-        except StopIteration:
-            data_iter = iter(data_loader)
-            batch = next(data_iter)
         if isinstance(batch, tuple):
             x, freq_ids, seasonality_ids = batch
             freq_ids = freq_ids.to(device)
@@ -762,7 +816,7 @@ def main():
             x = batch
             freq_ids = None
             seasonality_ids = None
-        hf_rows_consumed += rows_per_step
+        self.hf_rows_consumed += self.rows_per_step
         x = x.to(device)
 
         # AMP autocast wraps the (frozen) backbone forward + head forward +
@@ -880,7 +934,7 @@ def main():
                     # for f-block position p_f). With the standard causal
                     # mask, all e-block positions are "past" relative to any
                     # f-block position, so the head can copy the target
-                    # directly — that bug showed up as ema_loss collapsing
+                    # directly — that bug showed up as self.ema_loss collapsing
                     # to <0.12 vs the legitimate ~0.19 plateau.
                     e_bc, _ = extract_encoder_latents(
                         backbone, x, freq_ids=freq_ids,
@@ -935,13 +989,12 @@ def main():
         # NaN detection -- skip bad batches instead of crashing
         loss_val = loss.item()
         if math.isnan(loss_val) or math.isinf(loss_val):
-            nan_skip_count = getattr(main, '_nan_skips', 0) + 1
-            main._nan_skips = nan_skip_count
+            self.nan_skips += 1
             print(f"  [step {step}] NaN/Inf loss detected, skipping batch "
-                  f"(total skips: {nan_skip_count})")
+                  f"(total skips: {self.nan_skips})")
             sys.stdout.flush()
             optimizer.zero_grad()  # discard any partial gradients
-            continue
+            return
 
         # Backward + step
         loss.backward()
@@ -950,50 +1003,70 @@ def main():
         optimizer.step()
 
         # EMA tracking
-        if ema_loss is None:
-            ema_loss = loss_val
+        if self.ema_loss is None:
+            self.ema_loss = loss_val
         else:
-            ema_loss = ema_decay * ema_loss + (1 - ema_decay) * loss_val
+            self.ema_loss = (self.ema_decay * self.ema_loss
+                             + (1 - self.ema_decay) * loss_val)
 
         # Per-step CSV logging
-        csv_logger.log(step, loss_val, hf_rows_consumed)
+        self.csv_logger.log(step, loss_val, self.hf_rows_consumed)
 
         # Console logging
         if step % args.log_every == 0:
-            elapsed = time.time() - t0
-            sps = (step - start_step) / elapsed
+            elapsed = time.time() - self.t0
+            sps = (step - self.start_step) / elapsed
             eta = (args.total_steps - step) / sps / 3600
 
-            print(f"[{step:>7d}] loss={loss_val:.6f}  ema_loss={ema_loss:.6f}  "
+            print(f"[{step:>7d}] loss={loss_val:.6f}  ema_loss={self.ema_loss:.6f}  "
                   f"{sps:.1f} sps  ETA {eta:.1f}h")
             sys.stdout.flush()
 
         # Best checkpoint
-        if step % args.log_every == 0 and ema_loss < best_loss:
-            best_loss = ema_loss
-            best_loss_step = step
+        if step % args.log_every == 0 and self.ema_loss < self.best_loss:
+            self.best_loss = self.ema_loss
+            self.best_loss_step = step
             path = os.path.join(args.save_dir, f"{args.run_name}_best.pth")
-            _save_head(head, optimizer, path, step, best_loss, best_loss_step,
-                       args.encoder_source)
-            print(f"  -> New best: {path} (ema_loss={ema_loss:.6f})")
+            _save_head(head, optimizer, path, step, self.best_loss,
+                       self.best_loss_step, args.encoder_source)
+            print(f"  -> New best: {path} (ema_loss={self.ema_loss:.6f})")
 
         # Periodic snapshot
         if step % args.save_every == 0:
             path = os.path.join(
                 args.save_dir, f"{args.run_name}_{step // 1000}k.pth")
-            _save_head(head, optimizer, path, step, best_loss, best_loss_step,
-                       args.encoder_source)
+            _save_head(head, optimizer, path, step, self.best_loss,
+                       self.best_loss_step, args.encoder_source)
             print(f"  -> Saved {path}")
 
-    # -- Final save ------------------------------------------------------------
-    path = os.path.join(args.save_dir, f"{args.run_name}_final.pth")
-    _save_head(head, optimizer, path, args.total_steps, best_loss,
-               best_loss_step, args.encoder_source)
-    csv_logger.close()
+    def finish(self):
+        """Save the final head and close the loss CSV."""
+        args, head, optimizer = self.args, self.head, self.optimizer
+        path = os.path.join(args.save_dir, f"{args.run_name}_final.pth")
+        _save_head(head, optimizer, path, args.total_steps, self.best_loss,
+                   self.best_loss_step, args.encoder_source)
+        self.csv_logger.close()
 
-    total = time.time() - t0
-    print(f"\nDone in {total / 3600:.1f}h. "
-          f"Best loss={best_loss:.6f} at step {best_loss_step}")
+        total = time.time() - self.t0
+        print(f"\nDone in {total / 3600:.1f}h. "
+              f"Best loss={self.best_loss:.6f} at step {self.best_loss_step}")
+
+
+def main():
+    job = HeadJob(parse_args())
+    data_loader = job.data_loader()
+    data_iter = iter(data_loader)
+    job.start()
+    for step in range(job.start_step + 1, job.args.total_steps + 1):
+        # Data loading — when emit_labels is on, the dataloader yields
+        # (x, freq_ids, seasonality_ids). Otherwise it yields just x.
+        try:
+            batch = next(data_iter)
+        except StopIteration:
+            data_iter = iter(data_loader)
+            batch = next(data_iter)
+        job.train_step(step, batch)
+    job.finish()
 
 
 def _save_head(head, optimizer, path, step, best_loss, best_loss_step,

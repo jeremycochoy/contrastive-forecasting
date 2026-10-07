@@ -18,17 +18,23 @@ Groups, all on the CPU:
 3. The eval script: strategy R reads the label of each window, and a perfect
    reconstruction scores a MASE of 0.
 4. The head trainer: `--reconstruction encoder` trains the B4 head on a bank
-   checkpoint, on a zero-padding checkpoint and on an old checkpoint.
+   checkpoint, on a zero-padding checkpoint and on an old checkpoint. The
+   shared trainer gives each job of one data stream the losses and the head
+   of its solo run, bit for bit.
 5. The shell runners: the reconstruction mode reaches the head trainer and
-   the eval, and the forecast mode stays as it was.
-6. The scripts of the report: the job table, the queue on the box, the
-   prune rule, and the figures.
+   the eval, and the forecast mode stays as it was. The floor of R (R0) and
+   the flags for a shared trainer.
+6. The scripts of the report: the job table, the waves of the queue on the
+   box, the prune rule, the floors and the figures.
+
+Group 2b: the floor of R, a head that gives the normalised value 0.
 """
 
 from __future__ import annotations
 
 import csv
 import importlib.util
+import json
 import os
 import subprocess
 import sys
@@ -46,6 +52,7 @@ import src.forecasting_head as fh  # noqa: E402
 from src.forecasting_head import (QUANTILE_LEVELS,  # noqa: E402
                                   ForecastingHeadBank,
                                   TransformerQuantileForecastingHead,
+                                  ZeroReconstructionHead,
                                   bank_quantile_loss, bank_training_inputs,
                                   compute_reconstruction_targets,
                                   extract_encoder_latents, forecast_B4,
@@ -90,6 +97,29 @@ def ewma_model(zero_pad=False):
         freq_emb_dim=3, seasonality_emb_dim=3,
         num_freqs=len(FREQ_NAMES_V2) if zero_pad else 10,
         rev_norm_skip_leading_zeros=zero_pad).eval()
+
+
+def ewma_bank_model():
+    """OEF: patch sizes 8 to 128 with the EWMA and zero padding."""
+    torch.manual_seed(2)
+    return ConfigurableModel(
+        C=1, H=16, W=16, encoder_type="gru", num_layers=1, nhead=2,
+        ffn_mult=4.0, activation="gelu", depthwise_conv=3, dropout=0.1,
+        rev_norm_kind="ewma", rev_norm_span=128,
+        rev_norm_skip_leading_zeros=True, num_encoder_layers=1,
+        freq_emb_dim=3, num_freqs=len(FREQ_NAMES_V2), seasonality_emb_dim=3,
+        multi_patch_sizes=SIZES).eval()
+
+
+def meanstd_model():
+    """BMS: one patch size with the mean/std scaling and zero padding."""
+    torch.manual_seed(3)
+    return ConfigurableModel(
+        C=1, H=16, W=16, encoder_type="gru", num_layers=1, nhead=2,
+        ffn_mult=4.0, activation="gelu", depthwise_conv=3, dropout=0.1,
+        rev_norm_kind="meanstd", rev_norm_skip_leading_zeros=True,
+        num_encoder_layers=1, freq_emb_dim=3, num_freqs=len(FREQ_NAMES_V2),
+        seasonality_emb_dim=3).eval()
 
 
 def quantile_head(size=16, seed=1):
@@ -410,6 +440,53 @@ def test_the_b4_forecast_is_unchanged_by_the_new_keyword():
 
 
 # ---------------------------------------------------------------------------
+# 2b. The floor of strategy R: the statistics alone
+# ---------------------------------------------------------------------------
+
+def horizon_means(m, ctx, future, size):
+    """The mean that normalised each horizon value of the window of R."""
+    n_ctx, h = ctx.shape[0], future.shape[0]
+    tail = future[-1:].expand((-(n_ctx + h)) % size, -1)
+    window = torch.cat([ctx, future, tail])[None]
+    fh.normalise_window(m, window, n_ctx)
+    return m.rev_norm.mean.expand(*window.shape)[0, n_ctx:n_ctx + h, 0]
+
+
+@pytest.mark.parametrize("make", [ewma_model, bank_model, meanstd_model])
+def test_the_zero_head_gives_the_mean_of_each_horizon_value(make):
+    """Unscaled, the normalised value 0 is the mean that normalised each
+    value: the EWMA at that value, or the loc of the context."""
+    m = make()
+    ctx, future = walk(T)[:, None], walk(48, seed=3, level=80.0)[:, None]
+    out = reconstruct_windows(m, ZeroReconstructionHead(16), ctx[None],
+                              future[None], CPU)
+    want = horizon_means(m, ctx, future, 16).numpy()
+    assert out.shape == (1, Q, 48, 1)
+    for q in range(Q):
+        assert np.allclose(out[0, q, :, 0], want, rtol=1e-6, atol=1e-4)
+
+
+def test_the_floor_reads_the_scaling_and_no_patch_size_or_weight():
+    """One floor serves every run of a scaling setup: BLK (one patch size)
+    and OEF (patch sizes 8 to 128) share the EWMA with zero padding."""
+    ctx, future = walk(T)[:, None], walk(100, seed=6)[:, None]
+    blk = reconstruct_windows(ewma_model(zero_pad=True),
+                              ZeroReconstructionHead(16), ctx[None],
+                              future[None], CPU)
+    oef = ewma_bank_model()
+    for size in SIZES:
+        out = reconstruct_windows(oef, ZeroReconstructionHead(size),
+                                  ctx[None], future[None], CPU)
+        assert np.allclose(out, blk, rtol=1e-6, atol=1e-4), size
+    bms = reconstruct_windows(meanstd_model(), ZeroReconstructionHead(16),
+                              ctx[None], future[None], CPU)
+    omb = reconstruct_windows(bank_model(), ZeroReconstructionHead(64),
+                              ctx[None], future[None], CPU)
+    assert np.allclose(omb, bms, rtol=1e-6, atol=1e-4)
+    assert not np.allclose(bms, blk, atol=1e-2)
+
+
+# ---------------------------------------------------------------------------
 # 3. The eval script
 # ---------------------------------------------------------------------------
 
@@ -568,6 +645,43 @@ def test_the_eval_loads_a_bank_under_r(tmp_path, monkeypatch):
         module.load_models(args, CPU)
 
 
+def test_the_eval_builds_a_zero_head_for_each_patch_size(tmp_path,
+                                                         monkeypatch):
+    """--zero-head (the floor of R) reads no head file."""
+    module = load_eval_module()
+    bank = saved(tmp_path, "bank.pth", bank_model())
+    args = eval_args(module, monkeypatch, "--backbone-path", bank,
+                     "--strategy", "R", "--zero-head")
+    _, heads = module.load_models(args, CPU)
+    assert isinstance(heads, ForecastingHeadBank) and heads.sizes == SIZES
+    assert all(isinstance(h, ZeroReconstructionHead)
+               for h in heads.heads.values())
+    one = saved(tmp_path, "one.pth", ewma_model(zero_pad=True))
+    args = eval_args(module, monkeypatch, "--backbone-path", one,
+                     "--strategy", "R", "--zero-head")
+    _, head = module.load_models(args, CPU)
+    assert isinstance(head, ZeroReconstructionHead)
+    assert head.patch_size == head.forecast_len == 16
+
+
+def test_the_zero_head_scores_under_r_only(monkeypatch):
+    module = load_eval_module()
+    with pytest.raises(SystemExit):
+        eval_args(module, monkeypatch, "--backbone-path", "bb.pth",
+                  "--strategy", "B4", "--zero-head")
+
+
+def test_the_floor_forecast_holds_one_value_for_every_quantile():
+    module = load_eval_module()
+    test_data = gluonts_test_data()
+    predictor = predictor_of(module, ewma_model(),
+                             ZeroReconstructionHead(16), test_data)
+    for forecast in predictor.predict(test_data.input):
+        arrays = forecast.forecast_array
+        assert np.isfinite(arrays).all()
+        assert np.allclose(arrays, arrays[:1], rtol=1e-6)
+
+
 # ---------------------------------------------------------------------------
 # 4. The head trainer: --reconstruction encoder with the B4 head
 # ---------------------------------------------------------------------------
@@ -683,6 +797,120 @@ def test_a_forecaster_reconstruction_of_a_bank_is_still_refused(tmp_path):
                        capture_output=True, text=True, env=env, timeout=600)
     assert r.returncode != 0
     assert "--reconstruction forecaster" in r.stdout + r.stderr
+
+
+# ---------------------------------------------------------------------------
+# 4b. The shared trainer: the heads of several jobs on one data stream
+# ---------------------------------------------------------------------------
+
+SHARED_PY = GIFT_SCRIPTS / "train_forecasting_heads_shared.py"
+OLD_DATA = ("--mix-ratio", "1.0", "--hf-repo", "none", "--hf-path", "none")
+
+
+def shifted(model, by):
+    """``model`` with each weight moved by ``by``: another backbone of the
+    same kind."""
+    with torch.no_grad():
+        for p in model.parameters():
+            p.add_(by)
+    return model
+
+
+def job_argv(folder, backbone, name, *extra):
+    """The flags of one solo run of the head trainer, four steps."""
+    return ["--backbone-path", backbone, *HEAD_PROTOCOL, "--total-steps", "4",
+            "--save-dir", str(folder / name), "--run-name", name, *extra]
+
+
+def trainer_env():
+    return dict(os.environ, PYTHONPATH=str(REPO_ROOT), CUDA_VISIBLE_DEVICES="",
+                OMP_NUM_THREADS="2")
+
+
+def train_solo(argv):
+    return subprocess.run([sys.executable, str(HEAD_PY), *argv],
+                          capture_output=True, text=True, env=trainer_env(),
+                          timeout=900)
+
+
+def train_shared(folder, argvs):
+    jobs = folder / "jobs.jsonl"
+    jobs.parent.mkdir(parents=True, exist_ok=True)
+    jobs.write_text("".join(json.dumps(a) + "\n" for a in argvs))
+    return subprocess.run([sys.executable, str(SHARED_PY), "--jobs", str(jobs)],
+                          capture_output=True, text=True, env=trainer_env(),
+                          timeout=900)
+
+
+def run_files(folder, name):
+    """The loss rows and the final head of one run."""
+    rows = list(csv.reader(open(folder / name / f"{name}_losses.csv")))
+    head = torch.load(folder / name / f"{name}_final.pth", map_location="cpu",
+                      weights_only=True)
+    return rows, head
+
+
+def assert_same_run(a, b, name):
+    rows_a, head_a = run_files(a, name)
+    rows_b, head_b = run_files(b, name)
+    assert len(rows_a) == 5 and rows_a == rows_b, name
+    assert head_a.keys() == head_b.keys()
+    for key in head_a:
+        assert torch.equal(head_a[key], head_b[key]), (name, key)
+
+
+def solo_and_shared_argvs(tmp_path, models, *extra):
+    """Train each model's head alone. Returns the flags of the same runs in
+    the folder of the shared run."""
+    argvs = []
+    for name, model in models.items():
+        bb = saved(tmp_path, f"{name}.pth", model)
+        r = train_solo(job_argv(tmp_path / "solo", bb, name, *extra))
+        assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+        argvs.append(job_argv(tmp_path / "shared", bb, name, *extra))
+    return argvs
+
+
+def test_a_shared_run_gives_each_job_the_steps_of_its_solo_run(
+        tmp_path, corpus_flags):
+    """One job of each kind on the stream of #419: a bank with the mean/std
+    scaling, one size with the EWMA, one size with the mean/std scaling. In
+    one process, each job writes the losses and the head of its solo run,
+    to the last bit: the same batches, and the same draws of patch size,
+    split and dropout."""
+    models = {"bank": bank_model(), "ewma": ewma_model(zero_pad=True),
+              "meanstd": meanstd_model()}
+    argvs = solo_and_shared_argvs(tmp_path, models, *corpus_flags)
+    r = train_shared(tmp_path, argvs)
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    for name in models:
+        assert_same_run(tmp_path / "solo", tmp_path / "shared", name)
+    assert "job steps/s" in r.stdout and "GiB" in r.stdout
+
+
+def test_a_shared_run_of_old_jobs_gives_their_solo_steps(tmp_path):
+    """Two old-data jobs (no padding, vocabulary v1) on one stream."""
+    models = {"old_a": ewma_model(), "old_b": shifted(ewma_model(), 0.01)}
+    argvs = solo_and_shared_argvs(tmp_path, models, *OLD_DATA)
+    r = train_shared(tmp_path, argvs)
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    for name in models:
+        assert_same_run(tmp_path / "solo", tmp_path / "shared", name)
+
+
+@pytest.mark.parametrize("other", [OLD_DATA, ("--total-steps", "5")])
+def test_jobs_of_two_streams_are_refused(tmp_path, corpus_flags, other):
+    """An old-data job reads other batches than a job of the stream of #419,
+    and a job of five steps reads one batch more."""
+    new = saved(tmp_path, "new.pth", ewma_model(zero_pad=True))
+    old = saved(tmp_path, "old.pth", ewma_model())
+    second = (job_argv(tmp_path, old, "old", *other) if other == OLD_DATA
+              else job_argv(tmp_path, new, "old", *corpus_flags, *other))
+    r = train_shared(tmp_path, [job_argv(tmp_path, new, "new", *corpus_flags),
+                                second])
+    assert r.returncode != 0
+    assert "one data stream" in r.stdout + r.stderr
+    assert not (tmp_path / "new" / "new_losses.csv").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -831,6 +1059,53 @@ def test_an_unknown_reconstruction_mode_is_refused(stub_checkout):
     assert r.returncode != 0
 
 
+def test_the_argv_mode_hands_the_solo_flags_to_a_shared_trainer(
+        stub_checkout):
+    """CF_HEAD_ARGV_TO: the runner adds the flags of its head trainer to the
+    file, as one JSON line, and trains and scores nothing. A head that
+    exists adds no line."""
+    tmp_path = stub_checkout[0]
+    jobs = tmp_path / "jobs.jsonl"
+    knobs = dict(CF_RECONSTRUCTION="encoder", HEAD_SAVE_EVERY="1000000")
+    r = head_eval(stub_checkout, "arm_bb40k_h30k_recon",
+                  CF_HEAD_ARGV_TO=str(jobs), **knobs)
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    out = tmp_path / "root" / "eval" / "arm_bb40k_h30k_recon"
+    assert not (out / "head_argv.json").exists() and not (out / "gift_r").exists()
+    (argv,) = [json.loads(line) for line in jobs.read_text().splitlines()]
+    solo = head_eval(stub_checkout, "arm_bb40k_h30k_recon", CF_SKIP_EVAL="1",
+                     **knobs)
+    assert solo.returncode == 0, solo.stdout[-3000:]
+    assert argv == recorded(out / "head_argv.json")
+    again = head_eval(stub_checkout, "arm_bb40k_h30k_recon",
+                      CF_HEAD_ARGV_TO=str(jobs), **knobs)
+    assert again.returncode == 0 and len(jobs.read_text().splitlines()) == 1
+    assert not (out / "gift_r").exists()
+
+
+def eval_local(stub, strategy, head, **extra):
+    tmp_path, bb, env = stub
+    out = tmp_path / "out"
+    return subprocess.run(
+        ["bash", str(B4_SCRIPTS / "eval_local.sh"), "floor_x", "0", "student",
+         str(bb), head, str(out), str(tmp_path / "res" / "score_floor_x.txt")],
+        capture_output=True, text=True,
+        env=dict(env, EVAL_STRATEGY=strategy, **extra), timeout=300), out
+
+
+def test_the_floor_strategy_scores_r_with_the_zero_head(stub_checkout):
+    """EVAL_STRATEGY=R0: R with --zero-head, no head file, its own folder."""
+    tmp_path = stub_checkout[0]
+    r, out = eval_local(stub_checkout, "R0", "none")
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    shard = recorded(out / "gift_r0" / "shard_0" / "argv.json")
+    assert shard[shard.index("--strategy") + 1] == "R"
+    assert "--zero-head" in shard and "--head-path" not in shard
+    assert (tmp_path / "res" / "score_floor_x.txt").read_text().strip() == "0.5000"
+    r, _ = eval_local(stub_checkout, "R", "none")
+    assert r.returncode != 0 and "no head" in r.stdout + r.stderr
+
+
 # ---------------------------------------------------------------------------
 # 6. The scripts of the report
 # ---------------------------------------------------------------------------
@@ -851,6 +1126,9 @@ CARD = {
 }
 
 
+OLD_RUNS = {"CYN", "MIN", "TWN", "LOW", "LNG"}
+
+
 def job_rows(path=JOBS):
     return [line.rstrip("\n").split("\t") for line in open(path)
             if line.strip() and not line.startswith("#")]
@@ -863,50 +1141,91 @@ def test_the_job_table_holds_the_card_checkpoints():
     rows = job_rows()
     assert len(rows) == 56
     stops = {}
-    for code, arm, stop_k, tier, ckpt, size in rows:
+    for code, arm, stop_k, tier, ckpt, size, data in rows:
         assert CODE[arm] == code
         stops.setdefault(code, []).append(int(stop_k))
         assert int(size) > 50_000_000 and ckpt.endswith(f"_{stop_k}k.pth")
         first_or_last = int(stop_k) in (CARD[code][0], CARD[code][-1])
         assert tier == ("1" if first_or_last else "2")
+        assert data == ("old" if code in OLD_RUNS else "gift_pretrain")
     assert {c: tuple(s) for c, s in stops.items()} == CARD
 
 
 QUEUE_STUB = r'''#!/bin/bash
-# A runner that records each call. CF_SKIP_EVAL: the head. Else: the score.
+# A runner that records each call. CF_HEAD_ARGV_TO: the flags of the head.
+# Else: the score.
 tag="$1"; out="$CF373_ROOT/eval/$tag"; mkdir -p "$out"
-mode=score; [ -n "${CF_SKIP_EVAL:-}" ] && mode=head
-echo "$tag $mode $CF_RECONSTRUCTION" >>"$CF_RESULTS/calls.log"
-if [ -n "${CF_SKIP_EVAL:-}" ]; then
-  case "$tag" in *bad*) exit 7 ;; esac
-  : >"$out/qhead_final.pth"; exit 0
+if [ -n "${CF_HEAD_ARGV_TO:-}" ]; then
+  echo "$tag argv $CF_RECONSTRUCTION $4 $HEAD_SAVE_EVERY" >>"$CF_RESULTS/calls.log"
+  printf '["--save-dir", "%s", "--run-name", "qhead_%s"]\n' "$out" "$tag" \
+    >>"$CF_HEAD_ARGV_TO"
+  exit 0
 fi
+echo "$tag score $CF_RECONSTRUCTION" >>"$CF_RESULTS/calls.log"
 sleep 0.2
 echo 0.1234 >"$CF_RESULTS/score_$tag.txt"
+'''
+
+TRAINER_STUB = r'''
+import json, os, sys, time
+jobs = [json.loads(line) for line in open(sys.argv[sys.argv.index("--jobs") + 1])]
+res = os.environ["CF425_TEST_RES"]
+names = [a[a.index("--run-name") + 1][len("qhead_"):] for a in jobs]
+with open(os.path.join(res, "calls.log"), "a") as f:
+    f.write("wave " + " ".join(names) + "\n")
+print("[shared] 1 steps: a stub", flush=True)
+time.sleep(float(os.environ.get("CF425_TEST_TRAIN_SLEEP", "0")))
+for a, name in zip(jobs, names):
+    if "bad" not in name:
+        out = a[a.index("--save-dir") + 1]
+        open(os.path.join(out, f"qhead_{name}_final.pth"), "w").write("head")
+with open(os.path.join(res, "calls.log"), "a") as f:
+    f.write("wave_end " + " ".join(names) + "\n")
+sys.exit(1 if any("bad" in name for name in names) else 0)
 '''
 
 
 @pytest.fixture
 def queue_box(tmp_path):
-    """A box of four jobs with sparse input files, and a stub runner."""
+    """A box of five jobs on two data streams, with sparse input files, a
+    stub runner and a stub shared trainer."""
     ck, res = tmp_path / "ckpt", tmp_path / "res"
-    rows = [("AAA", "arm_a", "40", "2"), ("AAA", "arm_a", "10", "1"),
-            ("BAD", "arm_bad", "40", "1"), ("CCC", "arm_c", "100", "1")]
-    table = ["#code\tarm\tstop_k\ttier\tckpt\tbytes"]
-    for code, arm, stop, tier in rows:
+    rows = [("AAA", "arm_a", "40", "2", "gift_pretrain"),
+            ("AAA", "arm_a", "10", "1", "gift_pretrain"),
+            ("BAD", "arm_bad", "40", "1", "gift_pretrain"),
+            ("CCC", "arm_c", "100", "1", "old"),
+            ("DDD", "arm_d", "50", "2", "old")]
+    table = ["#code\tarm\tstop_k\ttier\tckpt\tbytes\tdata"]
+    for code, arm, stop, tier, data in rows:
         rel = f"{arm}/leg/{arm}_{stop}k.pth"
         (ck / rel).parent.mkdir(parents=True, exist_ok=True)
         with open(ck / rel, "wb") as f:
             f.truncate(1000 + int(stop))
-        table.append("\t".join([code, arm, stop, tier, rel, str(1000 + int(stop))]))
+        table.append("\t".join([code, arm, stop, tier, rel,
+                                str(1000 + int(stop)), data]))
     (tmp_path / "jobs.tsv").write_text("\n".join(table) + "\n")
     stub = tmp_path / "runner.sh"
     stub.write_text(QUEUE_STUB)
+    (tmp_path / "trainer.py").write_text(TRAINER_STUB)
+    (tmp_path / "experiments").mkdir()
+    (tmp_path / "experiments" / "hf_token.txt").write_text("hf_test\n")
+    with open(tmp_path / "seasonal_naive.csv", "wb") as f:
+        f.truncate(24831)
+    res.mkdir()
     env = dict(os.environ, CF425_JOBS=str(tmp_path / "jobs.tsv"),
                CF425_CK=str(ck), CF425_ROOT=str(ck / "cf-425" / "recon"),
                CF425_RES=str(res), CF425_RUNNER=str(stub),
-               CF425_CODE=str(tmp_path), CF425_LANES="2",
-               CF425_LANE_STAGGER="0")
+               CF425_TRAINER=str(tmp_path / "trainer.py"),
+               CF425_CODE=str(tmp_path), CF425_WAVE_SIZE="2",
+               CF425_OLD_WAVE_SIZE="2", CF425_MIN_FREE_GB="0",
+               CF425_WAVE_VRAM_MIB="0", CF425_LANE_STAGGER="0",
+               CF425_GPU_LOCK=str(tmp_path / "gpu.lock"),
+               CF425_SN_REF=str(tmp_path / "seasonal_naive.csv"),
+               CF425_AFTER=str(tmp_path / "forecast_scores.sh"),
+               CF425_AFTER_POLL="1", CF425_GPU_POLL="0.1",
+               CF425_TEST_RES=str(res))
+    for key in ("CF425_SCORE", "CF425_DRY_RUN", "CF425_TRIES"):
+        env.pop(key, None)
     return tmp_path, res, env
 
 
@@ -920,17 +1239,73 @@ def calls(res):
     return [line.split() for line in open(res / "calls.log")]
 
 
-def test_the_queue_scores_every_job_once(queue_box):
+def waves(res):
+    return [c[1:] for c in calls(res) if c[0] == "wave"]
+
+
+def job_calls(res):
+    """The calls of the runner: "<tag> argv ..." and "<tag> score ..."."""
+    return [c for c in calls(res) if c[0] not in ("wave", "wave_end")]
+
+
+GOOD = ["arm_a_bb10k_h30k_recon", "arm_a_bb40k_h30k_recon",
+        "arm_c_bb100k_h30k_recon", "arm_d_bb50k_h30k_recon"]
+BAD = "arm_bad_bb40k_h30k_recon"
+
+
+def test_the_queue_trains_in_waves_and_scores_every_job_once(queue_box):
     _, res, env = queue_box
     r = run_queue(env)
     assert r.returncode == 0, r.stdout + r.stderr
-    done = sorted(p.name for p in res.glob("score_*.txt"))
-    assert done == ["score_arm_a_bb10k_h30k_recon.txt",
-                    "score_arm_a_bb40k_h30k_recon.txt",
-                    "score_arm_c_bb100k_h30k_recon.txt"]
-    made = [c for c in calls(res) if c[1] == "head" and "bad" not in c[0]]
-    assert sorted(c[0] for c in made) == sorted(p[6:-4] for p in done)
-    assert all(c[2] == "encoder" for c in calls(res))
+    done = sorted(p.name[6:-4] for p in res.glob("score_*.txt"))
+    assert done == GOOD
+    scored = [c[0] for c in job_calls(res) if c[1] == "score"]
+    assert sorted(scored) == GOOD
+    trained = [tag for wave in waves(res) for tag in wave]
+    assert sorted(t for t in trained if t != BAD) == GOOD
+    assert all(c[2] == "encoder" for c in job_calls(res))
+
+
+def test_each_wave_reads_one_data_stream(queue_box):
+    _, res, env = queue_box
+    r = run_queue(env)
+    assert r.returncode == 0, r.stdout + r.stderr
+    old = {"arm_c_bb100k_h30k_recon", "arm_d_bb50k_h30k_recon"}
+    for wave in waves(res):
+        assert 1 <= len(wave) <= 2
+        assert set(wave) <= old or not set(wave) & old, wave
+
+
+def test_the_queue_takes_tier_1_first(queue_box):
+    _, res, env = queue_box
+    r = run_queue(dict(env, CF425_WAVE_SIZE="1"))
+    assert r.returncode == 0, r.stdout + r.stderr
+    new = [w[0] for w in waves(res) if not w[0].startswith(("arm_c", "arm_d"))]
+    assert new[-1] == "arm_a_bb40k_h30k_recon"
+    assert waves(res)[0] != ["arm_d_bb50k_h30k_recon"]
+
+
+def test_a_failing_head_stops_after_its_tries(queue_box):
+    _, res, env = queue_box
+    r = run_queue(dict(env, CF425_TRIES="2"))
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert sum(BAD in wave for wave in waves(res)) == 2
+    assert len(list((res / "failed").glob(f"{BAD}.*"))) == 2
+    again = run_queue(env)
+    assert again.returncode == 0
+    assert sum(BAD in wave for wave in waves(res)) == 2
+
+
+def test_a_job_with_a_head_is_scored_and_not_trained_again(queue_box):
+    tmp_path, res, env = queue_box
+    out = tmp_path / "ckpt" / "cf-425" / "recon" / "eval" / GOOD[2]
+    out.mkdir(parents=True)
+    (out / f"qhead_{GOOD[2]}_s20260722_final.pth").write_text("head")
+    r = run_queue(env)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert not any(GOOD[2] in wave for wave in waves(res))
+    assert not any(c[:2] == [GOOD[2], "argv"] for c in job_calls(res))
+    assert (res / f"score_{GOOD[2]}.txt").exists()
 
 
 def test_a_runner_that_reads_stdin_takes_no_job_of_the_list(queue_box):
@@ -939,9 +1314,9 @@ def test_a_runner_that_reads_stdin_takes_no_job_of_the_list(queue_box):
     tmp_path, res, env = queue_box
     stub = tmp_path / "runner.sh"
     stub.write_text(QUEUE_STUB.replace("tag=\"$1\";", "cat >/dev/null; tag=\"$1\";"))
-    r = run_queue(dict(env, CF425_LANES="1"))
+    r = run_queue(env)
     assert r.returncode == 0, r.stdout + r.stderr
-    assert len(list(res.glob("score_*.txt"))) == 3
+    assert len(list(res.glob("score_*.txt"))) == 4
 
 
 def test_a_score_that_outlives_its_queue_leaves_the_queue_lock_free(queue_box):
@@ -952,8 +1327,7 @@ def test_a_score_that_outlives_its_queue_leaves_the_queue_lock_free(queue_box):
     tmp_path, res, env = queue_box
     stub = tmp_path / "runner.sh"
     stub.write_text(QUEUE_STUB.replace("sleep 0.2", "sleep 4"))
-    first = subprocess.Popen(["bash", str(SCRIPTS / "queue.sh")],
-                             env=dict(env, CF425_LANES="1"),
+    first = subprocess.Popen(["bash", str(SCRIPTS / "queue.sh")], env=env,
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
         deadline = time.time() + 30
@@ -964,38 +1338,18 @@ def test_a_score_that_outlives_its_queue_leaves_the_queue_lock_free(queue_box):
             time.sleep(0.1)
         first.send_signal(signal.SIGKILL)
         first.wait()
-        again = run_queue(dict(env, CF425_LANES="1"), timeout=120)
+        again = run_queue(env, timeout=120)
     finally:
         subprocess.run(["pkill", "-f", str(stub)])
     assert again.returncode == 0, again.stdout + again.stderr
     assert "another queue holds" not in again.stdout
-    scored = [c[0] for c in calls(res) if c[1] == "score"]
+    scored = [c[0] for c in job_calls(res) if c[1] == "score"]
     assert len(scored) == len(set(scored))
 
 
-def test_the_queue_takes_tier_1_first(queue_box):
-    _, res, env = queue_box
-    r = run_queue(dict(env, CF425_LANES="1"))
-    assert r.returncode == 0, r.stdout + r.stderr
-    heads = [c[0] for c in calls(res) if c[1] == "head"]
-    assert heads.index("arm_a_bb40k_h30k_recon") == len(heads) - 1
-
-
-def test_a_failing_head_stops_after_its_tries(queue_box):
-    _, res, env = queue_box
-    r = run_queue(dict(env, CF425_TRIES="2"))
-    assert r.returncode == 0, r.stdout + r.stderr
-    bad = [c for c in calls(res) if c[0] == "arm_bad_bb40k_h30k_recon"]
-    assert len(bad) == 2 and all(c[1] == "head" for c in bad)
-    assert len(list((res / "failed").glob("arm_bad_bb40k_h30k_recon.*"))) == 2
-    again = run_queue(env)
-    assert again.returncode == 0
-    assert len([c for c in calls(res) if c[0] == "arm_bad_bb40k_h30k_recon"]) == 2
-
-
 def test_a_job_another_process_holds_is_skipped(queue_box):
-    """The lock of a job passes to its score, so a second queue never runs
-    a job that an earlier one still runs."""
+    """A wave holds the lock of each job and passes it to the job's score,
+    so a second queue never runs a job that an earlier one still runs."""
     _, res, env = queue_box
     (res / "locks").mkdir(parents=True)
     lock = res / "locks" / "arm_c_bb100k_h30k_recon.lock"
@@ -1007,7 +1361,8 @@ def test_a_job_another_process_holds_is_skipped(queue_box):
     finally:
         holder.kill()
     assert r.returncode == 0, r.stdout + r.stderr
-    assert not any(c[0] == "arm_c_bb100k_h30k_recon" for c in calls(res))
+    assert not any(c[0] == "arm_c_bb100k_h30k_recon" for c in job_calls(res))
+    assert not any("arm_c_bb100k_h30k_recon" in w for w in waves(res))
     assert not (res / "score_arm_c_bb100k_h30k_recon.txt").exists()
 
 
@@ -1020,26 +1375,78 @@ def test_the_queue_refuses_a_missing_input(queue_box):
     assert not (res / "calls.log").exists()
 
 
-def test_the_dry_run_lists_the_order_and_runs_nothing(queue_box):
+def test_the_queue_refuses_a_box_with_no_seasonal_naive_reference(queue_box):
+    """Each score reads the reference, and git does not hold it: with no
+    reference, no head may train."""
+    tmp_path, res, env = queue_box
+    (tmp_path / "seasonal_naive.csv").write_text("cut")
+    r = run_queue(env)
+    assert r.returncode == 3
+    assert "seasonal-naive reference" in r.stdout
+    assert not (res / "calls.log").exists()
+
+
+def test_the_queue_starts_after_the_forecast_scores(queue_box):
+    """forecast_scores.sh uses the same GPU with other locks."""
+    import time
+    tmp_path, res, env = queue_box
+    script = tmp_path / "forecast_scores.sh"
+    script.write_text("sleep 3\n")
+    other = subprocess.Popen(["bash", str(script)])
+    try:
+        time.sleep(0.3)
+        r = run_queue(env)
+        assert other.poll() is not None
+    finally:
+        other.kill()
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "waiting" in r.stdout
+    assert len(list(res.glob("score_*.txt"))) == 4
+
+
+def test_the_gpu_lock_frees_at_the_first_step_of_a_wave(queue_box):
+    """One lock serialises the start of the waves of both lanes, and the
+    trainer does not keep it: the wave of the other lane starts while the
+    first one still trains."""
+    _, res, env = queue_box
+    r = run_queue(dict(env, CF425_TEST_TRAIN_SLEEP="2", CF425_WAVE_SIZE="3"))
+    assert r.returncode == 0, r.stdout + r.stderr
+    order = [c[0] for c in calls(res) if c[0] in ("wave", "wave_end")]
+    assert order[:3] == ["wave", "wave", "wave_end"]
+
+
+def test_the_dry_run_lists_the_waves_and_runs_nothing(queue_box):
     _, res, env = queue_box
     r = run_queue(dict(env, CF425_DRY_RUN="1"))
     assert r.returncode == 0, r.stdout + r.stderr
-    order = [line.split()[3] for line in r.stdout.splitlines()]
-    assert order == ["arm_a_bb10k_h30k_recon", "arm_bad_bb40k_h30k_recon",
-                     "arm_c_bb100k_h30k_recon", "arm_a_bb40k_h30k_recon"]
+    plan = [line.split() for line in r.stdout.splitlines()]
+    assert [(p[0], p[1], p[5]) for p in plan] == [
+        ("old", "1", "arm_c_bb100k_h30k_recon"),
+        ("old", "1", "arm_d_bb50k_h30k_recon"),
+        ("gift_pretrain", "1", "arm_a_bb10k_h30k_recon"),
+        ("gift_pretrain", "1", "arm_bad_bb40k_h30k_recon"),
+        ("gift_pretrain", "2", "arm_a_bb40k_h30k_recon")]
     assert not (res / "calls.log").exists()
 
 
 def test_the_queue_hands_the_runner_the_b4_head_steps(queue_box):
-    """The stub sees the reconstruction mode, no snapshot every 5,000
+    """Each job gets the reconstruction mode, no snapshot every 5,000
     steps, and the 30,000 head steps."""
-    tmp_path, res, env = queue_box
-    stub = tmp_path / "runner.sh"
-    stub.write_text(QUEUE_STUB.replace(
-        'echo "$tag $mode', 'echo "$4 $HEAD_SAVE_EVERY" >>"$CF_RESULTS/steps.log"\necho "$tag $mode'))
+    _, res, env = queue_box
     r = run_queue(env)
     assert r.returncode == 0, r.stdout + r.stderr
-    assert {line.strip() for line in open(res / "steps.log")} == {"30000 1000000"}
+    argv = {tuple(c[2:]) for c in job_calls(res) if c[1] == "argv"}
+    assert argv == {("encoder", "30000", "1000000")}
+
+
+def test_the_score_knob_stops_each_lane_after_its_heads(queue_box):
+    """CF425_SCORE=0 (the probe of one wave): the heads train, and no job
+    is scored."""
+    _, res, env = queue_box
+    r = run_queue(dict(env, CF425_SCORE="0", CF425_WAVE_SIZE="3"))
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert not any(c[1] == "score" for c in job_calls(res))
+    assert len(waves(res)) == 3
 
 
 def prune_tree(tmp_path):
@@ -1141,6 +1548,72 @@ def test_the_figures_pair_the_two_scores_of_a_checkpoint(tmp_path,
     assert not plot.draw_figure(moirai, forecast, points, tmp_path / "m.png",
                                 False)
     assert not (tmp_path / "m.png").exists()
+
+
+FLOORS_TSV = ("setup\tlabel\tarms\tgm_relative_mase\n"
+              "meanstd\tmean/std\tcf412om,cf419ms\t0.9500\n"
+              "ewma_old\tEWMA, old data\tk3_r100_09_lr56_fix09_dec10k_lr30x"
+              "\t0.1500\n")
+
+
+def test_the_figures_draw_the_floor_of_their_runs(tmp_path):
+    """Each figure draws the floor of each scaling setup of its runs as a
+    thin grey line, with its label, and the y range holds it."""
+    pytest.importorskip("matplotlib")
+    plot = load_script("plot_recon")
+    (tmp_path / "floors.tsv").write_text(FLOORS_TSV)
+    floors = plot.load_floors(tmp_path / "floors.tsv")
+    assert [f["setup"] for f in floors] == ["meanstd", "ewma_old"]
+    points = {"cf412om": {40000: 0.31, 100000: 0.29}}
+    fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], {}, points,
+                           tmp_path / "f.png", False, floors)
+    ax = fig.axes[0]
+    flat = [line for line in ax.get_lines()
+            if len(set(line.get_ydata())) == 1]
+    assert [float(line.get_ydata()[0]) for line in flat] == [0.95]
+    assert flat[0].get_color() == plot.FLOOR_COLOUR
+    assert flat[0].get_linewidth() <= 1.0
+    assert any("mean/std" in text.get_text() for text in ax.texts)
+    low, high = ax.get_ylim()
+    assert low < 0.29 and high > 0.95
+
+
+def floor_checkout(stub_checkout):
+    """The stub checkout, and an elisa mirror that holds the checkpoint of
+    each floor as a small file at its path in jobs.tsv."""
+    tmp_path, _, env = stub_checkout
+    mirror = tmp_path / "mirror"
+    for row in job_rows():
+        (mirror / row[4]).parent.mkdir(parents=True, exist_ok=True)
+        (mirror / row[4]).write_text("backbone")
+    return tmp_path, dict(env, CF425_MIRROR=str(mirror),
+                          CF425_FLOOR_ROOT=str(tmp_path / "floors"),
+                          CF425_FLOOR_RESULTS=str(tmp_path / "results"),
+                          EVAL_CONFIG_FILTER="^m4_yearly/short$",
+                          EVAL_EXPECT_CONFIGS="1")
+
+
+def test_floors_score_one_checkpoint_of_each_scaling_setup(stub_checkout):
+    tmp_path, env = floor_checkout(stub_checkout)
+    r = subprocess.run(["bash", str(SCRIPTS / "floors.sh")], capture_output=True,
+                       text=True, env=env, timeout=300)
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    rows = list(csv.DictReader(open(tmp_path / "results" / "floors.tsv"),
+                               delimiter="\t"))
+    assert [row["setup"] for row in rows] == ["ewma_zero_pad", "ewma_old",
+                                              "meanstd"]
+    assert all(row["gm_relative_mase"] == "0.5000" for row in rows)
+    arms = {row["setup"]: set(row["arms"].split(",")) for row in rows}
+    jobs = job_rows()
+    assert set().union(*arms.values()) == {row[1] for row in jobs}
+    assert sum(len(a) for a in arms.values()) == len({row[1] for row in jobs})
+    assert arms["ewma_old"] == {row[1] for row in jobs if row[6] == "old"}
+    for setup in arms:
+        shard = recorded(tmp_path / "floors" / f"floor_{setup}" / "gift_r0"
+                         / "shard_0" / "argv.json")
+        assert "--zero-head" in shard
+        assert (tmp_path / "results" / "per_config"
+                / f"floor_{setup}.csv").exists()
 
 
 FAKE_SSH = """#!/bin/bash

@@ -81,7 +81,9 @@ fi
 # alone, autoregressively in value space, and no head file is read.
 # R is not a forecast (#425): the encoder reads the context and the true
 # horizon, and a reconstruction head decodes the horizon patches. It keeps
-# its own directory and log too.
+# its own directory and log too. R0 is the floor of R: R with a head that
+# gives the normalised value 0 (--zero-head), so each value is the mean that
+# normalised it. It reads no head file.
 EVAL_STRATEGY="${EVAL_STRATEGY:-B4}"
 PY_STRATEGY="$EVAL_STRATEGY"; HEAD_ARGS=(--head-path "$HEAD_CKPT")
 case "$EVAL_STRATEGY" in
@@ -90,12 +92,15 @@ case "$EVAL_STRATEGY" in
   A2V) GIFT="$OUT/gift_a2v"; LOG="$OUT/eval_local_a2v.log"
        PY_STRATEGY=A2; HEAD_ARGS=(--native-value-head) ;;
   R) GIFT="$OUT/gift_r"; LOG="$OUT/eval_local_r.log" ;;
-  *) echo "ABORT: EVAL_STRATEGY=$EVAL_STRATEGY. This protocol scores B4, A2, A2V or R." >&2
+  R0) GIFT="$OUT/gift_r0"; LOG="$OUT/eval_local_r0.log"
+      PY_STRATEGY=R; HEAD_ARGS=(--zero-head) ;;
+  *) echo "ABORT: EVAL_STRATEGY=$EVAL_STRATEGY. This protocol scores B4, A2, A2V, R or R0." >&2
      exit 2 ;;
 esac
-if [ "$EVAL_STRATEGY" != "A2V" ] && [ ! -f "$HEAD_CKPT" ]; then
-  echo "ABORT: no head at $HEAD_CKPT" >&2; exit 3
-fi
+case "$EVAL_STRATEGY" in
+  A2V|R0) ;;
+  *) [ -f "$HEAD_CKPT" ] || { echo "ABORT: no head at $HEAD_CKPT" >&2; exit 3; } ;;
+esac
 mkdir -p "$GIFT" "$(dirname "$SCORE_OUT")" || exit 2
 
 export PYTHONPATH="$WT"

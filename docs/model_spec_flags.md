@@ -171,12 +171,33 @@ R: those read the context at the base size.
 Strategy R (#425) is not a forecast. The encoder reads the B4 context and
 the true horizon, and a reconstruction head decodes the latents of the
 horizon patches. Each value is unscaled with the statistics that normalised
-it: the loc and the scale of the context (mean/std), or the EWMA at that
-value. So the score measures how much of each patch the encoder latent
-keeps.
+it. Under the mean/std scaling, these are the loc and the scale of the
+context. Under the EWMA, they are the EWMA at that value. So the score
+measures how much of each patch the encoder latent keeps.
+
+`--zero-head` (R only) scores the floor of R. A head with no weights gives
+the normalised value 0. So each value is the mean that normalised it. The
+EWMA at a horizon value reads the true horizon until that value. Thus an
+EWMA run has a lower floor than a mean/std run. Compare an R score with the
+floor of its own scaling.
 
 `head_eval_bb.sh` and `eval_local.sh` need no new argument for B4.
-`CF_BB_SHAPE` gives the backbone shape, as before. `CF_RECONSTRUCTION=encoder`
-trains a reconstruction head and scores it under R, `HEAD_SAVE_EVERY` sets
-the head snapshot interval, `CF_SKIP_EVAL=1` stops after the head, and
-`EVAL_DEVICE=cuda` runs the eval shards on the GPU.
+`CF_BB_SHAPE` gives the backbone shape, as before. For #425:
+
+- `CF_RECONSTRUCTION=encoder` trains a reconstruction head and scores it
+  under R.
+- `HEAD_SAVE_EVERY` sets the head snapshot interval.
+- `CF_SKIP_EVAL=1` stops after the head.
+- `EVAL_DEVICE=cuda` runs the eval shards on the GPU.
+- `EVAL_STRATEGY=R0` runs R with `--zero-head`.
+- `CF_HEAD_ARGV_TO=<file>` writes the flags of the head trainer to the file
+  and trains nothing.
+
+`train_forecasting_heads_shared.py --jobs <file>` (#425) trains the heads of
+some runs on one data stream. Each line of the file holds the flags of one
+run of `train_forecasting_head.py`, as a JSON list. Each job keeps its
+backbone, head, optimizer, seed and files. Each batch goes to each job in
+turn. Each job uses its own random state for its step. So each job gets the
+losses and the weights of its solo run, bit for bit. The script refuses jobs
+that read a different data stream: source, seed, vocabulary, batch size,
+start or step count.

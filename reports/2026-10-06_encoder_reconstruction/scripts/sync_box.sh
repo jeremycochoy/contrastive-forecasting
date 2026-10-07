@@ -20,8 +20,8 @@
 # or an older copy: another loop can copy a `*_best.pth` while its head still
 # trains, and the head writes that file again at the same size.
 #
-# Usage, on elisa:  bash sync_box.sh               # one tick
-#                   bash sync_box.sh --loop 1800   # a tick every 30 minutes
+# Usage, on elisa:  bash sync_box.sh              # one tick
+#                   bash sync_box.sh --loop 900   # a tick every 15 minutes
 set -uo pipefail
 
 HOST="${CF425_HOST:-root@ssh5.vast.ai}"
@@ -101,7 +101,7 @@ tick(){
 }
 
 if [ "${1:-}" = "--loop" ]; then
-  every="${2:-1800}"
+  every="${2:-900}"
   while :; do tick; sleep "$every"; done
 fi
 tick

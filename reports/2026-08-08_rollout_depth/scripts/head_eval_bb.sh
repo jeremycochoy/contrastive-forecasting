@@ -20,6 +20,11 @@
 #                              (strategy R). The tag must end in `_recon`.
 #   HEAD_SAVE_EVERY            the head snapshot interval (default 5000).
 #   CF_SKIP_EVAL=1             train the head, then stop before the eval.
+#   CF_HEAD_ARGV_TO=<file>     add the flags of the head trainer to <file>, as
+#                              one JSON line, and stop. A shared trainer
+#                              (`train_forecasting_heads_shared.py`) then
+#                              trains this head with others on one data
+#                              stream. A head that exists adds no line.
 set -uo pipefail
 
 TAG="${1:?usage: head_eval_bb.sh <tag> <backbone> <student|teacher> [steps]}"
@@ -132,25 +137,37 @@ head_vram_gate(){ # <gpu index>
   return 0
 }
 
+HEAD_ARGS=(--backbone-path "$BB"
+           --encoder-source "$ENC"
+           --device cuda
+           --quantile-head --grad-clip 1.0
+           --forecast-len 16 --batch-size 256 --lr 1e-3
+           --total-steps "$HEAD_STEPS" --save-every "${HEAD_SAVE_EVERY:-5000}"
+           --log-every 500
+           --save-dir "$OUT" --run-name "$HEAD_NAME" --seed "$HEAD_SEED"
+           --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1
+           --head-arch transformer --head-num-layers 2 --head-nhead 8
+           --head-ffn-mult 4.0 --head-causal true --head-train-input e_then_f
+           --head-dropout 0.1 "${RECON_ARGS[@]}"
+           "${ARCH_HEAD[@]}")
+
+if [ -n "${CF_HEAD_ARGV_TO:-}" ]; then
+  if [ -f "$HEAD_CKPT" ]; then
+    log "head argv SKIP (final exists)"; exit 0
+  fi
+  python3 -c 'import json, sys; print(json.dumps(sys.argv[1:]))' \
+    "${HEAD_ARGS[@]}" >>"$CF_HEAD_ARGV_TO" || exit 1
+  log "head argv -> $CF_HEAD_ARGV_TO${RECON:+ reconstruction=$RECON}"
+  exit 0
+fi
+
 if [ ! -f "$HEAD_CKPT" ]; then
   BB_GPU="${BB_GPU:-0}"
   gpu_gate "$BB_GPU" || { log "ABORT: GPU $BB_GPU never came free"; exit 1; }
   head_vram_gate "$BB_GPU" || { log "ABORT: not enough VRAM on GPU $BB_GPU"; exit 1; }
   log "head-train start enc=$ENC steps=$HEAD_STEPS seed=$HEAD_SEED gpu=$BB_GPU bb=$(basename "$BB")${RECON:+ reconstruction=$RECON}"
-  CUDA_VISIBLE_DEVICES="$BB_GPU" python3 -u "$HEAD_TRAIN" \
-    --backbone-path "$BB" \
-    --encoder-source "$ENC" \
-    --device cuda \
-    --quantile-head --grad-clip 1.0 \
-    --forecast-len 16 --batch-size 256 --lr 1e-3 \
-    --total-steps "$HEAD_STEPS" --save-every "${HEAD_SAVE_EVERY:-5000}" \
-    --log-every 500 \
-    --save-dir "$OUT" --run-name "$HEAD_NAME" --seed "$HEAD_SEED" \
-    --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1 \
-    --head-arch transformer --head-num-layers 2 --head-nhead 8 \
-    --head-ffn-mult 4.0 --head-causal true --head-train-input e_then_f \
-    --head-dropout 0.1 "${RECON_ARGS[@]}" \
-    "${ARCH_HEAD[@]}" >>"$LOG" 2>&1
+  CUDA_VISIBLE_DEVICES="$BB_GPU" python3 -u "$HEAD_TRAIN" "${HEAD_ARGS[@]}" \
+    >>"$LOG" 2>&1
   rc=$?
   log "head-train rc=$rc"
   [ $rc -eq 0 ] || exit $rc

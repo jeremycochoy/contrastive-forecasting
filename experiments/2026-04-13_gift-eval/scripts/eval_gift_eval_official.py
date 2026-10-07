@@ -74,6 +74,7 @@ from src.forecasting_head import (
     head_bank_sizes,
     native_value_head,
     reconstruct_windows,
+    ZeroReconstructionHead,
 )
 
 
@@ -457,7 +458,7 @@ def parse_args():
     p.add_argument("--backbone-path", required=True)
     p.add_argument("--head-path", default=None,
                    help="The forecasting head. Required, except under "
-                        "--native-value-head.")
+                        "--native-value-head and --zero-head.")
     p.add_argument("--native-value-head", action="store_true",
                    help="Forecast with the backbone's own value head (#415, "
                         "--value-space-objective): strategy A2 rolls the "
@@ -474,6 +475,11 @@ def parse_args():
                         "is not a forecast: the encoder reads the context "
                         "and the true horizon, and a reconstruction head "
                         "decodes the horizon patches.")
+    p.add_argument("--zero-head", action="store_true",
+                   help="R only (#425): score the floor of R. A head with no "
+                        "weights gives the normalised value 0, so each value "
+                        "is the mean that normalised it. One head per patch "
+                        "size of the backbone. No head file is read.")
     p.add_argument("--forecast-len", type=int, default=128,
                    help="Head forecast length: 128 (default) or 16 for W-heads")
     p.add_argument("--encoder-type", default=None,
@@ -553,8 +559,12 @@ def parse_args():
     args = p.parse_args()
     if args.native_value_head and args.strategy != "A2":
         p.error("--native-value-head forecasts in value space: use --strategy A2")
-    if not args.native_value_head and args.head_path is None:
-        p.error("--head-path is required unless --native-value-head")
+    if args.zero_head and args.strategy != "R":
+        p.error("--zero-head is the floor of strategy R: use --strategy R")
+    if (not args.native_value_head and not args.zero_head
+            and args.head_path is None):
+        p.error("--head-path is required unless --native-value-head or "
+                "--zero-head")
     return args
 
 
@@ -662,6 +672,15 @@ def build_eval_head(head_sd, forecast_len, args):
     return head
 
 
+def zero_heads(sizes):
+    """The floor of R (#425): one :class:`ZeroReconstructionHead` per patch
+    size, in a bank when the backbone reads several sizes."""
+    print(f"  [eval] zero head (the floor of R): patch sizes {tuple(sizes)}")
+    if len(sizes) == 1:
+        return ZeroReconstructionHead(sizes[0])
+    return ForecastingHeadBank({p: ZeroReconstructionHead(p) for p in sizes})
+
+
 def load_models(args, device):
     """Load backbone and forecasting head."""
     # Backbone architecture overrides (CLI > defaults). HEAD_CONFIG['H']
@@ -692,10 +711,11 @@ def load_models(args, device):
     # Its own value heads score it (A2V), or a head bank with one head per
     # size, trained on the frozen backbone (#412).
     patch_sizes = multi_patch_sizes_of(sd)
-    head_sd = (None if args.native_value_head
+    no_head_file = args.native_value_head or args.zero_head
+    head_sd = (None if no_head_file
                else load_head_state(args.head_path, device))
     bank_sizes = head_bank_sizes(head_sd) if head_sd is not None else ()
-    if patch_sizes and not args.native_value_head and not bank_sizes:
+    if patch_sizes and not no_head_file and not bank_sizes:
         raise SystemExit(f"{args.backbone_path} has one patch encoder per "
                          f"patch size {patch_sizes}; score it with its head "
                          f"bank (#412) or --native-value-head (A2V).")
@@ -859,6 +879,8 @@ def load_models(args, device):
             print(f"  [eval] each config reads its frequency's patch size "
                   f"from {patch_sizes}, with that size's value head")
         return backbone, head
+    if args.zero_head:
+        return backbone, zero_heads(patch_sizes or (BACKBONE_CONFIG["W"],))
 
     # A head decodes the latents of one encoder. Running a teacher head on
     # the student gives a number that looks fine and means nothing, so the
