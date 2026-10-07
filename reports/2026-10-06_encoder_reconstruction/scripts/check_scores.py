@@ -3,13 +3,13 @@ that collect.py copies and from elisa's mirror of the box.
 
 A job passes when each of these holds:
 
-* its score file holds a number;
-* its per-config table holds 97 configs, each with a finite MASE;
+* its score file holds a number.
+* its per-config table holds 97 configs, each with a finite MASE.
 * the geometric mean of its relative MASE gives the score. The MASE comes
   from the per-config table, and the seasonal-naive MASE from the eval
-  summary;
-* its eval ran strategy R on 97 configs (the stop log);
-* the loss CSV of its head ends at step 30,000;
+  summary.
+* its eval ran strategy R on 97 configs (the stop log).
+* the loss CSV of its head ends at step 30,000.
 * elisa holds its final head (CF425_MIRROR, default
   ~/checkpoints_backup/cf-412/vast_lr100x).
 
