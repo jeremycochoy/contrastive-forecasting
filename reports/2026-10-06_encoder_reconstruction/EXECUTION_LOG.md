@@ -20,6 +20,8 @@ All times are UTC, on 2026-10-07 unless a date is given.
 | 12:19 | Wave 1 ends (rc 0), and wave 2 starts. The 12 R scores of wave 1 exist at 13:36. |
 | 13:38 | `snapshot_score.sh`: the earlier snapshot of 5 heads of wave 1. They end at 14:16. |
 | 13:46 | The sync loop starts again with the fix of 9955742b. |
+| 16:09 | Wave 2 ends (rc 0), and wave 3 starts. The 12 R scores of wave 2 exist at 17:27. |
+| 19:55 | Wave 3 ends (rc 0), and wave 4 starts (11 jobs, the last wave). |
 
 ## Events
 
