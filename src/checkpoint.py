@@ -47,6 +47,22 @@ def get_optimizer_state_path(model_path: str) -> str:
     return f"{root}_optimizer{ext}"
 
 
+def save_atomic(obj, path: str) -> None:
+    """A ``torch.save`` that does not put a cut file at ``path``.
+
+    The bytes go to ``<path>.tmp`` and to the disk first. Then
+    ``os.replace`` puts them at ``path`` in one step. After a crash during
+    the save, ``path`` is as it was: no file, or the earlier file. So a
+    gate that tests for the file does not see a cut checkpoint (#425).
+    """
+    tmp = f"{path}.tmp"
+    with open(tmp, "wb") as f:
+        torch.save(obj, f)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, path)
+
+
 def save_training_state(optimizer, model_path: str, step: int,
                         best_val_ff: float, best_step: int, *,
                         best_loss: float = float("inf"),

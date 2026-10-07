@@ -32,7 +32,8 @@ import torch.optim as optim
 
 from src.models import ConfigurableModel, count_parameters
 from src.checkpoint import (gru_input_bound_of, multi_patch_sizes_of,
-                            prepare_backbone_state_dict, save_encoder_source)
+                            prepare_backbone_state_dict, save_atomic,
+                            save_encoder_source)
 from src.dataloader import create_hf_dataloader, create_mixed_periodic_dataloader
 from src.freq_embedding import vocab_of_rows
 from src.loss import masked_mean
@@ -315,13 +316,20 @@ def parse_args(argv=None):
 
 
 class CSVLogger:
-    """Buffered per-step loss CSV logger."""
+    """Buffered per-step loss CSV logger.
 
-    def __init__(self, path: str, flush_every: int = 100):
+    With ``append`` False, the logger starts a new file. A run from step 0
+    must do so: queue.sh (#425) trains a failed job again from step 1, and
+    its CSV must hold one try only. A run that continues from a checkpoint
+    adds its rows.
+    """
+
+    def __init__(self, path: str, flush_every: int = 100,
+                 append: bool = False):
         self.path = path
         self.flush_every = flush_every
         self._buffer = []
-        self._file = open(path, "a", newline="")
+        self._file = open(path, "a" if append else "w", newline="")
         self._writer = csv.writer(self._file)
         if os.path.getsize(path) == 0:
             self._writer.writerow(["step", "loss", "hf_rows_consumed"])
@@ -772,7 +780,7 @@ class HeadJob:
         """Open the loss CSV, describe the run and start its clock."""
         args = self.args
         csv_path = os.path.join(args.save_dir, f"{args.run_name}_losses.csv")
-        self.csv_logger = CSVLogger(csv_path)
+        self.csv_logger = CSVLogger(csv_path, append=self.start_step > 0)
         print(f"Loss CSV: {csv_path}")
 
         print(f"\nTraining for {args.total_steps} steps, bs={args.batch_size}, "
@@ -1074,9 +1082,11 @@ def _save_head(head, optimizer, path, step, best_loss, best_loss_step,
     """Head weights, optimizer companion, and the encoder-source marker.
 
     The marker (#393) travels with every checkpoint so a head trained on the
-    EMA teacher can never be evaluated through the student encoder.
+    EMA teacher can never be evaluated through the student encoder. The two
+    .pth files go through ``save_atomic``: queue.sh (#425) takes a job with
+    a ``*_final.pth`` as trained, so a crash must not cut that file.
     """
-    torch.save(head.state_dict(), path)
+    save_atomic(head.state_dict(), path)
     _save_optim_meta(optimizer, path, step, best_loss, best_loss_step)
     save_encoder_source(path, encoder_source)
 
@@ -1084,7 +1094,7 @@ def _save_head(head, optimizer, path, step, best_loss, best_loss_step,
 def _save_optim_meta(optimizer, model_path, step, best_loss, best_loss_step):
     """Save optimizer state and metadata to companion file."""
     optim_path = model_path.replace(".pth", "_optimizer.pth")
-    torch.save({
+    save_atomic({
         "optimizer_state_dict": optimizer.state_dict(),
         "step": step,
         "best_loss": best_loss,

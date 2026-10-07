@@ -32,7 +32,7 @@
 # (`flock` on the job's lock file) and passes the lock to the job's score,
 # so no two processes run one job, and a new queue skips the jobs that an
 # older wave or score still runs. A job that fails CF425_TRIES times stays
-# failed.
+# failed. A lane stops when it can lock no job and none of its scores runs.
 #
 # Before a wave, the lane waits for CF425_MIN_FREE_GB of free disk (the sync
 # frees the box copies that elisa holds), then for CF425_WAVE_VRAM_MIB of
@@ -278,7 +278,13 @@ run_lane(){  # <stream>
   mkdir -p /tmp/cf425_gpu
   while :; do
     pick_wave "$stream"
-    [ "${#WAVE[@]}" -gt 0 ] || [ "${#SCORE_ONLY[@]}" -gt 0 ] || break
+    if [ "${#WAVE[@]}" -eq 0 ] && [ "${#SCORE_ONLY[@]}" -eq 0 ]; then
+      # A score of the lane that fails gets its next try from the lane. So
+      # the lane stops only when none of its scores runs.
+      [ -n "$(jobs -pr)" ] || break
+      wait -n
+      continue
+    fi
     for job in "${SCORE_ONLY[@]}"; do
       read -r tag ckpt stop <<<"$job"
       start_score "$tag" "$ckpt" "$stop"
@@ -299,8 +305,6 @@ run_lane(){  # <stream>
     fi
     unlock_all
   done
-  log "lane $stream: no job left. Waiting for its scores."
-  wait
   log "lane $stream: done"
 }
 

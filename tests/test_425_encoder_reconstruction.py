@@ -20,12 +20,13 @@ Groups, all on the CPU:
 4. The head trainer: `--reconstruction encoder` trains the B4 head on a bank
    checkpoint, on a zero-padding checkpoint and on an old checkpoint. The
    shared trainer gives each job of one data stream the losses and the head
-   of its solo run, bit for bit.
+   of its solo run, bit for bit. After a crash during a save, no cut head
+   stays. A new try of a job starts a clean loss CSV.
 5. The shell runners: the reconstruction mode reaches the head trainer and
    the eval, and the forecast mode stays as it was. The floor of R (R0) and
    the flags for a shared trainer.
-6. The scripts of the report: the job table, the waves of the queue on the
-   box, the prune rule, the floors and the figures.
+6. The scripts of the report: the job table, the waves and the retries of
+   the queue on the box, the prune rule, the floors and the figures.
 
 Group 2b: the floor of R, a head that gives the normalised value 0.
 """
@@ -914,6 +915,75 @@ def test_jobs_of_two_streams_are_refused(tmp_path, corpus_flags, other):
 
 
 # ---------------------------------------------------------------------------
+# 4c. The crash path of the trainer: no cut head, one try in a loss CSV
+# ---------------------------------------------------------------------------
+
+def load_head_trainer():
+    spec = importlib.util.spec_from_file_location("head_trainer_425", HEAD_PY)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def cut_save(obj, f, *args, **kwargs):
+    """A torch.save that stops halfway: some bytes, and no end."""
+    if isinstance(f, (str, os.PathLike)):
+        with open(f, "wb") as out:
+            out.write(b"PK\x03\x04")
+    else:
+        f.write(b"PK\x03\x04")
+    raise OSError("the box stops during the save")
+
+
+def test_a_save_that_stops_halfway_leaves_no_cut_head(tmp_path, monkeypatch):
+    """queue.sh takes a job with a `*_final.pth` as trained, and the sync
+    copies that file to elisa. A save that stops halfway (a box crash, a
+    full disk) must not put a cut file at the path of a head. It must keep
+    the earlier head at that path."""
+    trainer = load_head_trainer()
+    head = nn.Linear(4, 2)
+    optimizer = torch.optim.AdamW(head.parameters())
+    best, final = tmp_path / "q_best.pth", tmp_path / "q_final.pth"
+    trainer._save_head(head, optimizer, str(best), 2, 0.5, 2, "student")
+    kept = {k: v.clone() for k, v in head.state_dict().items()}
+    with torch.no_grad():
+        head.weight.add_(1.0)
+    with monkeypatch.context() as m:
+        m.setattr(torch, "save", cut_save)
+        for path in (best, final):
+            with pytest.raises(OSError):
+                trainer._save_head(head, optimizer, str(path), 3, 0.4, 3,
+                                   "student")
+    assert not final.exists()
+    sd = torch.load(best, map_location="cpu", weights_only=True)
+    assert sd.keys() == kept.keys()
+    assert all(torch.equal(sd[k], kept[k]) for k in kept)
+    meta = torch.load(tmp_path / "q_best_optimizer.pth", weights_only=False)
+    assert meta["step"] == 2
+
+
+def steps_of(tmp_path):
+    rows = csv.DictReader(open(tmp_path / "head" / "qrecon_losses.csv"))
+    return [int(r["step"]) for r in rows]
+
+
+def test_a_new_try_of_a_job_starts_a_clean_loss_csv(tmp_path):
+    """queue.sh trains a failed job again from step 1: its loss CSV holds
+    the new try only. A run that continues from a checkpoint adds its
+    rows."""
+    bb = saved(tmp_path, "bb.pth", ewma_model(zero_pad=False))
+    for _ in range(2):
+        r = train_head(tmp_path, bb, *OLD_DATA)
+        assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    assert steps_of(tmp_path) == [1, 2, 3]
+    final = tmp_path / "head" / "qrecon_final.pth"
+    r = train_head(tmp_path, bb, *OLD_DATA, "--resume", str(final),
+                   "--total-steps", "5")
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    assert steps_of(tmp_path) == [1, 2, 3, 4, 5]
+
+
+# ---------------------------------------------------------------------------
 # 5. The shell runners: head_eval_bb.sh and eval_local.sh
 # ---------------------------------------------------------------------------
 
@@ -1296,6 +1366,35 @@ def test_a_failing_head_stops_after_its_tries(queue_box):
     again = run_queue(env)
     assert again.returncode == 0
     assert sum(BAD in wave for wave in waves(res)) == 2
+
+
+# The first CF425_TEST_FAILS scores of the job CF425_TEST_FLAKY fail, late.
+FLAKY_SCORE = r'''sleep 0.2
+tries=$(grep -c "^$tag score" "$CF_RESULTS/calls.log")
+if [ "$tag" = "$CF425_TEST_FLAKY" ] && [ "$tries" -le "$CF425_TEST_FAILS" ]; then
+  sleep 1; exit 1
+fi'''
+
+
+@pytest.mark.parametrize("fails", [1, 2])
+def test_a_score_that_fails_after_the_last_wave_gets_its_next_try(queue_box,
+                                                                  fails):
+    """The score of the last wave of a lane is not complete when the lane
+    finds no job to lock. If that score fails, the lane gives it its next
+    try, and the lane stops after the last try."""
+    tmp_path, res, env = queue_box
+    (tmp_path / "runner.sh").write_text(
+        QUEUE_STUB.replace("sleep 0.2", FLAKY_SCORE))
+    flaky = GOOD[1]   # tier 2: the last wave of its lane
+    r = run_queue(dict(env, CF425_TEST_FLAKY=flaky,
+                       CF425_TEST_FAILS=str(fails)))
+    assert r.returncode == 0, r.stdout + r.stderr
+    lane = [w for w in waves(res) if not w[0].startswith(("arm_c", "arm_d"))]
+    assert flaky in lane[-1]
+    scored = [c[0] for c in job_calls(res) if c[1] == "score"]
+    assert scored.count(flaky) == 2
+    assert len(list((res / "failed").glob(f"{flaky}.*"))) == fails
+    assert (res / f"score_{flaky}.txt").exists() == (fails == 1)
 
 
 def test_a_job_with_a_head_is_scored_and_not_trained_again(queue_box):
