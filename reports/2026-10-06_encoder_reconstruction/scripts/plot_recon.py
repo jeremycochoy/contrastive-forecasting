@@ -290,10 +290,10 @@ def key_entries(overlay, floors, snapshots=(), floor_lines=None):
                 "one head with one seed for each dot."),
                (blank, "R a → b: R at the first and the last checkpoint")]
     if snapshots:
-        text = "The same head at an earlier head step:\n"
+        text = ("The same head at an earlier head step.\n"
+                "Its R there, then the R of the dot (step 30,000):\n")
         text += "\n".join(
-            f"{code} {stop}: R {score:.4f} at step {step:,},\n"
-            f"    {final:.4f} at step 30,000 (the dot)"
+            f"{code} {stop}: {score:.4f} at step {step:,}, then {final:.4f}"
             for code, stop, step, score, final in snapshots)
         entries.append((Line2D([], [], color=KEY_COLOUR, lw=0, marker="o",
                                ms=7, mfc="white", mew=1.6), text))

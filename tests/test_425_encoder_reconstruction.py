@@ -1901,8 +1901,7 @@ def test_a_hollow_marker_shows_an_earlier_snapshot_of_a_head(tmp_path):
               if line.get_markerfacecolor() == "white"]
     assert [list(line.get_ydata()) for line in hollow] == [[0.2]]
     assert ax.get_ylim()[0] < 0.2
-    assert any("OMB 10k: R 0.2000 at step 28,500" in text
-               and "0.3100 at step 30,000" in text
+    assert any("OMB 10k: 0.2000 at step 28,500, then 0.3100" in text
                for text in legend_texts(fig))
 
 
@@ -1952,8 +1951,9 @@ exec bash -c "${@: -1}"
 
 @pytest.fixture
 def sync_box(tmp_path):
-    """A box with a scored head, a head that still trains, and a head that
-    ended after another loop copied its first `*_best.pth`."""
+    """A box with a scored head, a head that still trains, a head that
+    ended after another loop copied its first `*_best.pth`, and a job whose
+    score came after a tick deleted its final head from the box."""
     box, res = tmp_path / "box" / "cf-425", tmp_path / "box" / "results"
     files = {
         "recon/eval/done_recon/q_final.pth": b"F" * 10,
@@ -1963,12 +1963,14 @@ def sync_box(tmp_path):
         "recon/eval/train_recon/q_best.pth": b"T" * 10,
         "recon/eval/late_recon/q_final.pth": b"L" * 10,
         "recon/eval/late_recon/q_best.pth": b"new best!!",
+        "recon/eval/pruned_recon/gift_r/all_results.csv": b"dataset\n",
     }
     for rel, data in files.items():
         (box / rel).parent.mkdir(parents=True, exist_ok=True)
         (box / rel).write_bytes(data)
     res.mkdir(parents=True)
     (res / "score_done_recon.txt").write_text("0.2000\n")
+    (res / "score_pruned_recon.txt").write_text("0.3000\n")
     (res / "queue.log").write_text("started\n")
     mirror = tmp_path / "elisa" / "vast_lr100x"
     stale = mirror / "cf-425" / "recon/eval/late_recon/q_best.pth"
@@ -1996,12 +1998,15 @@ def test_a_sync_tick_brings_the_ended_heads_and_frees_the_box(sync_box):
                     "recon/eval/done_recon/q_losses.csv",
                     "recon/eval/done_recon/gift_r/summary.txt",
                     "recon/eval/late_recon/q_final.pth",
-                    "recon/eval/late_recon/q_best.pth"}
+                    "recon/eval/late_recon/q_best.pth",
+                    # no final head on the box, but its job has a score
+                    "recon/eval/pruned_recon/gift_r/all_results.csv"}
     assert (mirror / "recon/eval/late_recon/q_best.pth").read_bytes() == b"new best!!"
     results = tmp_path / "elisa" / "results"
     assert (results / "score_done_recon.txt").read_text() == "0.2000\n"
     left = {str(p.relative_to(box)) for p in box.rglob("*") if p.is_file()}
     assert left == {"recon/eval/done_recon/q_losses.csv",
                     "recon/eval/done_recon/gift_r/summary.txt",
+                    "recon/eval/pruned_recon/gift_r/all_results.csv",
                     "recon/eval/train_recon/q_best.pth",     # still trains
                     "recon/eval/late_recon/q_final.pth"}     # no score yet

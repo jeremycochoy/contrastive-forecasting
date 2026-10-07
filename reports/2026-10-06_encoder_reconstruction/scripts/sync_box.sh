@@ -6,10 +6,12 @@
 #   1. The box results (/workspace/results/cf-425: scores, logs) go to
 #      CF425_RESULTS_MIRROR.
 #   2. Each head directory under /workspace/ckpt/cf-425 that holds a
-#      `*_final.pth` goes to elisa's mirror of the box,
-#      ~/checkpoints_backup/cf-412/vast_lr100x/cf-425: the head, its
+#      `*_final.pth`, or whose job has a score, goes to elisa's mirror of
+#      the box, ~/checkpoints_backup/cf-412/vast_lr100x/cf-425: the head, its
 #      optimizer, its losses and its score outputs. A directory with no
-#      final head still trains, and its files still change, so it waits.
+#      final head and no score still trains, and its files still change, so
+#      it waits. A scored job keeps no final head on the box (step 3), and
+#      its score outputs can be newer than the last tick.
 #   3. The manifest of the `.pth` files that elisa holds there goes to the
 #      box, and `prune.sh` deletes the box copies of the same byte size.
 #
@@ -38,12 +40,16 @@ log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#425 sync] $*"; }
 
 # "<bytes>\t<mtime>\t<path>" of each file to bring from <box dir>. With
 # "final", only the files of a directory (or of a subdirectory of one) that
-# holds a `*_final.pth`.
+# holds a `*_final.pth`, or that has the name of a job with a score.
 box_listing(){  # <box dir> <all|final>
   "${SSH[@]}" "cd '$1' 2>/dev/null || exit 0
     find . -type f ! -path './locks/*' ! -name '*.tmp' -printf '%s\t%T@\t%P\n' > /tmp/cf425_all.\$\$
     if [ '$2' = final ]; then
-      find . -name '*_final.pth' -printf '%h\n' | sed 's|^\./||' | sort -u > /tmp/cf425_dirs.\$\$
+      { find . -name '*_final.pth' -printf '%h\n'
+        find '$BOX_RES' -name 'score_*.txt' -size +0 -printf '%f\n' 2>/dev/null \
+          | sed -e 's/^score_//' -e 's/\.txt\$//' \
+          | while read -r tag; do find . -type d -name \"\$tag\"; done
+      } | sed 's|^\./||' | sort -u > /tmp/cf425_dirs.\$\$
       awk -F'\t' 'NR == FNR { d[\$1] = 1; next }
         { p = \$3; while (p ~ /\//) { sub(/\/[^\/]*\$/, \"\", p); if (p in d) { print; next } } }' \
         /tmp/cf425_dirs.\$\$ /tmp/cf425_all.\$\$
