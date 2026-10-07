@@ -106,3 +106,9 @@ gift_pretrain_1007_205146_d1jJ, each report:
 [shared] 650 steps: 2.62 steps/s since the start, 5.05 steps/s over the last 50, 30.3 job steps/s, the stream took 0% of that time, peak 2.34 GiB allocated, 2.38 GiB reserved
 [shared] 700 steps: 2.69 steps/s since the start, 4.31 steps/s over the last 50, 25.9 job steps/s, the stream took 15% of that time, peak 2.34 GiB allocated, 2.38 GiB reserved
 GPU use of GPU 0: 64% to 77% with one wave, 95% to 99% with the two waves
+
+# elisa, commit d1775fd5, 10-07 20:10 UTC. One full R score (97 configs, 2 shards on one GPU) of a linear head
+# of OMB 25k with 300 head steps, as a score of the queue runs it (PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True).
+time: 12 min 52 s. GM-Relative MASE: 0.8519.
+peak GPU memory: 2380 MiB for each of the 2 shard processes, 4760 MiB for the score.
+the same score without that allocator setting: 13 min 12 s, 0.8519, 5194 MiB and 5840 MiB for the 2 shard processes.
