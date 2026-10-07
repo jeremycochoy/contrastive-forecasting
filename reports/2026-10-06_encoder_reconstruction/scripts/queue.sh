@@ -24,9 +24,9 @@
 # stop of each run, so each run has its two ends before the stops between.
 #
 # The sizes come from probe.sh on the box (10-07): a wave of 12
-# GiftEvalPretrain jobs trains 30.0 job steps/s and uses 9.6 GB of GPU
+# GiftEvalPretrain jobs trains 30.0 job steps/s and uses 9,612 MiB of GPU
 # memory, so it ends in about 3.3 h. The 9 old-data jobs train 25.5 job
-# steps/s in 7.1 GB, so they end in about 2.9 h.
+# steps/s in 7,140 MiB, so they end in about 2.9 h.
 #
 # A job is done when its score file exists. A wave locks each of its jobs
 # (`flock` on the job's lock file) and passes the lock to the job's score,
