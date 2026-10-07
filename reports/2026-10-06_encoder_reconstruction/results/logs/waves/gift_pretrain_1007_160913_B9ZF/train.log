@@ -1,0 +1,457 @@
+[qhead_cf419ms_bb140k_h30k_recon_s20260722]   [head-train] the checkpoint names the mean/std scaling (#421); --rev-norm-kind ewma is not read
+[qhead_cf419ms_bb140k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf419ms_bb140k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf419ms_bb140k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf419ms_bb140k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf419ms_bb140k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/cf-419ms/leg_200k/cf419ms_k3_140k.pth (0 params, frozen, encoder=student)
+/workspace/cf-425/src/forecasting_head.py:188: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.transformer = nn.TransformerEncoder(layer, num_layers=num_layers)
+[qhead_cf419ms_bb140k_h30k_recon_s20260722] Forecasting head [bank of 1 heads, sizes (16,), each transformer-q (2L H384 nhead8 causal) decoding its P values (#412)]: 3,605,136 trainable params
+[qhead_cf419ms_bb140k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf419ms_bb140k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/cf-419c/cos200k/leg_665k/cf419_cos200k_r2_200k.pth (0 params, frozen, encoder=student)
+/workspace/cf-425/src/forecasting_head.py:188: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.transformer = nn.TransformerEncoder(layer, num_layers=num_layers)
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722] Forecasting head [transformer-q (2L H384 nhead8 causal)]: 3,605,136 trainable params
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/cf-419c/cos200k/leg_665k/cf419_cos200k_r2_300k.pth (0 params, frozen, encoder=student)
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722] Forecasting head [transformer-q (2L H384 nhead8 causal)]: 3,605,136 trainable params
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf412om_bb25k_h30k_recon_s20260722]   [head-train] the checkpoint names the mean/std scaling (#421); --rev-norm-kind ewma is not read
+[qhead_cf412om_bb25k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf412om_bb25k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf412om_bb25k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf412om_bb25k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf412om_bb25k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/cf-412om/leg_25k/cf412om_k3_25k.pth (0 params, frozen, encoder=student)
+[qhead_cf412om_bb25k_h30k_recon_s20260722] Forecasting head [bank of 5 heads, sizes (8, 16, 32, 64, 128), each transformer-q (2L H384 nhead8 causal) decoding its P values (#412)]: 18,607,800 trainable params
+[qhead_cf412om_bb25k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf412om_bb25k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf412om_bb50k_h30k_recon_s20260722]   [head-train] the checkpoint names the mean/std scaling (#421); --rev-norm-kind ewma is not read
+[qhead_cf412om_bb50k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf412om_bb50k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf412om_bb50k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf412om_bb50k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf412om_bb50k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/cf-412om/leg_50k/cf412om_k3_50k.pth (0 params, frozen, encoder=student)
+[qhead_cf412om_bb50k_h30k_recon_s20260722] Forecasting head [bank of 5 heads, sizes (8, 16, 32, 64, 128), each transformer-q (2L H384 nhead8 causal) decoding its P values (#412)]: 18,607,800 trainable params
+[qhead_cf412om_bb50k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf412om_bb50k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf412om_bb75k_h30k_recon_s20260722]   [head-train] the checkpoint names the mean/std scaling (#421); --rev-norm-kind ewma is not read
+[qhead_cf412om_bb75k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf412om_bb75k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf412om_bb75k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf412om_bb75k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf412om_bb75k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/cf-412om/leg_75k/cf412om_k3_75k.pth (0 params, frozen, encoder=student)
+[qhead_cf412om_bb75k_h30k_recon_s20260722] Forecasting head [bank of 5 heads, sizes (8, 16, 32, 64, 128), each transformer-q (2L H384 nhead8 causal) decoding its P values (#412)]: 18,607,800 trainable params
+[qhead_cf412om_bb75k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf412om_bb75k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf412om_bb100k_h30k_recon_s20260722]   [head-train] the checkpoint names the mean/std scaling (#421); --rev-norm-kind ewma is not read
+[qhead_cf412om_bb100k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf412om_bb100k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf412om_bb100k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf412om_bb100k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf412om_bb100k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/cf-412om/leg_100k/cf412om_k3_100k.pth (0 params, frozen, encoder=student)
+[qhead_cf412om_bb100k_h30k_recon_s20260722] Forecasting head [bank of 5 heads, sizes (8, 16, 32, 64, 128), each transformer-q (2L H384 nhead8 causal) decoding its P values (#412)]: 18,607,800 trainable params
+[qhead_cf412om_bb100k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf412om_bb100k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf412om_bb125k_h30k_recon_s20260722]   [head-train] the checkpoint names the mean/std scaling (#421); --rev-norm-kind ewma is not read
+[qhead_cf412om_bb125k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf412om_bb125k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf412om_bb125k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf412om_bb125k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf412om_bb125k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/cf-412om/leg_125k/cf412om_k3_125k.pth (0 params, frozen, encoder=student)
+[qhead_cf412om_bb125k_h30k_recon_s20260722] Forecasting head [bank of 5 heads, sizes (8, 16, 32, 64, 128), each transformer-q (2L H384 nhead8 causal) decoding its P values (#412)]: 18,607,800 trainable params
+[qhead_cf412om_bb125k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf412om_bb125k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf412om_bb150k_h30k_recon_s20260722]   [head-train] the checkpoint names the mean/std scaling (#421); --rev-norm-kind ewma is not read
+[qhead_cf412om_bb150k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf412om_bb150k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf412om_bb150k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf412om_bb150k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf412om_bb150k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/cf-412om/leg_150k/cf412om_k3_150k.pth (0 params, frozen, encoder=student)
+[qhead_cf412om_bb150k_h30k_recon_s20260722] Forecasting head [bank of 5 heads, sizes (8, 16, 32, 64, 128), each transformer-q (2L H384 nhead8 causal) decoding its P values (#412)]: 18,607,800 trainable params
+[qhead_cf412om_bb150k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf412om_bb150k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722]   [head-train] the checkpoint names the mean/std scaling (#421); --rev-norm-kind ewma is not read
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/cf-412oc2/leg_100k/cf412oc2_k3_100k.pth (0 params, frozen, encoder=student)
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722] Forecasting head [bank of 5 heads, sizes (8, 16, 32, 64, 128), each transformer-q (2L H384 nhead8 causal) decoding its P values (#412)]: 18,607,800 trainable params
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722]   [head-train] the checkpoint names the mean/std scaling (#421); --rev-norm-kind ewma is not read
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/cf-412oc2/leg_200k/cf412oc2_k3_200k.pth (0 params, frozen, encoder=student)
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722] Forecasting head [bank of 5 heads, sizes (8, 16, 32, 64, 128), each transformer-q (2L H384 nhead8 causal) decoding its P values (#412)]: 18,607,800 trainable params
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722]   [head-train] the checkpoint names the mean/std scaling (#421); --rev-norm-kind ewma is not read
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/cf-412oc2/leg_300k/cf412oc2_k3_300k.pth (0 params, frozen, encoder=student)
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722] Forecasting head [bank of 5 heads, sizes (8, 16, 32, 64, 128), each transformer-q (2L H384 nhead8 causal) decoding its P values (#412)]: 18,607,800 trainable params
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf419ms_bb140k_h30k_recon_s20260722] Data: the backbone trained on GiftEvalPretrain with zero padding (#419): the head trains on the same stream, vocabulary v2, padded targets skipped. --hf-repo/--hf-path are not read.
+[qhead_cf419ms_bb140k_h30k_recon_s20260722] Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20280722, emit_labels=True
+[shared] 12 jobs on one stream: qhead_cf419ms_bb140k_h30k_recon_s20260722, qhead_cf419_cos200k_bb200k_h30k_recon_s20260722, qhead_cf419_cos200k_bb300k_h30k_recon_s20260722, qhead_cf412om_bb25k_h30k_recon_s20260722, qhead_cf412om_bb50k_h30k_recon_s20260722, qhead_cf412om_bb75k_h30k_recon_s20260722, qhead_cf412om_bb100k_h30k_recon_s20260722, qhead_cf412om_bb125k_h30k_recon_s20260722, qhead_cf412om_bb150k_h30k_recon_s20260722, qhead_cf412oc2_bb100k_h30k_recon_s20260722, qhead_cf412oc2_bb200k_h30k_recon_s20260722, qhead_cf412oc2_bb300k_h30k_recon_s20260722
+[qhead_cf419ms_bb140k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/cf419ms_bb140k_h30k_recon/qhead_cf419ms_bb140k_h30k_recon_s20260722_losses.csv
+[qhead_cf419ms_bb140k_h30k_recon_s20260722] 
+[qhead_cf419ms_bb140k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf419ms_bb140k_h30k_recon_s20260722] Head bank (#412): each row draws its patch size from its frequency's range and its split as the backbone trained, and trains the head of that size. --forecast-len is not read.
+[qhead_cf419ms_bb140k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf419ms_bb140k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/cf419ms_bb140k_h30k_recon/qhead_cf419ms_bb140k_h30k_recon_s20260722_*.pth
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb200k_h30k_recon/qhead_cf419_cos200k_bb200k_h30k_recon_s20260722_losses.csv
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722] 
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb200k_h30k_recon/qhead_cf419_cos200k_bb200k_h30k_recon_s20260722_*.pth
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb300k_h30k_recon/qhead_cf419_cos200k_bb300k_h30k_recon_s20260722_losses.csv
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722] 
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb300k_h30k_recon/qhead_cf419_cos200k_bb300k_h30k_recon_s20260722_*.pth
+[qhead_cf412om_bb25k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/cf412om_bb25k_h30k_recon/qhead_cf412om_bb25k_h30k_recon_s20260722_losses.csv
+[qhead_cf412om_bb25k_h30k_recon_s20260722] 
+[qhead_cf412om_bb25k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf412om_bb25k_h30k_recon_s20260722] Head bank (#412): each row draws its patch size from its frequency's range and its split as the backbone trained, and trains the head of that size. --forecast-len is not read.
+[qhead_cf412om_bb25k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf412om_bb25k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/cf412om_bb25k_h30k_recon/qhead_cf412om_bb25k_h30k_recon_s20260722_*.pth
+[qhead_cf412om_bb50k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/cf412om_bb50k_h30k_recon/qhead_cf412om_bb50k_h30k_recon_s20260722_losses.csv
+[qhead_cf412om_bb50k_h30k_recon_s20260722] 
+[qhead_cf412om_bb50k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf412om_bb50k_h30k_recon_s20260722] Head bank (#412): each row draws its patch size from its frequency's range and its split as the backbone trained, and trains the head of that size. --forecast-len is not read.
+[qhead_cf412om_bb50k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf412om_bb50k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/cf412om_bb50k_h30k_recon/qhead_cf412om_bb50k_h30k_recon_s20260722_*.pth
+[qhead_cf412om_bb75k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/cf412om_bb75k_h30k_recon/qhead_cf412om_bb75k_h30k_recon_s20260722_losses.csv
+[qhead_cf412om_bb75k_h30k_recon_s20260722] 
+[qhead_cf412om_bb75k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf412om_bb75k_h30k_recon_s20260722] Head bank (#412): each row draws its patch size from its frequency's range and its split as the backbone trained, and trains the head of that size. --forecast-len is not read.
+[qhead_cf412om_bb75k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf412om_bb75k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/cf412om_bb75k_h30k_recon/qhead_cf412om_bb75k_h30k_recon_s20260722_*.pth
+[qhead_cf412om_bb100k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/cf412om_bb100k_h30k_recon/qhead_cf412om_bb100k_h30k_recon_s20260722_losses.csv
+[qhead_cf412om_bb100k_h30k_recon_s20260722] 
+[qhead_cf412om_bb100k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf412om_bb100k_h30k_recon_s20260722] Head bank (#412): each row draws its patch size from its frequency's range and its split as the backbone trained, and trains the head of that size. --forecast-len is not read.
+[qhead_cf412om_bb100k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf412om_bb100k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/cf412om_bb100k_h30k_recon/qhead_cf412om_bb100k_h30k_recon_s20260722_*.pth
+[qhead_cf412om_bb125k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/cf412om_bb125k_h30k_recon/qhead_cf412om_bb125k_h30k_recon_s20260722_losses.csv
+[qhead_cf412om_bb125k_h30k_recon_s20260722] 
+[qhead_cf412om_bb125k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf412om_bb125k_h30k_recon_s20260722] Head bank (#412): each row draws its patch size from its frequency's range and its split as the backbone trained, and trains the head of that size. --forecast-len is not read.
+[qhead_cf412om_bb125k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf412om_bb125k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/cf412om_bb125k_h30k_recon/qhead_cf412om_bb125k_h30k_recon_s20260722_*.pth
+[qhead_cf412om_bb150k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/cf412om_bb150k_h30k_recon/qhead_cf412om_bb150k_h30k_recon_s20260722_losses.csv
+[qhead_cf412om_bb150k_h30k_recon_s20260722] 
+[qhead_cf412om_bb150k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf412om_bb150k_h30k_recon_s20260722] Head bank (#412): each row draws its patch size from its frequency's range and its split as the backbone trained, and trains the head of that size. --forecast-len is not read.
+[qhead_cf412om_bb150k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf412om_bb150k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/cf412om_bb150k_h30k_recon/qhead_cf412om_bb150k_h30k_recon_s20260722_*.pth
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/cf412oc2_bb100k_h30k_recon/qhead_cf412oc2_bb100k_h30k_recon_s20260722_losses.csv
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722] 
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722] Head bank (#412): each row draws its patch size from its frequency's range and its split as the backbone trained, and trains the head of that size. --forecast-len is not read.
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/cf412oc2_bb100k_h30k_recon/qhead_cf412oc2_bb100k_h30k_recon_s20260722_*.pth
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/cf412oc2_bb200k_h30k_recon/qhead_cf412oc2_bb200k_h30k_recon_s20260722_losses.csv
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722] 
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722] Head bank (#412): each row draws its patch size from its frequency's range and its split as the backbone trained, and trains the head of that size. --forecast-len is not read.
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/cf412oc2_bb200k_h30k_recon/qhead_cf412oc2_bb200k_h30k_recon_s20260722_*.pth
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/cf412oc2_bb300k_h30k_recon/qhead_cf412oc2_bb300k_h30k_recon_s20260722_losses.csv
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722] 
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722] Head bank (#412): each row draws its patch size from its frequency's range and its split as the backbone trained, and trains the head of that size. --forecast-len is not read.
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/cf412oc2_bb300k_h30k_recon/qhead_cf412oc2_bb300k_h30k_recon_s20260722_*.pth
+[shared] 1 steps: 0.01 steps/s since the start, 0.01 steps/s over the last 1, 0.1 job steps/s, peak 6.12 GiB allocated, 6.82 GiB reserved
+[qhead_cf419ms_bb140k_h30k_recon_s20260722] [    500] loss=2.282244  ema_loss=1.677960  1.3 sps  ETA 6.1h
+[qhead_cf419ms_bb140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419ms_bb140k_h30k_recon/qhead_cf419ms_bb140k_h30k_recon_s20260722_best.pth (ema_loss=1.677960)
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722] [    500] loss=0.027319  ema_loss=0.033142  1.3 sps  ETA 6.1h
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb200k_h30k_recon/qhead_cf419_cos200k_bb200k_h30k_recon_s20260722_best.pth (ema_loss=0.033142)
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722] [    500] loss=0.028520  ema_loss=0.033885  1.3 sps  ETA 6.1h
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb300k_h30k_recon/qhead_cf419_cos200k_bb300k_h30k_recon_s20260722_best.pth (ema_loss=0.033885)
+[qhead_cf412om_bb25k_h30k_recon_s20260722] [    500] loss=4.631069  ema_loss=1.967414  1.3 sps  ETA 6.1h
+[qhead_cf412om_bb25k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412om_bb25k_h30k_recon/qhead_cf412om_bb25k_h30k_recon_s20260722_best.pth (ema_loss=1.967414)
+[qhead_cf412om_bb50k_h30k_recon_s20260722] [    500] loss=4.675992  ema_loss=2.018172  1.3 sps  ETA 6.1h
+[qhead_cf412om_bb50k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412om_bb50k_h30k_recon/qhead_cf412om_bb50k_h30k_recon_s20260722_best.pth (ema_loss=2.018172)
+[qhead_cf412om_bb75k_h30k_recon_s20260722] [    500] loss=4.690087  ema_loss=2.040600  1.3 sps  ETA 6.1h
+[qhead_cf412om_bb75k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412om_bb75k_h30k_recon/qhead_cf412om_bb75k_h30k_recon_s20260722_best.pth (ema_loss=2.040600)
+[qhead_cf412om_bb100k_h30k_recon_s20260722] [    500] loss=4.737493  ema_loss=2.035811  1.3 sps  ETA 6.1h
+[qhead_cf412om_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412om_bb100k_h30k_recon/qhead_cf412om_bb100k_h30k_recon_s20260722_best.pth (ema_loss=2.035811)
+[qhead_cf412om_bb125k_h30k_recon_s20260722] [    500] loss=4.697038  ema_loss=2.048392  1.3 sps  ETA 6.1h
+[qhead_cf412om_bb125k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412om_bb125k_h30k_recon/qhead_cf412om_bb125k_h30k_recon_s20260722_best.pth (ema_loss=2.048392)
+[qhead_cf412om_bb150k_h30k_recon_s20260722] [    500] loss=4.652529  ema_loss=2.021364  1.3 sps  ETA 6.2h
+[qhead_cf412om_bb150k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412om_bb150k_h30k_recon/qhead_cf412om_bb150k_h30k_recon_s20260722_best.pth (ema_loss=2.021364)
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722] [    500] loss=4.560024  ema_loss=1.909607  1.3 sps  ETA 6.2h
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412oc2_bb100k_h30k_recon/qhead_cf412oc2_bb100k_h30k_recon_s20260722_best.pth (ema_loss=1.909607)
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722] [    500] loss=4.552022  ema_loss=1.909906  1.3 sps  ETA 6.2h
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412oc2_bb200k_h30k_recon/qhead_cf412oc2_bb200k_h30k_recon_s20260722_best.pth (ema_loss=1.909906)
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722] [    500] loss=4.563033  ema_loss=1.914572  1.3 sps  ETA 6.2h
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412oc2_bb300k_h30k_recon/qhead_cf412oc2_bb300k_h30k_recon_s20260722_best.pth (ema_loss=1.914572)
+[shared] 500 steps: 1.33 steps/s since the start, 1.69 steps/s over the last 499, 20.2 job steps/s, peak 8.02 GiB allocated, 8.54 GiB reserved
+[qhead_cf419ms_bb140k_h30k_recon_s20260722] [   1000] loss=1.491182  ema_loss=1.258759  1.5 sps  ETA 5.4h
+[qhead_cf419ms_bb140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419ms_bb140k_h30k_recon/qhead_cf419ms_bb140k_h30k_recon_s20260722_best.pth (ema_loss=1.258759)
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722] [   1000] loss=0.021108  ema_loss=0.021847  1.5 sps  ETA 5.4h
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb200k_h30k_recon/qhead_cf419_cos200k_bb200k_h30k_recon_s20260722_best.pth (ema_loss=0.021847)
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722] [   1000] loss=0.021671  ema_loss=0.022605  1.5 sps  ETA 5.4h
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb300k_h30k_recon/qhead_cf419_cos200k_bb300k_h30k_recon_s20260722_best.pth (ema_loss=0.022605)
+[qhead_cf412om_bb25k_h30k_recon_s20260722] [   1000] loss=1.441208  ema_loss=1.157994  1.5 sps  ETA 5.4h
+[qhead_cf412om_bb25k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412om_bb25k_h30k_recon/qhead_cf412om_bb25k_h30k_recon_s20260722_best.pth (ema_loss=1.157994)
+[qhead_cf412om_bb50k_h30k_recon_s20260722] [   1000] loss=1.463026  ema_loss=1.198481  1.5 sps  ETA 5.4h
+[qhead_cf412om_bb50k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412om_bb50k_h30k_recon/qhead_cf412om_bb50k_h30k_recon_s20260722_best.pth (ema_loss=1.198481)
+[qhead_cf412om_bb75k_h30k_recon_s20260722] [   1000] loss=1.490488  ema_loss=1.222411  1.5 sps  ETA 5.4h
+[qhead_cf412om_bb75k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412om_bb75k_h30k_recon/qhead_cf412om_bb75k_h30k_recon_s20260722_best.pth (ema_loss=1.222411)
+[qhead_cf412om_bb100k_h30k_recon_s20260722] [   1000] loss=1.446423  ema_loss=1.208460  1.5 sps  ETA 5.4h
+[qhead_cf412om_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412om_bb100k_h30k_recon/qhead_cf412om_bb100k_h30k_recon_s20260722_best.pth (ema_loss=1.208460)
+[qhead_cf412om_bb125k_h30k_recon_s20260722] [   1000] loss=1.442045  ema_loss=1.226547  1.5 sps  ETA 5.4h
+[qhead_cf412om_bb125k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412om_bb125k_h30k_recon/qhead_cf412om_bb125k_h30k_recon_s20260722_best.pth (ema_loss=1.226547)
+[qhead_cf412om_bb150k_h30k_recon_s20260722] [   1000] loss=1.438496  ema_loss=1.187762  1.5 sps  ETA 5.4h
+[qhead_cf412om_bb150k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412om_bb150k_h30k_recon/qhead_cf412om_bb150k_h30k_recon_s20260722_best.pth (ema_loss=1.187762)
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722] [   1000] loss=1.385384  ema_loss=1.097807  1.5 sps  ETA 5.4h
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412oc2_bb100k_h30k_recon/qhead_cf412oc2_bb100k_h30k_recon_s20260722_best.pth (ema_loss=1.097807)
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722] [   1000] loss=1.356243  ema_loss=1.080865  1.5 sps  ETA 5.5h
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412oc2_bb200k_h30k_recon/qhead_cf412oc2_bb200k_h30k_recon_s20260722_best.pth (ema_loss=1.080865)
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722] [   1000] loss=1.350604  ema_loss=1.085743  1.5 sps  ETA 5.5h
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412oc2_bb300k_h30k_recon/qhead_cf412oc2_bb300k_h30k_recon_s20260722_best.pth (ema_loss=1.085743)
+[shared] 1000 steps: 1.48 steps/s since the start, 1.66 steps/s over the last 500, 20.0 job steps/s, peak 8.02 GiB allocated, 8.54 GiB reserved
+[qhead_cf419ms_bb140k_h30k_recon_s20260722] [   1500] loss=0.083606  ema_loss=0.925123  1.5 sps  ETA 5.1h
+[qhead_cf419ms_bb140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419ms_bb140k_h30k_recon/qhead_cf419ms_bb140k_h30k_recon_s20260722_best.pth (ema_loss=0.925123)
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722] [   1500] loss=0.017700  ema_loss=0.018931  1.5 sps  ETA 5.1h
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb200k_h30k_recon/qhead_cf419_cos200k_bb200k_h30k_recon_s20260722_best.pth (ema_loss=0.018931)
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722] [   1500] loss=0.018527  ema_loss=0.019691  1.5 sps  ETA 5.1h
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb300k_h30k_recon/qhead_cf419_cos200k_bb300k_h30k_recon_s20260722_best.pth (ema_loss=0.019691)
+[qhead_cf412om_bb25k_h30k_recon_s20260722] [   1500] loss=0.187648  ema_loss=1.093391  1.5 sps  ETA 5.1h
+[qhead_cf412om_bb25k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412om_bb25k_h30k_recon/qhead_cf412om_bb25k_h30k_recon_s20260722_best.pth (ema_loss=1.093391)
+[qhead_cf412om_bb50k_h30k_recon_s20260722] [   1500] loss=0.235330  ema_loss=1.152543  1.5 sps  ETA 5.1h
+[qhead_cf412om_bb50k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412om_bb50k_h30k_recon/qhead_cf412om_bb50k_h30k_recon_s20260722_best.pth (ema_loss=1.152543)
+[qhead_cf412om_bb75k_h30k_recon_s20260722] [   1500] loss=0.242077  ema_loss=1.169272  1.5 sps  ETA 5.1h
+[qhead_cf412om_bb75k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412om_bb75k_h30k_recon/qhead_cf412om_bb75k_h30k_recon_s20260722_best.pth (ema_loss=1.169272)
+[qhead_cf412om_bb100k_h30k_recon_s20260722] [   1500] loss=0.244788  ema_loss=1.147453  1.5 sps  ETA 5.1h
+[qhead_cf412om_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412om_bb100k_h30k_recon/qhead_cf412om_bb100k_h30k_recon_s20260722_best.pth (ema_loss=1.147453)
+[qhead_cf412om_bb125k_h30k_recon_s20260722] [   1500] loss=0.268516  ema_loss=1.150522  1.5 sps  ETA 5.1h
+[qhead_cf412om_bb125k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412om_bb125k_h30k_recon/qhead_cf412om_bb125k_h30k_recon_s20260722_best.pth (ema_loss=1.150522)
+[qhead_cf412om_bb150k_h30k_recon_s20260722] [   1500] loss=0.248316  ema_loss=1.123929  1.5 sps  ETA 5.1h
+[qhead_cf412om_bb150k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412om_bb150k_h30k_recon/qhead_cf412om_bb150k_h30k_recon_s20260722_best.pth (ema_loss=1.123929)
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722] [   1500] loss=0.140763  ema_loss=1.033093  1.5 sps  ETA 5.2h
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412oc2_bb100k_h30k_recon/qhead_cf412oc2_bb100k_h30k_recon_s20260722_best.pth (ema_loss=1.033093)
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722] [   1500] loss=0.170265  ema_loss=1.013454  1.5 sps  ETA 5.2h
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412oc2_bb200k_h30k_recon/qhead_cf412oc2_bb200k_h30k_recon_s20260722_best.pth (ema_loss=1.013454)
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722] [   1500] loss=0.156528  ema_loss=1.023511  1.5 sps  ETA 5.2h
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412oc2_bb300k_h30k_recon/qhead_cf412oc2_bb300k_h30k_recon_s20260722_best.pth (ema_loss=1.023511)
+[shared] 1500 steps: 1.53 steps/s since the start, 1.67 steps/s over the last 500, 20.0 job steps/s, peak 8.02 GiB allocated, 8.54 GiB reserved
+[qhead_cf419ms_bb140k_h30k_recon_s20260722] [   2000] loss=22.724777  ema_loss=4.547574  1.6 sps  ETA 5.0h
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722] [   2000] loss=0.015310  ema_loss=0.017713  1.6 sps  ETA 5.0h
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb200k_h30k_recon/qhead_cf419_cos200k_bb200k_h30k_recon_s20260722_best.pth (ema_loss=0.017713)
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722] [   2000] loss=0.016262  ema_loss=0.017413  1.6 sps  ETA 5.0h
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb300k_h30k_recon/qhead_cf419_cos200k_bb300k_h30k_recon_s20260722_best.pth (ema_loss=0.017413)
+[qhead_cf412om_bb25k_h30k_recon_s20260722] [   2000] loss=24.800476  ema_loss=4.678259  1.6 sps  ETA 5.0h
+[qhead_cf412om_bb50k_h30k_recon_s20260722] [   2000] loss=24.877815  ema_loss=4.716568  1.6 sps  ETA 5.0h
+[qhead_cf412om_bb75k_h30k_recon_s20260722] [   2000] loss=24.921438  ema_loss=4.753113  1.6 sps  ETA 5.0h
+[qhead_cf412om_bb100k_h30k_recon_s20260722] [   2000] loss=24.879591  ema_loss=4.726376  1.6 sps  ETA 5.0h
+[qhead_cf412om_bb125k_h30k_recon_s20260722] [   2000] loss=24.882879  ema_loss=4.732753  1.6 sps  ETA 5.0h
+[qhead_cf412om_bb150k_h30k_recon_s20260722] [   2000] loss=24.874807  ema_loss=4.714341  1.6 sps  ETA 5.0h
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722] [   2000] loss=24.768852  ema_loss=4.612611  1.6 sps  ETA 5.0h
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722] [   2000] loss=24.776451  ema_loss=4.619759  1.6 sps  ETA 5.0h
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722] [   2000] loss=24.743393  ema_loss=4.599901  1.6 sps  ETA 5.0h
+[shared] 2000 steps: 1.55 steps/s since the start, 1.61 steps/s over the last 500, 19.4 job steps/s, peak 8.02 GiB allocated, 8.54 GiB reserved
+[qhead_cf419ms_bb140k_h30k_recon_s20260722] [   2500] loss=0.791610  ema_loss=1.188306  1.6 sps  ETA 4.8h
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722] [   2500] loss=0.014968  ema_loss=0.015454  1.6 sps  ETA 4.8h
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb200k_h30k_recon/qhead_cf419_cos200k_bb200k_h30k_recon_s20260722_best.pth (ema_loss=0.015454)
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722] [   2500] loss=0.015929  ema_loss=0.016219  1.6 sps  ETA 4.8h
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb300k_h30k_recon/qhead_cf419_cos200k_bb300k_h30k_recon_s20260722_best.pth (ema_loss=0.016219)
+[qhead_cf412om_bb25k_h30k_recon_s20260722] [   2500] loss=1.002621  ema_loss=1.330331  1.6 sps  ETA 4.8h
+[qhead_cf412om_bb50k_h30k_recon_s20260722] [   2500] loss=1.067363  ema_loss=1.377087  1.6 sps  ETA 4.8h
+[qhead_cf412om_bb75k_h30k_recon_s20260722] [   2500] loss=1.112779  ema_loss=1.414939  1.6 sps  ETA 4.8h
+[qhead_cf412om_bb100k_h30k_recon_s20260722] [   2500] loss=1.065157  ema_loss=1.379035  1.6 sps  ETA 4.8h
+[qhead_cf412om_bb125k_h30k_recon_s20260722] [   2500] loss=1.127561  ema_loss=1.383691  1.6 sps  ETA 4.8h
+[qhead_cf412om_bb150k_h30k_recon_s20260722] [   2500] loss=1.052476  ema_loss=1.338700  1.6 sps  ETA 4.8h
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722] [   2500] loss=0.954471  ema_loss=1.298909  1.6 sps  ETA 4.8h
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722] [   2500] loss=0.922162  ema_loss=1.269770  1.6 sps  ETA 4.8h
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722] [   2500] loss=0.916811  ema_loss=1.263122  1.6 sps  ETA 4.8h
+[shared] 2500 steps: 1.60 steps/s since the start, 1.84 steps/s over the last 500, 22.1 job steps/s, peak 8.02 GiB allocated, 8.54 GiB reserved
+[qhead_cf419ms_bb140k_h30k_recon_s20260722] [   3000] loss=0.315599  ema_loss=0.655363  1.6 sps  ETA 4.6h
+[qhead_cf419ms_bb140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419ms_bb140k_h30k_recon/qhead_cf419ms_bb140k_h30k_recon_s20260722_best.pth (ema_loss=0.655363)
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722] [   3000] loss=0.014457  ema_loss=0.017561  1.6 sps  ETA 4.6h
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722] [   3000] loss=0.015793  ema_loss=0.015374  1.6 sps  ETA 4.6h
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb300k_h30k_recon/qhead_cf419_cos200k_bb300k_h30k_recon_s20260722_best.pth (ema_loss=0.015374)
+[qhead_cf412om_bb25k_h30k_recon_s20260722] [   3000] loss=0.315748  ema_loss=0.710652  1.6 sps  ETA 4.6h
+[qhead_cf412om_bb25k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412om_bb25k_h30k_recon/qhead_cf412om_bb25k_h30k_recon_s20260722_best.pth (ema_loss=0.710652)
+[qhead_cf412om_bb50k_h30k_recon_s20260722] [   3000] loss=0.372285  ema_loss=0.755506  1.6 sps  ETA 4.6h
+[qhead_cf412om_bb50k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412om_bb50k_h30k_recon/qhead_cf412om_bb50k_h30k_recon_s20260722_best.pth (ema_loss=0.755506)
+[qhead_cf412om_bb75k_h30k_recon_s20260722] [   3000] loss=0.399111  ema_loss=0.775668  1.6 sps  ETA 4.6h
+[qhead_cf412om_bb75k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412om_bb75k_h30k_recon/qhead_cf412om_bb75k_h30k_recon_s20260722_best.pth (ema_loss=0.775668)
+[qhead_cf412om_bb100k_h30k_recon_s20260722] [   3000] loss=0.385943  ema_loss=0.763629  1.6 sps  ETA 4.6h
+[qhead_cf412om_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412om_bb100k_h30k_recon/qhead_cf412om_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.763629)
+[qhead_cf412om_bb125k_h30k_recon_s20260722] [   3000] loss=0.374497  ema_loss=0.781698  1.6 sps  ETA 4.6h
+[qhead_cf412om_bb125k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412om_bb125k_h30k_recon/qhead_cf412om_bb125k_h30k_recon_s20260722_best.pth (ema_loss=0.781698)
+[qhead_cf412om_bb150k_h30k_recon_s20260722] [   3000] loss=0.342659  ema_loss=0.747438  1.6 sps  ETA 4.6h
+[qhead_cf412om_bb150k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412om_bb150k_h30k_recon/qhead_cf412om_bb150k_h30k_recon_s20260722_best.pth (ema_loss=0.747438)
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722] [   3000] loss=0.292284  ema_loss=0.656334  1.6 sps  ETA 4.6h
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412oc2_bb100k_h30k_recon/qhead_cf412oc2_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.656334)
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722] [   3000] loss=0.276311  ema_loss=0.637110  1.6 sps  ETA 4.6h
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412oc2_bb200k_h30k_recon/qhead_cf412oc2_bb200k_h30k_recon_s20260722_best.pth (ema_loss=0.637110)
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722] [   3000] loss=0.274795  ema_loss=0.634026  1.6 sps  ETA 4.6h
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf412oc2_bb300k_h30k_recon/qhead_cf412oc2_bb300k_h30k_recon_s20260722_best.pth (ema_loss=0.634026)
+[shared] 3000 steps: 1.61 steps/s since the start, 1.67 steps/s over the last 500, 20.1 job steps/s, peak 8.02 GiB allocated, 8.54 GiB reserved
+[qhead_cf419ms_bb140k_h30k_recon_s20260722] [   3500] loss=0.123550  ema_loss=1.846207  1.6 sps  ETA 4.5h
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722] [   3500] loss=0.014672  ema_loss=0.013912  1.6 sps  ETA 4.5h
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb200k_h30k_recon/qhead_cf419_cos200k_bb200k_h30k_recon_s20260722_best.pth (ema_loss=0.013912)
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722] [   3500] loss=0.021711  ema_loss=0.029605  1.6 sps  ETA 4.5h
+[qhead_cf412om_bb25k_h30k_recon_s20260722] [   3500] loss=0.217867  ema_loss=2.664135  1.6 sps  ETA 4.5h
+[qhead_cf412om_bb50k_h30k_recon_s20260722] [   3500] loss=0.243581  ema_loss=2.733286  1.6 sps  ETA 4.5h
+[qhead_cf412om_bb75k_h30k_recon_s20260722] [   3500] loss=0.285388  ema_loss=2.742735  1.6 sps  ETA 4.5h
+[qhead_cf412om_bb100k_h30k_recon_s20260722] [   3500] loss=0.289626  ema_loss=2.719798  1.6 sps  ETA 4.5h
+[qhead_cf412om_bb125k_h30k_recon_s20260722] [   3500] loss=0.290953  ema_loss=2.715203  1.6 sps  ETA 4.5h
+[qhead_cf412om_bb150k_h30k_recon_s20260722] [   3500] loss=0.242614  ema_loss=2.672055  1.6 sps  ETA 4.5h
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722] [   3500] loss=0.163483  ema_loss=2.601664  1.6 sps  ETA 4.5h
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722] [   3500] loss=0.182440  ema_loss=2.579760  1.6 sps  ETA 4.5h
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722] [   3500] loss=0.154818  ema_loss=2.570413  1.6 sps  ETA 4.5h
+[shared] 3500 steps: 1.62 steps/s since the start, 1.69 steps/s over the last 500, 20.2 job steps/s, peak 8.02 GiB allocated, 8.54 GiB reserved
+[qhead_cf419ms_bb140k_h30k_recon_s20260722] [   4000] loss=0.086116  ema_loss=1.049415  1.6 sps  ETA 4.4h
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722] [   4000] loss=0.012546  ema_loss=0.013491  1.6 sps  ETA 4.4h
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb200k_h30k_recon/qhead_cf419_cos200k_bb200k_h30k_recon_s20260722_best.pth (ema_loss=0.013491)
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722] [   4000] loss=0.014897  ema_loss=0.016301  1.6 sps  ETA 4.4h
+[qhead_cf412om_bb25k_h30k_recon_s20260722] [   4000] loss=0.187949  ema_loss=1.001027  1.6 sps  ETA 4.4h
+[qhead_cf412om_bb50k_h30k_recon_s20260722] [   4000] loss=0.218811  ema_loss=1.057749  1.6 sps  ETA 4.4h
+[qhead_cf412om_bb75k_h30k_recon_s20260722] [   4000] loss=0.246677  ema_loss=1.081717  1.6 sps  ETA 4.4h
+[qhead_cf412om_bb100k_h30k_recon_s20260722] [   4000] loss=0.246789  ema_loss=1.050824  1.6 sps  ETA 4.4h
+[qhead_cf412om_bb125k_h30k_recon_s20260722] [   4000] loss=0.292448  ema_loss=1.060359  1.6 sps  ETA 4.4h
+[qhead_cf412om_bb150k_h30k_recon_s20260722] [   4000] loss=0.249702  ema_loss=1.020954  1.6 sps  ETA 4.4h
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722] [   4000] loss=0.160689  ema_loss=0.950397  1.6 sps  ETA 4.4h
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722] [   4000] loss=0.128406  ema_loss=0.921318  1.6 sps  ETA 4.4h
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722] [   4000] loss=0.160721  ema_loss=0.937292  1.6 sps  ETA 4.4h
+[shared] 4000 steps: 1.64 steps/s since the start, 1.75 steps/s over the last 500, 21.0 job steps/s, peak 8.02 GiB allocated, 8.54 GiB reserved
+[qhead_cf419ms_bb140k_h30k_recon_s20260722] [   4500] loss=5.525037  ema_loss=1.350902  1.6 sps  ETA 4.3h
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722] [   4500] loss=0.012273  ema_loss=0.013098  1.6 sps  ETA 4.3h
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb200k_h30k_recon/qhead_cf419_cos200k_bb200k_h30k_recon_s20260722_best.pth (ema_loss=0.013098)
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722] [   4500] loss=0.013562  ema_loss=0.014367  1.6 sps  ETA 4.3h
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb300k_h30k_recon/qhead_cf419_cos200k_bb300k_h30k_recon_s20260722_best.pth (ema_loss=0.014367)
+[qhead_cf412om_bb25k_h30k_recon_s20260722] [   4500] loss=6.017144  ema_loss=1.497502  1.6 sps  ETA 4.3h
+[qhead_cf412om_bb50k_h30k_recon_s20260722] [   4500] loss=6.566529  ema_loss=1.573777  1.6 sps  ETA 4.3h
+[qhead_cf412om_bb75k_h30k_recon_s20260722] [   4500] loss=6.250238  ema_loss=1.592054  1.6 sps  ETA 4.3h
+[qhead_cf412om_bb100k_h30k_recon_s20260722] [   4500] loss=6.211433  ema_loss=1.514332  1.6 sps  ETA 4.3h
+[qhead_cf412om_bb125k_h30k_recon_s20260722] [   4500] loss=6.216156  ema_loss=1.525711  1.6 sps  ETA 4.3h
+[qhead_cf412om_bb150k_h30k_recon_s20260722] [   4500] loss=6.209376  ema_loss=1.464081  1.6 sps  ETA 4.3h
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722] [   4500] loss=6.047918  ema_loss=1.412699  1.6 sps  ETA 4.3h
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722] [   4500] loss=5.907718  ema_loss=1.384872  1.6 sps  ETA 4.3h
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722] [   4500] loss=5.948626  ema_loss=1.386984  1.6 sps  ETA 4.3h
+[shared] 4500 steps: 1.64 steps/s since the start, 1.69 steps/s over the last 500, 20.2 job steps/s, peak 8.02 GiB allocated, 8.54 GiB reserved
+[qhead_cf419ms_bb140k_h30k_recon_s20260722] [   5000] loss=0.457088  ema_loss=2.021551  1.7 sps  ETA 4.2h
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722] [   5000] loss=0.166108  ema_loss=0.075888  1.7 sps  ETA 4.2h
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722] [   5000] loss=0.014605  ema_loss=0.013981  1.7 sps  ETA 4.2h
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb300k_h30k_recon/qhead_cf419_cos200k_bb300k_h30k_recon_s20260722_best.pth (ema_loss=0.013981)
+[qhead_cf412om_bb25k_h30k_recon_s20260722] [   5000] loss=1.351148  ema_loss=2.233916  1.7 sps  ETA 4.2h
+[qhead_cf412om_bb50k_h30k_recon_s20260722] [   5000] loss=1.411250  ema_loss=2.309255  1.7 sps  ETA 4.2h
+[qhead_cf412om_bb75k_h30k_recon_s20260722] [   5000] loss=1.795042  ema_loss=2.345248  1.7 sps  ETA 4.2h
+[qhead_cf412om_bb100k_h30k_recon_s20260722] [   5000] loss=1.340614  ema_loss=2.258308  1.7 sps  ETA 4.2h
+[qhead_cf412om_bb125k_h30k_recon_s20260722] [   5000] loss=1.912254  ema_loss=2.256578  1.7 sps  ETA 4.2h
+[qhead_cf412om_bb150k_h30k_recon_s20260722] [   5000] loss=1.524670  ema_loss=2.210536  1.7 sps  ETA 4.2h
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722] [   5000] loss=1.210253  ema_loss=2.139195  1.7 sps  ETA 4.2h
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722] [   5000] loss=1.245304  ema_loss=2.122124  1.7 sps  ETA 4.2h
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722] [   5000] loss=1.269839  ema_loss=2.133706  1.7 sps  ETA 4.2h
+[shared] 5000 steps: 1.65 steps/s since the start, 1.71 steps/s over the last 500, 20.5 job steps/s, peak 8.02 GiB allocated, 8.54 GiB reserved
+[qhead_cf419ms_bb140k_h30k_recon_s20260722] [   5500] loss=0.077887  ema_loss=1.826768  1.7 sps  ETA 4.1h
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722] [   5500] loss=0.017245  ema_loss=0.020697  1.7 sps  ETA 4.1h
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722] [   5500] loss=0.012981  ema_loss=0.013402  1.7 sps  ETA 4.1h
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb300k_h30k_recon/qhead_cf419_cos200k_bb300k_h30k_recon_s20260722_best.pth (ema_loss=0.013402)
+[qhead_cf412om_bb25k_h30k_recon_s20260722] [   5500] loss=0.183970  ema_loss=1.644586  1.7 sps  ETA 4.1h
+[qhead_cf412om_bb50k_h30k_recon_s20260722] [   5500] loss=0.206956  ema_loss=1.706442  1.7 sps  ETA 4.1h
+[qhead_cf412om_bb75k_h30k_recon_s20260722] [   5500] loss=0.270569  ema_loss=1.728836  1.7 sps  ETA 4.1h
+[qhead_cf412om_bb100k_h30k_recon_s20260722] [   5500] loss=0.215416  ema_loss=1.677363  1.7 sps  ETA 4.1h
+[qhead_cf412om_bb125k_h30k_recon_s20260722] [   5500] loss=0.333561  ema_loss=1.675940  1.7 sps  ETA 4.1h
+[qhead_cf412om_bb150k_h30k_recon_s20260722] [   5500] loss=0.242185  ema_loss=1.614337  1.7 sps  ETA 4.1h
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722] [   5500] loss=0.131568  ema_loss=1.567481  1.7 sps  ETA 4.1h
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722] [   5500] loss=0.121575  ema_loss=1.551328  1.7 sps  ETA 4.1h
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722] [   5500] loss=0.121512  ema_loss=1.529367  1.7 sps  ETA 4.1h
+[shared] 5500 steps: 1.66 steps/s since the start, 1.70 steps/s over the last 500, 20.4 job steps/s, peak 8.02 GiB allocated, 8.54 GiB reserved
+[qhead_cf419ms_bb140k_h30k_recon_s20260722] [   6000] loss=0.101975  ema_loss=1.818443  1.7 sps  ETA 4.0h
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722] [   6000] loss=0.015343  ema_loss=0.016635  1.7 sps  ETA 4.0h
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722] [   6000] loss=0.012683  ema_loss=0.013071  1.7 sps  ETA 4.0h
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb300k_h30k_recon/qhead_cf419_cos200k_bb300k_h30k_recon_s20260722_best.pth (ema_loss=0.013071)
+[qhead_cf412om_bb25k_h30k_recon_s20260722] [   6000] loss=0.348103  ema_loss=1.748067  1.7 sps  ETA 4.0h
+[qhead_cf412om_bb50k_h30k_recon_s20260722] [   6000] loss=0.558969  ema_loss=1.804222  1.7 sps  ETA 4.0h
+[qhead_cf412om_bb75k_h30k_recon_s20260722] [   6000] loss=0.615137  ema_loss=1.835851  1.7 sps  ETA 4.0h
+[qhead_cf412om_bb100k_h30k_recon_s20260722] [   6000] loss=0.356245  ema_loss=1.767737  1.7 sps  ETA 4.0h
+[qhead_cf412om_bb125k_h30k_recon_s20260722] [   6000] loss=0.618503  ema_loss=1.771621  1.7 sps  ETA 4.0h
+[qhead_cf412om_bb150k_h30k_recon_s20260722] [   6000] loss=0.388830  ema_loss=1.707966  1.7 sps  ETA 4.0h
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722] [   6000] loss=0.220969  ema_loss=1.644587  1.7 sps  ETA 4.0h
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722] [   6000] loss=0.252725  ema_loss=1.613875  1.7 sps  ETA 4.0h
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722] [   6000] loss=0.258295  ema_loss=1.632786  1.7 sps  ETA 4.0h
+[shared] 6000 steps: 1.65 steps/s since the start, 1.64 steps/s over the last 500, 19.7 job steps/s, peak 8.02 GiB allocated, 8.54 GiB reserved
+[qhead_cf419ms_bb140k_h30k_recon_s20260722] [   6500] loss=4.492352  ema_loss=0.777314  1.7 sps  ETA 3.9h
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722] [   6500] loss=0.013539  ema_loss=0.013485  1.7 sps  ETA 3.9h
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722] [   6500] loss=0.012890  ema_loss=0.012747  1.7 sps  ETA 3.9h
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb300k_h30k_recon/qhead_cf419_cos200k_bb300k_h30k_recon_s20260722_best.pth (ema_loss=0.012747)
+[qhead_cf412om_bb25k_h30k_recon_s20260722] [   6500] loss=0.206475  ema_loss=0.776930  1.7 sps  ETA 3.9h
+[qhead_cf412om_bb50k_h30k_recon_s20260722] [   6500] loss=0.246655  ema_loss=0.837181  1.7 sps  ETA 3.9h
+[qhead_cf412om_bb75k_h30k_recon_s20260722] [   6500] loss=0.247440  ema_loss=0.852553  1.7 sps  ETA 3.9h
+[qhead_cf412om_bb100k_h30k_recon_s20260722] [   6500] loss=0.274857  ema_loss=0.825770  1.7 sps  ETA 3.9h
+[qhead_cf412om_bb125k_h30k_recon_s20260722] [   6500] loss=0.274890  ema_loss=0.819225  1.7 sps  ETA 3.9h
+[qhead_cf412om_bb150k_h30k_recon_s20260722] [   6500] loss=0.205478  ema_loss=0.786122  1.7 sps  ETA 3.9h
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722] [   6500] loss=0.137449  ema_loss=0.715375  1.7 sps  ETA 3.9h
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722] [   6500] loss=0.114205  ema_loss=0.695129  1.7 sps  ETA 3.9h
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722] [   6500] loss=0.122152  ema_loss=0.684750  1.7 sps  ETA 3.9h
+[shared] 6500 steps: 1.66 steps/s since the start, 1.80 steps/s over the last 500, 21.6 job steps/s, peak 8.02 GiB allocated, 8.54 GiB reserved
+[qhead_cf419ms_bb140k_h30k_recon_s20260722] [   7000] loss=2.157269  ema_loss=1.203440  1.7 sps  ETA 3.8h
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722] [   7000] loss=0.012823  ema_loss=0.012629  1.7 sps  ETA 3.8h
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb200k_h30k_recon/qhead_cf419_cos200k_bb200k_h30k_recon_s20260722_best.pth (ema_loss=0.012629)
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722] [   7000] loss=0.012877  ema_loss=0.012461  1.7 sps  ETA 3.8h
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb300k_h30k_recon/qhead_cf419_cos200k_bb300k_h30k_recon_s20260722_best.pth (ema_loss=0.012461)
+[qhead_cf412om_bb25k_h30k_recon_s20260722] [   7000] loss=2.229489  ema_loss=1.151729  1.7 sps  ETA 3.8h
+[qhead_cf412om_bb50k_h30k_recon_s20260722] [   7000] loss=2.325090  ema_loss=1.216392  1.7 sps  ETA 3.8h
+[qhead_cf412om_bb75k_h30k_recon_s20260722] [   7000] loss=2.382361  ema_loss=1.229999  1.7 sps  ETA 3.8h
+[qhead_cf412om_bb100k_h30k_recon_s20260722] [   7000] loss=2.441158  ema_loss=1.181284  1.7 sps  ETA 3.8h
+[qhead_cf412om_bb125k_h30k_recon_s20260722] [   7000] loss=2.383666  ema_loss=1.173633  1.7 sps  ETA 3.8h
+[qhead_cf412om_bb150k_h30k_recon_s20260722] [   7000] loss=2.317835  ema_loss=1.133852  1.7 sps  ETA 3.8h
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722] [   7000] loss=2.127281  ema_loss=1.069348  1.7 sps  ETA 3.8h
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722] [   7000] loss=2.059806  ema_loss=1.042489  1.7 sps  ETA 3.8h
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722] [   7000] loss=2.044576  ema_loss=1.039440  1.7 sps  ETA 3.8h
+[shared] 7000 steps: 1.67 steps/s since the start, 1.67 steps/s over the last 500, 20.0 job steps/s, peak 8.02 GiB allocated, 8.54 GiB reserved
+[qhead_cf419ms_bb140k_h30k_recon_s20260722] [   7500] loss=0.061315  ema_loss=1.713616  1.7 sps  ETA 3.7h
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722] [   7500] loss=0.012528  ema_loss=0.012234  1.7 sps  ETA 3.7h
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb200k_h30k_recon/qhead_cf419_cos200k_bb200k_h30k_recon_s20260722_best.pth (ema_loss=0.012234)
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722] [   7500] loss=0.012795  ema_loss=0.012270  1.7 sps  ETA 3.7h
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb300k_h30k_recon/qhead_cf419_cos200k_bb300k_h30k_recon_s20260722_best.pth (ema_loss=0.012270)
+[qhead_cf412om_bb25k_h30k_recon_s20260722] [   7500] loss=0.166018  ema_loss=1.208777  1.7 sps  ETA 3.7h
+[qhead_cf412om_bb50k_h30k_recon_s20260722] [   7500] loss=0.192123  ema_loss=1.272748  1.7 sps  ETA 3.7h
+[qhead_cf412om_bb75k_h30k_recon_s20260722] [   7500] loss=0.209514  ema_loss=1.272767  1.7 sps  ETA 3.7h
+[qhead_cf412om_bb100k_h30k_recon_s20260722] [   7500] loss=0.201096  ema_loss=1.244234  1.7 sps  ETA 3.7h
+[qhead_cf412om_bb125k_h30k_recon_s20260722] [   7500] loss=0.205008  ema_loss=1.230432  1.7 sps  ETA 3.7h
+[qhead_cf412om_bb150k_h30k_recon_s20260722] [   7500] loss=0.202338  ema_loss=1.199084  1.7 sps  ETA 3.7h
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722] [   7500] loss=0.127962  ema_loss=1.139099  1.7 sps  ETA 3.7h
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722] [   7500] loss=0.113188  ema_loss=1.114249  1.7 sps  ETA 3.7h
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722] [   7500] loss=0.116521  ema_loss=1.114101  1.7 sps  ETA 3.7h
+[shared] 7500 steps: 1.67 steps/s since the start, 1.76 steps/s over the last 500, 21.1 job steps/s, peak 8.02 GiB allocated, 8.54 GiB reserved
+[qhead_cf419ms_bb140k_h30k_recon_s20260722] [   8000] loss=0.063873  ema_loss=2.081229  1.7 sps  ETA 3.6h
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722] [   8000] loss=0.011637  ema_loss=0.011721  1.7 sps  ETA 3.6h
+[qhead_cf419_cos200k_bb200k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb200k_h30k_recon/qhead_cf419_cos200k_bb200k_h30k_recon_s20260722_best.pth (ema_loss=0.011721)
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722] [   8000] loss=0.012962  ema_loss=0.011861  1.7 sps  ETA 3.6h
+[qhead_cf419_cos200k_bb300k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/cf419_cos200k_bb300k_h30k_recon/qhead_cf419_cos200k_bb300k_h30k_recon_s20260722_best.pth (ema_loss=0.011861)
+[qhead_cf412om_bb25k_h30k_recon_s20260722] [   8000] loss=0.170084  ema_loss=2.398287  1.7 sps  ETA 3.6h
+[qhead_cf412om_bb50k_h30k_recon_s20260722] [   8000] loss=0.203807  ema_loss=2.440692  1.7 sps  ETA 3.6h
+[qhead_cf412om_bb75k_h30k_recon_s20260722] [   8000] loss=0.208028  ema_loss=2.468020  1.7 sps  ETA 3.6h
+[qhead_cf412om_bb100k_h30k_recon_s20260722] [   8000] loss=0.211979  ema_loss=2.440206  1.7 sps  ETA 3.6h
+[qhead_cf412om_bb125k_h30k_recon_s20260722] [   8000] loss=0.226517  ema_loss=2.432272  1.7 sps  ETA 3.6h
+[qhead_cf412om_bb150k_h30k_recon_s20260722] [   8000] loss=0.205828  ema_loss=2.401380  1.7 sps  ETA 3.6h
+[qhead_cf412oc2_bb100k_h30k_recon_s20260722] [   8000] loss=0.127414  ema_loss=2.321926  1.7 sps  ETA 3.6h
+[qhead_cf412oc2_bb200k_h30k_recon_s20260722] [   8000] loss=0.115541  ema_loss=2.302619  1.7 sps  ETA 3.6h
+[qhead_cf412oc2_bb300k_h30k_recon_s20260722] [   8000] loss=0.122945  ema_loss=2.317547  1.7 sps  ETA 3.6h
+[shared] 8000 steps: 1.69 steps/s since the start, 2.07 steps/s over the last 500, 24.8 job steps/s, peak 8.02 GiB allocated, 8.54 GiB reserved
