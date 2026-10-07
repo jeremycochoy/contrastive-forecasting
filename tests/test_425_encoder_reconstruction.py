@@ -1587,6 +1587,20 @@ def test_the_figures_draw_the_floor_of_their_runs(tmp_path):
     assert low < 0.29 and high > 0.95
 
 
+def test_the_label_of_a_close_floor_goes_below_its_line(tmp_path):
+    """Two floors closer than a label height: the lower label goes under
+    its line, so the labels do not overlap."""
+    pytest.importorskip("matplotlib")
+    plot = load_script("plot_recon")
+    floors = [{"setup": s, "label": s, "arms": {"cf412om"}, "score": v}
+              for s, v in (("upper", 1.2092), ("lower", 1.1870))]
+    points = {"cf412om": {40000: 0.31, 100000: 0.29}}
+    fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], {}, points,
+                           tmp_path / "f.png", False, floors)
+    offsets = {t.get_text(): t.xyann[1] for t in fig.axes[0].texts}
+    assert offsets == {"upper": 3, "lower": -3}
+
+
 def floor_checkout(stub_checkout):
     """The stub checkout, and an elisa mirror that holds the checkpoint of
     each floor as a small file at its path in jobs.tsv."""

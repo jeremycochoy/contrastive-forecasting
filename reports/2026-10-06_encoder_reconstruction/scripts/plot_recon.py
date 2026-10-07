@@ -55,6 +55,7 @@ FORECAST_ALPHA = 0.5
 LINK_WIDTH = 0.6
 FLOOR_COLOUR = "0.55"
 FLOOR_WIDTH = 0.8
+FLOOR_LABEL_ROOM = 0.04   # the height of a label, as a share of the y range
 
 
 def load(paths):
@@ -86,13 +87,26 @@ def floors_of(arms, floors):
     return [floor for floor in floors if floor["arms"] & set(arms)]
 
 
-def draw_floor(ax, floor):
-    """A thin grey line at the floor, with its label at the right end."""
+def draw_floor(ax, floor, below=False):
+    """A thin grey line at the floor, with its label at the right end,
+    above the line or below it."""
     ax.axhline(floor["score"], color=FLOOR_COLOUR, lw=FLOOR_WIDTH, zorder=1)
     ax.annotate(floor["label"], xy=(1.0, floor["score"]),
-                xycoords=("axes fraction", "data"), xytext=(-4, 3),
-                textcoords="offset points", ha="right", va="bottom",
-                fontsize=9, color=FLOOR_COLOUR)
+                xycoords=("axes fraction", "data"),
+                xytext=(-4, -3 if below else 3), textcoords="offset points",
+                ha="right", va="top" if below else "bottom", fontsize=9,
+                color=FLOOR_COLOUR)
+
+
+def draw_floors(ax, floors):
+    """Each floor, with its label above its line, or below the line when the
+    next floor up leaves no room for the label."""
+    low, high = ax.get_ylim()
+    room = FLOOR_LABEL_ROOM * (high - low)
+    ordered = sorted(floors, key=lambda floor: floor["score"])
+    for floor, up in zip(ordered, ordered[1:] + [None]):
+        draw_floor(ax, floor, below=up is not None
+                   and up["score"] - floor["score"] < room)
 
 
 def draw_run(ax, arm, width, marker, points, alpha=1.0, clip=None):
@@ -161,12 +175,11 @@ def draw_figure(groups, forecast, recon, out, overlay, floors=()):
     if overlay:
         values += [min(v, YMAX) for arm, *_ in runs
                    for v in forecast.get(arm, {}).values()]
-    for floor in floors:
-        draw_floor(ax, floor)
-        values.append(floor["score"])
+    values += [floor["score"] for floor in floors]
     span = max(values) - min(values) or 0.1
     style_axes(ax, overlay, max(0.0, min(values) - 0.08 * span),
                max(values) + 0.08 * span, floors)
+    draw_floors(ax, floors)
     base.draw_legend(ax, groups, handles)
     fig.tight_layout()
     fig.savefig(out, dpi=135, bbox_inches="tight")

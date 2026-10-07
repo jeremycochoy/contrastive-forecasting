@@ -23,6 +23,11 @@
 # Order: tier, then row of jobs.tsv. Tier 1 holds the first and the last
 # stop of each run, so each run has its two ends before the stops between.
 #
+# The sizes come from probe.sh on the box (10-07): a wave of 12
+# GiftEvalPretrain jobs trains 30.0 job steps/s and uses 9.6 GB of GPU
+# memory, so it ends in about 3.3 h. The 9 old-data jobs train 25.5 job
+# steps/s in 7.1 GB, so they end in about 2.9 h.
+#
 # A job is done when its score file exists. A wave locks each of its jobs
 # (`flock` on the job's lock file) and passes the lock to the job's score,
 # so no two processes run one job, and a new queue skips the jobs that an
@@ -222,7 +227,7 @@ gpu_free(){  # MiB, or nothing with no nvidia-smi
 # has the free memory of a wave. The GPU lock holds until the trainer ends
 # its first step, or ends, and the trainer does not inherit it.
 start_trainer(){  # <stream> <wave dir>
-  local need="${CF425_WAVE_VRAM_MIB:-14000}" lk free waited=0
+  local need="${CF425_WAVE_VRAM_MIB:-12000}" lk free waited=0
   exec {lk}>>"$GPU_LOCK"
   flock "$lk"
   while :; do
