@@ -1638,6 +1638,42 @@ def test_collect_writes_the_two_tables(tmp_path, monkeypatch):
     assert out.read_text() == "cf412om\t10\t0.3100\n"
 
 
+def test_collect_copies_the_raw_artefacts_and_no_head(tmp_path):
+    """collect.py copies the score file, the per-config table, the logs and
+    the head loss CSV of each scored job, and never a head file."""
+    import gzip
+    collect = load_script("collect")
+    box, mirror = tmp_path / "box", tmp_path / "mirror" / "cf-425"
+    tag = "cf412om_bb10k_h30k_recon"
+    (box / "waves" / "gift_x").mkdir(parents=True)
+    (box / f"score_{tag}.txt").write_text("0.3100\n")
+    (box / "queue.log").write_text("queue\n")
+    (box / "waves" / "gift_x" / "train.log").write_text("[shared] done\n")
+    job = mirror / "recon" / "eval" / tag
+    (job / "gift_r").mkdir(parents=True)
+    (job / "gift_r" / "all_results.csv").write_text("dataset,mase\n")
+    (job / "gift_r" / "summary.txt").write_text("summary\n")
+    (job / "stop.log").write_text("stop\n")
+    (job / f"qhead_{tag}_s20260722_final.pth").write_bytes(b"head")
+    (job / f"qhead_{tag}_s20260722_losses.csv").write_text("step,loss\n1,0.5\n")
+    results = tmp_path / "results"
+    collect.BOX_RESULTS, collect.MIRROR, collect.RESULTS = box, mirror, results
+    collect.SYNC_LOG = tmp_path / "no_sync.log"
+    collect.main()
+    assert (results / "recon_trajectories.tsv").read_text() == "cf412om\t10\t0.3100\n"
+    assert (results / "scores" / f"score_{tag}.txt").read_text() == "0.3100\n"
+    assert (results / "per_config" / f"{tag}.csv").is_file()
+    assert (results / "logs" / "jobs" / tag / "summary.txt").is_file()
+    assert (results / "logs" / "waves" / "gift_x" / "train.log").is_file()
+    assert (results / "logs" / "queue.log").is_file()
+    packed = results / "head_losses" / f"{tag}_losses.csv.gz"
+    assert gzip.decompress(packed.read_bytes()) == b"step,loss\n1,0.5\n"
+    first = packed.read_bytes()
+    collect.main()   # the same CSV gives the same bytes
+    assert packed.read_bytes() == first
+    assert not list(results.rglob("*.pth"))
+
+
 def test_the_figures_pair_the_two_scores_of_a_checkpoint(tmp_path,
                                                          monkeypatch):
     pytest.importorskip("matplotlib")

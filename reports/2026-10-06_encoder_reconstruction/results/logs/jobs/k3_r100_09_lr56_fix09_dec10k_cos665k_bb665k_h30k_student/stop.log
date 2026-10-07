@@ -1,0 +1,7 @@
+[10-06 20:43:35] [k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_student] head-train SKIP (final exists)
+[10-06 20:43:35] [k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[10-06 20:43:35] START k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_student bb665k enc=student shards=3 slot=0
+[10-06 21:47:55] merged 97 configs -> /workspace/ckpt/cf-425/forecast/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_student/gift/all_results.csv
+[10-06 21:47:57] DONE k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_student bb665k student — Aggregate GM-Relative MASE (97 configs): 1.2706 -> 1.2706
+[10-06 21:47:57] [k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_student] eval rc=0
+[10-06 21:47:57] [k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_student] DONE — GM-Relative MASE 1.2706
