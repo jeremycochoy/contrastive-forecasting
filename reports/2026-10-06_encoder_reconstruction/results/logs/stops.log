@@ -79,3 +79,63 @@
 [10-07 11:14:30] [k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon] DONE — GM-Relative MASE 0.0373
 [10-07 11:26:19] [k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon] eval rc=0
 [10-07 11:26:19] [k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon] DONE — GM-Relative MASE 0.0274
+[10-07 12:19:32] [cf412oc_bb40k_h30k_recon] head-train SKIP (final exists)
+[10-07 12:19:32] [cf412om_bb10k_h30k_recon] head-train SKIP (final exists)
+[10-07 12:19:32] [cf419_cos200k_bb400k_h30k_recon] head-train SKIP (final exists)
+[10-07 12:19:32] [cf412om_bb166k_h30k_recon] head-train SKIP (final exists)
+[10-07 12:19:32] [cf412oc2_bb40k_h30k_recon] head-train SKIP (final exists)
+[10-07 12:19:32] [cf419_cos200k_bb100k_h30k_recon] head-train SKIP (final exists)
+[10-07 12:19:32] [cf412oc2_bb400k_h30k_recon] head-train SKIP (final exists)
+[10-07 12:19:32] [cf412oa2_bb40k_h30k_recon] head-train SKIP (final exists)
+[10-07 12:19:32] [cf412oc_bb40k_h30k_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-07 12:19:32] [cf412om_bb10k_h30k_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-07 12:19:32] [cf412om2_bb10k_h30k_recon] head-train SKIP (final exists)
+[10-07 12:19:32] [cf412om_bb166k_h30k_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-07 12:19:32] [cf412oe2_bb200k_h30k_recon] head-train SKIP (final exists)
+[10-07 12:19:32] [cf412om2_bb10k_h30k_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-07 12:19:32] [cf419_cos200k_bb100k_h30k_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-07 12:19:32] [cf412om2_bb125k_h30k_recon] head-train SKIP (final exists)
+[10-07 12:19:32] [cf419_cos200k_bb400k_h30k_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-07 12:19:32] [cf412oe2_bb200k_h30k_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-07 12:19:32] [cf412oe2_bb40k_h30k_recon] head-train SKIP (final exists)
+[10-07 12:19:32] [cf412oc2_bb40k_h30k_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-07 12:19:32] [cf412om2_bb125k_h30k_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-07 12:19:32] [cf412oc2_bb400k_h30k_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-07 12:19:32] [cf412oe2_bb40k_h30k_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-07 12:19:32] [cf412oa2_bb40k_h30k_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-07 12:19:32] [cf412oa2_bb200k_h30k_recon] head argv -> /workspace/results/cf-425/waves/gift_pretrain_1007_121932_tyz1/jobs.jsonl reconstruction=encoder
+[10-07 12:19:32] [cf412ow2_bb40k_h30k_recon] head argv -> /workspace/results/cf-425/waves/gift_pretrain_1007_121932_tyz1/jobs.jsonl reconstruction=encoder
+[10-07 12:19:32] [cf412or2_bb40k_h30k_recon] head argv -> /workspace/results/cf-425/waves/gift_pretrain_1007_121932_tyz1/jobs.jsonl reconstruction=encoder
+[10-07 12:19:32] [cf412or2_bb200k_h30k_recon] head argv -> /workspace/results/cf-425/waves/gift_pretrain_1007_121932_tyz1/jobs.jsonl reconstruction=encoder
+[10-07 12:19:32] [cf412ol2_bb40k_h30k_recon] head argv -> /workspace/results/cf-425/waves/gift_pretrain_1007_121932_tyz1/jobs.jsonl reconstruction=encoder
+[10-07 12:19:32] [cf412bm_bb10k_h30k_recon] head argv -> /workspace/results/cf-425/waves/gift_pretrain_1007_121932_tyz1/jobs.jsonl reconstruction=encoder
+[10-07 12:19:32] [cf412bm_bb50k_h30k_recon] head argv -> /workspace/results/cf-425/waves/gift_pretrain_1007_121932_tyz1/jobs.jsonl reconstruction=encoder
+[10-07 12:19:32] [cf412bw_bb10k_h30k_recon] head argv -> /workspace/results/cf-425/waves/gift_pretrain_1007_121932_tyz1/jobs.jsonl reconstruction=encoder
+[10-07 12:19:32] [cf412bw_bb50k_h30k_recon] head argv -> /workspace/results/cf-425/waves/gift_pretrain_1007_121932_tyz1/jobs.jsonl reconstruction=encoder
+[10-07 12:19:32] [cf412al_bb10k_h30k_recon] head argv -> /workspace/results/cf-425/waves/gift_pretrain_1007_121932_tyz1/jobs.jsonl reconstruction=encoder
+[10-07 12:19:32] [cf412al_bb50k_h30k_recon] head argv -> /workspace/results/cf-425/waves/gift_pretrain_1007_121932_tyz1/jobs.jsonl reconstruction=encoder
+[10-07 12:19:32] [cf419ms_bb40k_h30k_recon] head argv -> /workspace/results/cf-425/waves/gift_pretrain_1007_121932_tyz1/jobs.jsonl reconstruction=encoder
+[10-07 12:31:54] [cf412om_bb10k_h30k_recon] eval rc=0
+[10-07 12:31:54] [cf412om_bb10k_h30k_recon] DONE — GM-Relative MASE 0.3358
+[10-07 12:31:56] [cf412oe2_bb200k_h30k_recon] eval rc=0
+[10-07 12:31:56] [cf412oe2_bb200k_h30k_recon] DONE — GM-Relative MASE 0.0924
+[10-07 12:44:36] [cf412oc_bb40k_h30k_recon] eval rc=0
+[10-07 12:44:36] [cf412oc_bb40k_h30k_recon] DONE — GM-Relative MASE 0.3026
+[10-07 12:44:53] [cf412om_bb166k_h30k_recon] eval rc=0
+[10-07 12:44:53] [cf412om_bb166k_h30k_recon] DONE — GM-Relative MASE 0.8347
+[10-07 12:57:34] [cf412oa2_bb40k_h30k_recon] eval rc=0
+[10-07 12:57:34] [cf412oa2_bb40k_h30k_recon] DONE — GM-Relative MASE 0.3269
+[10-07 12:58:00] [cf412om2_bb10k_h30k_recon] eval rc=0
+[10-07 12:58:00] [cf412om2_bb10k_h30k_recon] DONE — GM-Relative MASE 0.3429
+[10-07 13:10:13] [cf412oc2_bb400k_h30k_recon] eval rc=0
+[10-07 13:10:13] [cf412oc2_bb400k_h30k_recon] DONE — GM-Relative MASE 0.2727
+[10-07 13:10:44] [cf412oc2_bb40k_h30k_recon] eval rc=0
+[10-07 13:10:44] [cf412oc2_bb40k_h30k_recon] DONE — GM-Relative MASE 0.3988
+[10-07 13:23:20] [cf419_cos200k_bb400k_h30k_recon] eval rc=0
+[10-07 13:23:20] [cf419_cos200k_bb400k_h30k_recon] DONE — GM-Relative MASE 0.0328
+[10-07 13:23:22] [cf412om2_bb125k_h30k_recon] eval rc=0
+[10-07 13:23:22] [cf412om2_bb125k_h30k_recon] DONE — GM-Relative MASE 0.9853
+[10-07 13:36:03] [cf412oe2_bb40k_h30k_recon] eval rc=0
+[10-07 13:36:03] [cf412oe2_bb40k_h30k_recon] DONE — GM-Relative MASE 0.0877
+[10-07 13:36:23] [cf419_cos200k_bb100k_h30k_recon] eval rc=0
+[10-07 13:36:23] [cf419_cos200k_bb100k_h30k_recon] DONE — GM-Relative MASE 0.0399
