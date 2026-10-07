@@ -1664,9 +1664,18 @@ FLOORS_TSV = ("setup\tlabel\tarms\tgm_relative_mase\n"
               "\t0.1500\n")
 
 
+def legend_texts(fig):
+    """The text of each legend entry of a figure: the key of the axes and
+    the runs under them."""
+    legends = [ax.get_legend() for ax in fig.axes] + list(fig.legends)
+    return [text.get_text() for legend in legends if legend is not None
+            for text in legend.get_texts()]
+
+
 def test_the_figures_draw_the_floor_of_their_runs(tmp_path):
-    """Each figure draws the floor of each scaling setup of its runs as a
-    thin grey line, with its label, and the y range holds it."""
+    """Each reconstruction figure draws the floor of each scaling setup of
+    its runs as a thin grey line, its score is in the legend, and the y
+    range holds it."""
     pytest.importorskip("matplotlib")
     plot = load_script("plot_recon")
     (tmp_path / "floors.tsv").write_text(FLOORS_TSV)
@@ -1681,23 +1690,36 @@ def test_the_figures_draw_the_floor_of_their_runs(tmp_path):
     assert [float(line.get_ydata()[0]) for line in flat] == [0.95]
     assert flat[0].get_color() == plot.FLOOR_COLOUR
     assert flat[0].get_linewidth() <= 1.0
-    assert any("mean/std" in text.get_text() for text in ax.texts)
+    assert "mean/std: 0.9500" in legend_texts(fig)
     low, high = ax.get_ylim()
     assert low < 0.29 and high > 0.95
 
 
-def test_the_label_of_a_close_floor_goes_below_its_line(tmp_path):
-    """Two floors closer than a label height: the lower label goes under
-    its line, so the labels do not overlap."""
+def test_the_facts_are_in_the_plot_and_the_legend(tmp_path):
+    """The report holds the figures only. A figure has a short title of one
+    line and no annotation. Its legends give the first and the last R score
+    of each run, and the key to the line styles. An overlay draws no floor,
+    because the floors sit among the forecast curves."""
     pytest.importorskip("matplotlib")
     plot = load_script("plot_recon")
-    floors = [{"setup": s, "label": s, "arms": {"cf412om"}, "score": v}
-              for s, v in (("upper", 1.2092), ("lower", 1.1870))]
-    points = {"cf412om": {40000: 0.31, 100000: 0.29}}
-    fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], {}, points,
-                           tmp_path / "f.png", False, floors)
-    offsets = {t.get_text(): t.xyann[1] for t in fig.axes[0].texts}
-    assert offsets == {"upper": 3, "lower": -3}
+    floors = [{"setup": "meanstd", "label": "mean/std floor",
+               "arms": {"cf412om"}, "score": 1.5721, "style": "--"}]
+    points = {"cf412om": {40000: 0.3100, 100000: 0.2900}}
+    forecast = {"cf412om": {40000: 1.3782, 100000: 1.3345}}
+    for overlay in (False, True):
+        fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], forecast,
+                               points, tmp_path / f"{overlay}.png", overlay,
+                               floors, "Reconstruction (R): ours")
+        ax = fig.axes[0]
+        assert len(ax.texts) == 0
+        assert "\n" not in ax.get_title() and len(ax.get_title()) <= 60
+        texts = legend_texts(fig)
+        assert any(text.endswith("R 0.3100 → 0.2900") for text in texts)
+        assert "How to read" in texts
+        flat = [line for line in ax.get_lines()
+                if len(set(line.get_ydata())) == 1]
+        assert len(flat) == (0 if overlay else 1)
+        assert ("mean/std: 1.5721" in texts) is not overlay
 
 
 def floor_checkout(stub_checkout):
