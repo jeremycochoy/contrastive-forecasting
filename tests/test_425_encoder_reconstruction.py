@@ -1674,6 +1674,55 @@ def test_collect_copies_the_raw_artefacts_and_no_head(tmp_path):
     assert not list(results.rglob("*.pth"))
 
 
+def check_tree(tmp_path, score="0.5000\n", steps=30000):
+    """check_scores.py on the artefacts of one job: 97 configs with a MASE
+    of 1 and a seasonal-naive MASE of 2, so the score is 0.5."""
+    import gzip
+    check = load_script("check_scores")
+    tag = "cf412om_bb10k_h30k_recon"
+    results, mirror = tmp_path / "results", tmp_path / "mirror"
+    logs = results / "logs" / "jobs" / tag
+    head = mirror / "recon" / "eval" / tag
+    for folder in (results / "scores", results / "per_config", logs,
+                   results / "head_losses", head):
+        folder.mkdir(parents=True)
+    jobs = tmp_path / "jobs.tsv"
+    jobs.write_text("#code\tarm\tstop_k\nOMB\tcf412om\t10\t1\tx.pth\t1\tgift\n")
+    (results / "scores" / f"score_{tag}.txt").write_text(score)
+    configs = [f"data_{i}/H/short" for i in range(97)]
+    (results / "per_config" / f"{tag}.csv").write_text(
+        f"dataset,{check.MASE}\n" + "".join(f"{c},1.0\n" for c in configs))
+    (logs / "summary.txt").write_text(
+        "Config      MASE  SN_MASE   Relative\n"
+        + "".join(f"{c}    1.0000   2.0000     0.5000\n" for c in configs))
+    (logs / "stop.log").write_text(
+        "[10-07] [x] eval start (97 configs, R, forecast-len 16, cuda)\n")
+    with gzip.open(results / "head_losses" / f"{tag}_losses.csv.gz",
+                   "wt") as out:
+        out.write(f"step,loss\n1,0.5\n{steps},0.1\n")
+    (head / "q_final.pth").write_bytes(b"head")
+    check.RESULTS, check.JOBS, check.MIRROR = results, jobs, mirror
+    return check, results
+
+
+def test_the_check_passes_a_complete_job(tmp_path):
+    check, results = check_tree(tmp_path)
+    assert check.main() == 0
+    row, = csv.DictReader(open(results / "checks.tsv"), delimiter="\t")
+    assert row == {"code": "OMB", "stop_k": "10", "score": "0.5000",
+                   "configs": "97", "gm": "0.5000", "strategy": "R",
+                   "head_steps": "30000", "head_bytes": "4", "result": "ok"}
+
+
+def test_the_check_names_what_a_job_lacks(tmp_path):
+    """A score that is not the geometric mean of its configs, and a head
+    that stopped before step 30,000."""
+    check, results = check_tree(tmp_path, score="0.4000\n", steps=29000)
+    assert check.main() == 1
+    row, = csv.DictReader(open(results / "checks.tsv"), delimiter="\t")
+    assert row["result"] == "FAIL gm,head_steps"
+
+
 def test_the_figures_pair_the_two_scores_of_a_checkpoint(tmp_path,
                                                          monkeypatch):
     pytest.importorskip("matplotlib")
@@ -1708,10 +1757,25 @@ def legend_texts(fig):
             for text in legend.get_texts()]
 
 
-def test_the_figures_draw_the_floor_of_their_runs(tmp_path):
-    """Each reconstruction figure draws the floor of each scaling setup of
-    its runs as a thin grey line, its score is in the legend, and the y
-    range holds it."""
+def test_a_y_axis_holds_its_scores_between_two_ticks():
+    """The range of a log y axis goes from the tick under its scores to the
+    tick above them. A narrow range of scores takes a ladder with more
+    ticks, so a reader can still read a point."""
+    pytest.importorskip("matplotlib")
+    plot = load_script("plot_recon")
+    low, high, ticks = plot.y_axis([0.0274, 0.0543])
+    assert ticks == pytest.approx([0.025, 0.03, 0.04, 0.05, 0.06])
+    assert low < 0.025 and high > 0.06
+    assert plot.y_axis([1.1369, 1.2878])[2] == pytest.approx([1.1, 1.2, 1.3])
+    assert plot.y_axis([0.03, 2.6])[2] == pytest.approx(
+        [0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5])
+    assert plot.y_axis([0.05])[2] == pytest.approx([0.05])
+
+
+def test_the_legend_gives_the_floor_of_the_runs(tmp_path):
+    """The legend of a figure gives the floor of each scaling setup of its
+    runs, and no other floor. The plot draws no floor line, so the y range
+    holds only the R scores."""
     pytest.importorskip("matplotlib")
     plot = load_script("plot_recon")
     (tmp_path / "floors.tsv").write_text(FLOORS_TSV)
@@ -1720,42 +1784,56 @@ def test_the_figures_draw_the_floor_of_their_runs(tmp_path):
     points = {"cf412om": {40000: 0.31, 100000: 0.29}}
     fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], {}, points,
                            tmp_path / "f.png", False, floors)
-    ax = fig.axes[0]
-    flat = [line for line in ax.get_lines()
-            if len(set(line.get_ydata())) == 1]
-    assert [float(line.get_ydata()[0]) for line in flat] == [0.95]
-    assert flat[0].get_color() == plot.FLOOR_COLOUR
-    assert flat[0].get_linewidth() <= 1.0
-    assert "mean/std: 0.9500" in legend_texts(fig)
+    texts = legend_texts(fig)
+    assert any(text.endswith("mean/std: 0.9500") for text in texts)
+    assert not any("EWMA, old data" in text for text in texts)
+    ax, = fig.axes
+    assert all(len(set(line.get_ydata())) > 1 for line in ax.get_lines())
     low, high = ax.get_ylim()
-    assert low < 0.29 and high > 0.95
+    assert low < 0.29 and 0.31 < high < 0.95
 
 
 def test_the_facts_are_in_the_plot_and_the_legend(tmp_path):
     """The report holds the figures only. A figure has a short title of one
     line and no annotation. Its legends give the first and the last R score
-    of each run, and the key to the line styles. An overlay draws no floor,
-    because the floors sit among the forecast curves."""
+    of each run, the floor of its runs and the key to the line styles. An
+    overlay breaks its y axis: the forecast curve at 50% opacity in the top
+    panel, the R curve in the bottom panel, and one line for each
+    checkpoint with both scores."""
     pytest.importorskip("matplotlib")
+    from matplotlib.patches import ConnectionPatch
     plot = load_script("plot_recon")
     floors = [{"setup": "meanstd", "label": "mean/std floor",
-               "arms": {"cf412om"}, "score": 1.5721, "style": "--"}]
+               "arms": {"cf412om"}, "score": 1.5721}]
     points = {"cf412om": {40000: 0.3100, 100000: 0.2900}}
-    forecast = {"cf412om": {40000: 1.3782, 100000: 1.3345}}
+    forecast = {"cf412om": {40000: 1.3782, 100000: 1.3345, 200000: 1.45}}
+    hue = plot.colour("cf412om")
     for overlay in (False, True):
         fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], forecast,
                                points, tmp_path / f"{overlay}.png", overlay,
                                floors, "Reconstruction (R): ours")
-        ax = fig.axes[0]
-        assert len(ax.texts) == 0
-        assert "\n" not in ax.get_title() and len(ax.get_title()) <= 60
+        assert all(len(ax.texts) == 0 for ax in fig.axes)
+        title = fig.axes[0].get_title()
+        assert title and "\n" not in title and len(title) <= 60
         texts = legend_texts(fig)
         assert any(text.endswith("R 0.3100 → 0.2900") for text in texts)
         assert "How to read" in texts
-        flat = [line for line in ax.get_lines()
-                if len(set(line.get_ydata())) == 1]
-        assert len(flat) == (0 if overlay else 1)
-        assert ("mean/std: 1.5721" in texts) is not overlay
+        assert any(text.endswith("mean/std: 1.5721") for text in texts)
+        curves = [[line for line in ax.get_lines() if line.get_color() == hue]
+                  for ax in fig.axes]
+        links = [a for a in fig.artists if isinstance(a, ConnectionPatch)]
+        if not overlay:
+            (curve,), = curves
+            assert list(curve.get_ydata()) == [0.31, 0.29]
+            assert not links
+            continue
+        (b4,), (r,) = curves
+        assert list(b4.get_ydata()) == [1.3782, 1.3345, 1.45]
+        assert b4.get_alpha() == plot.FORECAST_ALPHA
+        assert list(r.get_ydata()) == [0.31, 0.29] and r.get_alpha() == 1.0
+        assert len(links) == 2                    # 200k has no R score
+        top, bottom = fig.axes
+        assert top.get_ylim()[0] > bottom.get_ylim()[1]
 
 
 def floor_checkout(stub_checkout):
