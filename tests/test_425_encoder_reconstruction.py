@@ -1805,23 +1805,36 @@ def test_a_y_axis_holds_its_scores_between_two_ticks():
 
 def test_the_legend_gives_the_floor_of_the_runs(tmp_path):
     """The legend of a figure gives the floor of each scaling setup of its
-    runs, and no other floor. The plot draws no floor line, so the y range
-    holds only the R scores."""
+    runs, and no other floor. The chart holds a floor, as a thin grey line,
+    only when an R score of its setup is near it: a floor far above the R
+    curves would take the height of the chart from them."""
     pytest.importorskip("matplotlib")
     plot = load_script("plot_recon")
     (tmp_path / "floors.tsv").write_text(FLOORS_TSV)
     floors = plot.load_floors(tmp_path / "floors.tsv")
     assert [f["setup"] for f in floors] == ["meanstd", "ewma_old"]
-    points = {"cf412om": {40000: 0.31, 100000: 0.29}}
-    fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], {}, points,
-                           tmp_path / "f.png", False, floors)
-    texts = legend_texts(fig)
-    assert any(text.endswith("mean/std: 0.9500") for text in texts)
+
+    def figure(points):
+        fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], {}, points,
+                               tmp_path / "f.png", False, floors)
+        ax, = fig.axes
+        flat = [line for line in ax.get_lines()
+                if len(set(line.get_ydata())) == 1]
+        return legend_texts(fig), flat, ax.get_ylim()
+
+    # 0.31 is more than 3 times under the floor: no line, and a tight range.
+    texts, flat, (low, high) = figure({"cf412om": {40000: 0.31, 100000: 0.29}})
+    assert "mean/std: 0.9500" in texts
     assert not any("EWMA, old data" in text for text in texts)
-    ax, = fig.axes
-    assert all(len(set(line.get_ydata())) > 1 for line in ax.get_lines())
-    low, high = ax.get_ylim()
-    assert low < 0.29 and 0.31 < high < 0.95
+    assert any("Each floor is above the chart" in text for text in texts)
+    assert not flat and low < 0.29 and 0.31 < high < 0.95
+    # 0.60 is near the floor: the chart holds the floor line.
+    texts, flat, (low, high) = figure({"cf412om": {40000: 0.31, 100000: 0.60}})
+    assert [float(line.get_ydata()[0]) for line in flat] == [0.95]
+    assert flat[0].get_color() == plot.FLOOR_COLOUR
+    assert flat[0].get_linewidth() <= 1.0
+    assert low < 0.31 and high > 0.95
+    assert not any("above the chart" in text for text in texts)
 
 
 def test_the_facts_are_in_the_plot_and_the_legend(tmp_path):

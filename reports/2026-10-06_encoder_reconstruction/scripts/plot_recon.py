@@ -33,8 +33,9 @@ one panel to the other.
 The floor of a scaling setup is the R score of a head that gives the
 normalised value 0 (floors.sh), so each value is the mean that normalised
 it. An R score compares with the floor of its own setup. The legend gives
-the floors. The plot does not draw them: a floor line takes the height of
-the chart from the R curves.
+each floor. The chart holds a floor, as a thin grey line, only when an R
+score of its setup is FLOOR_REACH times under it or nearer: a floor that is
+far above the R curves takes the height of the chart from them.
 
 Each R score comes from one head with one seed, so the figures cannot show
 the noise between two heads. snapshot_score.sh scores an earlier snapshot of
@@ -88,6 +89,14 @@ GRAPH_TITLES = {
 }
 FORECAST_ALPHA = 0.5
 LINK_WIDTH = 0.6
+FLOOR_COLOUR = "0.55"
+FLOOR_WIDTH = 0.8
+# One line style for each floor, in the order of floors.tsv, so that a floor
+# looks the same in every figure. The runs of ours draw solid lines.
+FLOOR_STYLES = [(0, (6, 2, 1, 2)), (0, (1, 1.6)), (0, (5, 3))]
+# The chart holds a floor when an R score of its setup is this many times
+# under it, or nearer.
+FLOOR_REACH = 3.0
 # The floor of each setup of floors.sh in the legend. A setup that is not
 # here shows its floors.tsv label.
 FLOOR_NAMES = {
@@ -132,13 +141,15 @@ def load(paths):
 
 
 def load_floors(path):
-    """The floor of each scaling setup: ``[{setup, label, arms, score}]``,
-    or [] when floors.sh has not run."""
+    """The floor of each scaling setup: ``[{setup, label, arms, score,
+    style}]``, or [] when floors.sh has not run."""
     if not Path(path).is_file():
         return []
     rows = [line.rstrip("\n").split("\t") for line in open(path)][1:]
     return [{"setup": setup, "label": label, "arms": set(arms.split(",")),
-             "score": float(score)} for setup, label, arms, score in rows]
+             "score": float(score),
+             "style": FLOOR_STYLES[i % len(FLOOR_STYLES)]}
+            for i, (setup, label, arms, score) in enumerate(rows)]
 
 
 def load_snapshots(path):
@@ -159,6 +170,28 @@ def load_snapshots(path):
 def floors_of(arms, floors):
     """The floors of the setups of ``arms``."""
     return [floor for floor in floors if floor["arms"] & set(arms)]
+
+
+def near_floors(floors, recon):
+    """The floors that a chart must hold: those with an R score of a run of
+    their setup FLOOR_REACH times under them, or nearer."""
+    near = []
+    for floor in floors:
+        scores = [score for arm in floor["arms"]
+                  for score in recon.get(arm, {}).values()]
+        if scores and max(scores) * FLOOR_REACH >= floor["score"]:
+            near.append(floor)
+    return near
+
+
+def draw_floors(ax, floors):
+    """Each floor in the y range of ``ax`` as a thin grey line. Returns
+    ``{setup: line}`` of the floors it draws."""
+    low, high = ax.get_ylim()
+    return {floor["setup"]: ax.axhline(
+                floor["score"], color=FLOOR_COLOUR, lw=FLOOR_WIDTH,
+                ls=floor.get("style", "--"), zorder=1)
+            for floor in floors if low <= floor["score"] <= high}
 
 
 def floor_legend(floor):
@@ -242,12 +275,13 @@ def run_label(arm, label, recon):
     return f"{tagged(arm, label)}.  {numbers}"
 
 
-def key_entries(overlay, floors, snapshots=()):
+def key_entries(overlay, floors, snapshots=(), floor_lines=None):
     """The key: what R is, the earlier snapshots of a head, the floor of
     each scaling setup, and in an overlay, the forecast, the line that
     joins the two scores of a checkpoint and the break of the y axis.
     ``snapshots``: ``(run code, stop label, head step, score, score of
-    the final head)`` of each."""
+    the final head)`` of each. ``floor_lines``: ``{setup: line}`` of the
+    floors that the chart draws."""
     blank = Line2D([], [], linestyle="none")
     entries = [(Line2D([], [], color=KEY_COLOUR, lw=3, marker="o", ms=7),
                 "R: the encoder reads the context and the true\n"
@@ -277,9 +311,15 @@ def key_entries(overlay, floors, snapshots=()):
              "the range of its scores"),
         ]
     if floors:
-        entries.append((blank, "Floor of R: R of a head that gives the mean\n"
-                               "of the scaling. It reads no latent."))
-        entries += [(blank, "    " + floor_legend(floor)) for floor in
+        floor_lines = floor_lines or {}
+        text = ("Floor of R: R of a head that gives the mean\n"
+                "of the scaling. It reads no latent.")
+        if len(floor_lines) < len(floors):
+            text += ("\nA floor with no line here is above the chart."
+                     if floor_lines else "\nEach floor is above the chart.")
+        entries.append((blank, text))
+        entries += [(floor_lines.get(floor["setup"], blank),
+                     floor_legend(floor)) for floor in
                     sorted(floors, key=lambda floor: -floor["score"])]
     return entries
 
@@ -370,9 +410,12 @@ def draw_figure(groups, forecast, recon, out, overlay, floors=(), title=None,
                      alpha=FORECAST_ALPHA)
         handles[arm] = draw_run(ax, arm, width, marker, recon.get(arm))
         draw_snapshots(ax, arm, marker, recon[arm], snapshots.get(arm, {}))
+    floors = floors_of(arms, floors)
     r_values = [v for arm in arms for v in recon[arm].values()]
     r_values += [score for arm in arms for seen, (_, score)
                  in snapshots.get(arm, {}).items() if seen in recon[arm]]
+    r_values += [floor["score"] for floor in near_floors(
+        floors, {arm: recon[arm] for arm in arms})]
     style_x(ax)
     if overlay:
         style_y(top, [v for arm in arms for v in forecast.get(arm, {}).values()]
@@ -405,7 +448,7 @@ def draw_figure(groups, forecast, recon, out, overlay, floors=(), title=None,
     shown = [(CODE[arm], stop_label(arm, seen), step, score, recon[arm][seen])
              for arm in arms for seen, (step, score)
              in sorted(snapshots.get(arm, {}).items()) if seen in recon[arm]]
-    key = key_entries(overlay, floors_of(arms, floors), shown)
+    key = key_entries(overlay, floors, shown, draw_floors(ax, floors))
     draw_legend(ax, top, columns, ("How to read", key))
     fig.savefig(out, dpi=135, bbox_inches="tight")
     plt.close(fig)
