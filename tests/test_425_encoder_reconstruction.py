@@ -1658,7 +1658,7 @@ def test_collect_copies_the_raw_artefacts_and_no_head(tmp_path):
     (job / f"qhead_{tag}_s20260722_losses.csv").write_text("step,loss\n1,0.5\n")
     results = tmp_path / "results"
     collect.BOX_RESULTS, collect.MIRROR, collect.RESULTS = box, mirror, results
-    collect.SYNC_LOG = tmp_path / "no_sync.log"
+    collect.SYNC_LOG, collect.LINEAR = tmp_path / "no_sync.log", tmp_path / "lin"
     collect.main()
     assert (results / "recon_trajectories.tsv").read_text() == "cf412om\t10\t0.3100\n"
     assert (results / "scores" / f"score_{tag}.txt").read_text() == "0.3100\n"
@@ -1694,7 +1694,7 @@ def test_collect_gives_the_snapshot_scores_their_own_table(tmp_path):
         (gift / "all_results.csv").write_text("dataset,mase\n")
     results = tmp_path / "results"
     collect.BOX_RESULTS, collect.MIRROR, collect.RESULTS = box, mirror, results
-    collect.SYNC_LOG = tmp_path / "no_sync.log"
+    collect.SYNC_LOG, collect.LINEAR = tmp_path / "no_sync.log", tmp_path / "lin"
     collect.main()
     assert (results / "recon_trajectories.tsv").read_text() == ""
     assert (results / "snapshots" / "scores.tsv").read_text() == (

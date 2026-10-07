@@ -18,8 +18,10 @@ of steps, the score, the value of each check, and ``ok`` or the names of
 the checks that fail. Exits with 1 when a job does not pass.
 
 With CF425_HEAD_ARCH=linear, it checks the linear head of each job (the tag
-``..._recon_lin``, the heads in ~/checkpoints_backup/cf-425-lin/ckpt) and
-writes ``results/checks_lin.tsv``.
+``..._recon_lin``) and writes ``results/checks_lin.tsv``. The heads are in
+CF425_LINEAR (default ~/checkpoints_backup/cf-425-lin): in ``ckpt`` for a
+score of the queue of elisa, and in ``box_ckpt`` for a score of the box
+fallback.
 """
 import csv
 import gzip
@@ -33,16 +35,20 @@ STUDY = Path(__file__).resolve().parent.parent
 RESULTS = STUDY / "results"
 JOBS = STUDY / "scripts" / "jobs.tsv"
 BACKUP = Path.home() / "checkpoints_backup"
+LINEAR = Path(os.environ.get("CF425_LINEAR", BACKUP / "cf-425-lin"))
 # For each head: the end of its tags, its table, and the folder of the heads
 # on elisa (CF425_MIRROR/<name> when CF425_MIRROR is set).
 SUFFIX, TABLE, NAME, HEADS = {
     "transformer": ("recon", "checks.tsv", "cf-425",
                     BACKUP / "cf-412" / "vast_lr100x" / "cf-425"),
-    "linear": ("recon_lin", "checks_lin.tsv", "cf-425-lin",
-               BACKUP / "cf-425-lin" / "ckpt"),
+    "linear": ("recon_lin", "checks_lin.tsv", "cf-425-lin", LINEAR / "ckpt"),
 }[os.environ.get("CF425_HEAD_ARCH", "transformer")]
 MIRROR = (Path(os.environ["CF425_MIRROR"]) / NAME
           if os.environ.get("CF425_MIRROR") else HEADS)
+# The linear queue has a fallback on the box. The scores of the queue of
+# elisa, and the scores and the heads of the fallback (sync_box.sh).
+ELISA_SCORES = LINEAR / "results"
+FALLBACK_SCORES, FALLBACK_HEADS = LINEAR / "box_results", LINEAR / "box_ckpt"
 CONFIGS, HEAD_STEPS = 97, 30000
 MASE = "eval_metrics/MASE[0.5]"
 # A row of the eval summary: the config, its MASE, its seasonal-naive MASE
@@ -115,6 +121,18 @@ def head_bytes(folder):
     return sum(path.stat().st_size for path in folder.glob("*_final.pth"))
 
 
+def head_tree(tag):
+    """The folder of the heads that holds the head of a job. collect.py
+    takes the score of a linear job from the box fallback only when the
+    queue of elisa has none: the head of that score is in the folder of the
+    fallback."""
+    name = f"score_{tag}.txt"
+    if (SUFFIX == "recon_lin" and read_score(ELISA_SCORES / name) is None
+            and read_score(FALLBACK_SCORES / name) is not None):
+        return FALLBACK_HEADS
+    return MIRROR
+
+
 def check(code, arm, stop_k):
     """One row of checks.tsv."""
     tag = f"{arm}_bb{stop_k}k_h30k_{SUFFIX}"
@@ -124,7 +142,7 @@ def check(code, arm, stop_k):
     gm = geometric_mean(mase, naive_mase(logs / "summary.txt"))
     configs, strategy = eval_start(logs / "stop.log")
     steps = last_step(RESULTS / "head_losses" / f"{tag}_losses.csv.gz")
-    size = head_bytes(MIRROR / "recon" / "eval" / tag)
+    size = head_bytes(head_tree(tag) / "recon" / "eval" / tag)
     # A job with no score has no eval yet: the other checks say nothing more.
     failed = ["score"] if score is None else [name for name, passed in [
         ("configs", len(mase) == CONFIGS and configs == CONFIGS

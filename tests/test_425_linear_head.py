@@ -691,9 +691,9 @@ def test_the_sync_hands_its_roots_to_the_prune_of_the_box(sync_box):
 def test_the_linear_sync_reads_and_writes_its_own_folders(tmp_path):
     """CF425_HEAD_ARCH=linear: the sync reads the folders of the linear
     queue on the box, and gives the prune of the linear code these folders.
-    On elisa it writes the folders of the linear queue of elisa
-    (queue_elisa.sh), so the two machines fill one layout. No command names
-    a folder of the queue of the transformer heads."""
+    On elisa it writes its own folders beside those of the linear queue of
+    elisa (queue_elisa.sh), and never the job tree of that queue. No command
+    names a folder of the queue of the transformer heads."""
     import re
     ssh = tmp_path / "ssh.sh"
     ssh.write_text(RECORDING_SSH)
@@ -707,8 +707,9 @@ def test_the_linear_sync_reads_and_writes_its_own_folders(tmp_path):
                        capture_output=True, text=True, env=env, timeout=120)
     assert r.returncode == 0, r.stdout + r.stderr
     backup = tmp_path / "checkpoints_backup"
-    assert (backup / "cf-425-lin" / "ckpt").is_dir()
+    assert (backup / "cf-425-lin" / "box_ckpt").is_dir()
     assert (backup / "cf-425-lin" / "box_results").is_dir()
+    assert not (backup / "cf-425-lin" / "ckpt").exists()
     assert not (backup / "cf-425").exists() and not (backup / "cf-412").exists()
     sent = commands.read_text()
     assert "cd '/workspace/ckpt/cf-425-lin'" in sent
@@ -717,6 +718,54 @@ def test_the_linear_sync_reads_and_writes_its_own_folders(tmp_path):
     assert "CF425_RES='/workspace/results/cf-425-lin'" in sent
     assert "bash '/workspace/cf-425-lin/reports/" in sent
     assert not re.search(r"cf-425(?!-lin)", sent)
+
+
+def test_the_sync_of_the_box_fallback_keeps_the_files_of_the_queue_of_elisa(
+        tmp_path):
+    """The queue of elisa and its fallback on the box can run the same job.
+    The sync of the fallback writes its own job tree on elisa (``box_ckpt``).
+    So the head, the per-config table and the log that the queue of elisa
+    wrote for that job stay. The prune reads the manifest of that tree: it
+    frees the box only of a head that the sync brought. Two jobs: the head
+    of elisa is older than the head of the box, and newer."""
+    tags = [f"cf412om_bb{stop}k_h30k_recon_lin" for stop in (10, 25)]
+    older, newer = (f"recon/eval/{tag}" for tag in tags)
+    lin = tmp_path / "checkpoints_backup" / "cf-425-lin"
+    box, res = tmp_path / "box" / "ckpt", tmp_path / "box" / "results"
+    # One job on the two machines: a head of one size, and other text files.
+    elisa = {"q_final.pth": b"E" * 10, "gift_r/all_results.csv": b"elisa\n",
+             "stop.log": b"elisa\n"}
+    fallback = {"q_final.pth": b"B" * 10, "stop.log": b"the box\n",
+                "gift_r/all_results.csv": b"the box\n"}
+    for job in (older, newer):
+        for root, files in ((lin / "ckpt", elisa), (box, fallback)):
+            for name, data in files.items():
+                (root / job / name).parent.mkdir(parents=True, exist_ok=True)
+                (root / job / name).write_bytes(data)
+    os.utime(lin / "ckpt" / older / "q_final.pth", (1_000_000_000,) * 2)
+    os.utime(box / newer / "q_final.pth", (1_000_000_000,) * 2)
+    res.mkdir(parents=True)
+    for tag in tags:
+        (res / f"score_{tag}.txt").write_text("0.9000\n")
+    ssh = tmp_path / "fake_ssh.sh"
+    ssh.write_text(base.FAKE_SSH)
+    env = dict(os.environ, HOME=str(tmp_path), CF425_HEAD_ARCH="linear",
+               CF425_SSH=f"bash {ssh}", CF425_BOX_ROOT=str(box),
+               CF425_RES=str(res), CF425_PRUNE=str(SCRIPTS / "prune.sh"))
+    for key in ("CF425_MIRROR", "CF425_RESULTS_MIRROR", "CF425_PRUNE_ROOT"):
+        env.pop(key, None)
+    r = subprocess.run(["bash", str(SCRIPTS / "sync_box.sh")],
+                       capture_output=True, text=True, env=env, timeout=120)
+    assert r.returncode == 0, r.stdout + r.stderr
+    for job in (older, newer):
+        for name, data in elisa.items():
+            assert (lin / "ckpt" / job / name).read_bytes() == data, name
+        for name, data in fallback.items():
+            assert (lin / "box_ckpt" / job / name).read_bytes() == data, name
+        assert not (box / job / "q_final.pth").exists()   # elisa holds its copy
+    for tag in tags:
+        assert (lin / "box_results" / f"score_{tag}.txt"
+                ).read_text() == "0.9000\n"
 
 
 # ---------------------------------------------------------------------------
@@ -1240,20 +1289,33 @@ def test_the_deploy_changes_no_code_under_a_queue_that_runs(tmp_path):
 # 9. The report scripts: the linear scores in the tables and in the figures
 # ---------------------------------------------------------------------------
 
+# The job tree of each source of the linear scores, in the folder of the
+# linear queue: the queue of elisa, and its fallback on the box.
+JOB_TREE = {"results": "ckpt", "box_results": "box_ckpt"}
+
+
+def per_config_of(source):
+    """A per-config table of one config, with the name of its source."""
+    return f"dataset,eval_metrics/MASE[0.5]\n{source},1.0\n"
+
+
 def linear_tree(lin, tag, score, folder="results", wave="gift_x"):
     """The files of one scored linear job, as queue_elisa.sh leaves them
-    (``results``) or as the sync of the box fallback does (``box_results``)."""
+    (``results`` and ``ckpt``) or as the sync of the box fallback does
+    (``box_results`` and ``box_ckpt``). The per-config table, the stop log
+    and the head of a job hold the name of their source: one config with
+    that name."""
     res = lin / folder
     (res / "waves" / wave).mkdir(parents=True, exist_ok=True)
     (res / f"score_{tag}.txt").write_text(score)
     (res / "queue.log").write_text(f"queue of {folder}\n")
     (res / "waves" / wave / "train.log").write_text("[shared] done\n")
-    job = lin / "ckpt" / "recon" / "eval" / tag
+    job = lin / JOB_TREE[folder] / "recon" / "eval" / tag
     (job / "gift_r").mkdir(parents=True)
-    (job / "gift_r" / "all_results.csv").write_text("dataset,mase\n")
+    (job / "gift_r" / "all_results.csv").write_text(per_config_of(folder))
     (job / "gift_r" / "summary.txt").write_text("summary\n")
-    (job / "stop.log").write_text("stop\n")
-    (job / f"qhead_{tag}_s20260722_final.pth").write_bytes(b"head")
+    (job / "stop.log").write_text(f"stop of {folder}\n")
+    (job / f"qhead_{tag}_s20260722_final.pth").write_bytes(folder.encode())
     (job / f"qhead_{tag}_s20260722_losses.csv").write_text("step,loss\n1,0.5\n")
 
 
@@ -1310,6 +1372,29 @@ def test_collect_with_no_linear_score_writes_no_linear_table(tmp_path):
     assert (results / "recon_trajectories.tsv").is_file()
     assert not (results / "recon_lin_trajectories.tsv").exists()
     assert not (results / "logs" / "linear").exists()
+
+
+def test_collect_reads_the_job_tree_of_each_linear_source(tmp_path):
+    """The queue of elisa and the box fallback keep the files of their jobs
+    in two trees, ``ckpt`` and ``box_ckpt``. A job with a score from the two
+    machines keeps the score and the files of elisa. A job with a score from
+    the fallback only gets the files of the fallback."""
+    collect, results = collect_with(tmp_path)
+    both, box_only = (f"cf412om_bb{stop}k_h30k_recon_lin" for stop in (10, 25))
+    linear_tree(tmp_path / "lin", both, "0.7100\n")
+    linear_tree(tmp_path / "lin", both, "0.9000\n", folder="box_results")
+    linear_tree(tmp_path / "lin", box_only, "0.6500\n", folder="box_results")
+    collect.main()
+    assert (results / "recon_lin_trajectories.tsv").read_text() == (
+        "cf412om\t10\t0.7100\ncf412om\t25\t0.6500\n")
+    for tag, score, source in ((both, "0.7100\n", "results"),
+                               (box_only, "0.6500\n", "box_results")):
+        assert (results / "scores" / f"score_{tag}.txt").read_text() == score
+        assert (results / "per_config" / f"{tag}.csv").read_text() == (
+            per_config_of(source))
+        assert (results / "logs" / "jobs" / tag / "stop.log").read_text() == (
+            f"stop of {source}\n")
+        assert (results / "head_losses" / f"{tag}_losses.csv.gz").is_file()
 
 
 def linear_figure(tmp_path, overlay, linear, name="f"):
@@ -1400,6 +1485,7 @@ def lin_check_tree(tmp_path, monkeypatch):
     """check_scores.py for the linear jobs: the artefacts of one job."""
     import gzip
     monkeypatch.setenv("CF425_HEAD_ARCH", "linear")
+    monkeypatch.setenv("CF425_LINEAR", str(tmp_path / "lin"))
     check = base.load_script("check_scores")
     tag = "cf412om_bb10k_h30k_recon_lin"
     results, mirror = tmp_path / "results", tmp_path / "lin_ckpt"
@@ -1442,8 +1528,45 @@ def test_the_default_check_reads_the_folder_of_the_linear_heads_of_elisa(
         monkeypatch):
     monkeypatch.setenv("CF425_HEAD_ARCH", "linear")
     monkeypatch.delenv("CF425_MIRROR", raising=False)
+    monkeypatch.delenv("CF425_LINEAR", raising=False)
     check = base.load_script("check_scores")
     assert str(check.MIRROR).endswith("checkpoints_backup/cf-425-lin/ckpt")
+    assert str(check.ELISA_SCORES).endswith("cf-425-lin/results")
+    assert str(check.FALLBACK_SCORES).endswith("cf-425-lin/box_results")
+    assert str(check.FALLBACK_HEADS).endswith("cf-425-lin/box_ckpt")
     monkeypatch.delenv("CF425_HEAD_ARCH")
     check = base.load_script("check_scores")
     assert str(check.MIRROR).endswith("cf-412/vast_lr100x/cf-425")
+
+
+def test_the_check_reads_the_head_of_a_job_in_the_tree_of_its_score(
+        tmp_path, monkeypatch):
+    """collect.py takes the score of a linear job from the queue of elisa,
+    or from the box fallback when elisa has none. The check reads the head
+    of the job in the tree of that source. Three jobs: a score from the two
+    machines, a score from the fallback only, and a score from the fallback
+    whose head is not on elisa, beside a head of elisa with no score."""
+    lin = tmp_path / "lin"
+    both, box_only, lost = (f"cf412om_bb{stop}k_h30k_recon_lin"
+                            for stop in (10, 25, 50))
+    linear_tree(lin, both, "0.7100\n")
+    linear_tree(lin, both, "0.9000\n", folder="box_results")
+    linear_tree(lin, box_only, "0.6500\n", folder="box_results")
+    linear_tree(lin, lost, "")                       # elisa: a head, no score
+    (lin / "box_results" / f"score_{lost}.txt").write_text("0.8000\n")
+    collect, results = collect_with(tmp_path)
+    collect.main()
+    monkeypatch.setenv("CF425_HEAD_ARCH", "linear")
+    monkeypatch.setenv("CF425_LINEAR", str(lin))
+    monkeypatch.delenv("CF425_MIRROR", raising=False)
+    check = base.load_script("check_scores")
+    check.RESULTS, check.JOBS = results, tmp_path / "jobs.tsv"
+    check.JOBS.write_text("".join(
+        f"OMB\tcf412om\t{stop}\t1\tx.pth\t1\tgift_pretrain\n"
+        for stop in (10, 25, 50)))
+    check.main()
+    rows = csv.DictReader(open(results / "checks_lin.tsv"), delimiter="\t")
+    assert {row["stop_k"]: (row["score"], row["head_bytes"]) for row in rows} == {
+        "10": ("0.7100", str(len("results"))),
+        "25": ("0.6500", str(len("box_results"))),
+        "50": ("0.8000", "0")}

@@ -31,10 +31,13 @@ Writes, in the results directory of the report:
   of each snapshot.
 
 The linear heads come last. Their queue runs on elisa (queue_elisa.sh), and
-its fallback on the box. Both fill the folder CF425_LINEAR (default
-~/checkpoints_backup/cf-425-lin): the scores and the logs of elisa are in
-``results``, those of the box fallback in ``box_results``, and the folder of
-each job in ``ckpt``. A linear job has the tag ``<arm>_bb<stop>k_h30k_recon_lin``.
+its fallback on the box. Each machine has its own folders in CF425_LINEAR
+(default ~/checkpoints_backup/cf-425-lin). The scores and the logs of elisa
+are in ``results``, and the folder of each of its jobs is in ``ckpt``. Those
+of the box fallback are in ``box_results`` and in ``box_ckpt`` (sync_box.sh).
+A job takes its score and its files from one machine: elisa when elisa has
+the score, else the box. A linear job has the tag
+``<arm>_bb<stop>k_h30k_recon_lin``.
 
 * ``recon_lin_trajectories.tsv``: arm, stop in thousands of steps, the
   GM-Relative MASE of the linear head. Only when a linear score exists.
@@ -60,7 +63,10 @@ MIRROR = Path(os.environ.get("CF425_MIRROR",
                              HOME / "cf-412" / "vast_lr100x")) / "cf-425"
 SYNC_LOG = Path(os.environ.get("CF425_SYNC_LOG", HOME / "cf-425" / "sync.log"))
 LINEAR = Path(os.environ.get("CF425_LINEAR", HOME / "cf-425-lin"))
-LINEAR_RESULTS = ("results", "box_results")
+# The sources of the linear scores, in order: the queue of elisa, then its
+# fallback on the box. For each: the folder of its scores and its logs, and
+# the tree that holds the folder of each of its jobs.
+LINEAR_SOURCES = (("results", "ckpt"), ("box_results", "box_ckpt"))
 SCORE = re.compile(r"score_(.+)_bb(\d+)k_h30k_(recon|student)\.txt")
 LINEAR_SCORE = re.compile(r"score_(.+)_bb(\d+)k_h30k_recon_lin\.txt")
 SNAPSHOT = re.compile(r"score_(.+)_bb(\d+)k_h30k_(best|final)_recon\.txt")
@@ -218,15 +224,16 @@ def collect_linear():
     """The table and the raw artefacts of the linear heads, and the logs of
     their queue. Returns the count of each kind of file, or {} when no
     linear score exists. A job with a score from elisa and one from the box
-    fallback keeps the score of elisa."""
+    fallback keeps the score of elisa. The files of a job come from the tree
+    of the machine that gives its score."""
     scores, counts = {}, {}
-    for name in LINEAR_RESULTS:
+    for name, tree in LINEAR_SOURCES:
         found = [row for row in linear_scores(LINEAR / name)
                  if row[:2] not in scores]
         if not found:
             continue
         scores.update({row[:2]: row for row in found})
-        copied = copy_jobs({"recon_lin": found}, LINEAR / name, LINEAR / "ckpt")
+        copied = copy_jobs({"recon_lin": found}, LINEAR / name, LINEAR / tree)
         copied["queue and wave logs"] = copy_queue_logs(
             LINEAR / name, RESULTS / "logs" / "linear" / name)
         for what, n in copied.items():

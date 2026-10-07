@@ -25,10 +25,13 @@
 # The linear queue runs on elisa (queue_elisa.sh), and needs no sync. Its
 # fallback on the box (CF425_HEAD_ARCH=linear, see queue.sh) has its own box
 # folders, `cf-425-lin` in place of `cf-425`, and needs its own loop. That
-# loop writes the folders of the linear queue of elisa: the heads go to
-# ~/checkpoints_backup/cf-425-lin/ckpt, and the box results to
-# ~/checkpoints_backup/cf-425-lin/box_results. So collect.py reads one
-# layout for the two machines.
+# loop writes beside the folders of the linear queue of elisa, and never in
+# them: the heads go to ~/checkpoints_backup/cf-425-lin/box_ckpt, and the box
+# results to ~/checkpoints_backup/cf-425-lin/box_results. The two machines
+# can run the same job, and a job has the same paths on each machine. In one
+# tree, the files of the box replace the head and the tables that elisa
+# wrote for that job. collect.py reads the tree of the machine that gives
+# the score of a job.
 # The prune runs on the box with the environment of the box, so each tick
 # gives it the two box folders of its queue.
 #
@@ -43,7 +46,7 @@ case "${CF425_HEAD_ARCH:-transformer}" in
                MIRROR="$BACKUP/cf-412/vast_lr100x/cf-425"
                RES_MIRROR="$BACKUP/cf-425/box_results" ;;
   linear) NAME=cf-425-lin; WHO="linear sync"
-          MIRROR="$BACKUP/cf-425-lin/ckpt"
+          MIRROR="$BACKUP/cf-425-lin/box_ckpt"
           RES_MIRROR="$BACKUP/cf-425-lin/box_results" ;;
   *) echo "ABORT: CF425_HEAD_ARCH=$CF425_HEAD_ARCH. Use transformer or linear." >&2
      exit 2 ;;
