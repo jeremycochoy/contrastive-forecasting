@@ -1457,6 +1457,63 @@ def test_a_figure_with_no_linear_score_is_the_figure_of_the_transformer_heads(
     assert base.legend_texts(same) == base.legend_texts(fig)
 
 
+@pytest.mark.parametrize("overlay", [False, True])
+def test_a_run_with_a_linear_score_only_stays_in_the_figure(tmp_path, overlay):
+    """The transformer head of a run can have no score when its linear head
+    has one. The run stays in the figure: the curve of its linear head in
+    the colour of the run, in the y range, and its forecast in an overlay.
+    The legend names the run with no R score, above the row of its linear
+    head. A checkpoint with no R of the transformer head gets no line to its
+    forecast."""
+    pytest.importorskip("matplotlib")
+    from matplotlib.patches import ConnectionPatch
+    plot = base.load_script("plot_recon")
+    points = {"cf412om": {40000: 0.3100, 100000: 0.2900}}
+    forecast = {"cf412om": {40000: 1.3782, 100000: 1.3345},
+                "cf412oc": {40000: 1.5371}}
+    out = tmp_path / f"{overlay}.png"
+    fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], forecast, points,
+                           out, overlay, linear={"cf412oc": {40000: 0.7100}})
+    assert fig is not None and out.stat().st_size > 10_000
+    ax = fig.axes[-1]                                   # the panel of R
+    hue = plot.colour("cf412oc")
+    curve, = [line for line in ax.get_lines() if line.get_color() == hue]
+    assert list(curve.get_ydata()) == [0.71] and curve.get_linestyle() != "-"
+    low, high = ax.get_ylim()
+    assert low < 0.29 and high > 0.71
+    runs = fig.legends[0]
+    texts = [text.get_text() for text in runs.get_texts()]
+    row = next(i for i, text in enumerate(texts) if r"\mathbf{OCB}" in text)
+    assert texts[row].endswith("R: no score")
+    assert texts[row + 1].endswith("linear head.  R 0.7100")
+    assert runs.legend_handles[row + 1].get_color() == hue
+    no_curve = runs.legend_handles[row]
+    assert no_curve.get_linestyle() == "None" and no_curve.get_marker() == "None"
+    assert any(text.endswith("R 0.3100 → 0.2900, ×0.94") for text in texts)
+    links = [a for a in fig.artists if isinstance(a, ConnectionPatch)]
+    assert len(links) == (2 if overlay else 0)          # those of OMB
+    if overlay:
+        b4, = [line for line in fig.axes[0].get_lines()
+               if line.get_color() == hue]
+        assert list(b4.get_ydata()) == [1.5371]
+
+
+def test_a_figure_of_linear_scores_only_is_drawn(tmp_path):
+    """With no R score of a transformer head, a figure shows the linear
+    heads. With no R score of the two heads, there is no figure."""
+    pytest.importorskip("matplotlib")
+    plot = base.load_script("plot_recon")
+    out = tmp_path / "f.png"
+    fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], {}, {}, out, False,
+                           linear={"cf412om": {40000: 0.71, 100000: 0.65}})
+    assert fig is not None and out.stat().st_size > 10_000
+    assert any(text.endswith("linear head.  R 0.7100 → 0.6500, ×0.92")
+               for text in base.legend_texts(fig))
+    assert plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], {}, {},
+                            tmp_path / "none.png", False, linear={}) is None
+    assert not (tmp_path / "none.png").exists()
+
+
 def test_a_floor_near_a_linear_score_is_on_the_chart(tmp_path):
     """A linear score is an R score of its scaling setup: the chart holds
     the floor of the setup when a linear score is near it."""

@@ -47,7 +47,9 @@ A second head of each checkpoint is a linear head: one linear map decodes
 each encoder latent into the values of its patch. Its R curve has the colour
 of its run, a dashed thin line and small markers. The legend names it under
 its run, with its first and last R and their ratio. A figure with no linear
-score is the figure of the first heads.
+score is the figure of the first heads. A run with a linear score only stays
+in the figure: the legend names the run with no R score, above its linear
+head.
 
 Reads results/recon_trajectories.tsv, results/forecast_425.tsv,
 results/snapshots/scores.tsv and results/recon_lin_trajectories.tsv
@@ -297,8 +299,11 @@ def run_label(arm, label, recon):
 
 
 def score_span(points):
-    """The first and the last R score of a curve, and their ratio."""
+    """The first and the last R score of a curve, and their ratio. A head
+    with no point has no score."""
     scores = [points[seen] for seen in sorted(points)]
+    if not scores:
+        return "R: no score"
     if len(scores) == 1:
         return f"R {scores[0]:.4f}"
     return (f"R {scores[0]:.4f} → {scores[-1]:.4f}, "
@@ -434,15 +439,20 @@ def stop_label(arm, seen):
 def draw_figure(groups, forecast, recon, out, overlay, floors=(), title=None,
                 snapshots=None, linear=None):
     """One figure. Returns it, or None, and draws nothing, when no run of
-    the groups has a reconstruction score. ``linear``: the R scores of the
-    linear head of each run, as ``recon``."""
-    # A run with no reconstruction score (ABC keeps no checkpoint) has no
-    # pair to show, so its forecast stays in the #412 figures only.
-    runs = [run for _, members in groups for run in members if recon.get(run[0])]
+    the groups has an R score. ``linear``: the R scores of the linear head
+    of each run, as ``recon``."""
+    snapshots, linear = snapshots or {}, linear or {}
+    # A run with no R score (ABC keeps no checkpoint) has no pair to show,
+    # so its forecast stays in the #412 figures only. A run with the R of
+    # one of its two heads stays.
+    runs = [run for _, members in groups for run in members
+            if recon.get(run[0]) or linear.get(run[0])]
     if not runs:
         return None
     arms = [arm for arm, *_ in runs]
-    snapshots, linear = snapshots or {}, linear or {}
+    # The R scores of the first head of each run of the figure: no score
+    # for a run with a linear score only.
+    recon = {arm: recon.get(arm) or {} for arm in arms}
     if overlay:
         fig, (top, ax) = plt.subplots(2, 1, sharex=True, figsize=(12.5, 11.5),
                                       gridspec_kw={"hspace": 0.06})
@@ -490,12 +500,12 @@ def draw_figure(groups, forecast, recon, out, overlay, floors=(), title=None,
         title = ("Reconstruction (R) and forecast (B4)" if overlay
                  else "Reconstruction (R)")
     top.set_title(title, fontsize=13, pad=10)
-    columns = []
+    columns, blank = [], Line2D([], [], linestyle="none")
     for name, members in groups:
         entries = []
         for arm, label, *_ in members:
             if arm in handles:
-                entries.append((handles[arm],
+                entries.append((handles[arm] or blank,
                                 run_label(arm, label, recon[arm])))
             if linear_handles.get(arm):
                 entries.append((linear_handles[arm],
