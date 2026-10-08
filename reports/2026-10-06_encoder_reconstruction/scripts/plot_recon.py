@@ -43,9 +43,11 @@ the noise between two heads. snapshot_score.sh scores an earlier snapshot of
 some heads (the head of the best training loss). A hollow marker shows that
 score under or above the dot of its checkpoint: the distance between the
 two is the change of R in the last steps of one head training. The hollow
-markers lie above the curves, so the curve of no run hides one. The legend
-holds no list of these scores: results/snapshots/scores.tsv gives each one,
-with its head step and the R of the final head.
+markers lie above the curves, so the curve of no run hides one. For some
+heads, the best training loss is at the last head step. That snapshot is
+the final head, so it shows no change of R and it gets no hollow marker.
+The legend holds no list of these scores: results/snapshots/scores.tsv
+gives each one, with its head step and the R of the final head.
 
 A second head of each checkpoint is a linear head: one linear map decodes
 each encoder latent into the values of its patch. Its R curve has the colour
@@ -102,6 +104,8 @@ GRAPH_TITLES = {
     "ours_one_patch_size": "ours, one patch size",
     "ours_patch_sizes": "ours, patch sizes 8 to 128",
 }
+# The steps of a head training. A snapshot of this step is the final head.
+HEAD_STEPS = 30000
 FORECAST_ALPHA = 0.5
 LINK_WIDTH = 0.6
 FLOOR_COLOUR = "0.55"
@@ -176,12 +180,13 @@ def load_snapshots(path):
     """The R score of an earlier snapshot of a head:
     ``{arm: {data seen: (head step, score)}}``, from the columns of the
     table of collect.py. The final head is the dot of the checkpoint, so
-    its control score is not a snapshot here."""
+    its control score is not a snapshot here. A best head from the last
+    head step is the final head too."""
     points = defaultdict(dict)
     if not Path(path).is_file():
         return points
     for row in csv.DictReader(open(path), delimiter="\t"):
-        if row["snapshot"] != "final":
+        if row["snapshot"] != "final" and int(row["head_step"]) < HEAD_STEPS:
             arm = row["arm"]
             seen = int(row["stop_k"]) * 1000 * base.XSCALE.get(arm, 1)
             points[arm][seen] = (int(row["head_step"]),

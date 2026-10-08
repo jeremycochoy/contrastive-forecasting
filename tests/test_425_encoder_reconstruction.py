@@ -2056,6 +2056,19 @@ def test_a_hollow_marker_shows_an_earlier_snapshot_of_a_head(tmp_path):
     assert "The same head at an earlier head step" not in legend_texts(plain)
 
 
+def test_a_best_head_of_the_last_head_step_gets_no_hollow_marker(tmp_path):
+    """For some heads, the best training loss is at the last head step. That
+    snapshot is the final head, so its score shows no change of R. The
+    table of collect.py keeps the score, and a figure gives it no hollow
+    marker."""
+    pytest.importorskip("matplotlib")
+    plot = load_script("plot_recon")
+    table = tmp_path / "scores.tsv"
+    table.write_text(SNAPSHOTS_TSV + "OMB\tcf412om\t25\tmean/std\tbest\t30000"
+                     "\telisa\t0.2900\t0.2900\t1.00\n")
+    assert plot.load_snapshots(table) == {"cf412om": {40000: (28500, 0.2)}}
+
+
 def test_each_entry_of_the_key_is_one_short_line(tmp_path):
     """The report holds the figures only, so a reader reads the key of each
     figure. Each entry of the key is one line of 52 characters or less, for
