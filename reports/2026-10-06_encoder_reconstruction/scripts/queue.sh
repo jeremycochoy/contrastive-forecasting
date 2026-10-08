@@ -7,10 +7,14 @@
 # and it gives each batch to the frozen backbone and the head of each job in
 # turn. A solo head read about 80 GB of stream, at $0.005 for each GB. Each
 # job keeps the B4 settings of `head_eval_bb.sh` (the head architecture,
-# 30,000 steps, batch 256, lr 1e-3, head seed 20260722, the scaling of the
-# run, one head per patch size), its own files, and the batches and random
-# draws of its solo run. The heads write no snapshot every 5,000 steps (the
-# disk is small), and the score reads the true horizon (strategy R).
+# 30,000 steps, batch 256, lr 1e-3, gradient clip 1.0, head seed 20260722,
+# the scaling of the run, one head per patch size), its own files, and the
+# batches and random draws of its solo run. The heads write no snapshot
+# every 5,000 steps (the disk is small), and the score reads the true
+# horizon (strategy R): the encoder reads the context of 1,024 values and
+# the true horizon, and the head decodes the horizon patches. The score
+# uses the 97 GIFT-Eval configs of the B4 forecast score, with its MASE,
+# its seasonal-naive ratio and its geometric mean.
 #
 # One lane for each data stream (the `data` column): the old-data runs, and
 # the GiftEvalPretrain runs. The two lanes run at the same time, each with

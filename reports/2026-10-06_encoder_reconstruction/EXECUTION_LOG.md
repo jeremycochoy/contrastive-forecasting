@@ -34,6 +34,7 @@ All times are UTC, on 2026-10-07 unless a date is given.
 | 10-08 05:49 | The 2 last controls exist. Each of the 8 evals ends with rc 0. `check_scores.py`: 56 of 56 jobs and 16 of 16 snapshot scores pass (`results/snapshots/checks.tsv`). |
 | 10-08 06:08 | `snapshot_score.sh` with `CF425_SNAP_GPU`, on elisa: the `_best.pth` snapshot of the first head of TWN 100k and of TWN 420k, one on each GPU. |
 | 10-08 06:22 | The 2 evals end with rc 0. `check_scores.py`: 56 of 56 jobs and 18 of 18 snapshot scores pass. |
+| 10-08 09:30 | Report stage. New rules of the owner: the report holds the title and the figures only, no figure mixes the two heads, and no legend or key uses the word "seed". `plot_recon.py` draws each graph two times (transformer head, linear head), as R and as the overlay, with one shared y range for the two versions of a graph. The TWN markers of the final head and their key line are gone. The graphs now hold the Moirai group, for the MPM and MPE scores that come later. The tables stay in `results/`, and the protocol lives in the docstrings of the scripts. |
 
 ## Events
 
@@ -44,3 +45,4 @@ All times are UTC, on 2026-10-07 unless a date is given.
 - **Linear heads.** The owner added a linear head for the 56 checkpoints on 10-07. Its queue runs on the two GPUs of elisa, in `~/checkpoints_backup/cf-425-lin`, and it needs no sync. The figures draw its scores as dashed curves.
 - **Head loss of the mean/std runs.** The training loss of a mean/std head has a median near 0.25 and steps up to 160. The loss of an EWMA head is 0.009 to 0.04. All mean/std heads of wave 1 have their best loss at step 25,000.
 - **Tests.** The two test files of the card give 173 passed. `test_two_lanes_of_one_stream_train_two_waves_at_one_time` failed in 1 of 3 full runs on 10-08, and it passed 3 times alone: it compares the times of two stub waves.
+- **Report rewrite (10-08).** The draft report had text and tables. The final report holds the title and the figures. The verdict table and the head-noise table of the run stage are in the PR comments of 06:01 and 07:35 UTC, and their numbers are in `results/job_scores.tsv` and `results/snapshots/scores.tsv`.

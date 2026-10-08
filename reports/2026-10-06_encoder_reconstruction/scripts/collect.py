@@ -1,6 +1,11 @@
 """#425: the scores of the box, in the tables of the report, and the raw
 artefacts of each job.
 
+After the queues (queue.sh for the transformer heads, queue_elisa.sh for
+the linear heads) and sync_box.sh, this writes the tables and the figures:
+
+    python3 collect.py && python3 check_scores.py && python3 plot_recon.py
+
 Reads what sync_box.sh brings to elisa:
 
 * the box results (CF425_RESULTS_MIRROR, default
