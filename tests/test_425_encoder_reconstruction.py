@@ -2072,7 +2072,7 @@ def test_the_key_names_a_best_head_of_the_last_head_step(tmp_path):
                                      100000: (30000, 0.29)}}
     points = {"cf412om": {40000: 0.3100, 100000: 0.2900}}
     earlier = "The same head at an earlier head step"
-    note = "OMB 25k: the same head step, so the same R"
+    note = "OMB 25k: the final head, no earlier step"
     fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], {}, points,
                            tmp_path / "s.png", False, snapshots=snapshots)
     ax, = fig.axes

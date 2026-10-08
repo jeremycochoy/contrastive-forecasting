@@ -45,10 +45,10 @@ score under or above the dot of its checkpoint: the distance between the
 two is the change of R in the last steps of one head training. The hollow
 markers lie above the curves, so the curve of no run hides one. For some
 heads, the best training loss is at the last head step. That snapshot is
-the final head, so its hollow marker lies on the dot and shows no change of
-R. One line of the key names these heads. The legend holds no list of the
-scores: results/snapshots/scores.tsv gives each one, with its head step and
-the R of the final head.
+the final head, so its hollow marker lies on the dot and measures no change
+of R. One line of the key names these heads. The legend holds no list of
+the scores: results/snapshots/scores.tsv gives each one, with its head step
+and the R of the final head.
 
 A second head of each checkpoint is a linear head: one linear map decodes
 each encoder latent into the values of its patch. Its R curve has the colour
@@ -288,8 +288,9 @@ def draw_snapshots(ax, arm, marker, recon, snapshots):
 def last_step_note(arms, recon, snapshots):
     """The key line of the hollow markers that show no earlier head step:
     the code and the stops of each run with a best head of the last head
-    step. That head is the final head, so its hollow marker lies on the dot.
-    None when the chart holds no such marker."""
+    step. That head is the final head, so its hollow marker lies on the dot
+    and it is no measure of the change of R. None when the chart holds no
+    such marker."""
     runs = []
     for arm in arms:
         stops = [f"{seen // (1000 * base.XSCALE.get(arm, 1)):,}k"
@@ -299,7 +300,7 @@ def last_step_note(arms, recon, snapshots):
             runs.append(f"{CODE[arm]} {', '.join(stops)}")
     if not runs:
         return None
-    return f"{' and '.join(runs)}: the same head step, so the same R"
+    return f"{' and '.join(runs)}: the final head, no earlier step"
 
 
 def draw_links(top, bottom, arm, forecast, recon):
