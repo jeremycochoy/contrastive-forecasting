@@ -167,7 +167,11 @@ output is its one latent. On a checkpoint with a value head, the head of
 `--reconstruction encoder` reads the transformer output of each patch and
 decodes the values of that patch. Strategy R reads the same latent. The two
 scripts read the kind off the checkpoint (`reconstruction_latent_of`), so
-they need no flag and they always agree.
+they need no flag and they always agree. An older code folder trains and
+scores such a head on the encoder latent, with no error. So `queue.sh` and
+`snapshot_score.sh` of #425 refuse a job of a copy of Moirai (a checkpoint
+in a `value_space` folder) when their code folder has no
+`reconstruction_latent_of`.
 
 `eval_gift_eval_official.py` loads the bank, checks that its sizes are the
 backbone's, and gives each config the head of its frequency's inference

@@ -24,7 +24,10 @@ Groups, all on the CPU:
 
 from __future__ import annotations
 
+import subprocess
 import sys
+import time
+from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
@@ -50,8 +53,8 @@ from tests.test_425_encoder_reconstruction import (  # noqa: F401
     CPU, EVAL_PROTOCOL, HEAD_PROTOCOL, Q, SIZES, T, OracleHead,
     assert_same_run, bank_model, bank_of, corpus_flags, eval_args,
     ewma_bank_model, ewma_model, job_argv, labels_of, load_eval_module,
-    load_head_trainer, load_script, meanstd_model, oracle_latents, saved,
-    train_shared, train_solo, walk, windows)
+    load_head_trainer, load_script, meanstd_model, oracle_latents, queue_box,
+    saved, stub_checkout, train_shared, train_solo, walk, windows)
 
 
 def moirai_model(scaling="meanstd"):
@@ -591,6 +594,108 @@ def test_a_new_start_trains_the_moirai_jobs_and_no_job_with_a_score(
     in_wave = [int(p[1]) for p in plan]
     assert in_wave == sorted(in_wave)
     assert [in_wave.count(wave) for wave in sorted(set(in_wave))] == waves
+
+
+# The line of src/checkpoint.py that marks a code folder with the latent of
+# a copy of Moirai, and the same file in an older code folder.
+KNOWS_LATENT = "def reconstruction_latent_of(state_dict):\n    ...\n"
+OLDER_CODE = "# the code of the 56 scores\n"
+
+
+def moirai_job_box(queue_box, checkpoint_py):
+    """The box of five jobs with one job more: a copy of Moirai, whose
+    checkpoint is in a ``value_space`` folder. ``checkpoint_py``: the file
+    src/checkpoint.py of the code folder of the queue."""
+    tmp_path, res, env = queue_box
+    rel = "cf-x/value_space/leg_10k/arm_m_10k.pth"
+    (tmp_path / "ckpt" / rel).parent.mkdir(parents=True)
+    with open(tmp_path / "ckpt" / rel, "wb") as f:
+        f.truncate(1010)
+    with open(tmp_path / "jobs.tsv", "a") as f:
+        f.write("\t".join(["MPM", "arm_m", "10", "1", rel, "1010",
+                           "gift_pretrain"]) + "\n")
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "checkpoint.py").write_text(checkpoint_py)
+    return res, env
+
+
+def test_the_queue_refuses_an_older_code_folder_for_a_moirai_job(queue_box):
+    """The head trainer and the eval of an older code folder train and score
+    the head of a copy of Moirai on the encoder latent, with no error. So
+    the queue refuses a job table with a copy of Moirai when its code folder
+    does not know the latent of a checkpoint. It stops before a head
+    trains, and its dry run stops too."""
+    res, env = moirai_job_box(queue_box, OLDER_CODE)
+    for extra in ({}, {"CF425_DRY_RUN": "1"}):
+        r = base.run_queue(dict(env, **extra))
+        assert r.returncode == 2, r.stdout + r.stderr
+        assert "copy of Moirai" in r.stdout and "CF425_CODE" in r.stdout
+    assert not (res / "calls.log").exists()
+
+
+def test_the_queue_trains_a_moirai_job_with_the_code_of_this_commit(
+        queue_box):
+    res, env = moirai_job_box(queue_box, KNOWS_LATENT)
+    r = base.run_queue(env)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert (res / "score_arm_m_bb10k_h30k_recon.txt").exists()
+    assert sorted(p.name[6:-4] for p in res.glob("score_*.txt")) == sorted(
+        base.GOOD + ["arm_m_bb10k_h30k_recon"])
+
+
+def test_the_check_of_the_queue_reads_a_line_of_the_real_code():
+    """The two scripts look for the same words, and the real code and the
+    code folder of the tests hold them."""
+    mark = "def reconstruction_latent_of"
+    assert mark in (base.REPO_ROOT / "src" / "checkpoint.py").read_text()
+    assert KNOWS_LATENT.startswith(mark) and mark not in OLDER_CODE
+    for script in ("queue.sh", "snapshot_score.sh"):
+        assert f"'{mark}'" in (base.SCRIPTS / script).read_text(), script
+
+
+def snapshot_of_mpm(stub_checkout, checkpoint_py):
+    """snapshot_score.sh on a GPU of elisa for the first job of MPM, as
+    ``base.snapshot_on_elisa``. ``checkpoint_py``: the file
+    src/checkpoint.py of the code folder. Returns the result, the folder of
+    the snapshots and the tag."""
+    tmp_path, _, env = stub_checkout
+    code, arm, stop, _, ckpt = [row for row in base.job_rows()
+                                if row[0] == "MPM"][0][:5]
+    mirror, snap = tmp_path / "mirror", tmp_path / "snap"
+    (mirror / ckpt).parent.mkdir(parents=True, exist_ok=True)
+    (mirror / ckpt).write_text("backbone")
+    job = f"{arm}_bb{stop}k_h30k_recon"
+    heads = mirror / "cf-425" / "recon" / "eval" / job
+    heads.mkdir(parents=True, exist_ok=True)
+    (heads / f"qhead_{job}_s20260722_best.pth").write_text("best head")
+    source = Path(env["WT"]) / "src"
+    source.mkdir(exist_ok=True)
+    (source / "checkpoint.py").write_text(checkpoint_py)
+    env = {**env, "CF425_SNAP_GPU": "1", "CF425_SNAP_BASE": str(snap),
+           "CF425_MIRROR": str(mirror), "CF425_CODE": env["WT"],
+           "CF425_RUNNER": str(base.B4_SCRIPTS / "head_eval_bb.sh")}
+    r = subprocess.run(["bash", str(base.SCRIPTS / "snapshot_score.sh"), code,
+                        stop, "best"], capture_output=True, text=True,
+                       env=env, timeout=60)
+    return r, snap, f"{arm}_bb{stop}k_h30k_best_recon"
+
+
+def test_a_snapshot_score_refuses_an_older_code_folder_for_a_moirai_job(
+        stub_checkout):
+    """The eval of an older code folder scores the head of a copy of Moirai
+    on the encoder latent. So the snapshot score of such a job needs a code
+    folder that knows the latent of a checkpoint. A job of ours needs none
+    (``base.snapshot_on_elisa``: its code folder has no src)."""
+    r, snap, tag = snapshot_of_mpm(stub_checkout, OLDER_CODE)
+    assert r.returncode == 2 and "copy of Moirai" in r.stderr
+    assert not (snap / "ckpt" / "eval" / tag).exists()
+    r, snap, tag = snapshot_of_mpm(stub_checkout, KNOWS_LATENT)
+    assert r.returncode == 0, r.stdout + r.stderr
+    score = snap / "results" / f"score_{tag}.txt"
+    deadline = time.time() + 60
+    while not score.exists() and time.time() < deadline:
+        time.sleep(0.1)
+    assert score.read_text().strip() == "0.5000"
 
 
 def test_the_floor_table_gives_each_moirai_copy_the_floor_of_its_setup():

@@ -438,11 +438,25 @@ check_lanes(){
   done
 }
 
+# The head of a copy of Moirai reads the output of the transformer. The head
+# trainer and the eval read that kind off the checkpoint
+# (reconstruction_latent_of). The code of an older folder trains and scores
+# such a head on the encoder latent, with no error. A copy of Moirai keeps
+# its checkpoints in a `value_space` folder. So the queue refuses a job table
+# with such a checkpoint when its code folder is older.
+check_code(){
+  [ -n "$(ordered_jobs | grep '/value_space/')" ] || return 0
+  grep -qs 'def reconstruction_latent_of' "$CODE/src/checkpoint.py" && return 0
+  log "ABORT: the job table holds a copy of Moirai, and the code of $CODE is older: it trains and scores that head on the encoder latent. Set CF425_CODE to the code folder of this queue.sh."
+  return 1
+}
+
 mkdir -p "$RES" "$LOCKS" "$FAILED" "$ROOT"
 [ -f "$JOBS" ] || { log "ABORT: no job table at $JOBS"; exit 2; }
 [ -f "$RUNNER" ] || { log "ABORT: no runner at $RUNNER"; exit 2; }
 [ -f "$TRAINER" ] || { log "ABORT: no shared trainer at $TRAINER"; exit 2; }
 check_lanes || exit 2
+check_code || exit 2
 check_inputs || exit 3
 if [ -n "${CF425_DRY_RUN:-}" ]; then
   plan

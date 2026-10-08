@@ -74,8 +74,15 @@ bytes=$(stat -c %s "$head")
 out="$ROOT/eval/$tag"
 dest="$out/qhead_${tag}_s${SEED}_final.pth"
 
+# As queue.sh: the eval of an older code folder scores the head of a copy of
+# Moirai (a checkpoint in a `value_space` folder) on the encoder latent, with
+# no error. So such a job needs a code folder that knows the latent of a
+# checkpoint.
+KNOWS_LATENT="grep -qs 'def reconstruction_latent_of' '$CODE/src/checkpoint.py'"
+OLD_CODE="ABORT: $RUN is a copy of Moirai, and the code of $CODE does not read the latent of a checkpoint: its eval reads the encoder latent. Put the code of the PR head there."
 if [ -n "$ELISA_GPU" ]; then
   [ -f "$RUNNER" ] || { echo "ABORT: no code at $CODE. Run deploy_elisa.sh with CF425_ELISA_BASE=$BASE." >&2; exit 2; }
+  case "$ckpt" in */value_space/*) eval "$KNOWS_LATENT" || { echo "$OLD_CODE" >&2; exit 2; } ;; esac
   [ -f "$CK/$ckpt" ] || { echo "ABORT: no checkpoint at $CK/$ckpt" >&2; exit 3; }
   # The head takes its name only at its full size, as on the box.
   mkdir -p "$out" "$RES" || exit 4
@@ -95,6 +102,9 @@ if [ -n "$ELISA_GPU" ]; then
   exit 0
 fi
 
+case "$ckpt" in */value_space/*)
+  ssh -p "$PORT" "$HOST" "$KNOWS_LATENT" </dev/null || { echo "$OLD_CODE" >&2; exit 2; } ;;
+esac
 # The head goes to the box under a temporary name, and takes its name only
 # at its full size.
 ssh -p "$PORT" "$HOST" "mkdir -p '$out' '$RES'" </dev/null || exit 4
