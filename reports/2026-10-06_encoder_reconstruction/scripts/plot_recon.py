@@ -45,9 +45,10 @@ score under or above the dot of its checkpoint: the distance between the
 two is the change of R in the last steps of one head training. The hollow
 markers lie above the curves, so the curve of no run hides one. For some
 heads, the best training loss is at the last head step. That snapshot is
-the final head, so it shows no change of R and it gets no hollow marker.
-The legend holds no list of these scores: results/snapshots/scores.tsv
-gives each one, with its head step and the R of the final head.
+the final head, so its hollow marker lies on the dot and shows no change of
+R. One line of the key names these heads. The legend holds no list of the
+scores: results/snapshots/scores.tsv gives each one, with its head step and
+the R of the final head.
 
 A second head of each checkpoint is a linear head: one linear map decodes
 each encoder latent into the values of its patch. Its R curve has the colour
@@ -80,7 +81,7 @@ STUDY = Path(__file__).resolve().parent.parent
 BASE = STUDY.parent / "2026-09-06_moirai_small_size"
 sys.path.insert(0, str(BASE / "scripts"))
 import plot_gm_rates as base  # noqa: E402
-from run_style import colour, line, tagged  # noqa: E402
+from run_style import CODE, colour, line, tagged  # noqa: E402
 
 FORECAST = [BASE / "results" / "gm_trajectories.tsv",
             STUDY / "results" / "forecast_425.tsv"]
@@ -177,16 +178,17 @@ def load_floors(path):
 
 
 def load_snapshots(path):
-    """The R score of an earlier snapshot of a head:
+    """The R score of the best head of a head training:
     ``{arm: {data seen: (head step, score)}}``, from the columns of the
-    table of collect.py. The final head is the dot of the checkpoint, so
-    its control score is not a snapshot here. A best head from the last
-    head step is the final head too."""
+    table of collect.py. For most heads, it is an earlier snapshot. A best
+    head of the last head step is the final head (last_step_note). The
+    final head is the dot of the checkpoint, so its control score is not a
+    snapshot here."""
     points = defaultdict(dict)
     if not Path(path).is_file():
         return points
     for row in csv.DictReader(open(path), delimiter="\t"):
-        if row["snapshot"] != "final" and int(row["head_step"]) < HEAD_STEPS:
+        if row["snapshot"] != "final":
             arm = row["arm"]
             seen = int(row["stop_k"]) * 1000 * base.XSCALE.get(arm, 1)
             points[arm][seen] = (int(row["head_step"]),
@@ -283,6 +285,23 @@ def draw_snapshots(ax, arm, marker, recon, snapshots):
                 mfc="white", mec=colour(arm), mew=1.6, zorder=3.5)
 
 
+def last_step_note(arms, recon, snapshots):
+    """The key line of the hollow markers that show no earlier head step:
+    the code and the stops of each run with a best head of the last head
+    step. That head is the final head, so its hollow marker lies on the dot.
+    None when the chart holds no such marker."""
+    runs = []
+    for arm in arms:
+        stops = [f"{seen // (1000 * base.XSCALE.get(arm, 1)):,}k"
+                 for seen, (step, _) in sorted(snapshots.get(arm, {}).items())
+                 if seen in recon[arm] and step >= HEAD_STEPS]
+        if stops:
+            runs.append(f"{CODE[arm]} {', '.join(stops)}")
+    if not runs:
+        return None
+    return f"{' and '.join(runs)}: the same head step, so the same R"
+
+
 def draw_links(top, bottom, arm, forecast, recon):
     """A thin vertical line at each checkpoint with both scores, from its
     forecast point in the top panel to its R point in the bottom panel. It
@@ -329,13 +348,14 @@ def linear_label(points):
 
 
 def key_entries(overlay, floors, snapshots=False, floor_lines=None,
-                linear=False):
+                linear=False, last_step=None):
     """The key: what R is, the earlier snapshot of a head, the floor of each
     scaling setup, and in an overlay, the forecast, the line that joins the
     two scores of a checkpoint and the break of the y axis. Each entry is
-    one short line. ``snapshots``: the chart holds a hollow marker.
-    ``floor_lines``: ``{setup: line}`` of the floors that the chart draws.
-    ``linear``: the chart holds the curve of a linear head."""
+    one short line. ``snapshots``: the chart holds a hollow marker of an
+    earlier head step. ``floor_lines``: ``{setup: line}`` of the floors
+    that the chart draws. ``linear``: the chart holds the curve of a linear
+    head. ``last_step``: the line of last_step_note, or None."""
     blank = Line2D([], [], linestyle="none")
     entries = [(Line2D([], [], color=KEY_COLOUR, lw=3, marker="o", ms=7),
                 "R: a head decodes the true horizon from its latents"),
@@ -346,10 +366,12 @@ def key_entries(overlay, floors, snapshots=False, floor_lines=None,
                                lw=3 * LINEAR_WIDTH, marker="o",
                                ms=LINEAR_MARKER),
                         "R with a linear head"))
+    hollow = Line2D([], [], color=KEY_COLOUR, lw=0, marker="o", ms=7,
+                    mfc="white", mew=1.6)
     if snapshots:
-        entries.append((Line2D([], [], color=KEY_COLOUR, lw=0, marker="o",
-                               ms=7, mfc="white", mew=1.6),
-                        "The same head at an earlier head step"))
+        entries.append((hollow, "The same head at an earlier head step"))
+    if last_step:
+        entries.append((blank if snapshots else hollow, last_step))
     if overlay:
         entries += [
             (Line2D([], [], color=KEY_COLOUR, lw=3, marker="o", ms=7,
@@ -508,10 +530,11 @@ def draw_figure(groups, forecast, recon, out, overlay, floors=(), title=None,
                                 linear_label(linear[arm])))
         if entries:
             columns.append((name, entries))
-    hollow = any(seen in recon[arm] for arm in arms
-                 for seen in snapshots.get(arm, {}))
-    key = key_entries(overlay, floors, hollow, draw_floors(ax, floors),
-                      any(linear_handles.values()))
+    earlier = any(seen in recon[arm] and step < HEAD_STEPS for arm in arms
+                  for seen, (step, _) in snapshots.get(arm, {}).items())
+    key = key_entries(overlay, floors, earlier, draw_floors(ax, floors),
+                      any(linear_handles.values()),
+                      last_step_note(arms, recon, snapshots))
     draw_legend(ax, top, columns, ("How to read", key))
     fig.savefig(out, dpi=135, bbox_inches="tight")
     plt.close(fig)

@@ -2056,17 +2056,37 @@ def test_a_hollow_marker_shows_an_earlier_snapshot_of_a_head(tmp_path):
     assert "The same head at an earlier head step" not in legend_texts(plain)
 
 
-def test_a_best_head_of_the_last_head_step_gets_no_hollow_marker(tmp_path):
+def test_the_key_names_a_best_head_of_the_last_head_step(tmp_path):
     """For some heads, the best training loss is at the last head step. That
-    snapshot is the final head, so its score shows no change of R. The
-    table of collect.py keeps the score, and a figure gives it no hollow
-    marker."""
+    snapshot is the final head, so its score shows no change of R. Its
+    hollow marker lies on the dot of its checkpoint, and one line of the key
+    names the head. A chart with no earlier snapshot has no key line for an
+    earlier head step."""
     pytest.importorskip("matplotlib")
     plot = load_script("plot_recon")
     table = tmp_path / "scores.tsv"
     table.write_text(SNAPSHOTS_TSV + "OMB\tcf412om\t25\tmean/std\tbest\t30000"
                      "\telisa\t0.2900\t0.2900\t1.00\n")
-    assert plot.load_snapshots(table) == {"cf412om": {40000: (28500, 0.2)}}
+    snapshots = plot.load_snapshots(table)
+    assert snapshots == {"cf412om": {40000: (28500, 0.2),
+                                     100000: (30000, 0.29)}}
+    points = {"cf412om": {40000: 0.3100, 100000: 0.2900}}
+    earlier = "The same head at an earlier head step"
+    note = "OMB 25k: the same head step, so the same R"
+    fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], {}, points,
+                           tmp_path / "s.png", False, snapshots=snapshots)
+    ax, = fig.axes
+    hollow = [line for line in ax.get_lines()
+              if line.get_markerfacecolor() == "white"]
+    assert sorted(list(line.get_ydata()) for line in hollow) == [[0.2], [0.29]]
+    assert {earlier, note} <= set(legend_texts(fig))
+    assert len(note) <= 52
+    last = {"cf412om": {100000: (30000, 0.29)}}
+    fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], {}, points,
+                           tmp_path / "l.png", False, snapshots=last)
+    texts = legend_texts(fig)
+    assert note in texts and earlier not in texts
+    assert plot.last_step_note(["cf412om"], points, {}) is None
 
 
 def test_each_entry_of_the_key_is_one_short_line(tmp_path):
