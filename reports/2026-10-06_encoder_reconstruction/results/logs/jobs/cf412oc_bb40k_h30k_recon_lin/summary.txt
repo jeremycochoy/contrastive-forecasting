@@ -1,0 +1,115 @@
+==========================================================================================
+                                GIFT-Eval Official Results                                
+==========================================================================================
+Config                                            MASE  SN_MASE   Relative
+------------------------------------------------------------------------------------------
+bitbrains_fast_storage/5T/long                  0.8002   1.1366     0.7040
+bitbrains_fast_storage/5T/medium                0.9551   1.2203     0.7827
+bitbrains_fast_storage/5T/short                 0.9141   1.1360     0.8047
+bitbrains_fast_storage/H/short                  0.8966   1.2985     0.6905
+bitbrains_rnd/5T/long                           3.4456   3.5013     0.9841
+bitbrains_rnd/5T/medium                         4.4982   4.5424     0.9903
+bitbrains_rnd/5T/short                          1.9771   1.9708     1.0032
+bitbrains_rnd/H/short                           5.7181   6.0374     0.9471
+bizitobs_application/10S/long                   2.9320   3.2063     0.9144
+bizitobs_application/10S/medium                 2.7772   2.6914     1.0319
+bizitobs_application/10S/short                  2.6231   2.2423     1.1698
+bizitobs_l2c/5T/long                            0.2518   1.4543     0.1731
+bizitobs_l2c/5T/medium                          0.2163   1.2436     0.1740
+bizitobs_l2c/5T/short                           0.1562   0.9860     0.1584
+bizitobs_l2c/H/long                             0.2211   1.4261     0.1550
+bizitobs_l2c/H/medium                           0.1854   1.5103     0.1228
+bizitobs_l2c/H/short                            0.1714   1.2141     0.1412
+bizitobs_service/10S/long                       1.7082   1.3672     1.2494
+bizitobs_service/10S/medium                     1.5164   1.3206     1.1483
+bizitobs_service/10S/short                      1.5135   1.2253     1.2352
+car_parts/M/short                               0.5854   1.2015     0.4872
+covid_deaths/D/short                           44.1311  46.9124     0.9407
+electricity/15T/long                            0.7243   1.1635     0.6225
+electricity/15T/medium                          0.6893   1.1508     0.5990
+electricity/15T/short                           0.7183   1.7171     0.4184
+electricity/D/short                             0.6798   1.9870     0.3421
+electricity/H/long                              0.6553   1.5241     0.4300
+electricity/H/medium                            0.6435   1.3925     0.4621
+electricity/H/short                             0.6774   1.3578     0.4989
+electricity/W/short                             0.9646   2.0897     0.4616
+ett1/15T/long                                   0.4508   1.1909     0.3785
+ett1/15T/medium                                 0.4376   1.1883     0.3683
+ett1/15T/short                                  0.3711   0.9342     0.3973
+ett1/D/short                                    0.6498   1.7784     0.3654
+ett1/H/long                                     0.3889   1.4787     0.2630
+ett1/H/medium                                   0.3838   1.5678     0.2448
+ett1/H/short                                    0.3394   0.9773     0.3473
+ett1/W/short                                    0.6356   1.7689     0.3593
+ett2/15T/long                                   0.2813   1.0127     0.2778
+ett2/15T/medium                                 0.2710   1.0512     0.2578
+ett2/15T/short                                  0.2747   1.0673     0.2574
+ett2/D/short                                    1.3167   1.3901     0.9472
+ett2/H/long                                     0.2681   1.1284     0.2376
+ett2/H/medium                                   0.2587   1.2384     0.2089
+ett2/H/short                                    0.2347   0.9232     0.2542
+ett2/W/short                                    0.9637   0.7785     1.2379
+hierarchical_sales/D/short                      0.3599   1.1348     0.3171
+hierarchical_sales/W/short                      0.4276   1.0250     0.4172
+hospital/M/short                                0.3418   0.9205     0.3713
+jena_weather/10T/long                           0.2283   0.7615     0.2997
+jena_weather/10T/medium                         0.2192   0.7160     0.3061
+jena_weather/10T/short                          0.2378   0.7429     0.3201
+jena_weather/D/short                            0.4814   1.5734     0.3059
+jena_weather/H/long                             0.2828   1.2677     0.2231
+jena_weather/H/medium                           0.2052   0.8886     0.2310
+jena_weather/H/short                            0.2095   0.7229     0.2898
+kdd_cup_2018/D/short                            0.4099   1.4970     0.2738
+kdd_cup_2018/H/long                             0.2503   1.3355     0.1874
+kdd_cup_2018/H/medium                           0.2596   1.4290     0.1817
+kdd_cup_2018/H/short                            0.2642   1.3404     0.1971
+loop_seattle/5T/long                            0.4594   1.2507     0.3673
+loop_seattle/5T/medium                          0.4536   1.1533     0.3933
+loop_seattle/5T/short                           0.3598   0.7623     0.4720
+loop_seattle/D/short                            0.4120   1.7324     0.2378
+loop_seattle/H/long                             0.4930   1.5460     0.3189
+loop_seattle/H/medium                           0.4810   1.4805     0.3249
+loop_seattle/H/short                            0.4774   1.2928     0.3692
+m4_daily/D/short                                3.6394   3.2784     1.1101
+m4_hourly/H/short                               2.1961   1.1932     1.8405
+m4_monthly/M/short                              0.9142   1.2597     0.7257
+m4_quarterly/Q/short                            1.9266   1.6022     1.2025
+m4_weekly/W/short                               4.5688   2.7773     1.6451
+m4_yearly/A/short                               2.5043   3.9660     0.6315
+m_dense/D/short                                 0.4121   1.6693     0.2468
+m_dense/H/long                                  0.4674   1.4779     0.3163
+m_dense/H/medium                                0.4599   1.5699     0.2929
+m_dense/H/short                                 0.4278   1.4875     0.2876
+restaurant/D/short                              0.2808   1.0061     0.2792
+saugeen/D/short                                 1.8270   3.4130     0.5353
+saugeen/M/short                                 0.5565   0.9764     0.5700
+saugeen/W/short                                 0.6870   1.9907     0.3451
+solar/10T/long                                  0.8358   0.8709     0.9597
+solar/10T/medium                                0.7975   0.9270     0.8603
+solar/10T/short                                 0.7239   1.1057     0.6547
+solar/D/short                                   0.3197   1.1559     0.2766
+solar/H/long                                    0.5915   1.0712     0.5522
+solar/H/medium                                  0.5694   0.9350     0.6090
+solar/H/short                                   0.5835   0.9519     0.6130
+solar/W/short                                   0.3681   1.4704     0.2504
+sz_taxi/15T/long                                0.2211   0.6909     0.3200
+sz_taxi/15T/medium                              0.2367   0.7135     0.3317
+sz_taxi/15T/short                               0.2553   0.7644     0.3340
+sz_taxi/H/short                                 0.4085   0.7382     0.5533
+temperature_rain/D/short                        0.7192   2.0115     0.3575
+us_births/D/short                               0.5470   1.8648     0.2933
+us_births/M/short                               1.5130   0.7605     1.9895
+us_births/W/short                               0.7640   1.5634     0.4887
+------------------------------------------------------------------------------------------
+
+Aggregate GM-Relative MASE (97 configs): 0.4374
+
+Leaderboard comparison:
+  Sundial:    0.673
+  TimesFM:    0.680
+  PatchTST:   0.762
+  Chronos:    0.786
+  Moirai:     0.809
+  Naive:      1.000
+  ** Ours:    0.437 **
+==========================================================================================

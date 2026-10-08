@@ -1,0 +1,21 @@
+[10-07 21:55:52] [k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_lin] head argv -> /home/jupyter/checkpoints_backup/cf-425-lin/results/waves/old_1007_215551_dzI5/jobs.jsonl reconstruction=encoder head-arch=linear
+[10-08 02:16:35] [k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_lin] head-train SKIP (final exists)
+[10-08 02:16:35] [k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_lin] eval start (97 configs, R, forecast-len 16, cuda)
+[10-08 02:16:35] [eval-slot] all 2 slots busy, 0s so far
+[10-08 02:21:35] [eval-slot] all 2 slots busy, 300s so far
+[10-08 02:26:35] [eval-slot] all 2 slots busy, 600s so far
+[10-08 02:31:35] [eval-slot] all 2 slots busy, 900s so far
+[10-08 02:36:35] [eval-slot] all 2 slots busy, 1200s so far
+[10-08 02:41:35] [eval-slot] all 2 slots busy, 1500s so far
+[10-08 02:46:35] [eval-slot] all 2 slots busy, 1800s so far
+[10-08 02:51:35] [eval-slot] all 2 slots busy, 2100s so far
+[10-08 02:56:35] [eval-slot] all 2 slots busy, 2400s so far
+[10-08 03:01:35] [eval-slot] all 2 slots busy, 2700s so far
+[10-08 03:06:35] [eval-slot] all 2 slots busy, 3000s so far
+[10-08 03:11:35] [eval-slot] all 2 slots busy, 3300s so far
+[10-08 03:14:55] [eval-slot] slot 1 after 3500s
+[10-08 03:14:55] START k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_lin bb665k enc=student shards=2 slot=1
+[10-08 03:29:02] merged 97 configs -> /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_lin/gift_r/all_results.csv
+[10-08 03:29:04] DONE k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_lin bb665k student — Aggregate GM-Relative MASE (97 configs): 0.1286 -> 0.1286
+[10-08 03:29:04] [k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_lin] eval rc=0
+[10-08 03:29:04] [k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_lin] DONE — GM-Relative MASE 0.1286

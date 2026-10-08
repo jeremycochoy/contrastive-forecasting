@@ -645,7 +645,7 @@ def forecast_autoregressive(backbone, head, x_context, horizon, device):
 # ============================================================================
 
 def extract_encoder_latents(backbone, x, freq_ids=None, seasonality_ids=None,
-                            patch_size=None):
+                            patch_size=None, normalised=False):
     """Extract encoder latents e[t] and RevEWMNorm stats.
 
     Returns the same tensor used as the contrastive target ``o_lat``
@@ -663,6 +663,9 @@ def extract_encoder_latents(backbone, x, freq_ids=None, seasonality_ids=None,
             id tensor is missing, falls back to class 0 (unknown).
         patch_size: the patch size a multi-patch backbone reads (#417,
             #412). None reads the backbone's one size, W.
+        normalised: True when ``x`` is already normalised (#425), as in
+            :func:`extract_forecaster_latents`: the normaliser does not
+            run, and its statistics stay as they are.
 
     Returns:
         e_bc: (B*C, T, H) encoder latents (detached)
@@ -670,7 +673,7 @@ def extract_encoder_latents(backbone, x, freq_ids=None, seasonality_ids=None,
     """
     size_kwarg = {} if patch_size is None else {"patch_size": patch_size}
     with torch.no_grad():
-        if backbone.rev_norm is not None:
+        if backbone.rev_norm is not None and not normalised:
             x_norm = backbone.rev_norm(x, mode='norm')
         else:
             x_norm = x
@@ -1363,19 +1366,91 @@ def _bank_group_loss(backbone, head, x_norm, keep, size, labels):
     return masked_quantile_loss(preds, targets, kept > 0.5)
 
 
+# The latent of patch t that a reconstruction head reads (#425).
+RECONSTRUCTION_LATENTS = ("encoder", "output")
+
+
+def extract_reconstruction_latents(backbone, x, latent="encoder", **kwargs):
+    """The latent of each patch that a reconstruction head reads (#425), and
+    the normalised input.
+
+    ``'encoder'`` is e[t], the encoder latent
+    (:func:`extract_encoder_latents`): the target of the contrastive loss
+    of a run of ours.
+
+    ``'output'`` is f[t], the output of the whole transformer at patch t
+    (:func:`extract_forecaster_latents`). A value-space backbone (#415, our
+    copy of Moirai) has no loss on its encoder latent. Its value head reads
+    this vector (:func:`value_space_forward`), so it is the one latent of
+    that model.
+
+    Each of the two reads patch t and the patches before it, and no later
+    patch. So a head can decode the values of patch t from each one.
+    ``kwargs`` go to the extract function: the labels, ``patch_size`` and
+    ``normalised``.
+    """
+    if latent == "encoder":
+        return extract_encoder_latents(backbone, x, **kwargs)
+    if latent == "output":
+        return extract_forecaster_latents(backbone, x, **kwargs)
+    raise ValueError(f"Unknown latent {latent!r}. Use one of "
+                     f"{RECONSTRUCTION_LATENTS}.")
+
+
+def reconstruction_quantile_loss(preds, x_norm, W, keep=None, output_len=None):
+    """The pinball loss of a reconstruction head (#425): at each patch t, the
+    quantiles of the values of patch t itself, which its encoder latent e_t
+    encodes. The prediction head of B4 reads patch t + 1 instead.
+
+    ``preds`` is ``(B*C, T, Q, L)``, ``x_norm`` ``(B, T_raw, C)``. ``keep``
+    (bool, the shape of ``x_norm``) marks the values a term may score: no
+    padding (#419), and under the mean/std scaling only the values after the
+    split (#421). None scores every value. ``output_len`` is L, W by default.
+    """
+    output_len = W if output_len is None else output_len
+    targets, t_valid = compute_reconstruction_targets(
+        x_norm, W=W, output_len=output_len, mode='encoder')
+    preds = preds[:, :t_valid]
+    if keep is None:
+        return quantile_loss(preds, targets)
+    kept, _ = compute_reconstruction_targets(
+        keep.float(), W=W, output_len=output_len, mode='encoder')
+    return masked_quantile_loss(preds, targets, kept > 0.5)
+
+
+def _bank_group_reconstruction_loss(backbone, head, x_norm, keep, size,
+                                    labels, latent="encoder"):
+    """:func:`_bank_group_loss` of a reconstruction head (#425): the head of
+    ``size`` reads the latents of its rows at that size, and decodes the
+    values of each latent's own patch. ``latent`` names the latent
+    (:func:`extract_reconstruction_latents`): the encoder latent by
+    default."""
+    e_bc, _ = extract_reconstruction_latents(
+        backbone, x_norm, latent, patch_size=size, normalised=True, **labels)
+    return reconstruction_quantile_loss(head(e_bc), x_norm, size, keep=keep)
+
+
 def bank_quantile_loss(backbone, bank, x_norm, sample_sizes, keep=None,
-                       freq_ids=None, seasonality_ids=None):
+                       freq_ids=None, seasonality_ids=None,
+                       reconstruction=False, latent="encoder"):
     """The loss of a head bank on one batch (#412): each row trains the
     head of its patch size, on the frozen backbone's latents at that size.
     A group's loss counts with its share of the rows, as the backbone's
-    groups do (#417)."""
+    groups do (#417).
+
+    ``reconstruction`` (#425): each head decodes the encoder latent of a
+    patch into the values of that patch, in place of the forecaster latent
+    into the values of the next patch. ``latent`` names the latent that a
+    reconstruction head reads (:func:`extract_reconstruction_latents`):
+    ``'output'`` for a copy of Moirai."""
     loss = 0.0
     for size, rows in patch_size_groups(sample_sizes).items():
         labels = dict(freq_ids=_rows(freq_ids, rows),
                       seasonality_ids=_rows(seasonality_ids, rows))
-        part = _bank_group_loss(backbone, bank.head_for(size),
-                                _rows(x_norm, rows), _rows(keep, rows), size,
-                                labels)
+        group = (backbone, bank.head_for(size), _rows(x_norm, rows),
+                 _rows(keep, rows), size, labels)
+        part = (_bank_group_reconstruction_loss(*group, latent)
+                if reconstruction else _bank_group_loss(*group))
         loss = loss + len(rows) / x_norm.shape[0] * part
     return loss
 
@@ -1760,6 +1835,129 @@ def forecast_B4(backbone, head, x_context, horizon, device):
 def forecast_B3R(backbone, head, x_context, horizon, device):
     """B3R: Same as B3, kept for backward compatibility."""
     return forecast_B3(backbone, head, x_context, horizon, device)
+
+
+# ============================================================================
+# R (#425): the reconstruction of the true horizon. Not a forecast.
+# ============================================================================
+
+def normalise_window(backbone, window, context_end):
+    """``window`` (``(B, T_raw, C)``) normalised as the backbone reads it, with
+    the statistics of the B4 forecast of its first ``context_end`` values.
+
+    The mean/std scaling (#421) takes loc and scale from the context only and
+    applies them to the whole window. The EWMA is causal, so its statistics
+    at a context value read no later value.
+    """
+    if backbone.rev_norm is None:
+        return window
+    if isinstance(backbone.rev_norm, RevMeanStdNorm):
+        end = torch.full((window.shape[0], 1, window.shape[2]), context_end,
+                         device=window.device)
+        return backbone.rev_norm(window, mode='norm', context_end=end)
+    return backbone.rev_norm(window, mode='norm')
+
+
+def reconstruct_windows(backbone, head, contexts, horizons, device,
+                        latent="encoder"):
+    """R (#425): the encoder reads each context AND its true horizon, and the
+    reconstruction head decodes the latents of the horizon patches.
+
+    The model sees the future here, so the result measures how much of each
+    patch the encoder latent keeps, not a forecast. Each window is a context
+    of the B4 forecast, then its horizon, then copies of the last value up
+    to a whole patch of the head's size P. Each position is unscaled with
+    the statistics it was normalised with. The windows of one batch share
+    one context length and one horizon length, as the windows of one GIFT-Eval
+    config do.
+
+    Args:
+        backbone: frozen ConfigurableModel.
+        head: a reconstruction head that decodes P values per position. A
+            head of a :class:`ForecastingHeadBank` carries its ``patch_size``.
+        contexts: ``(B, T_ctx, C)``, as B4 takes one context.
+        horizons: ``(B, h, C)`` true values, with no NaN.
+        device: torch device.
+        latent: the latent that the head reads
+            (:func:`extract_reconstruction_latents`): the encoder latent by
+            default, ``'output'`` for the head of a copy of Moirai.
+
+    Returns:
+        ``(B, num_quantiles, h, C)`` for a quantile head, ``(B, h, C)`` for
+        a point head.
+    """
+    size = getattr(head, "patch_size", None) or backbone.W
+    if head.forecast_len != size:
+        raise ValueError(f"a reconstruction head of patch size {size} decodes "
+                         f"{size} values. This one decodes "
+                         f"{head.forecast_len} values.")
+    contexts = torch.as_tensor(contexts, dtype=torch.float32).to(device)
+    future = torch.as_tensor(horizons, dtype=torch.float32).to(device)
+    B, n_ctx, C = contexts.shape
+    h = future.shape[1]
+    tail = future[:, -1:].expand(-1, (-(n_ctx + h)) % size, -1)
+    window = torch.cat([contexts, future, tail], dim=1)
+    with torch.no_grad():
+        x_norm = normalise_window(backbone, window, n_ctx)
+        e_bc, _ = extract_reconstruction_latents(
+            backbone, x_norm, latent, patch_size=size, normalised=True)
+        out = head(e_bc)
+        if isinstance(out, tuple):
+            out = head.to_quantiles(*out)                   # (BC, T, Q, P)
+        T = out.shape[1]
+        values = out.movedim(1, -2).reshape(B, C, *out.shape[2:-1], T * size)
+        values = values[..., n_ctx:n_ctx + h]               # (B, C, [Q,] h)
+        if backbone.rev_norm is not None:
+            mean, stdev = (s.expand(*window.shape)[:, n_ctx:n_ctx + h]
+                           .permute(0, 2, 1)                # (B, C, h)
+                           for s in (backbone.rev_norm.mean,
+                                     backbone.rev_norm.stdev))
+            if values.dim() == 4:
+                mean, stdev = mean.unsqueeze(2), stdev.unsqueeze(2)
+            values = values * stdev.clamp(min=1e-5) + mean
+    if values.dim() == 4:
+        return values.permute(0, 2, 3, 1).cpu().numpy()    # (B, Q, h, C)
+    return values.permute(0, 2, 1).cpu().numpy()           # (B, h, C)
+
+
+class ZeroReconstructionHead(nn.Module):
+    """The floor of strategy R (#425): a head with no weights that gives the
+    normalised value 0 for each quantile of each value.
+
+    Unscaled, each value is then the mean that normalised it: under the
+    EWMA, the EWMA at that value, which reads the true horizon up to it.
+    Under the mean/std scaling, the loc of the context. The score of this
+    head is the part of an R score that the statistics give with no
+    encoder.
+    """
+
+    def __init__(self, patch_size, quantile_levels=QUANTILE_LEVELS):
+        super().__init__()
+        self.patch_size = self.forecast_len = patch_size
+        self.quantile_levels = list(quantile_levels)
+
+    def forward(self, latents, src_mask=None):
+        """``(B*C, T, H)`` latents to ``(B*C, T, Q, P)`` zeros."""
+        n, t = latents.shape[:2]
+        return latents.new_zeros(n, t, len(self.quantile_levels),
+                                 self.forecast_len)
+
+
+def reconstruct_horizon(backbone, head, x_context, horizon, device,
+                        latent="encoder"):
+    """:func:`reconstruct_windows` of one window.
+
+    ``x_context`` is ``(T_ctx, C)`` or ``(1, T_ctx, C)``, and ``horizon``
+    ``(h,)`` or ``(h, C)``. Returns ``(num_quantiles, h, C)`` for a quantile
+    head and ``(h, C)`` for a point head, as :func:`forecast_B4` returns.
+    """
+    x_context = torch.as_tensor(x_context, dtype=torch.float32)
+    if x_context.dim() == 2:
+        x_context = x_context.unsqueeze(0)
+    future = torch.as_tensor(np.asarray(horizon), dtype=torch.float32)
+    future = future.unsqueeze(-1) if future.dim() == 1 else future
+    return reconstruct_windows(backbone, head, x_context, future[None],
+                               device, latent=latent)[0]
 
 
 # Strategy dispatch

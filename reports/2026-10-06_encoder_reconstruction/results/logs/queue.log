@@ -1,0 +1,119 @@
+[10-07 05:56:08] [#425 queue] start: 56 jobs, lanes: old gift_pretrain, code /workspace/cf-425 (366c246f)
+[10-07 05:56:08] [#425 queue] lane old: wave /workspace/results/cf-425/waves/old_1007_055608_6GXN: 9 jobs: k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon 
+[10-07 05:58:08] [#425 queue] lane gift_pretrain: wave /workspace/results/cf-425/waves/gift_pretrain_1007_055808_g7Vn: 12 jobs: cf419_cos200k_bb100k_h30k_recon cf419_cos200k_bb400k_h30k_recon cf412om_bb10k_h30k_recon cf412om_bb166k_h30k_recon cf412oc_bb40k_h30k_recon cf412oc2_bb40k_h30k_recon cf412oc2_bb400k_h30k_recon cf412oe2_bb40k_h30k_recon cf412oe2_bb200k_h30k_recon cf412om2_bb10k_h30k_recon cf412om2_bb125k_h30k_recon cf412oa2_bb40k_h30k_recon 
+[10-07 10:23:19] [#425 queue] lane old: wave rc=0
+[10-07 10:35:52] [#425 queue] score k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon rc=0
+[10-07 10:36:10] [#425 queue] score k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon rc=0
+[10-07 10:48:33] [#425 queue] score k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon rc=0
+[10-07 10:48:50] [#425 queue] score k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon rc=0
+[10-07 11:01:15] [#425 queue] score k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon rc=0
+[10-07 11:01:34] [#425 queue] score k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon rc=0
+[10-07 11:13:47] [#425 queue] score k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon rc=0
+[10-07 11:14:30] [#425 queue] score k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon rc=0
+[10-07 11:26:19] [#425 queue] score k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon rc=0
+[10-07 11:26:19] [#425 queue] lane old: done
+[10-07 12:19:32] [#425 queue] lane gift_pretrain: wave rc=0
+[10-07 12:19:32] [#425 queue] lane gift_pretrain: wave /workspace/results/cf-425/waves/gift_pretrain_1007_121932_tyz1: 12 jobs: cf412oa2_bb200k_h30k_recon cf412ow2_bb40k_h30k_recon cf412or2_bb40k_h30k_recon cf412or2_bb200k_h30k_recon cf412ol2_bb40k_h30k_recon cf412bm_bb10k_h30k_recon cf412bm_bb50k_h30k_recon cf412bw_bb10k_h30k_recon cf412bw_bb50k_h30k_recon cf412al_bb10k_h30k_recon cf412al_bb50k_h30k_recon cf419ms_bb40k_h30k_recon 
+[10-07 12:31:54] [#425 queue] score cf412om_bb10k_h30k_recon rc=0
+[10-07 12:31:56] [#425 queue] score cf412oe2_bb200k_h30k_recon rc=0
+[10-07 12:44:36] [#425 queue] score cf412oc_bb40k_h30k_recon rc=0
+[10-07 12:44:53] [#425 queue] score cf412om_bb166k_h30k_recon rc=0
+[10-07 12:57:34] [#425 queue] score cf412oa2_bb40k_h30k_recon rc=0
+[10-07 12:58:00] [#425 queue] score cf412om2_bb10k_h30k_recon rc=0
+[10-07 13:10:13] [#425 queue] score cf412oc2_bb400k_h30k_recon rc=0
+[10-07 13:10:44] [#425 queue] score cf412oc2_bb40k_h30k_recon rc=0
+[10-07 13:23:20] [#425 queue] score cf419_cos200k_bb400k_h30k_recon rc=0
+[10-07 13:23:22] [#425 queue] score cf412om2_bb125k_h30k_recon rc=0
+[10-07 13:36:03] [#425 queue] score cf412oe2_bb40k_h30k_recon rc=0
+[10-07 13:36:23] [#425 queue] score cf419_cos200k_bb100k_h30k_recon rc=0
+[10-07 16:09:12] [#425 queue] lane gift_pretrain: wave rc=0
+[10-07 16:09:13] [#425 queue] lane gift_pretrain: wave /workspace/results/cf-425/waves/gift_pretrain_1007_160913_B9ZF: 12 jobs: cf419ms_bb140k_h30k_recon cf419_cos200k_bb200k_h30k_recon cf419_cos200k_bb300k_h30k_recon cf412om_bb25k_h30k_recon cf412om_bb50k_h30k_recon cf412om_bb75k_h30k_recon cf412om_bb100k_h30k_recon cf412om_bb125k_h30k_recon cf412om_bb150k_h30k_recon cf412oc2_bb100k_h30k_recon cf412oc2_bb200k_h30k_recon cf412oc2_bb300k_h30k_recon 
+[10-07 16:21:17] [#425 queue] score cf412or2_bb40k_h30k_recon rc=0
+[10-07 16:21:51] [#425 queue] score cf412ow2_bb40k_h30k_recon rc=0
+[10-07 16:34:14] [#425 queue] score cf412or2_bb200k_h30k_recon rc=0
+[10-07 16:34:36] [#425 queue] score cf412oa2_bb200k_h30k_recon rc=0
+[10-07 16:46:59] [#425 queue] score cf412al_bb10k_h30k_recon rc=0
+[10-07 16:47:05] [#425 queue] score cf412ol2_bb40k_h30k_recon rc=0
+[10-07 16:59:53] [#425 queue] score cf412bm_bb50k_h30k_recon rc=0
+[10-07 17:00:05] [#425 queue] score cf412bm_bb10k_h30k_recon rc=0
+[10-07 17:12:27] [#425 queue] score cf412bw_bb10k_h30k_recon rc=0
+[10-07 17:12:40] [#425 queue] score cf412bw_bb50k_h30k_recon rc=0
+[10-07 17:25:33] [#425 queue] score cf412al_bb50k_h30k_recon rc=0
+[10-07 17:26:56] [#425 queue] score cf419ms_bb40k_h30k_recon rc=0
+[10-07 19:55:07] [#425 queue] lane gift_pretrain: wave rc=0
+[10-07 19:55:08] [#425 queue] lane gift_pretrain: wave /workspace/results/cf-425/waves/gift_pretrain_1007_195508_gAJV: 11 jobs: cf412oe2_bb100k_h30k_recon cf412om2_bb25k_h30k_recon cf412om2_bb50k_h30k_recon cf412om2_bb75k_h30k_recon cf412om2_bb100k_h30k_recon cf412oa2_bb100k_h30k_recon cf412or2_bb100k_h30k_recon cf412bm_bb25k_h30k_recon cf412bw_bb25k_h30k_recon cf412al_bb25k_h30k_recon cf419ms_bb100k_h30k_recon 
+[10-07 20:07:36] [#425 queue] score cf419ms_bb140k_h30k_recon rc=0
+[10-07 20:07:53] [#425 queue] score cf412om_bb25k_h30k_recon rc=0
+[10-07 20:20:04] [#425 queue] score cf412om_bb100k_h30k_recon rc=0
+[10-07 20:20:38] [#425 queue] score cf412oc2_bb300k_h30k_recon rc=0
+[10-07 20:32:47] [#425 queue] score cf412om_bb125k_h30k_recon rc=0
+[10-07 20:33:14] [#425 queue] score cf412om_bb50k_h30k_recon rc=0
+[10-07 20:45:12] [#425 queue] score cf412oc2_bb100k_h30k_recon rc=0
+[10-07 20:46:15] [#425 queue] score cf419_cos200k_bb300k_h30k_recon rc=0
+[10-07 20:58:01] [#425 queue] score cf412oc2_bb200k_h30k_recon rc=0
+[10-07 20:58:56] [#425 queue] score cf412om_bb75k_h30k_recon rc=0
+[10-07 21:10:59] [#425 queue] score cf419_cos200k_bb200k_h30k_recon rc=0
+[10-07 21:13:03] [#425 queue] score cf412om_bb150k_h30k_recon rc=0
+[10-07 23:17:05] [#425 queue] lane gift_pretrain: wave rc=0
+[10-07 23:28:57] [#425 queue] score cf412om2_bb75k_h30k_recon rc=0
+[10-07 23:29:03] [#425 queue] score cf412oe2_bb100k_h30k_recon rc=0
+[10-07 23:41:04] [#425 queue] score cf412om2_bb100k_h30k_recon rc=0
+[10-07 23:41:20] [#425 queue] score cf412bm_bb25k_h30k_recon rc=0
+[10-07 23:53:06] [#425 queue] score cf412bw_bb25k_h30k_recon rc=0
+[10-07 23:53:15] [#425 queue] score cf412or2_bb100k_h30k_recon rc=0
+[10-08 00:05:31] [#425 queue] score cf412om2_bb50k_h30k_recon rc=0
+[10-08 00:05:46] [#425 queue] score cf412oa2_bb100k_h30k_recon rc=0
+[10-08 00:17:42] [#425 queue] score cf412al_bb25k_h30k_recon rc=0
+[10-08 00:17:44] [#425 queue] score cf419ms_bb100k_h30k_recon rc=0
+[10-08 00:29:40] [#425 queue] score cf412om2_bb25k_h30k_recon rc=0
+[10-08 00:29:40] [#425 queue] lane gift_pretrain: done
+[10-08 00:29:40] [#425 queue] QUEUE_END: 56 scores
+[10-08 08:58:08] [#425 queue] start: 66 jobs, transformer heads, lanes: old:0 gift_pretrain:0, code /workspace/cf-425 (366c246f, with queue.sh and jobs.tsv of 2758c699)
+[10-08 08:58:08] [#425 queue] lane 1 (old, GPU 0): wave /workspace/results/cf-425/waves/old_1008_085808_a2w8: 10 jobs: k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10x_bb460k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10x_bb100k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10x_bb140k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10x_bb180k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10x_bb200k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10x_bb300k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10x_bb360k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10x_bb400k_h30k_recon 
+[10-08 09:00:08] [#425 queue] lane 2 (gift_pretrain, GPU 0): done
+[10-08 09:10:46] [#425 queue] lane 1 (old, GPU 0): wave rc=1
+[10-08 09:10:46] [#425 queue] lane 1 (old, GPU 0): wave /workspace/results/cf-425/waves/old_1008_091046_DK7G: 10 jobs: k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10x_bb460k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10x_bb100k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10x_bb140k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10x_bb180k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10x_bb200k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10x_bb300k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10x_bb360k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10x_bb400k_h30k_recon 
+[10-08 09:10:56] [#425 queue] lane 1 (old, GPU 0): wave rc=1
+[10-08 09:10:56] [#425 queue] lane 1 (old, GPU 0): done
+[10-08 09:10:56] [#425 queue] QUEUE_END: 56 scores
+[10-08 09:19:41] [#425 queue] start: 66 jobs, transformer heads, lanes: old:0 gift_pretrain:0, code /workspace/cf-425 (366c246f, with queue.sh and jobs.tsv of 2758c699)
+[10-08 09:19:41] [#425 queue] lane 1 (old, GPU 0): wave /workspace/results/cf-425/waves/old_1008_091941_h3HY: 10 jobs: k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10x_bb460k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10x_bb100k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10x_bb140k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10x_bb180k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10x_bb200k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10x_bb300k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10x_bb360k_h30k_recon k3_r100_09_lr56_fix09_dec10k_lr10x_bb400k_h30k_recon 
+[10-08 09:21:41] [#425 queue] lane 2 (gift_pretrain, GPU 0): done
+[10-08 12:49:51] [#425 queue] lane 1 (old, GPU 0): wave rc=0
+[10-08 13:02:08] [#425 queue] score k3_r100_09_lr56_fix09_dec10k_lr10x_bb460k_h30k_recon rc=0
+[10-08 13:02:12] [#425 queue] score k3_r100_09_lr56_fix09_dec10k_lr10x_bb140k_h30k_recon rc=0
+[10-08 13:14:12] [#425 queue] score k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon rc=0
+[10-08 13:14:18] [#425 queue] score k3_r100_09_lr56_fix09_dec10k_lr10x_bb300k_h30k_recon rc=0
+[10-08 13:26:54] [#425 queue] score k3_r100_09_lr56_fix09_dec10k_lr10x_bb400k_h30k_recon rc=0
+[10-08 13:27:00] [#425 queue] score k3_r100_09_lr56_fix09_dec10k_lr10x_bb200k_h30k_recon rc=0
+[10-08 13:38:52] [#425 queue] score k3_r100_09_lr56_fix09_dec10k_lr10x_bb100k_h30k_recon rc=0
+[10-08 13:38:54] [#425 queue] score k3_r100_09_lr56_fix09_dec10k_lr10x_bb360k_h30k_recon rc=0
+[10-08 13:50:52] [#425 queue] score k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon rc=0
+[10-08 13:50:59] [#425 queue] score k3_r100_09_lr56_fix09_dec10k_lr10x_bb180k_h30k_recon rc=0
+[10-08 13:50:59] [#425 queue] lane 1 (old, GPU 0): done
+[10-08 13:50:59] [#425 queue] QUEUE_END: 66 scores
+[10-08 13:52:16] [#425 queue] start: 83 jobs, transformer heads, lanes: old:0 gift_pretrain:0, code /workspace/cf-425-moirai (3a23c579)
+[10-08 13:52:16] [#425 queue] lane 1 (old, GPU 0): done
+[10-08 13:54:16] [#425 queue] lane 2 (gift_pretrain, GPU 0): wave /workspace/results/cf-425/waves/gift_pretrain_1008_135416_R4vG: 12 jobs: cf421f_moirai_native_bb10k_h30k_recon cf421f_moirai_native_bb166k_h30k_recon cf421ew_moirai_native_bb10k_h30k_recon cf421ew_moirai_native_bb166k_h30k_recon cf421f_moirai_native_bb20k_h30k_recon cf421f_moirai_native_bb25k_h30k_recon cf421f_moirai_native_bb50k_h30k_recon cf421f_moirai_native_bb75k_h30k_recon cf421f_moirai_native_bb100k_h30k_recon cf421f_moirai_native_bb125k_h30k_recon cf421f_moirai_native_bb150k_h30k_recon cf421ew_moirai_native_bb25k_h30k_recon 
+[10-08 17:24:37] [#425 queue] lane 2 (gift_pretrain, GPU 0): wave rc=0
+[10-08 17:24:37] [#425 queue] lane 2 (gift_pretrain, GPU 0): wave /workspace/results/cf-425/waves/gift_pretrain_1008_172437_MX3S: 5 jobs: cf421ew_moirai_native_bb50k_h30k_recon cf421ew_moirai_native_bb75k_h30k_recon cf421ew_moirai_native_bb100k_h30k_recon cf421ew_moirai_native_bb125k_h30k_recon cf421ew_moirai_native_bb150k_h30k_recon 
+[10-08 17:36:59] [#425 queue] score cf421f_moirai_native_bb50k_h30k_recon rc=0
+[10-08 17:37:13] [#425 queue] score cf421ew_moirai_native_bb166k_h30k_recon rc=0
+[10-08 17:49:38] [#425 queue] score cf421f_moirai_native_bb100k_h30k_recon rc=0
+[10-08 17:50:00] [#425 queue] score cf421f_moirai_native_bb25k_h30k_recon rc=0
+[10-08 18:02:16] [#425 queue] score cf421f_moirai_native_bb125k_h30k_recon rc=0
+[10-08 18:02:34] [#425 queue] score cf421f_moirai_native_bb10k_h30k_recon rc=0
+[10-08 18:14:31] [#425 queue] score cf421f_moirai_native_bb150k_h30k_recon rc=0
+[10-08 18:15:00] [#425 queue] score cf421ew_moirai_native_bb10k_h30k_recon rc=0
+[10-08 18:27:08] [#425 queue] score cf421f_moirai_native_bb20k_h30k_recon rc=0
+[10-08 18:27:45] [#425 queue] score cf421f_moirai_native_bb166k_h30k_recon rc=0
+[10-08 18:39:53] [#425 queue] score cf421ew_moirai_native_bb25k_h30k_recon rc=0
+[10-08 18:40:07] [#425 queue] score cf421f_moirai_native_bb75k_h30k_recon rc=0
+[10-08 19:36:09] [#425 queue] lane 2 (gift_pretrain, GPU 0): wave rc=0
+[10-08 19:47:52] [#425 queue] score cf421ew_moirai_native_bb50k_h30k_recon rc=0
+[10-08 19:48:17] [#425 queue] score cf421ew_moirai_native_bb125k_h30k_recon rc=0
+[10-08 20:00:01] [#425 queue] score cf421ew_moirai_native_bb150k_h30k_recon rc=0
+[10-08 20:00:22] [#425 queue] score cf421ew_moirai_native_bb100k_h30k_recon rc=0
+[10-08 20:11:53] [#425 queue] score cf421ew_moirai_native_bb75k_h30k_recon rc=0
+[10-08 20:11:53] [#425 queue] lane 2 (gift_pretrain, GPU 0): done
+[10-08 20:11:53] [#425 queue] QUEUE_END: 83 scores

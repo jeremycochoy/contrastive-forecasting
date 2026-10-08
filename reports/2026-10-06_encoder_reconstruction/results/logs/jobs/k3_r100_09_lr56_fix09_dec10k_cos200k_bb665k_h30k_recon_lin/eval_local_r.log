@@ -1,0 +1,137 @@
+[10-08 02:16:35] START k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_lin bb665k enc=student shards=2 slot=0
+[10-08 02:30:53] merged 97 configs -> /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_lin/gift_r/all_results.csv
+Loading models...
+  [eval] context pad: first
+  [eval] auto-detected num_encoder_layers=3 from backbone checkpoint
+  [eval] auto-detected qk_norm=True from backbone checkpoint
+  [eval] auto-detected attn_out_norm=True from backbone checkpoint
+  [eval] auto-detected freq_emb_dim=3 from backbone checkpoint
+  [eval] auto-detected seasonality_emb_dim=3 from backbone checkpoint
+  [eval] auto-detected patch_stats=none
+  [eval] encoder=student freq_vocab=v1
+  [eval] auto-detected linear-probe quantile head
+  Backbone: /home/jupyter/checkpoints_backup/cf-412/vast_lr100x/k3_r100_09_lr56_fix09_dec10k_cos200k/arm6_v2_combab_alignT/leg_665k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_fix09_dec10k_cos200k_665k.pth
+  Head: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_lin/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_lin_s20260722_final.pth
+  Strategy: R (forecast_len=16)
+
+Total configs to evaluate: 97
+  Resuming: 97 configs already done
+
+Results saved to /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_lin/gift_r/all_results.csv
+==========================================================================================
+                                GIFT-Eval Official Results                                
+==========================================================================================
+Config                                            MASE  SN_MASE   Relative
+------------------------------------------------------------------------------------------
+bitbrains_fast_storage/5T/long                  0.2931   1.1366     0.2579
+bitbrains_fast_storage/5T/medium                0.3900   1.2203     0.3196
+bitbrains_fast_storage/5T/short                 0.3566   1.1360     0.3139
+bitbrains_fast_storage/H/short                  0.4702   1.2985     0.3621
+bitbrains_rnd/5T/long                           0.6290   3.5013     0.1796
+bitbrains_rnd/5T/medium                         0.5179   4.5424     0.1140
+bitbrains_rnd/5T/short                          0.6439   1.9708     0.3267
+bitbrains_rnd/H/short                           2.5106   6.0374     0.4158
+bizitobs_application/10S/long                   0.6230   3.2063     0.1943
+bizitobs_application/10S/medium                 0.5883   2.6914     0.2186
+bizitobs_application/10S/short                  0.5225   2.2423     0.2330
+bizitobs_l2c/5T/long                            0.0179   1.4543     0.0123
+bizitobs_l2c/5T/medium                          0.0200   1.2436     0.0161
+bizitobs_l2c/5T/short                           0.0250   0.9860     0.0254
+bizitobs_l2c/H/long                             0.0771   1.4261     0.0541
+bizitobs_l2c/H/medium                           0.0812   1.5103     0.0538
+bizitobs_l2c/H/short                            0.0664   1.2141     0.0547
+bizitobs_service/10S/long                       0.3154   1.3672     0.2307
+bizitobs_service/10S/medium                     0.3410   1.3206     0.2582
+bizitobs_service/10S/short                      0.3191   1.2253     0.2604
+car_parts/M/short                               0.4200   1.2015     0.3495
+covid_deaths/D/short                            6.0838  46.9124     0.1297
+electricity/15T/long                            0.2158   1.1635     0.1854
+electricity/15T/medium                          0.2157   1.1508     0.1875
+electricity/15T/short                           0.2117   1.7171     0.1233
+electricity/D/short                             0.2709   1.9870     0.1363
+electricity/H/long                              0.3385   1.5241     0.2221
+electricity/H/medium                            0.3381   1.3925     0.2428
+electricity/H/short                             0.3342   1.3578     0.2461
+electricity/W/short                             0.2535   2.0897     0.1213
+ett1/15T/long                                   0.1300   1.1909     0.1091
+ett1/15T/medium                                 0.1272   1.1883     0.1070
+ett1/15T/short                                  0.1228   0.9342     0.1314
+ett1/D/short                                    0.2523   1.7784     0.1419
+ett1/H/long                                     0.2132   1.4787     0.1442
+ett1/H/medium                                   0.2100   1.5678     0.1339
+ett1/H/short                                    0.1885   0.9773     0.1929
+ett1/W/short                                    0.2609   1.7689     0.1475
+ett2/15T/long                                   0.0899   1.0127     0.0888
+ett2/15T/medium                                 0.0870   1.0512     0.0828
+ett2/15T/short                                  0.0869   1.0673     0.0814
+ett2/D/short                                    0.2544   1.3901     0.1830
+ett2/H/long                                     0.1331   1.1284     0.1180
+ett2/H/medium                                   0.1285   1.2384     0.1037
+ett2/H/short                                    0.1214   0.9232     0.1315
+ett2/W/short                                    0.3924   0.7785     0.5040
+hierarchical_sales/D/short                      0.2274   1.1348     0.2004
+hierarchical_sales/W/short                      0.1863   1.0250     0.1817
+hospital/M/short                                0.1876   0.9205     0.2038
+jena_weather/10T/long                           0.0428   0.7615     0.0562
+jena_weather/10T/medium                         0.0430   0.7160     0.0600
+jena_weather/10T/short                          0.0371   0.7429     0.0500
+jena_weather/D/short                            0.2443   1.5734     0.1553
+jena_weather/H/long                             0.0867   1.2677     0.0684
+jena_weather/H/medium                           0.0844   0.8886     0.0950
+jena_weather/H/short                            0.0860   0.7229     0.1190
+kdd_cup_2018/D/short                            0.3165   1.4970     0.2114
+kdd_cup_2018/H/long                             0.1164   1.3355     0.0871
+kdd_cup_2018/H/medium                           0.1271   1.4290     0.0890
+kdd_cup_2018/H/short                            0.1269   1.3404     0.0947
+loop_seattle/5T/long                            0.1437   1.2507     0.1149
+loop_seattle/5T/medium                          0.1441   1.1533     0.1249
+loop_seattle/5T/short                           0.1362   0.7623     0.1787
+loop_seattle/D/short                            0.3185   1.7324     0.1838
+loop_seattle/H/long                             0.3358   1.5460     0.2172
+loop_seattle/H/medium                           0.3116   1.4805     0.2105
+loop_seattle/H/short                            0.3100   1.2928     0.2398
+m4_daily/D/short                                0.5298   3.2784     0.1616
+m4_hourly/H/short                               0.9431   1.1932     0.7904
+m4_monthly/M/short                              0.2177   1.2597     0.1728
+m4_quarterly/Q/short                            0.3024   1.6022     0.1887
+m4_weekly/W/short                               0.5555   2.7773     0.2000
+m4_yearly/A/short                               0.9205   3.9660     0.2321
+m_dense/D/short                                 0.2763   1.6693     0.1655
+m_dense/H/long                                  0.2914   1.4779     0.1972
+m_dense/H/medium                                0.2909   1.5699     0.1853
+m_dense/H/short                                 0.2781   1.4875     0.1869
+restaurant/D/short                              0.2274   1.0061     0.2261
+saugeen/D/short                                 0.8044   3.4130     0.2357
+saugeen/M/short                                 0.3150   0.9764     0.3226
+saugeen/W/short                                 0.3910   1.9907     0.1964
+solar/10T/long                                  0.1428   0.8709     0.1639
+solar/10T/medium                                0.1383   0.9270     0.1492
+solar/10T/short                                 0.1363   1.1057     0.1232
+solar/D/short                                   0.2837   1.1559     0.2454
+solar/H/long                                    0.5059   1.0712     0.4723
+solar/H/medium                                  0.4829   0.9350     0.5165
+solar/H/short                                   0.4895   0.9519     0.5143
+solar/W/short                                   0.2286   1.4704     0.1555
+sz_taxi/15T/long                                0.1165   0.6909     0.1686
+sz_taxi/15T/medium                              0.1232   0.7135     0.1727
+sz_taxi/15T/short                               0.1262   0.7644     0.1651
+sz_taxi/H/short                                 0.1542   0.7382     0.2089
+temperature_rain/D/short                        0.5312   2.0115     0.2641
+us_births/D/short                               0.4053   1.8648     0.2173
+us_births/M/short                               0.1787   0.7605     0.2349
+us_births/W/short                               0.2262   1.5634     0.1447
+------------------------------------------------------------------------------------------
+
+Aggregate GM-Relative MASE (97 configs): 0.1591
+
+Leaderboard comparison:
+  Sundial:    0.673
+  TimesFM:    0.680
+  PatchTST:   0.762
+  Chronos:    0.786
+  Moirai:     0.809
+  Naive:      1.000
+  ** Ours:    0.159 **
+==========================================================================================
+Summary saved to /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_lin/gift_r/summary.txt
+[10-08 02:30:55] DONE k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_lin bb665k student — Aggregate GM-Relative MASE (97 configs): 0.1591 -> 0.1591

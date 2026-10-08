@@ -1,0 +1,1071 @@
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/k3_r100_09_lr56_fix09_dec10k_cos200k/arm6_v2_combab_alignT/leg_665k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_fix09_dec10k_cos200k_665k.pth (0 params, frozen, encoder=student)
+/workspace/cf-425/src/forecasting_head.py:188: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.transformer = nn.TransformerEncoder(layer, num_layers=num_layers)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] Forecasting head [transformer-q (2L H384 nhead8 causal)]: 3,605,136 trainable params
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/k3_r100_09_lr56_fix09_dec10k_cos200k/arm6_v2_combab_alignT/leg_1330k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_fix09_dec10k_cos200k_r2_1330k.pth (0 params, frozen, encoder=student)
+/workspace/cf-425/src/forecasting_head.py:188: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.transformer = nn.TransformerEncoder(layer, num_layers=num_layers)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] Forecasting head [transformer-q (2L H384 nhead8 causal)]: 3,605,136 trainable params
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/k3_r100_09_lr56_fix09_dec10k_lr100x/arm6_v2_combab_alignT/leg_1000k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_fix09_dec10k_lr100x_1000k.pth (0 params, frozen, encoder=student)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] Forecasting head [transformer-q (2L H384 nhead8 causal)]: 3,605,136 trainable params
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/k3_r100_09_lr56_fix09_dec10k_lr100x/arm6_v2_combab_alignT/leg_1330k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_fix09_dec10k_lr100x_1080k.pth (0 params, frozen, encoder=student)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] Forecasting head [transformer-q (2L H384 nhead8 causal)]: 3,605,136 trainable params
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/k3_r100_09_lr56_fix09_dec10k_lr10xb/arm6_v2_combab_alignT/leg_100k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_fix09_dec10k_lr10xb_100k.pth (0 params, frozen, encoder=student)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] Forecasting head [transformer-q (2L H384 nhead8 causal)]: 3,605,136 trainable params
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/k3_r100_09_lr56_fix09_dec10k_lr10xb/arm6_v2_combab_alignT/leg_665k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_fix09_dec10k_lr10xb_420k.pth (0 params, frozen, encoder=student)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] Forecasting head [transformer-q (2L H384 nhead8 causal)]: 3,605,136 trainable params
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/k3_r100_09_lr56_fix09_dec10k_lr30x/arm6_v2_combab_alignT/leg_665k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_fix09_dec10k_lr30x_665k.pth (0 params, frozen, encoder=student)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] Forecasting head [transformer-q (2L H384 nhead8 causal)]: 3,605,136 trainable params
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/k3_r100_09_lr56_fix09_dec10k_cos665k/arm6_v2_combab_alignT/leg_665k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_fix09_dec10k_cos665k_665k.pth (0 params, frozen, encoder=student)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] Forecasting head [transformer-q (2L H384 nhead8 causal)]: 3,605,136 trainable params
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/k3_r100_09_lr56_fix09_dec10k_cos200k/arm6_v2_combab_alignT/leg_1330k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_fix09_dec10k_cos200k_1140k.pth (0 params, frozen, encoder=student)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] Forecasting head [transformer-q (2L H384 nhead8 causal)]: 3,605,136 trainable params
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20280722, emit_labels=True
+[shared] 9 jobs on one stream: qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722, qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722, qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722, qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722, qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722, qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722, qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722, qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722, qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_losses.csv
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] 
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_*.pth
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_losses.csv
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] 
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_*.pth
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_losses.csv
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] 
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_*.pth
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_losses.csv
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] 
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_*.pth
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_losses.csv
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] 
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_*.pth
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_losses.csv
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] 
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_*.pth
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_losses.csv
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] 
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_*.pth
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_losses.csv
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] 
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_*.pth
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_losses.csv
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] 
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_*.pth
+[shared] 1 steps: 0.09 steps/s since the start, 0.09 steps/s over the last 1, 0.8 job steps/s, peak 5.63 GiB allocated, 5.92 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [    500] loss=0.021188  ema_loss=0.028103  2.7 sps  ETA 3.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.028103)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [    500] loss=0.022340  ema_loss=0.029239  2.7 sps  ETA 3.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.029239)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [    500] loss=0.023960  ema_loss=0.030216  2.7 sps  ETA 3.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.030216)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [    500] loss=0.022464  ema_loss=0.030526  2.7 sps  ETA 3.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.030526)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [    500] loss=0.023255  ema_loss=0.028629  2.7 sps  ETA 3.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.028629)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [    500] loss=0.032384  ema_loss=0.042260  2.7 sps  ETA 3.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.042260)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [    500] loss=0.028892  ema_loss=0.037992  2.7 sps  ETA 3.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.037992)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [    500] loss=0.047290  ema_loss=0.064691  2.7 sps  ETA 3.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.064691)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [    500] loss=0.022676  ema_loss=0.028709  2.7 sps  ETA 3.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.028709)
+[shared] 500 steps: 2.65 steps/s since the start, 2.82 steps/s over the last 499, 25.4 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [   1000] loss=0.016698  ema_loss=0.017231  2.2 sps  ETA 3.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.017231)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [   1000] loss=0.017447  ema_loss=0.018152  2.2 sps  ETA 3.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.018152)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [   1000] loss=0.017089  ema_loss=0.018874  2.2 sps  ETA 3.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.018874)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [   1000] loss=0.018379  ema_loss=0.019525  2.2 sps  ETA 3.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.019525)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [   1000] loss=0.016819  ema_loss=0.017739  2.2 sps  ETA 3.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.017739)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [   1000] loss=0.021672  ema_loss=0.024527  2.2 sps  ETA 3.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.024527)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [   1000] loss=0.023264  ema_loss=0.024416  2.2 sps  ETA 3.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.024416)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [   1000] loss=0.033019  ema_loss=0.035192  2.2 sps  ETA 3.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.035192)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [   1000] loss=0.016089  ema_loss=0.017633  2.2 sps  ETA 3.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.017633)
+[shared] 1000 steps: 2.23 steps/s since the start, 1.93 steps/s over the last 500, 17.3 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [   1500] loss=0.015060  ema_loss=0.014086  2.1 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.014086)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [   1500] loss=0.014010  ema_loss=0.015958  2.1 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.015958)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [   1500] loss=0.017039  ema_loss=0.016271  2.1 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.016271)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [   1500] loss=0.015975  ema_loss=0.016707  2.1 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.016707)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [   1500] loss=0.014140  ema_loss=0.014589  2.1 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.014589)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [   1500] loss=0.022475  ema_loss=0.020627  2.1 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.020627)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [   1500] loss=0.020741  ema_loss=0.020914  2.1 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.020914)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [   1500] loss=0.025488  ema_loss=0.025970  2.1 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.025970)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [   1500] loss=0.015715  ema_loss=0.015599  2.1 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.015599)
+[shared] 1500 steps: 2.11 steps/s since the start, 1.89 steps/s over the last 500, 17.1 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [   2000] loss=0.011908  ema_loss=0.012385  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.012385)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [   2000] loss=0.012927  ema_loss=0.016723  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [   2000] loss=0.016925  ema_loss=0.014648  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.014648)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [   2000] loss=0.014513  ema_loss=0.015555  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.015555)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [   2000] loss=0.013142  ema_loss=0.013455  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.013455)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [   2000] loss=0.017074  ema_loss=0.018729  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.018729)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [   2000] loss=0.017993  ema_loss=0.018832  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.018832)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [   2000] loss=0.022183  ema_loss=0.022115  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.022115)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [   2000] loss=0.011628  ema_loss=0.012887  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.012887)
+[shared] 2000 steps: 2.05 steps/s since the start, 1.88 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [   2500] loss=0.010797  ema_loss=0.011618  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.011618)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [   2500] loss=0.012442  ema_loss=0.012539  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.012539)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [   2500] loss=0.013363  ema_loss=0.013825  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.013825)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [   2500] loss=0.016962  ema_loss=0.014666  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.014666)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [   2500] loss=0.012165  ema_loss=0.012616  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.012616)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [   2500] loss=0.016978  ema_loss=0.017336  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.017336)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [   2500] loss=0.016226  ema_loss=0.017109  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.017109)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [   2500] loss=0.020140  ema_loss=0.020130  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.020130)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [   2500] loss=0.010899  ema_loss=0.011895  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.011895)
+[shared] 2500 steps: 2.00 steps/s since the start, 1.84 steps/s over the last 500, 16.5 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [   3000] loss=0.018935  ema_loss=0.023738  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [   3000] loss=0.183167  ema_loss=0.031712  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [   3000] loss=0.012976  ema_loss=0.013090  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.013090)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [   3000] loss=0.013174  ema_loss=0.013642  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.013642)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [   3000] loss=0.011614  ema_loss=0.011604  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.011604)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [   3000] loss=0.016991  ema_loss=0.016208  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.016208)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [   3000] loss=0.018010  ema_loss=0.016170  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.016170)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [   3000] loss=0.018882  ema_loss=0.018956  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.018956)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [   3000] loss=0.015701  ema_loss=0.019342  2.0 sps  ETA 3.8h
+[shared] 3000 steps: 1.97 steps/s since the start, 1.85 steps/s over the last 500, 16.7 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [   3500] loss=0.008636  ema_loss=0.010198  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.010198)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [   3500] loss=0.012556  ema_loss=0.015596  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [   3500] loss=0.011012  ema_loss=0.012456  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.012456)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [   3500] loss=0.010450  ema_loss=0.012865  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.012865)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [   3500] loss=0.010162  ema_loss=0.011225  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.011225)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [   3500] loss=0.013334  ema_loss=0.014970  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.014970)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [   3500] loss=0.013296  ema_loss=0.015401  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.015401)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [   3500] loss=0.016270  ema_loss=0.018019  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.018019)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [   3500] loss=0.008603  ema_loss=0.010230  2.0 sps  ETA 3.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.010230)
+[shared] 3500 steps: 1.96 steps/s since the start, 1.88 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [   4000] loss=0.009477  ema_loss=0.009579  2.0 sps  ETA 3.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.009579)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [   4000] loss=0.011316  ema_loss=0.011612  2.0 sps  ETA 3.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.011612)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [   4000] loss=0.012034  ema_loss=0.011902  2.0 sps  ETA 3.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.011902)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [   4000] loss=0.012768  ema_loss=0.012618  2.0 sps  ETA 3.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.012618)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [   4000] loss=0.011221  ema_loss=0.010705  2.0 sps  ETA 3.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.010705)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [   4000] loss=0.014053  ema_loss=0.015370  2.0 sps  ETA 3.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [   4000] loss=0.014465  ema_loss=0.014547  1.9 sps  ETA 3.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.014547)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [   4000] loss=0.018275  ema_loss=0.017376  1.9 sps  ETA 3.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.017376)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [   4000] loss=0.020115  ema_loss=0.011638  1.9 sps  ETA 3.7h
+[shared] 4000 steps: 1.95 steps/s since the start, 1.88 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [   4500] loss=0.009646  ema_loss=0.009246  1.9 sps  ETA 3.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.009246)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [   4500] loss=0.010580  ema_loss=0.010757  1.9 sps  ETA 3.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.010757)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [   4500] loss=0.012387  ema_loss=0.011322  1.9 sps  ETA 3.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.011322)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [   4500] loss=0.012001  ema_loss=0.011976  1.9 sps  ETA 3.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.011976)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [   4500] loss=0.010940  ema_loss=0.010380  1.9 sps  ETA 3.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.010380)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [   4500] loss=0.014926  ema_loss=0.013891  1.9 sps  ETA 3.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.013891)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [   4500] loss=0.015348  ema_loss=0.014029  1.9 sps  ETA 3.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.014029)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [   4500] loss=0.017640  ema_loss=0.016744  1.9 sps  ETA 3.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.016744)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [   4500] loss=0.010106  ema_loss=0.009529  1.9 sps  ETA 3.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.009529)
+[shared] 4500 steps: 1.94 steps/s since the start, 1.88 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [   5000] loss=0.008434  ema_loss=0.009354  1.9 sps  ETA 3.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [   5000] loss=0.009240  ema_loss=0.009900  1.9 sps  ETA 3.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.009900)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [   5000] loss=0.010628  ema_loss=0.011118  1.9 sps  ETA 3.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.011118)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [   5000] loss=0.010276  ema_loss=0.011508  1.9 sps  ETA 3.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.011508)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [   5000] loss=0.009240  ema_loss=0.010006  1.9 sps  ETA 3.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.010006)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [   5000] loss=0.013628  ema_loss=0.013113  1.9 sps  ETA 3.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.013113)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [   5000] loss=0.013215  ema_loss=0.013793  1.9 sps  ETA 3.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.013793)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [   5000] loss=0.016061  ema_loss=0.016236  1.9 sps  ETA 3.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.016236)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [   5000] loss=0.009073  ema_loss=0.012980  1.9 sps  ETA 3.6h
+[shared] 5000 steps: 1.92 steps/s since the start, 1.79 steps/s over the last 500, 16.1 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [   5500] loss=0.008259  ema_loss=0.008830  1.9 sps  ETA 3.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.008830)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [   5500] loss=0.010139  ema_loss=0.009727  1.9 sps  ETA 3.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.009727)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [   5500] loss=0.009992  ema_loss=0.011129  1.9 sps  ETA 3.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [   5500] loss=0.010928  ema_loss=0.011667  1.9 sps  ETA 3.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [   5500] loss=0.009372  ema_loss=0.009891  1.9 sps  ETA 3.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.009891)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [   5500] loss=0.011698  ema_loss=0.012772  1.9 sps  ETA 3.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.012772)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [   5500] loss=0.013536  ema_loss=0.013280  1.9 sps  ETA 3.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.013280)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [   5500] loss=0.015673  ema_loss=0.015908  1.9 sps  ETA 3.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.015908)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [   5500] loss=0.008842  ema_loss=0.008779  1.9 sps  ETA 3.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.008779)
+[shared] 5500 steps: 1.92 steps/s since the start, 1.88 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [   6000] loss=0.007965  ema_loss=0.008488  1.9 sps  ETA 3.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.008488)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [   6000] loss=0.008333  ema_loss=0.009337  1.9 sps  ETA 3.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.009337)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [   6000] loss=0.010776  ema_loss=0.010479  1.9 sps  ETA 3.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.010479)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [   6000] loss=0.011042  ema_loss=0.010926  1.9 sps  ETA 3.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.010926)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [   6000] loss=0.008696  ema_loss=0.009798  1.9 sps  ETA 3.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.009798)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [   6000] loss=0.012633  ema_loss=0.012370  1.9 sps  ETA 3.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.012370)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [   6000] loss=0.018179  ema_loss=0.022686  1.9 sps  ETA 3.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [   6000] loss=0.014690  ema_loss=0.015469  1.9 sps  ETA 3.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.015469)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [   6000] loss=0.008519  ema_loss=0.008607  1.9 sps  ETA 3.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.008607)
+[shared] 6000 steps: 1.92 steps/s since the start, 1.86 steps/s over the last 500, 16.7 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [   6500] loss=0.009126  ema_loss=0.008689  1.9 sps  ETA 3.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [   6500] loss=0.010543  ema_loss=0.008950  1.9 sps  ETA 3.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.008950)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [   6500] loss=0.011180  ema_loss=0.010182  1.9 sps  ETA 3.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.010182)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [   6500] loss=0.013369  ema_loss=0.010849  1.9 sps  ETA 3.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.010849)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [   6500] loss=0.009188  ema_loss=0.009306  1.9 sps  ETA 3.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.009306)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [   6500] loss=0.017910  ema_loss=0.023379  1.9 sps  ETA 3.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [   6500] loss=0.014962  ema_loss=0.015003  1.9 sps  ETA 3.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [   6500] loss=0.014692  ema_loss=0.015181  1.9 sps  ETA 3.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.015181)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [   6500] loss=0.009062  ema_loss=0.008829  1.9 sps  ETA 3.4h
+[shared] 6500 steps: 1.91 steps/s since the start, 1.88 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [   7000] loss=0.007594  ema_loss=0.008305  1.9 sps  ETA 3.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.008305)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [   7000] loss=0.009204  ema_loss=0.009030  1.9 sps  ETA 3.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [   7000] loss=0.011250  ema_loss=0.010298  1.9 sps  ETA 3.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [   7000] loss=0.009729  ema_loss=0.010942  1.9 sps  ETA 3.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [   7000] loss=0.009205  ema_loss=0.009473  1.9 sps  ETA 3.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [   7000] loss=0.013527  ema_loss=0.014336  1.9 sps  ETA 3.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [   7000] loss=0.033905  ema_loss=0.039507  1.9 sps  ETA 3.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [   7000] loss=0.014839  ema_loss=0.015110  1.9 sps  ETA 3.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.015110)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [   7000] loss=0.035774  ema_loss=0.057461  1.9 sps  ETA 3.3h
+[shared] 7000 steps: 1.91 steps/s since the start, 1.87 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [   7500] loss=0.007678  ema_loss=0.008330  1.9 sps  ETA 3.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [   7500] loss=0.008994  ema_loss=0.009767  1.9 sps  ETA 3.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [   7500] loss=0.009409  ema_loss=0.009903  1.9 sps  ETA 3.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.009903)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [   7500] loss=0.010235  ema_loss=0.010413  1.9 sps  ETA 3.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.010413)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [   7500] loss=0.008507  ema_loss=0.009100  1.9 sps  ETA 3.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.009100)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [   7500] loss=0.012122  ema_loss=0.012895  1.9 sps  ETA 3.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [   7500] loss=0.015161  ema_loss=0.016013  1.9 sps  ETA 3.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [   7500] loss=0.015162  ema_loss=0.014809  1.9 sps  ETA 3.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.014809)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [   7500] loss=0.017136  ema_loss=0.018305  1.9 sps  ETA 3.3h
+[shared] 7500 steps: 1.91 steps/s since the start, 1.84 steps/s over the last 500, 16.6 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [   8000] loss=0.007890  ema_loss=0.008143  1.9 sps  ETA 3.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.008143)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [   8000] loss=0.007798  ema_loss=0.008292  1.9 sps  ETA 3.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.008292)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [   8000] loss=0.010166  ema_loss=0.009898  1.9 sps  ETA 3.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.009898)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [   8000] loss=0.010450  ema_loss=0.010062  1.9 sps  ETA 3.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.010062)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [   8000] loss=0.009266  ema_loss=0.009002  1.9 sps  ETA 3.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.009002)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [   8000] loss=0.011851  ema_loss=0.011949  1.9 sps  ETA 3.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.011949)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [   8000] loss=0.013500  ema_loss=0.013764  1.9 sps  ETA 3.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [   8000] loss=0.014496  ema_loss=0.014554  1.9 sps  ETA 3.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.014554)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [   8000] loss=0.013210  ema_loss=0.014040  1.9 sps  ETA 3.2h
+[shared] 8000 steps: 1.90 steps/s since the start, 1.85 steps/s over the last 500, 16.6 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [   8500] loss=0.007753  ema_loss=0.007651  1.9 sps  ETA 3.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.007651)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [   8500] loss=0.008079  ema_loss=0.008780  1.9 sps  ETA 3.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [   8500] loss=0.008880  ema_loss=0.009439  1.9 sps  ETA 3.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.009439)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [   8500] loss=0.010156  ema_loss=0.009931  1.9 sps  ETA 3.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.009931)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [   8500] loss=0.008674  ema_loss=0.008795  1.9 sps  ETA 3.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.008795)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [   8500] loss=0.011934  ema_loss=0.012039  1.9 sps  ETA 3.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [   8500] loss=0.013041  ema_loss=0.012975  1.9 sps  ETA 3.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.012975)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [   8500] loss=0.014658  ema_loss=0.014312  1.9 sps  ETA 3.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.014312)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [   8500] loss=0.012085  ema_loss=0.012178  1.9 sps  ETA 3.1h
+[shared] 8500 steps: 1.90 steps/s since the start, 1.87 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [   9000] loss=0.035228  ema_loss=0.034854  1.9 sps  ETA 3.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [   9000] loss=0.007581  ema_loss=0.008939  1.9 sps  ETA 3.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [   9000] loss=0.007746  ema_loss=0.009527  1.9 sps  ETA 3.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [   9000] loss=0.008535  ema_loss=0.010108  1.9 sps  ETA 3.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [   9000] loss=0.008412  ema_loss=0.008966  1.9 sps  ETA 3.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [   9000] loss=0.010434  ema_loss=0.011393  1.9 sps  ETA 3.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.011393)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [   9000] loss=0.011201  ema_loss=0.012468  1.9 sps  ETA 3.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.012468)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [   9000] loss=0.012402  ema_loss=0.014119  1.9 sps  ETA 3.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.014119)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [   9000] loss=0.010521  ema_loss=0.012896  1.9 sps  ETA 3.1h
+[shared] 9000 steps: 1.90 steps/s since the start, 1.88 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [   9500] loss=0.009673  ema_loss=0.011331  1.9 sps  ETA 3.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [   9500] loss=0.008248  ema_loss=0.008540  1.9 sps  ETA 3.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [   9500] loss=0.008165  ema_loss=0.009183  1.9 sps  ETA 3.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.009183)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [   9500] loss=0.012974  ema_loss=0.009889  1.9 sps  ETA 3.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.009889)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [   9500] loss=0.008243  ema_loss=0.008618  1.9 sps  ETA 3.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.008618)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [   9500] loss=0.011013  ema_loss=0.011858  1.9 sps  ETA 3.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [   9500] loss=0.011761  ema_loss=0.012176  1.9 sps  ETA 3.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.012176)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [   9500] loss=0.013169  ema_loss=0.013955  1.9 sps  ETA 3.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.013955)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [   9500] loss=0.010005  ema_loss=0.010439  1.9 sps  ETA 3.0h
+[shared] 9500 steps: 1.90 steps/s since the start, 1.87 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  10000] loss=0.008299  ema_loss=0.008698  1.9 sps  ETA 2.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  10000] loss=0.007541  ema_loss=0.007903  1.9 sps  ETA 2.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.007903)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  10000] loss=0.009404  ema_loss=0.009222  1.9 sps  ETA 2.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  10000] loss=0.009365  ema_loss=0.009688  1.9 sps  ETA 2.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.009688)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  10000] loss=0.008295  ema_loss=0.008621  1.9 sps  ETA 2.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  10000] loss=0.010554  ema_loss=0.010768  1.9 sps  ETA 2.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.010768)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  10000] loss=0.023386  ema_loss=0.033035  1.9 sps  ETA 2.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  10000] loss=0.013604  ema_loss=0.013865  1.9 sps  ETA 2.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.013865)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  10000] loss=0.009840  ema_loss=0.009654  1.9 sps  ETA 2.9h
+[shared] 10000 steps: 1.89 steps/s since the start, 1.85 steps/s over the last 500, 16.6 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  10500] loss=0.007557  ema_loss=0.008174  1.9 sps  ETA 2.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  10500] loss=0.015286  ema_loss=0.019951  1.9 sps  ETA 2.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  10500] loss=0.009131  ema_loss=0.009778  1.9 sps  ETA 2.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  10500] loss=0.010087  ema_loss=0.009481  1.9 sps  ETA 2.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.009481)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  10500] loss=0.009673  ema_loss=0.008453  1.9 sps  ETA 2.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.008453)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  10500] loss=0.012917  ema_loss=0.016587  1.9 sps  ETA 2.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  10500] loss=0.015686  ema_loss=0.016875  1.9 sps  ETA 2.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  10500] loss=0.013800  ema_loss=0.013644  1.9 sps  ETA 2.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.013644)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  10500] loss=0.008646  ema_loss=0.009046  1.9 sps  ETA 2.9h
+[shared] 10500 steps: 1.89 steps/s since the start, 1.87 steps/s over the last 500, 16.8 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  11000] loss=0.007878  ema_loss=0.007812  1.9 sps  ETA 2.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  11000] loss=0.010342  ema_loss=0.011064  1.9 sps  ETA 2.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  11000] loss=0.009360  ema_loss=0.009297  1.9 sps  ETA 2.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  11000] loss=0.017769  ema_loss=0.011134  1.9 sps  ETA 2.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  11000] loss=0.008630  ema_loss=0.008677  1.9 sps  ETA 2.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  11000] loss=0.010414  ema_loss=0.010590  1.9 sps  ETA 2.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.010590)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  11000] loss=0.016003  ema_loss=0.016216  1.9 sps  ETA 2.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  11000] loss=0.013618  ema_loss=0.013653  1.9 sps  ETA 2.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  11000] loss=0.008391  ema_loss=0.008705  1.9 sps  ETA 2.8h
+[shared] 11000 steps: 1.89 steps/s since the start, 1.88 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  11500] loss=0.007441  ema_loss=0.007631  1.9 sps  ETA 2.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.007631)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  11500] loss=0.008638  ema_loss=0.009319  1.9 sps  ETA 2.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  11500] loss=0.010491  ema_loss=0.009285  1.9 sps  ETA 2.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  11500] loss=0.008436  ema_loss=0.009155  1.9 sps  ETA 2.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.009155)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  11500] loss=0.035230  ema_loss=0.014484  1.9 sps  ETA 2.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  11500] loss=0.009990  ema_loss=0.010501  1.9 sps  ETA 2.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.010501)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  11500] loss=0.012332  ema_loss=0.012891  1.9 sps  ETA 2.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  11500] loss=0.013063  ema_loss=0.013450  1.9 sps  ETA 2.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.013450)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  11500] loss=0.007895  ema_loss=0.008360  1.9 sps  ETA 2.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.008360)
+[shared] 11500 steps: 1.89 steps/s since the start, 1.85 steps/s over the last 500, 16.7 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  12000] loss=0.007164  ema_loss=0.007546  1.9 sps  ETA 2.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.007546)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  12000] loss=0.008154  ema_loss=0.008451  1.9 sps  ETA 2.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  12000] loss=0.008199  ema_loss=0.008505  1.9 sps  ETA 2.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.008505)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  12000] loss=0.008875  ema_loss=0.009244  1.9 sps  ETA 2.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  12000] loss=0.007926  ema_loss=0.008117  1.9 sps  ETA 2.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.008117)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  12000] loss=0.010587  ema_loss=0.010167  1.9 sps  ETA 2.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.010167)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  12000] loss=0.011860  ema_loss=0.012269  1.9 sps  ETA 2.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  12000] loss=0.012813  ema_loss=0.013199  1.9 sps  ETA 2.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.013199)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  12000] loss=0.008133  ema_loss=0.008031  1.9 sps  ETA 2.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.008031)
+[shared] 12000 steps: 1.89 steps/s since the start, 1.88 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  12500] loss=0.009834  ema_loss=0.007978  1.9 sps  ETA 2.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  12500] loss=0.008195  ema_loss=0.008030  1.9 sps  ETA 2.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  12500] loss=0.010074  ema_loss=0.009109  1.9 sps  ETA 2.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  12500] loss=0.009721  ema_loss=0.009009  1.9 sps  ETA 2.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.009009)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  12500] loss=0.008122  ema_loss=0.008007  1.9 sps  ETA 2.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.008007)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  12500] loss=0.011985  ema_loss=0.010606  1.9 sps  ETA 2.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  12500] loss=0.012227  ema_loss=0.011897  1.9 sps  ETA 2.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.011897)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  12500] loss=0.013221  ema_loss=0.013056  1.9 sps  ETA 2.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.013056)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  12500] loss=0.008440  ema_loss=0.007990  1.9 sps  ETA 2.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.007990)
+[shared] 12500 steps: 1.89 steps/s since the start, 1.85 steps/s over the last 500, 16.6 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  13000] loss=0.007109  ema_loss=0.007262  1.9 sps  ETA 2.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.007262)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  13000] loss=0.007368  ema_loss=0.007790  1.9 sps  ETA 2.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.007790)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  13000] loss=0.007977  ema_loss=0.008577  1.9 sps  ETA 2.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  13000] loss=0.008583  ema_loss=0.008809  1.9 sps  ETA 2.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.008809)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  13000] loss=0.007588  ema_loss=0.007859  1.9 sps  ETA 2.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.007859)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  13000] loss=0.010638  ema_loss=0.010269  1.9 sps  ETA 2.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  13000] loss=0.011099  ema_loss=0.011527  1.9 sps  ETA 2.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.011527)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  13000] loss=0.012622  ema_loss=0.012922  1.9 sps  ETA 2.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.012922)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  13000] loss=0.007223  ema_loss=0.007672  1.9 sps  ETA 2.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.007672)
+[shared] 13000 steps: 1.89 steps/s since the start, 1.87 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  13500] loss=0.007545  ema_loss=0.009010  1.9 sps  ETA 2.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  13500] loss=0.007549  ema_loss=0.007671  1.9 sps  ETA 2.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.007671)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  13500] loss=0.008294  ema_loss=0.008787  1.9 sps  ETA 2.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  13500] loss=0.008538  ema_loss=0.009222  1.9 sps  ETA 2.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  13500] loss=0.007387  ema_loss=0.008055  1.9 sps  ETA 2.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  13500] loss=0.010064  ema_loss=0.009931  1.9 sps  ETA 2.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.009931)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  13500] loss=0.011281  ema_loss=0.011441  1.9 sps  ETA 2.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.011441)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  13500] loss=0.012688  ema_loss=0.012826  1.9 sps  ETA 2.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.012826)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  13500] loss=0.007537  ema_loss=0.007630  1.9 sps  ETA 2.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.007630)
+[shared] 13500 steps: 1.89 steps/s since the start, 1.86 steps/s over the last 500, 16.7 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  14000] loss=0.007477  ema_loss=0.007166  1.9 sps  ETA 2.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.007166)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  14000] loss=0.008248  ema_loss=0.007568  1.9 sps  ETA 2.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.007568)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  14000] loss=0.009126  ema_loss=0.008817  1.9 sps  ETA 2.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  14000] loss=0.009943  ema_loss=0.008990  1.9 sps  ETA 2.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  14000] loss=0.008374  ema_loss=0.008069  1.9 sps  ETA 2.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  14000] loss=0.011073  ema_loss=0.009776  1.9 sps  ETA 2.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.009776)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  14000] loss=0.018464  ema_loss=0.020975  1.9 sps  ETA 2.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  14000] loss=0.013594  ema_loss=0.012741  1.9 sps  ETA 2.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.012741)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  14000] loss=0.007750  ema_loss=0.007411  1.9 sps  ETA 2.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.007411)
+[shared] 14000 steps: 1.89 steps/s since the start, 1.87 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  14500] loss=0.006921  ema_loss=0.007141  1.9 sps  ETA 2.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.007141)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  14500] loss=0.007110  ema_loss=0.007399  1.9 sps  ETA 2.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.007399)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  14500] loss=0.008440  ema_loss=0.008634  1.9 sps  ETA 2.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  14500] loss=0.008526  ema_loss=0.009096  1.9 sps  ETA 2.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  14500] loss=0.008183  ema_loss=0.008058  1.9 sps  ETA 2.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  14500] loss=0.008958  ema_loss=0.009560  1.9 sps  ETA 2.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.009560)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  14500] loss=0.011588  ema_loss=0.013257  1.9 sps  ETA 2.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  14500] loss=0.012070  ema_loss=0.012627  1.9 sps  ETA 2.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.012627)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  14500] loss=0.007287  ema_loss=0.007280  1.9 sps  ETA 2.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.007280)
+[shared] 14500 steps: 1.89 steps/s since the start, 1.88 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  15000] loss=0.007434  ema_loss=0.007035  1.9 sps  ETA 2.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.007035)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  15000] loss=0.010310  ema_loss=0.011432  1.9 sps  ETA 2.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  15000] loss=0.008331  ema_loss=0.008572  1.9 sps  ETA 2.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  15000] loss=0.009388  ema_loss=0.008882  1.9 sps  ETA 2.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  15000] loss=0.008489  ema_loss=0.007903  1.9 sps  ETA 2.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  15000] loss=0.009852  ema_loss=0.009589  1.9 sps  ETA 2.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  15000] loss=0.012667  ema_loss=0.011811  1.9 sps  ETA 2.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  15000] loss=0.013191  ema_loss=0.012515  1.9 sps  ETA 2.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.012515)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  15000] loss=0.007051  ema_loss=0.007017  1.9 sps  ETA 2.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.007017)
+[shared] 15000 steps: 1.88 steps/s since the start, 1.83 steps/s over the last 500, 16.5 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  15500] loss=0.007461  ema_loss=0.006995  1.9 sps  ETA 2.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.006995)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  15500] loss=0.008462  ema_loss=0.008275  1.9 sps  ETA 2.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  15500] loss=0.009122  ema_loss=0.008159  1.9 sps  ETA 2.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.008159)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  15500] loss=0.008595  ema_loss=0.008793  1.9 sps  ETA 2.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.008793)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  15500] loss=0.008109  ema_loss=0.007730  1.9 sps  ETA 2.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.007730)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  15500] loss=0.009371  ema_loss=0.009369  1.9 sps  ETA 2.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.009369)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  15500] loss=0.011781  ema_loss=0.011210  1.9 sps  ETA 2.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.011210)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  15500] loss=0.012461  ema_loss=0.012247  1.9 sps  ETA 2.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.012247)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  15500] loss=0.006719  ema_loss=0.007021  1.9 sps  ETA 2.1h
+[shared] 15500 steps: 1.88 steps/s since the start, 1.88 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  16000] loss=0.007134  ema_loss=0.006929  1.9 sps  ETA 2.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.006929)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  16000] loss=0.007999  ema_loss=0.007635  1.9 sps  ETA 2.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  16000] loss=0.011748  ema_loss=0.010379  1.9 sps  ETA 2.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  16000] loss=0.008974  ema_loss=0.008600  1.9 sps  ETA 2.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.008600)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  16000] loss=0.007824  ema_loss=0.007864  1.9 sps  ETA 2.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  16000] loss=0.013031  ema_loss=0.016093  1.9 sps  ETA 2.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  16000] loss=0.011808  ema_loss=0.011062  1.9 sps  ETA 2.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.011062)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  16000] loss=0.012858  ema_loss=0.012253  1.9 sps  ETA 2.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  16000] loss=0.008059  ema_loss=0.006909  1.9 sps  ETA 2.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.006909)
+[shared] 16000 steps: 1.88 steps/s since the start, 1.86 steps/s over the last 500, 16.7 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  16500] loss=0.007825  ema_loss=0.009725  1.9 sps  ETA 2.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  16500] loss=0.006908  ema_loss=0.007489  1.9 sps  ETA 2.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  16500] loss=0.007900  ema_loss=0.008239  1.9 sps  ETA 2.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  16500] loss=0.009468  ema_loss=0.008974  1.9 sps  ETA 2.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  16500] loss=0.007674  ema_loss=0.007917  1.9 sps  ETA 2.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  16500] loss=0.009967  ema_loss=0.010544  1.9 sps  ETA 2.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  16500] loss=0.010828  ema_loss=0.010916  1.9 sps  ETA 2.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.010916)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  16500] loss=0.011674  ema_loss=0.012130  1.9 sps  ETA 2.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.012130)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  16500] loss=0.006725  ema_loss=0.006917  1.9 sps  ETA 2.0h
+[shared] 16500 steps: 1.88 steps/s since the start, 1.87 steps/s over the last 500, 16.8 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  17000] loss=0.007143  ema_loss=0.006673  1.9 sps  ETA 1.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.006673)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  17000] loss=0.006908  ema_loss=0.007127  1.9 sps  ETA 1.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.007127)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  17000] loss=0.008067  ema_loss=0.008032  1.9 sps  ETA 1.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.008032)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  17000] loss=0.008419  ema_loss=0.008558  1.9 sps  ETA 1.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.008558)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  17000] loss=0.007160  ema_loss=0.007599  1.9 sps  ETA 1.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.007599)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  17000] loss=0.009383  ema_loss=0.009715  1.9 sps  ETA 1.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  17000] loss=0.011652  ema_loss=0.010619  1.9 sps  ETA 1.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.010619)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  17000] loss=0.012053  ema_loss=0.011966  1.9 sps  ETA 1.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.011966)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  17000] loss=0.008214  ema_loss=0.009753  1.9 sps  ETA 1.9h
+[shared] 17000 steps: 1.88 steps/s since the start, 1.88 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  17500] loss=0.007573  ema_loss=0.006649  1.9 sps  ETA 1.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.006649)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  17500] loss=0.007504  ema_loss=0.007131  1.9 sps  ETA 1.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  17500] loss=0.008047  ema_loss=0.007877  1.9 sps  ETA 1.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.007877)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  17500] loss=0.009193  ema_loss=0.008369  1.9 sps  ETA 1.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.008369)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  17500] loss=0.007725  ema_loss=0.007509  1.9 sps  ETA 1.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.007509)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  17500] loss=0.009275  ema_loss=0.009534  1.9 sps  ETA 1.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  17500] loss=0.010572  ema_loss=0.010480  1.9 sps  ETA 1.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.010480)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  17500] loss=0.012222  ema_loss=0.011863  1.9 sps  ETA 1.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.011863)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  17500] loss=0.007388  ema_loss=0.007483  1.9 sps  ETA 1.8h
+[shared] 17500 steps: 1.88 steps/s since the start, 1.84 steps/s over the last 500, 16.5 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  18000] loss=0.006654  ema_loss=0.006807  1.9 sps  ETA 1.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  18000] loss=0.006990  ema_loss=0.007055  1.9 sps  ETA 1.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.007055)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  18000] loss=0.008240  ema_loss=0.008139  1.9 sps  ETA 1.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  18000] loss=0.009394  ema_loss=0.008647  1.9 sps  ETA 1.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  18000] loss=0.007790  ema_loss=0.007712  1.9 sps  ETA 1.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  18000] loss=0.011333  ema_loss=0.015056  1.9 sps  ETA 1.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  18000] loss=0.010281  ema_loss=0.010453  1.9 sps  ETA 1.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.010453)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  18000] loss=0.011840  ema_loss=0.011765  1.9 sps  ETA 1.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.011765)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  18000] loss=0.006897  ema_loss=0.007000  1.9 sps  ETA 1.8h
+[shared] 18000 steps: 1.88 steps/s since the start, 1.88 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  18500] loss=0.007951  ema_loss=0.008083  1.9 sps  ETA 1.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  18500] loss=0.006885  ema_loss=0.007021  1.9 sps  ETA 1.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.007021)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  18500] loss=0.008394  ema_loss=0.008284  1.9 sps  ETA 1.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  18500] loss=0.008166  ema_loss=0.008340  1.9 sps  ETA 1.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.008340)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  18500] loss=0.007655  ema_loss=0.007684  1.9 sps  ETA 1.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  18500] loss=0.009660  ema_loss=0.010013  1.9 sps  ETA 1.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  18500] loss=0.010455  ema_loss=0.010389  1.9 sps  ETA 1.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.010389)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  18500] loss=0.011407  ema_loss=0.011642  1.9 sps  ETA 1.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.011642)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  18500] loss=0.006327  ema_loss=0.006763  1.9 sps  ETA 1.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.006763)
+[shared] 18500 steps: 1.88 steps/s since the start, 1.88 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  19000] loss=0.006495  ema_loss=0.006574  1.9 sps  ETA 1.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.006574)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  19000] loss=0.006924  ema_loss=0.006928  1.9 sps  ETA 1.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.006928)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  19000] loss=0.008363  ema_loss=0.008025  1.9 sps  ETA 1.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  19000] loss=0.009476  ema_loss=0.008373  1.9 sps  ETA 1.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  19000] loss=0.007700  ema_loss=0.009612  1.9 sps  ETA 1.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  19000] loss=0.009997  ema_loss=0.009476  1.9 sps  ETA 1.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  19000] loss=0.010532  ema_loss=0.010307  1.9 sps  ETA 1.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.010307)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  19000] loss=0.012046  ema_loss=0.011629  1.9 sps  ETA 1.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.011629)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  19000] loss=0.006962  ema_loss=0.006701  1.9 sps  ETA 1.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.006701)
+[shared] 19000 steps: 1.88 steps/s since the start, 1.87 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  19500] loss=0.005741  ema_loss=0.006582  1.9 sps  ETA 1.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  19500] loss=0.006590  ema_loss=0.006768  1.9 sps  ETA 1.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.006768)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  19500] loss=0.006792  ema_loss=0.007801  1.9 sps  ETA 1.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.007801)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  19500] loss=0.007208  ema_loss=0.008236  1.9 sps  ETA 1.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.008236)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  19500] loss=0.006399  ema_loss=0.007291  1.9 sps  ETA 1.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.007291)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  19500] loss=0.008116  ema_loss=0.009134  1.9 sps  ETA 1.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.009134)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  19500] loss=0.009069  ema_loss=0.010097  1.9 sps  ETA 1.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.010097)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  19500] loss=0.010484  ema_loss=0.011466  1.9 sps  ETA 1.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.011466)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  19500] loss=0.006160  ema_loss=0.006443  1.9 sps  ETA 1.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.006443)
+[shared] 19500 steps: 1.88 steps/s since the start, 1.85 steps/s over the last 500, 16.6 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  20000] loss=0.038780  ema_loss=0.019096  1.9 sps  ETA 1.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  20000] loss=0.006668  ema_loss=0.006829  1.9 sps  ETA 1.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  20000] loss=0.008639  ema_loss=0.008266  1.9 sps  ETA 1.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  20000] loss=0.008638  ema_loss=0.008379  1.9 sps  ETA 1.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  20000] loss=0.007056  ema_loss=0.007283  1.9 sps  ETA 1.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.007283)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  20000] loss=0.008823  ema_loss=0.009111  1.9 sps  ETA 1.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.009111)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  20000] loss=0.009895  ema_loss=0.010090  1.9 sps  ETA 1.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.010090)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  20000] loss=0.011064  ema_loss=0.011435  1.9 sps  ETA 1.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.011435)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  20000] loss=0.006108  ema_loss=0.006464  1.9 sps  ETA 1.5h
+[shared] 20000 steps: 1.88 steps/s since the start, 1.80 steps/s over the last 500, 16.2 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  20500] loss=0.007398  ema_loss=0.007969  1.9 sps  ETA 1.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  20500] loss=0.006811  ema_loss=0.006722  1.9 sps  ETA 1.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.006722)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  20500] loss=0.007580  ema_loss=0.007763  1.9 sps  ETA 1.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.007763)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  20500] loss=0.008288  ema_loss=0.008150  1.9 sps  ETA 1.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.008150)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  20500] loss=0.007657  ema_loss=0.007407  1.9 sps  ETA 1.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  20500] loss=0.009657  ema_loss=0.009070  1.9 sps  ETA 1.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.009070)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  20500] loss=0.010149  ema_loss=0.009996  1.9 sps  ETA 1.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.009996)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  20500] loss=0.011335  ema_loss=0.011275  1.9 sps  ETA 1.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.011275)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  20500] loss=0.006601  ema_loss=0.006425  1.9 sps  ETA 1.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.006425)
+[shared] 20500 steps: 1.88 steps/s since the start, 1.87 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  21000] loss=0.006626  ema_loss=0.006702  1.9 sps  ETA 1.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  21000] loss=0.012808  ema_loss=0.019551  1.9 sps  ETA 1.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  21000] loss=0.008346  ema_loss=0.007947  1.9 sps  ETA 1.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  21000] loss=0.009431  ema_loss=0.008292  1.9 sps  ETA 1.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  21000] loss=0.007149  ema_loss=0.007491  1.9 sps  ETA 1.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  21000] loss=0.008960  ema_loss=0.010426  1.9 sps  ETA 1.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  21000] loss=0.010093  ema_loss=0.009981  1.9 sps  ETA 1.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.009981)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  21000] loss=0.011269  ema_loss=0.011250  1.9 sps  ETA 1.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.011250)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  21000] loss=0.006419  ema_loss=0.006365  1.9 sps  ETA 1.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.006365)
+[shared] 21000 steps: 1.88 steps/s since the start, 1.85 steps/s over the last 500, 16.7 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  21500] loss=0.006275  ema_loss=0.006573  1.9 sps  ETA 1.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.006573)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  21500] loss=0.007585  ema_loss=0.008388  1.9 sps  ETA 1.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  21500] loss=0.006843  ema_loss=0.007612  1.9 sps  ETA 1.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.007612)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  21500] loss=0.008257  ema_loss=0.008343  1.9 sps  ETA 1.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  21500] loss=0.007541  ema_loss=0.007527  1.9 sps  ETA 1.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  21500] loss=0.008546  ema_loss=0.008766  1.9 sps  ETA 1.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.008766)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  21500] loss=0.009537  ema_loss=0.009835  1.9 sps  ETA 1.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.009835)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  21500] loss=0.010972  ema_loss=0.011148  1.9 sps  ETA 1.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.011148)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  21500] loss=0.006058  ema_loss=0.006330  1.9 sps  ETA 1.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.006330)
+[shared] 21500 steps: 1.88 steps/s since the start, 1.87 steps/s over the last 500, 16.8 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  22000] loss=0.006631  ema_loss=0.006450  1.9 sps  ETA 1.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.006450)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  22000] loss=0.007047  ema_loss=0.007112  1.9 sps  ETA 1.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  22000] loss=0.007639  ema_loss=0.007667  1.9 sps  ETA 1.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  22000] loss=0.008641  ema_loss=0.008265  1.9 sps  ETA 1.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  22000] loss=0.007667  ema_loss=0.007456  1.9 sps  ETA 1.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  22000] loss=0.009994  ema_loss=0.008861  1.9 sps  ETA 1.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  22000] loss=0.009765  ema_loss=0.009743  1.9 sps  ETA 1.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.009743)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  22000] loss=0.011412  ema_loss=0.011127  1.9 sps  ETA 1.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.011127)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  22000] loss=0.006153  ema_loss=0.006223  1.9 sps  ETA 1.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.006223)
+[shared] 22000 steps: 1.88 steps/s since the start, 1.88 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  22500] loss=0.006923  ema_loss=0.006419  1.9 sps  ETA 1.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.006419)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  22500] loss=0.007385  ema_loss=0.006662  1.9 sps  ETA 1.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.006662)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  22500] loss=0.008665  ema_loss=0.007875  1.9 sps  ETA 1.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  22500] loss=0.008738  ema_loss=0.007974  1.9 sps  ETA 1.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.007974)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  22500] loss=0.008147  ema_loss=0.007275  1.9 sps  ETA 1.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.007275)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  22500] loss=0.009395  ema_loss=0.008706  1.9 sps  ETA 1.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.008706)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  22500] loss=0.010776  ema_loss=0.009682  1.9 sps  ETA 1.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.009682)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  22500] loss=0.011732  ema_loss=0.011007  1.9 sps  ETA 1.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.011007)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  22500] loss=0.006789  ema_loss=0.006182  1.9 sps  ETA 1.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.006182)
+[shared] 22500 steps: 1.88 steps/s since the start, 1.84 steps/s over the last 500, 16.6 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  23000] loss=0.007968  ema_loss=0.011230  1.9 sps  ETA 1.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  23000] loss=0.006230  ema_loss=0.006636  1.9 sps  ETA 1.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.006636)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  23000] loss=0.007240  ema_loss=0.007606  1.9 sps  ETA 1.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.007606)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  23000] loss=0.007882  ema_loss=0.007958  1.9 sps  ETA 1.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.007958)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  23000] loss=0.007264  ema_loss=0.007362  1.9 sps  ETA 1.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  23000] loss=0.008407  ema_loss=0.008804  1.9 sps  ETA 1.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  23000] loss=0.010097  ema_loss=0.009644  1.9 sps  ETA 1.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.009644)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  23000] loss=0.010934  ema_loss=0.010942  1.9 sps  ETA 1.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.010942)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  23000] loss=0.006140  ema_loss=0.006654  1.9 sps  ETA 1.0h
+[shared] 23000 steps: 1.88 steps/s since the start, 1.88 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  23500] loss=0.007317  ema_loss=0.006346  1.9 sps  ETA 1.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.006346)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  23500] loss=0.006682  ema_loss=0.006593  1.9 sps  ETA 1.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.006593)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  23500] loss=0.008169  ema_loss=0.007711  1.9 sps  ETA 1.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  23500] loss=0.007976  ema_loss=0.008178  1.9 sps  ETA 1.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  23500] loss=0.007165  ema_loss=0.007262  1.9 sps  ETA 1.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.007262)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  23500] loss=0.008926  ema_loss=0.008587  1.9 sps  ETA 1.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.008587)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  23500] loss=0.009749  ema_loss=0.009523  1.9 sps  ETA 1.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.009523)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  23500] loss=0.010969  ema_loss=0.010913  1.9 sps  ETA 1.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.010913)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  23500] loss=0.006174  ema_loss=0.006091  1.9 sps  ETA 1.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.006091)
+[shared] 23500 steps: 1.88 steps/s since the start, 1.88 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  24000] loss=0.006883  ema_loss=0.006325  1.9 sps  ETA 0.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.006325)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  24000] loss=0.006953  ema_loss=0.006498  1.9 sps  ETA 0.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.006498)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  24000] loss=0.009111  ema_loss=0.007778  1.9 sps  ETA 0.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  24000] loss=0.007724  ema_loss=0.008051  1.9 sps  ETA 0.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  24000] loss=0.007691  ema_loss=0.007229  1.9 sps  ETA 0.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.007229)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  24000] loss=0.008563  ema_loss=0.008488  1.9 sps  ETA 0.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.008488)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  24000] loss=0.010376  ema_loss=0.009620  1.9 sps  ETA 0.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  24000] loss=0.010641  ema_loss=0.010878  1.9 sps  ETA 0.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.010878)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  24000] loss=0.006122  ema_loss=0.006040  1.9 sps  ETA 0.9h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.006040)
+[shared] 24000 steps: 1.88 steps/s since the start, 1.88 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  24500] loss=0.006820  ema_loss=0.006320  1.9 sps  ETA 0.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.006320)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  24500] loss=0.006436  ema_loss=0.006392  1.9 sps  ETA 0.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.006392)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  24500] loss=0.007326  ema_loss=0.007561  1.9 sps  ETA 0.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.007561)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  24500] loss=0.008204  ema_loss=0.008006  1.9 sps  ETA 0.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  24500] loss=0.007457  ema_loss=0.007186  1.9 sps  ETA 0.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.007186)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  24500] loss=0.008336  ema_loss=0.008314  1.9 sps  ETA 0.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.008314)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  24500] loss=0.009464  ema_loss=0.009446  1.9 sps  ETA 0.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.009446)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  24500] loss=0.011682  ema_loss=0.010698  1.9 sps  ETA 0.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.010698)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  24500] loss=0.006063  ema_loss=0.005900  1.9 sps  ETA 0.8h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.005900)
+[shared] 24500 steps: 1.88 steps/s since the start, 1.88 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  25000] loss=0.005673  ema_loss=0.006264  1.9 sps  ETA 0.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.006264)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  25000] loss=0.005778  ema_loss=0.006394  1.9 sps  ETA 0.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  25000] loss=0.006610  ema_loss=0.007582  1.9 sps  ETA 0.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  25000] loss=0.007171  ema_loss=0.007876  1.9 sps  ETA 0.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.007876)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  25000] loss=0.006258  ema_loss=0.007222  1.9 sps  ETA 0.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  25000] loss=0.007445  ema_loss=0.008420  1.9 sps  ETA 0.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  25000] loss=0.008562  ema_loss=0.009457  1.9 sps  ETA 0.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  25000] loss=0.009985  ema_loss=0.010639  1.9 sps  ETA 0.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.010639)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  25000] loss=0.005271  ema_loss=0.005991  1.9 sps  ETA 0.7h
+[shared] 25000 steps: 1.87 steps/s since the start, 1.78 steps/s over the last 500, 16.1 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  25500] loss=0.009369  ema_loss=0.006798  1.9 sps  ETA 0.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  25500] loss=0.007223  ema_loss=0.006736  1.9 sps  ETA 0.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  25500] loss=0.007991  ema_loss=0.007567  1.9 sps  ETA 0.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  25500] loss=0.009141  ema_loss=0.009104  1.9 sps  ETA 0.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  25500] loss=0.008067  ema_loss=0.007286  1.9 sps  ETA 0.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  25500] loss=0.008586  ema_loss=0.008357  1.9 sps  ETA 0.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  25500] loss=0.009638  ema_loss=0.009374  1.9 sps  ETA 0.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.009374)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  25500] loss=0.010749  ema_loss=0.010619  1.9 sps  ETA 0.7h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.010619)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  25500] loss=0.006141  ema_loss=0.005918  1.9 sps  ETA 0.7h
+[shared] 25500 steps: 1.87 steps/s since the start, 1.86 steps/s over the last 500, 16.8 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  26000] loss=0.005594  ema_loss=0.006204  1.9 sps  ETA 0.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.006204)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  26000] loss=0.006130  ema_loss=0.006386  1.9 sps  ETA 0.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.006386)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  26000] loss=0.007645  ema_loss=0.007832  1.9 sps  ETA 0.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  26000] loss=0.007315  ema_loss=0.007814  1.9 sps  ETA 0.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.007814)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  26000] loss=0.006456  ema_loss=0.007084  1.9 sps  ETA 0.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.007084)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  26000] loss=0.007797  ema_loss=0.008396  1.9 sps  ETA 0.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  26000] loss=0.008502  ema_loss=0.009347  1.9 sps  ETA 0.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.009347)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  26000] loss=0.009952  ema_loss=0.010515  1.9 sps  ETA 0.6h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.010515)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  26000] loss=0.005506  ema_loss=0.005931  1.9 sps  ETA 0.6h
+[shared] 26000 steps: 1.87 steps/s since the start, 1.86 steps/s over the last 500, 16.7 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  26500] loss=0.006119  ema_loss=0.006554  1.9 sps  ETA 0.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  26500] loss=0.006590  ema_loss=0.006442  1.9 sps  ETA 0.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  26500] loss=0.006785  ema_loss=0.007572  1.9 sps  ETA 0.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  26500] loss=0.007069  ema_loss=0.008128  1.9 sps  ETA 0.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  26500] loss=0.006942  ema_loss=0.007187  1.9 sps  ETA 0.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  26500] loss=0.007987  ema_loss=0.008315  1.9 sps  ETA 0.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  26500] loss=0.009041  ema_loss=0.009218  1.9 sps  ETA 0.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.009218)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  26500] loss=0.010492  ema_loss=0.010542  1.9 sps  ETA 0.5h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  26500] loss=0.005728  ema_loss=0.005988  1.9 sps  ETA 0.5h
+[shared] 26500 steps: 1.87 steps/s since the start, 1.87 steps/s over the last 500, 16.8 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  27000] loss=0.006641  ema_loss=0.006065  1.9 sps  ETA 0.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.006065)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  27000] loss=0.006753  ema_loss=0.006177  1.9 sps  ETA 0.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.006177)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  27000] loss=0.007940  ema_loss=0.007492  1.9 sps  ETA 0.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.007492)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  27000] loss=0.008050  ema_loss=0.007874  1.9 sps  ETA 0.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  27000] loss=0.007587  ema_loss=0.007147  1.9 sps  ETA 0.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  27000] loss=0.008480  ema_loss=0.008270  1.9 sps  ETA 0.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.008270)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  27000] loss=0.009961  ema_loss=0.009235  1.9 sps  ETA 0.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  27000] loss=0.011116  ema_loss=0.010486  1.9 sps  ETA 0.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.010486)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  27000] loss=0.006269  ema_loss=0.005820  1.9 sps  ETA 0.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.005820)
+[shared] 27000 steps: 1.87 steps/s since the start, 1.88 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  27500] loss=0.005781  ema_loss=0.006164  1.9 sps  ETA 0.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  27500] loss=0.006841  ema_loss=0.006305  1.9 sps  ETA 0.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  27500] loss=0.007335  ema_loss=0.007562  1.9 sps  ETA 0.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  27500] loss=0.007104  ema_loss=0.007908  1.9 sps  ETA 0.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  27500] loss=0.006737  ema_loss=0.007102  1.9 sps  ETA 0.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  27500] loss=0.008871  ema_loss=0.008248  1.9 sps  ETA 0.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.008248)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  27500] loss=0.008691  ema_loss=0.009144  1.9 sps  ETA 0.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.009144)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  27500] loss=0.010062  ema_loss=0.010412  1.9 sps  ETA 0.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.010412)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  27500] loss=0.005984  ema_loss=0.005817  1.9 sps  ETA 0.4h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.005817)
+[shared] 27500 steps: 1.87 steps/s since the start, 1.85 steps/s over the last 500, 16.6 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  28000] loss=0.006076  ema_loss=0.006218  1.9 sps  ETA 0.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  28000] loss=0.006091  ema_loss=0.006252  1.9 sps  ETA 0.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  28000] loss=0.007192  ema_loss=0.007501  1.9 sps  ETA 0.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  28000] loss=0.007556  ema_loss=0.007752  1.9 sps  ETA 0.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.007752)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  28000] loss=0.006976  ema_loss=0.007137  1.9 sps  ETA 0.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  28000] loss=0.007765  ema_loss=0.008214  1.9 sps  ETA 0.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.008214)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  28000] loss=0.008771  ema_loss=0.009168  1.9 sps  ETA 0.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  28000] loss=0.010553  ema_loss=0.010334  1.9 sps  ETA 0.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.010334)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  28000] loss=0.005864  ema_loss=0.005800  1.9 sps  ETA 0.3h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.005800)
+[shared] 28000 steps: 1.87 steps/s since the start, 1.88 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  28500] loss=0.006343  ema_loss=0.006169  1.9 sps  ETA 0.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  28500] loss=0.006795  ema_loss=0.006271  1.9 sps  ETA 0.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  28500] loss=0.008224  ema_loss=0.007614  1.9 sps  ETA 0.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  28500] loss=0.008194  ema_loss=0.007695  1.9 sps  ETA 0.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722_best.pth (ema_loss=0.007695)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  28500] loss=0.007555  ema_loss=0.007118  1.9 sps  ETA 0.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  28500] loss=0.008577  ema_loss=0.008126  1.9 sps  ETA 0.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.008126)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  28500] loss=0.009510  ema_loss=0.009079  1.9 sps  ETA 0.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.009079)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  28500] loss=0.010614  ema_loss=0.010254  1.9 sps  ETA 0.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.010254)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  28500] loss=0.005698  ema_loss=0.005743  1.9 sps  ETA 0.2h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.005743)
+[shared] 28500 steps: 1.87 steps/s since the start, 1.88 steps/s over the last 500, 16.9 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  29000] loss=0.005802  ema_loss=0.008008  1.9 sps  ETA 0.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  29000] loss=0.005509  ema_loss=0.006209  1.9 sps  ETA 0.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  29000] loss=0.006789  ema_loss=0.007491  1.9 sps  ETA 0.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.007491)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  29000] loss=0.006795  ema_loss=0.007769  1.9 sps  ETA 0.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  29000] loss=0.006513  ema_loss=0.007020  1.9 sps  ETA 0.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.007020)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  29000] loss=0.007704  ema_loss=0.008057  1.9 sps  ETA 0.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.008057)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  29000] loss=0.008969  ema_loss=0.009080  1.9 sps  ETA 0.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  29000] loss=0.009864  ema_loss=0.010185  1.9 sps  ETA 0.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.010185)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  29000] loss=0.005375  ema_loss=0.005688  1.9 sps  ETA 0.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.005688)
+[shared] 29000 steps: 1.87 steps/s since the start, 1.84 steps/s over the last 500, 16.6 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  29500] loss=0.005968  ema_loss=0.005985  1.9 sps  ETA 0.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.005985)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  29500] loss=0.006203  ema_loss=0.009101  1.9 sps  ETA 0.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  29500] loss=0.007431  ema_loss=0.007397  1.9 sps  ETA 0.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.007397)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  29500] loss=0.007686  ema_loss=0.007722  1.9 sps  ETA 0.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  29500] loss=0.006973  ema_loss=0.007010  1.9 sps  ETA 0.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.007010)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  29500] loss=0.008082  ema_loss=0.008066  1.9 sps  ETA 0.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  29500] loss=0.009079  ema_loss=0.009187  1.9 sps  ETA 0.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  29500] loss=0.009898  ema_loss=0.010229  1.9 sps  ETA 0.1h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  29500] loss=0.005467  ema_loss=0.005824  1.9 sps  ETA 0.1h
+[shared] 29500 steps: 1.87 steps/s since the start, 1.83 steps/s over the last 500, 16.5 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] [  30000] loss=0.005719  ema_loss=0.006004  1.9 sps  ETA 0.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] [  30000] loss=0.005646  ema_loss=0.005923  1.9 sps  ETA 0.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722_best.pth (ema_loss=0.005923)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] [  30000] loss=0.006487  ema_loss=0.007346  1.9 sps  ETA 0.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722_best.pth (ema_loss=0.007346)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] [  30000] loss=0.007484  ema_loss=0.007853  1.9 sps  ETA 0.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] [  30000] loss=0.006584  ema_loss=0.006976  1.9 sps  ETA 0.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722_best.pth (ema_loss=0.006976)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] [  30000] loss=0.007880  ema_loss=0.007990  1.9 sps  ETA 0.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722_best.pth (ema_loss=0.007990)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] [  30000] loss=0.008572  ema_loss=0.009004  1.9 sps  ETA 0.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.009004)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] [  30000] loss=0.009487  ema_loss=0.010114  1.9 sps  ETA 0.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722_best.pth (ema_loss=0.010114)
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] [  30000] loss=0.005476  ema_loss=0.005634  1.9 sps  ETA 0.0h
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722]   -> New best: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722_best.pth (ema_loss=0.005634)
+[shared] 30000 steps: 1.87 steps/s since the start, 1.84 steps/s over the last 500, 16.6 job steps/s, peak 5.66 GiB allocated, 6.37 GiB reserved
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] 
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_s20260722] Done in 4.5h. Best loss=0.005985 at step 29500
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] 
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_s20260722] Done in 4.5h. Best loss=0.005923 at step 30000
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] 
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_s20260722] Done in 4.5h. Best loss=0.007346 at step 30000
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] 
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_s20260722] Done in 4.5h. Best loss=0.007695 at step 28500
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] 
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_s20260722] Done in 4.5h. Best loss=0.006976 at step 30000
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] 
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_s20260722] Done in 4.5h. Best loss=0.007990 at step 30000
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] 
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_s20260722] Done in 4.5h. Best loss=0.009004 at step 30000
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] 
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_s20260722] Done in 4.5h. Best loss=0.010114 at step 30000
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] 
+[qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_s20260722] Done in 4.5h. Best loss=0.005634 at step 30000
+[shared] done

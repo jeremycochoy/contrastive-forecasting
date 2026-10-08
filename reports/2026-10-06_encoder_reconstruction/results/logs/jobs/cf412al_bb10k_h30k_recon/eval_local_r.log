@@ -1,0 +1,146 @@
+[10-07 16:34:33] START cf412al_bb10k_h30k_recon bb10k enc=student shards=2 slot=1
+[10-07 16:46:56] merged 97 configs -> /workspace/ckpt/cf-425/recon/eval/cf412al_bb10k_h30k_recon/gift_r/all_results.csv
+Loading models...
+  [eval] auto-detected multi-patch sizes (8, 16, 32, 64, 128)
+  [eval] context pad: zeros
+  [eval] auto-detected num_encoder_layers=3 from backbone checkpoint
+  [eval] auto-detected qk_norm=True from backbone checkpoint
+  [eval] auto-detected attn_out_norm=True from backbone checkpoint
+  [eval] auto-detected freq_emb_dim=3 from backbone checkpoint
+  [eval] auto-detected seasonality_emb_dim=3 from backbone checkpoint
+  [eval] using rev_norm_kind=meanstd
+  [eval] auto-detected patch_stats=none
+  [eval] encoder=student freq_vocab=v2
+/workspace/cf-425/src/forecasting_head.py:188: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.transformer = nn.TransformerEncoder(layer, num_layers=num_layers)
+  [eval] auto-detected transformer-q head (2L H=384 nhead=8 causal)
+  [eval] auto-detected transformer-q head (2L H=384 nhead=8 causal)
+  [eval] auto-detected transformer-q head (2L H=384 nhead=8 causal)
+  [eval] auto-detected transformer-q head (2L H=384 nhead=8 causal)
+  [eval] auto-detected transformer-q head (2L H=384 nhead=8 causal)
+  [eval] head bank (#412): one head per patch size (8, 16, 32, 64, 128)
+  Backbone: /workspace/ckpt/cf-412al/leg_10k/cf412al_k3_10k.pth
+  Head: /workspace/ckpt/cf-425/recon/eval/cf412al_bb10k_h30k_recon/qhead_cf412al_bb10k_h30k_recon_s20260722_final.pth
+  Strategy: R (forecast_len=16)
+
+Total configs to evaluate: 97
+  Resuming: 97 configs already done
+
+Results saved to /workspace/ckpt/cf-425/recon/eval/cf412al_bb10k_h30k_recon/gift_r/all_results.csv
+==========================================================================================
+                                GIFT-Eval Official Results                                
+==========================================================================================
+Config                                            MASE  SN_MASE   Relative
+------------------------------------------------------------------------------------------
+bitbrains_fast_storage/5T/long                  0.8516   1.1366     0.7492
+bitbrains_fast_storage/5T/medium                0.9856   1.2203     0.8077
+bitbrains_fast_storage/5T/short                 0.8976   1.1360     0.7901
+bitbrains_fast_storage/H/short                  0.7223   1.2985     0.5562
+bitbrains_rnd/5T/long                           2.0951   3.5013     0.5984
+bitbrains_rnd/5T/medium                         3.3141   4.5424     0.7296
+bitbrains_rnd/5T/short                          1.7693   1.9708     0.8977
+bitbrains_rnd/H/short                           5.0008   6.0374     0.8283
+bizitobs_application/10S/long                   3.7110   3.2063     1.1574
+bizitobs_application/10S/medium                 3.5797   2.6914     1.3300
+bizitobs_application/10S/short                  2.1825   2.2423     0.9733
+bizitobs_l2c/5T/long                            0.2559   1.4543     0.1760
+bizitobs_l2c/5T/medium                          0.2529   1.2436     0.2033
+bizitobs_l2c/5T/short                           0.2870   0.9860     0.2911
+bizitobs_l2c/H/long                             0.1923   1.4261     0.1349
+bizitobs_l2c/H/medium                           0.2159   1.5103     0.1429
+bizitobs_l2c/H/short                            0.1838   1.2141     0.1514
+bizitobs_service/10S/long                       2.5729   1.3672     1.8819
+bizitobs_service/10S/medium                     1.9982   1.3206     1.5131
+bizitobs_service/10S/short                      1.3043   1.2253     1.0644
+car_parts/M/short                               0.1568   1.2015     0.1305
+covid_deaths/D/short                           19.0081  46.9124     0.4052
+electricity/15T/long                            0.7567   1.1635     0.6503
+electricity/15T/medium                          0.7231   1.1508     0.6284
+electricity/15T/short                           0.7598   1.7171     0.4425
+electricity/D/short                             0.2296   1.9870     0.1156
+electricity/H/long                              0.5104   1.5241     0.3349
+electricity/H/medium                            0.5013   1.3925     0.3600
+electricity/H/short                             0.4665   1.3578     0.3436
+electricity/W/short                             0.2592   2.0897     0.1240
+ett1/15T/long                                   0.4898   1.1909     0.4113
+ett1/15T/medium                                 0.4902   1.1883     0.4125
+ett1/15T/short                                  0.4761   0.9342     0.5097
+ett1/D/short                                    0.1931   1.7784     0.1086
+ett1/H/long                                     0.3445   1.4787     0.2330
+ett1/H/medium                                   0.3582   1.5678     0.2285
+ett1/H/short                                    0.3252   0.9773     0.3327
+ett1/W/short                                    0.1540   1.7689     0.0871
+ett2/15T/long                                   0.3742   1.0127     0.3695
+ett2/15T/medium                                 0.3810   1.0512     0.3624
+ett2/15T/short                                  0.4010   1.0673     0.3757
+ett2/D/short                                    0.4753   1.3901     0.3419
+ett2/H/long                                     0.2461   1.1284     0.2181
+ett2/H/medium                                   0.2309   1.2384     0.1865
+ett2/H/short                                    0.2043   0.9232     0.2213
+ett2/W/short                                    0.3507   0.7785     0.4505
+hierarchical_sales/D/short                      0.1035   1.1348     0.0912
+hierarchical_sales/W/short                      0.1098   1.0250     0.1071
+hospital/M/short                                0.0856   0.9205     0.0930
+jena_weather/10T/long                           0.1975   0.7615     0.2594
+jena_weather/10T/medium                         0.2028   0.7160     0.2833
+jena_weather/10T/short                          0.2425   0.7429     0.3265
+jena_weather/D/short                            0.1855   1.5734     0.1179
+jena_weather/H/long                             0.2215   1.2677     0.1747
+jena_weather/H/medium                           0.1930   0.8886     0.2172
+jena_weather/H/short                            0.1602   0.7229     0.2216
+kdd_cup_2018/D/short                            0.1307   1.4970     0.0873
+kdd_cup_2018/H/long                             0.2419   1.3355     0.1811
+kdd_cup_2018/H/medium                           0.2460   1.4290     0.1721
+kdd_cup_2018/H/short                            0.2409   1.3404     0.1797
+loop_seattle/5T/long                            0.4619   1.2507     0.3693
+loop_seattle/5T/medium                          0.4626   1.1533     0.4011
+loop_seattle/5T/short                           0.4069   0.7623     0.5337
+loop_seattle/D/short                            0.1694   1.7324     0.0978
+loop_seattle/H/long                             0.3616   1.5460     0.2339
+loop_seattle/H/medium                           0.3606   1.4805     0.2436
+loop_seattle/H/short                            0.3675   1.2928     0.2843
+m4_daily/D/short                                1.6631   3.2784     0.5073
+m4_hourly/H/short                               1.9158   1.1932     1.6056
+m4_monthly/M/short                              0.2927   1.2597     0.2324
+m4_quarterly/Q/short                            1.6802   1.6022     1.0487
+m4_weekly/W/short                               2.5383   2.7773     0.9139
+m4_yearly/A/short                               2.5990   3.9660     0.6553
+m_dense/D/short                                 0.1320   1.6693     0.0791
+m_dense/H/long                                  0.4205   1.4779     0.2845
+m_dense/H/medium                                0.4143   1.5699     0.2639
+m_dense/H/short                                 0.3833   1.4875     0.2577
+restaurant/D/short                              0.1105   1.0061     0.1098
+saugeen/D/short                                 0.6880   3.4130     0.2016
+saugeen/M/short                                 0.2015   0.9764     0.2064
+saugeen/W/short                                 0.2243   1.9907     0.1127
+solar/10T/long                                  0.5780   0.8709     0.6636
+solar/10T/medium                                0.5539   0.9270     0.5975
+solar/10T/short                                 0.5248   1.1057     0.4746
+solar/D/short                                   0.1321   1.1559     0.1143
+solar/H/long                                    0.5019   1.0712     0.4685
+solar/H/medium                                  0.4913   0.9350     0.5255
+solar/H/short                                   0.4522   0.9519     0.4750
+solar/W/short                                   0.1796   1.4704     0.1221
+sz_taxi/15T/long                                0.4087   0.6909     0.5915
+sz_taxi/15T/medium                              0.4307   0.7135     0.6037
+sz_taxi/15T/short                               0.4403   0.7644     0.5760
+sz_taxi/H/short                                 0.2355   0.7382     0.3190
+temperature_rain/D/short                        0.3024   2.0115     0.1503
+us_births/D/short                               0.1391   1.8648     0.0746
+us_births/M/short                               0.2436   0.7605     0.3204
+us_births/W/short                               0.3419   1.5634     0.2187
+------------------------------------------------------------------------------------------
+
+Aggregate GM-Relative MASE (97 configs): 0.3134
+
+Leaderboard comparison:
+  Sundial:    0.673
+  TimesFM:    0.680
+  PatchTST:   0.762
+  Chronos:    0.786
+  Moirai:     0.809
+  Naive:      1.000
+  ** Ours:    0.313 **
+==========================================================================================
+Summary saved to /workspace/ckpt/cf-425/recon/eval/cf412al_bb10k_h30k_recon/gift_r/summary.txt
+[10-07 16:46:59] DONE cf412al_bb10k_h30k_recon bb10k student — Aggregate GM-Relative MASE (97 configs): 0.3134 -> 0.3134
