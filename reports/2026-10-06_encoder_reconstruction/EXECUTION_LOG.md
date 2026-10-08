@@ -26,6 +26,8 @@ All times are UTC, on 2026-10-07 unless a date is given.
 | 23:17 | Wave 4 ends (rc 0). The box trains no more head. |
 | 10-08 00:29 | `QUEUE_END: 56 scores` on the box, with no failed job. |
 | 10-08 00:40 | `verify_mirror.sh`: elisa holds each box file at the same byte size, and no `.pth` stays on the box (`results/mirror_check.txt`). `check_scores.py`: 56 of 56 jobs pass. |
+| 10-08 00:42 | The sync loop of the box stops: it has no more file to bring. |
+| 10-08 05:06 | `QUEUE_END: 56 scores` of the linear-head queue on elisa, with no failed job. `CF425_HEAD_ARCH=linear check_scores.py`: 56 of 56 jobs pass (`results/checks_lin.tsv`). |
 
 ## Events
 
