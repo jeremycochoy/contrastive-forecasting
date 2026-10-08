@@ -2056,44 +2056,36 @@ def test_a_hollow_marker_shows_an_earlier_snapshot_of_a_head(tmp_path):
     assert "The same head at an earlier head step" not in legend_texts(plain)
 
 
-def test_the_key_names_a_best_head_of_the_last_head_step(tmp_path):
+def test_a_best_head_of_the_last_head_step_shows_no_marker(tmp_path):
     """For some heads, the best training loss is at the last head step. That
-    snapshot is the final head, so its score shows no change of R. Its
-    hollow marker lies on the dot of its checkpoint, and one line of the key
-    names the head. A chart with no earlier snapshot has no key line for an
-    earlier head step."""
+    snapshot is the final head: its score equals the dot of its checkpoint,
+    so it measures no change of R. It stays out of load_snapshots, and the
+    figure holds no marker and no key line for it."""
     pytest.importorskip("matplotlib")
     plot = load_script("plot_recon")
     table = tmp_path / "scores.tsv"
     table.write_text(SNAPSHOTS_TSV + "OMB\tcf412om\t25\tmean/std\tbest\t30000"
                      "\telisa\t0.2900\t0.2900\t1.00\n")
     snapshots = plot.load_snapshots(table)
-    assert snapshots == {"cf412om": {40000: (28500, 0.2),
-                                     100000: (30000, 0.29)}}
+    assert snapshots == {"cf412om": {40000: (28500, 0.2)}}
     points = {"cf412om": {40000: 0.3100, 100000: 0.2900}}
-    earlier = "The same head at an earlier head step"
-    note = "OMB 25k: the final head, no earlier step"
     fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], {}, points,
                            tmp_path / "s.png", False, snapshots=snapshots)
     ax, = fig.axes
     hollow = [line for line in ax.get_lines()
               if line.get_markerfacecolor() == "white"]
-    assert sorted(list(line.get_ydata()) for line in hollow) == [[0.2], [0.29]]
-    assert {earlier, note} <= set(legend_texts(fig))
-    assert len(note) <= 52
-    last = {"cf412om": {100000: (30000, 0.29)}}
-    fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], {}, points,
-                           tmp_path / "l.png", False, snapshots=last)
+    assert [list(line.get_ydata()) for line in hollow] == [[0.2]]
     texts = legend_texts(fig)
-    assert note in texts and earlier not in texts
-    assert plot.last_step_note(["cf412om"], points, {}) is None
+    assert "The same head at an earlier head step" in texts
+    assert not any("final head" in text for text in texts)
 
 
 def test_each_entry_of_the_key_is_one_short_line(tmp_path):
     """The report holds the figures only, so a reader reads the key of each
     figure. Each entry of the key is one line of 52 characters or less, for
-    each kind of entry: the two heads, an earlier snapshot, the floors with
-    and without a line in the chart, and in an overlay, the forecast."""
+    each kind of entry: each of the two heads, an earlier snapshot, the
+    floors with and without a line in the chart, and in an overlay, the
+    forecast."""
     pytest.importorskip("matplotlib")
     plot = load_script("plot_recon")
     (tmp_path / "floors.tsv").write_text(FLOORS_TSV)
@@ -2106,26 +2098,29 @@ def test_each_entry_of_the_key_is_one_short_line(tmp_path):
                 ({"meanstd": drawn}, "A floor with no line is above the chart"),
                 ({"meanstd": drawn, "ewma_old": drawn}, None)):
             labels = [label for _, label in plot.key_entries(
-                overlay, floors, True, lines, True)]
-            assert len(labels) == 8 + 3 * overlay + (note is not None)
+                overlay, floors, True, lines)]
+            assert len(labels) == 7 + 3 * overlay + (note is not None)
             assert all("\n" not in label and len(label) <= 52
                        for label in labels)
             assert (note is None) or note in labels
             assert ("B4: the forecast of the run" in labels) == overlay
+            assert not any("seed" in label for label in labels)
+    # The first line of the key names the head of the figure.
+    linear = [label for _, label in plot.key_entries(False, [], linear=True)]
+    assert linear[0] == "R: one linear map decodes the horizon from latents"
+    assert all("\n" not in label and len(label) <= 52 for label in linear)
     # The key of a figure holds these entries, under its name.
     snapshots = plot.load_snapshots(tmp_path / "scores.tsv")
     points = {"cf412om": {40000: 0.3100, 100000: 0.6000}}
-    linear = {"cf412om": {40000: 0.5000, 100000: 0.7000}}
     fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], {}, points,
                            tmp_path / "k.png", False, floors,
-                           snapshots=snapshots, linear=linear)
+                           snapshots=snapshots)
     (key,) = [ax.get_legend() for ax in fig.axes if ax.get_legend() is not None]
     assert [text.get_text() for text in key.get_texts()] == [
         "How to read",
         "R: a head decodes the true horizon from its latents",
-        "One dot: one checkpoint, one head, one seed",
+        "One dot: one checkpoint, one head",
         "R a → b, ×c: first and last checkpoint, c = b / a",
-        "R with a linear head",
         "The same head at an earlier head step",
         "Floor of R: a head that reads no latent",
         "mean/std: 0.9500"]

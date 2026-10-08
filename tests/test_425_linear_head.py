@@ -1479,131 +1479,89 @@ def test_the_table_of_the_jobs_holds_the_56_jobs_of_the_card(tmp_path):
 
 def linear_figure(tmp_path, overlay, linear, name="f"):
     plot = base.load_script("plot_recon")
-    points = {"cf412om": {40000: 0.3100, 100000: 0.2900}}
     forecast = {"cf412om": {40000: 1.3782, 100000: 1.3345}}
-    fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], forecast, points,
+    fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], forecast, linear,
                            tmp_path / f"{name}_{overlay}.png", overlay,
-                           title="Reconstruction (R): ours", linear=linear)
+                           title="R, linear head: ours", linear=True)
     return plot, fig
 
 
 @pytest.mark.parametrize("overlay", [False, True])
-def test_a_figure_shows_the_linear_head_of_a_run_in_the_colour_of_the_run(
-        tmp_path, overlay):
-    """The curve of the linear head of a run has the colour of the run and
-    its own line style, in the panel of the R scores. The y range holds it.
-    The legend names it under the run, with its first and last R and their
-    ratio, and the key says what the line style is. The title and the
-    plot hold no fact."""
+def test_the_linear_head_has_its_own_figures(tmp_path, overlay):
+    """No figure mixes the two heads. A linear figure shows the R of the
+    linear heads only, with the colour and the line style of each run, and
+    the legend gives the first and the last R of that head with their
+    ratio. The first line of the key names the linear map. The title and
+    the plot hold no fact."""
     pytest.importorskip("matplotlib")
     plot, fig = linear_figure(tmp_path, overlay,
                               {"cf412om": {40000: 0.7100, 100000: 0.6500}})
     ax = fig.axes[-1]                                   # the panel of R
     hue = plot.colour("cf412om")
-    curves = [line for line in ax.get_lines() if line.get_color() == hue
-              and len(line.get_xdata()) == 2]
-    by_y = {tuple(line.get_ydata()): line for line in curves}
-    assert set(by_y) == {(0.31, 0.29), (0.71, 0.65)}
-    head, lin = by_y[(0.31, 0.29)], by_y[(0.71, 0.65)]
-    assert head.get_linestyle() == "-" and lin.get_linestyle() != "-"
-    assert lin.get_linewidth() < head.get_linewidth()
-    low, high = ax.get_ylim()
-    assert low < 0.29 and high > 0.71
-    texts = base.legend_texts(fig)
-    assert any("linear head" in text
-               and text.endswith("R 0.7100 → 0.6500, ×0.92") for text in texts)
-    assert any(text.endswith("R 0.3100 → 0.2900, ×0.94") for text in texts)
-    assert "R with a linear head" in texts               # the key, one line
-    assert all(len(axis.texts) == 0 for axis in fig.axes)
-    assert fig.axes[0].get_title() == "Reconstruction (R): ours"
-    # The legend row of the linear head shows its line style and its colour.
-    runs = fig.legends[0]
-    rows = dict(zip((t.get_text() for t in runs.get_texts()),
-                    runs.legend_handles))
-    row = next(handle for text, handle in rows.items() if "linear head" in text)
-    assert row.get_color() == hue and row.get_linestyle() != "-"
-
-
-def test_a_figure_with_no_linear_score_is_the_figure_of_the_transformer_heads(
-        tmp_path):
-    pytest.importorskip("matplotlib")
-    plot, fig = linear_figure(tmp_path, False, {})
-    ax, = fig.axes
-    hue = plot.colour("cf412om")
-    assert len([line for line in ax.get_lines() if line.get_color() == hue]) == 1
-    assert not any("linear" in text.lower() for text in base.legend_texts(fig))
-    _, same = linear_figure(tmp_path, False, None, name="g")
-    assert base.legend_texts(same) == base.legend_texts(fig)
-
-
-@pytest.mark.parametrize("overlay", [False, True])
-def test_a_run_with_a_linear_score_only_stays_in_the_figure(tmp_path, overlay):
-    """The transformer head of a run can have no score when its linear head
-    has one. The run stays in the figure: the curve of its linear head in
-    the colour of the run, in the y range, and its forecast in an overlay.
-    The legend names the run with no R score, above the row of its linear
-    head. A checkpoint with no R of the transformer head gets no line to its
-    forecast."""
-    pytest.importorskip("matplotlib")
-    from matplotlib.patches import ConnectionPatch
-    plot = base.load_script("plot_recon")
-    points = {"cf412om": {40000: 0.3100, 100000: 0.2900}}
-    forecast = {"cf412om": {40000: 1.3782, 100000: 1.3345},
-                "cf412oc": {40000: 1.5371}}
-    out = tmp_path / f"{overlay}.png"
-    fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], forecast, points,
-                           out, overlay, linear={"cf412oc": {40000: 0.7100}})
-    assert fig is not None and out.stat().st_size > 10_000
-    ax = fig.axes[-1]                                   # the panel of R
-    hue = plot.colour("cf412oc")
     curve, = [line for line in ax.get_lines() if line.get_color() == hue]
-    assert list(curve.get_ydata()) == [0.71] and curve.get_linestyle() != "-"
-    low, high = ax.get_ylim()
-    assert low < 0.29 and high > 0.71
-    runs = fig.legends[0]
-    texts = [text.get_text() for text in runs.get_texts()]
-    row = next(i for i, text in enumerate(texts) if r"\mathbf{OCB}" in text)
-    assert texts[row].endswith("R: no score")
-    assert texts[row + 1].endswith("linear head.  R 0.7100")
-    assert runs.legend_handles[row + 1].get_color() == hue
-    no_curve = runs.legend_handles[row]
-    assert no_curve.get_linestyle() == "None" and no_curve.get_marker() == "None"
-    assert any(text.endswith("R 0.3100 → 0.2900, ×0.94") for text in texts)
-    links = [a for a in fig.artists if isinstance(a, ConnectionPatch)]
-    assert len(links) == (2 if overlay else 0)          # those of OMB
+    assert list(curve.get_ydata()) == [0.71, 0.65]
+    assert curve.get_linestyle() == "-"                 # the style of the run
+    texts = base.legend_texts(fig)
+    assert any(text.endswith("R 0.7100 → 0.6500, ×0.92") for text in texts)
+    assert "R: one linear map decodes the horizon from latents" in texts
+    assert all(len(axis.texts) == 0 for axis in fig.axes)
+    assert fig.axes[0].get_title() == "R, linear head: ours"
     if overlay:
         b4, = [line for line in fig.axes[0].get_lines()
                if line.get_color() == hue]
-        assert list(b4.get_ydata()) == [1.5371]
+        assert list(b4.get_ydata()) == [1.3782, 1.3345]
 
 
-def test_a_figure_of_linear_scores_only_is_drawn(tmp_path):
-    """With no R score of a transformer head, a figure shows the linear
-    heads. With no R score of the two heads, there is no figure."""
+def test_a_linear_figure_holds_no_snapshot_marker(tmp_path):
+    """Only a transformer head has a scored earlier snapshot, so a linear
+    figure draws none, with no key line. With no linear score, there is no
+    linear figure."""
     pytest.importorskip("matplotlib")
     plot = base.load_script("plot_recon")
-    out = tmp_path / "f.png"
-    fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], {}, {}, out, False,
-                           linear={"cf412om": {40000: 0.71, 100000: 0.65}})
-    assert fig is not None and out.stat().st_size > 10_000
-    assert any(text.endswith("linear head.  R 0.7100 → 0.6500, ×0.92")
-               for text in base.legend_texts(fig))
+    points = {"cf412om": {40000: 0.7100, 100000: 0.6500}}
+    snapshots = {"cf412om": {40000: (28500, 0.6000)}}
+    fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], {}, points,
+                           tmp_path / "s.png", False, snapshots=snapshots,
+                           linear=True)
+    ax, = fig.axes
+    assert not [line for line in ax.get_lines()
+                if line.get_markerfacecolor() == "white"]
+    assert ("The same head at an earlier head step"
+            not in base.legend_texts(fig))
     assert plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], {}, {},
-                            tmp_path / "none.png", False, linear={}) is None
+                            tmp_path / "none.png", False, linear=True) is None
     assert not (tmp_path / "none.png").exists()
 
 
+def test_the_two_versions_of_a_graph_share_one_y_range(tmp_path):
+    """The y range of a figure also holds the scores of the other head of
+    the same graph (y_extra), so a reader compares the two heads at the
+    same height. graph_values gives the scores of one head in one graph,
+    with the snapshot scores that its charts hold."""
+    pytest.importorskip("matplotlib")
+    plot = base.load_script("plot_recon")
+    points = {"cf412om": {40000: 0.3100, 100000: 0.2900}}
+    fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], {}, points,
+                           tmp_path / "f.png", False, y_extra=[0.71, 0.29])
+    ax, = fig.axes
+    low, high = ax.get_ylim()
+    assert low < 0.29 and high > 0.71
+    assert plot.graph_values(
+        plot.GRAPHS["ours_patch_sizes"], points,
+        {"cf412om": {40000: (28500, 0.2)}}) == [0.31, 0.29, 0.2]
+
+
 def test_a_floor_near_a_linear_score_is_on_the_chart(tmp_path):
-    """A linear score is an R score of its scaling setup: the chart holds
-    the floor of the setup when a linear score is near it."""
+    """A linear score is an R score of its scaling setup: the chart of the
+    linear head holds the floor of the setup when a linear score is near
+    it."""
     pytest.importorskip("matplotlib")
     plot = base.load_script("plot_recon")
     floors = [{"setup": "meanstd", "label": "mean/std floor",
                "arms": {"cf412om"}, "score": 1.5721}]
-    points = {"cf412om": {40000: 0.31, 100000: 0.29}}
     linear = {"cf412om": {40000: 1.20, 100000: 1.10}}
-    fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], {}, points,
-                           tmp_path / "f.png", False, floors, linear=linear)
+    fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], {}, linear,
+                           tmp_path / "f.png", False, floors, linear=True)
     ax, = fig.axes
     flat = [line for line in ax.get_lines() if len(set(line.get_ydata())) == 1]
     assert [float(line.get_ydata()[0]) for line in flat] == [1.5721]

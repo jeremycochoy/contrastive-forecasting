@@ -1,19 +1,25 @@
 """#425: the GM-Relative MASE of the reconstruction head through training,
 beside the forecast of the same checkpoints.
 
-Each GM-Relative MASE graph of the #412 report that holds runs of ours gives
-two figures here:
+The two heads have separate figures (owner, 10-08): no figure mixes the
+transformer head and the linear head. Each GM-Relative MASE graph of the
+#412 report that holds runs of ours gives four figures here:
 
-* ``recon_<graph>.png``: the reconstruction curves only.
-* ``overlay_<graph>.png``: the forecast curves at 50% opacity, the
-  reconstruction curves in the same colour at full opacity, and a thin
-  vertical line from the forecast point to the reconstruction point of each
-  checkpoint.
+* ``recon_<graph>.png``: the R curves of the transformer head.
+* ``overlay_<graph>.png``: the forecast curves at 50% opacity, the same R
+  curves at full opacity, and a thin vertical line from the forecast point
+  to the R point of each checkpoint.
+* ``recon_<graph>_linear.png`` and ``overlay_<graph>_linear.png``: the same
+  two figures for the linear head.
 
-The graphs: the selected runs, all runs, ours with one patch size, and ours
-with patch sizes. The Moirai graph has no run of ours. The groups, the
-labels, the colours and the x scale are those of #412 (``plot_gm_rates.py``
-and ``run_style.py``), so a run looks the same in every figure.
+The graphs: the selected runs, all runs, ours with one patch size, ours
+with patch sizes, and the Moirai group. Each graph draws every run of its
+groups that has a score of its head, with no fixed count of runs: a new
+score in the tables gives a new curve, and a graph with no scored run
+gives no figure. The groups, the labels, the colours and the x scale are
+those of #412 (``plot_gm_rates.py`` and ``run_style.py``), so a run looks
+the same in every figure. The two versions of a graph share one y range
+(``y_extra``), so a reader compares the two heads at the same height.
 
 The report holds the figures only. So a figure keeps each fact in its plot
 or in its legend, never in its title or in an annotation. The legend gives
@@ -34,29 +40,21 @@ one panel to the other.
 The floor of a scaling setup is the R score of a head that gives the
 normalised value 0 (floors.sh), so each value is the mean that normalised
 it. An R score compares with the floor of its own setup. The legend gives
-each floor. The chart holds a floor, as a thin grey line, only when an R
-score of its setup is FLOOR_REACH times under it or nearer: a floor that is
-far above the R curves takes the height of the chart from them.
+each floor. The chart holds a floor, as a thin grey line, only when it is
+in the y range of the chart: a floor that is far above the R curves takes
+the height of the chart from them.
 
-Each R score comes from one head with one seed, so the figures cannot show
-the noise between two heads. snapshot_score.sh scores an earlier snapshot of
-some heads (the head of the best training loss). A hollow marker shows that
-score under or above the dot of its checkpoint: the distance between the
-two is the change of R in the last steps of one head training. The hollow
-markers lie above the curves, so the curve of no run hides one. For some
-heads, the best training loss is at the last head step. That snapshot is
-the final head, so its hollow marker lies on the dot and measures no change
-of R. One line of the key names these heads. The legend holds no list of
-the scores: results/snapshots/scores.tsv gives each one, with its head step
-and the R of the final head.
-
-A second head of each checkpoint is a linear head: one linear map decodes
-each encoder latent into the values of its patch. Its R curve has the colour
-of its run, a dashed thin line and small markers. The legend names it under
-its run, with its first and last R and their ratio. A figure with no linear
-score is the figure of the first heads. A run with a linear score only stays
-in the figure: the legend names the run with no R score, above its linear
-head.
+snapshot_score.sh scores an earlier snapshot of some transformer heads (the
+head of the best training loss). A hollow marker shows that score under or
+above the dot of its checkpoint: the distance between the two is the change
+of R in the last steps of one head training. The hollow markers lie above
+the curves, so the curve of no run hides one. For some heads, the best
+training loss is at the last head step. That snapshot is the final head, so
+its score equals the dot and measures no change of R: load_snapshots keeps
+it out, and the figure holds no marker for it. The linear figures hold no
+hollow marker: no snapshot of a linear head has a score. The legend holds
+no list of the scores: results/snapshots/scores.tsv gives each one, with
+its head step and the R of the final head.
 
 Reads results/recon_trajectories.tsv, results/forecast_425.tsv,
 results/snapshots/scores.tsv and results/recon_lin_trajectories.tsv
@@ -93,10 +91,11 @@ PLOTS = STUDY / "plots"
 OURS = base.GROUPS[:2]
 GRAPHS = {
     "selected": [(name, [run for run in runs if run[0] not in base.OFF_MAIN])
-                 for name, runs in OURS],
-    "all": OURS,
-    "ours_one_patch_size": OURS[:1],
-    "ours_patch_sizes": OURS[1:],
+                 for name, runs in base.GROUPS],
+    "all": base.GROUPS,
+    "ours_one_patch_size": base.GROUPS[:1],
+    "ours_patch_sizes": base.GROUPS[1:2],
+    "moirai": base.GROUPS[2:3],
 }
 # The title of each graph: the runs it holds.
 GRAPH_TITLES = {
@@ -104,8 +103,13 @@ GRAPH_TITLES = {
     "all": "all runs",
     "ours_one_patch_size": "ours, one patch size",
     "ours_patch_sizes": "ours, patch sizes 8 to 128",
+    "moirai": "Moirai, our copy",
 }
-# The steps of a head training. A snapshot of this step is the final head.
+# The two heads: the suffix of their files and their name in a title.
+HEAD_NAMES = {"": "transformer head", "_linear": "linear head"}
+# A legend label that would repeat a banned word gets a new one here.
+RELABEL = {base.P + "_lr10xb": "lr 5.6e-5, old data, second run"}
+# The steps of a head training. A best head of this step is the final head.
 HEAD_STEPS = 30000
 FORECAST_ALPHA = 0.5
 LINK_WIDTH = 0.6
@@ -124,13 +128,11 @@ FLOOR_NAMES = {
     "ewma_old": "EWMA, old data",
     "meanstd": "mean/std",
 }
-# The curve of the linear head of a run: its dashes, its width as a share of
-# the width of the run, and the size of its markers.
-LINEAR_STYLE = (0, (3, 1.2))
-LINEAR_WIDTH = 0.5
-LINEAR_MARKER = 5
 KEY_COLOUR = "0.3"
 METRIC = "GM-Relative MASE, 97-config GIFT-Eval (log scale, lower is better)"
+# The first line of the key: what R is, for each head.
+R_LINES = {False: "R: a head decodes the true horizon from its latents",
+           True: "R: one linear map decodes the horizon from latents"}
 # The ticks of a log y axis: in each decade, the values of one ladder. An
 # axis takes the first ladder that gives it Y_MIN_TICKS ticks or more and
 # that keeps the empty share of its height under Y_MAX_EMPTY. So a narrow
@@ -178,17 +180,16 @@ def load_floors(path):
 
 
 def load_snapshots(path):
-    """The R score of the best head of a head training:
-    ``{arm: {data seen: (head step, score)}}``, from the columns of the
-    table of collect.py. For most heads, it is an earlier snapshot. A best
-    head of the last head step is the final head (last_step_note). The
-    final head is the dot of the checkpoint, so its control score is not a
-    snapshot here."""
+    """The R score of an earlier snapshot of a head: ``{arm: {data seen:
+    (head step, score)}}``, from the columns of the table of collect.py. A
+    ``final`` row is a control of the eval path, not a snapshot. A ``best``
+    head of the last head step is the final head: its score equals the dot
+    of its checkpoint and measures no change of R, so it stays out too."""
     points = defaultdict(dict)
     if not Path(path).is_file():
         return points
     for row in csv.DictReader(open(path), delimiter="\t"):
-        if row["snapshot"] != "final":
+        if row["snapshot"] != "final" and int(row["head_step"]) < HEAD_STEPS:
             arm = row["arm"]
             seen = int(row["stop_k"]) * 1000 * base.XSCALE.get(arm, 1)
             points[arm][seen] = (int(row["head_step"]),
@@ -204,7 +205,7 @@ def floors_of(arms, floors):
 def near_floors(floors, recon):
     """The floors that a chart must hold: those with an R score of a run of
     their setup FLOOR_REACH times under them, or nearer. ``recon``:
-    ``{arm: [R score]}``, the scores of each head of the run."""
+    ``{arm: [R score]}``, the scores of each run."""
     near = []
     for floor in floors:
         scores = [score for arm in floor["arms"]
@@ -259,23 +260,10 @@ def draw_run(ax, arm, width, marker, points, alpha=1.0):
     return handle
 
 
-def draw_linear(ax, arm, width, marker, points):
-    """The R curve of the linear head of a run, or None when it has no
-    point: the colour of the run, dashed, thinner, with small markers."""
-    if not points:
-        return None
-    x = sorted(points)
-    handle, = ax.plot(x, [points[v] for v in x], color=colour(arm),
-                      ls=LINEAR_STYLE, lw=width * LINEAR_WIDTH, marker=marker,
-                      ms=LINEAR_MARKER, zorder=2.8)
-    return handle
-
-
 def draw_snapshots(ax, arm, marker, recon, snapshots):
     """A hollow marker at the R score of an earlier snapshot of a head, and
     a line from it to the dot of the final head. Both lie above the curves,
-    so the curve of no run hides a snapshot. For two equal scores, the
-    hollow marker lies on the dot."""
+    so the curve of no run hides a snapshot."""
     for seen, (_, score) in snapshots.items():
         if seen not in recon:
             continue
@@ -283,24 +271,6 @@ def draw_snapshots(ax, arm, marker, recon, snapshots):
                 lw=1.4, zorder=3.4)
         ax.plot([seen], [score], linestyle="none", marker=marker, ms=8,
                 mfc="white", mec=colour(arm), mew=1.6, zorder=3.5)
-
-
-def last_step_note(arms, recon, snapshots):
-    """The key line of the hollow markers that show no earlier head step:
-    the code and the stops of each run with a best head of the last head
-    step. That head is the final head, so its hollow marker lies on the dot
-    and it is no measure of the change of R. None when the chart holds no
-    such marker."""
-    runs = []
-    for arm in arms:
-        stops = [f"{seen // (1000 * base.XSCALE.get(arm, 1)):,}k"
-                 for seen, (step, _) in sorted(snapshots.get(arm, {}).items())
-                 if seen in recon[arm] and step >= HEAD_STEPS]
-        if stops:
-            runs.append(f"{CODE[arm]} {', '.join(stops)}")
-    if not runs:
-        return None
-    return f"{' and '.join(runs)}: the final head, no earlier step"
 
 
 def draw_links(top, bottom, arm, forecast, recon):
@@ -328,51 +298,35 @@ def draw_break(top, bottom):
 def run_label(arm, label, recon):
     """The legend label of a run: its code, its label, its first and last
     R score, and the ratio of the last to the first."""
-    return f"{tagged(arm, label)}.  {score_span(recon)}"
+    return f"{tagged(arm, RELABEL.get(arm, label))}.  {score_span(recon)}"
 
 
 def score_span(points):
-    """The first and the last R score of a curve, and their ratio. A head
-    with no point has no score."""
+    """The first and the last R score of a curve, and their ratio."""
     scores = [points[seen] for seen in sorted(points)]
-    if not scores:
-        return "R: no score"
     if len(scores) == 1:
         return f"R {scores[0]:.4f}"
     return (f"R {scores[0]:.4f} → {scores[-1]:.4f}, "
             f"×{scores[-1] / scores[0]:.2f}")
 
 
-def linear_label(points):
-    """The legend label of the linear head of a run, under the run."""
-    return f"        linear head.  {score_span(points)}"
-
-
 def key_entries(overlay, floors, snapshots=False, floor_lines=None,
-                linear=False, last_step=None):
+                linear=False):
     """The key: what R is, the earlier snapshot of a head, the floor of each
     scaling setup, and in an overlay, the forecast, the line that joins the
     two scores of a checkpoint and the break of the y axis. Each entry is
     one short line. ``snapshots``: the chart holds a hollow marker of an
     earlier head step. ``floor_lines``: ``{setup: line}`` of the floors
-    that the chart draws. ``linear``: the chart holds the curve of a linear
-    head. ``last_step``: the line of last_step_note, or None."""
+    that the chart draws. ``linear``: the chart shows the linear head."""
     blank = Line2D([], [], linestyle="none")
     entries = [(Line2D([], [], color=KEY_COLOUR, lw=3, marker="o", ms=7),
-                "R: a head decodes the true horizon from its latents"),
-               (blank, "One dot: one checkpoint, one head, one seed"),
+                R_LINES[bool(linear)]),
+               (blank, "One dot: one checkpoint, one head"),
                (blank, "R a → b, ×c: first and last checkpoint, c = b / a")]
-    if linear:
-        entries.append((Line2D([], [], color=KEY_COLOUR, ls=LINEAR_STYLE,
-                               lw=3 * LINEAR_WIDTH, marker="o",
-                               ms=LINEAR_MARKER),
-                        "R with a linear head"))
-    hollow = Line2D([], [], color=KEY_COLOUR, lw=0, marker="o", ms=7,
-                    mfc="white", mew=1.6)
     if snapshots:
-        entries.append((hollow, "The same head at an earlier head step"))
-    if last_step:
-        entries.append((blank if snapshots else hollow, last_step))
+        entries.append((Line2D([], [], color=KEY_COLOUR, lw=0, marker="o",
+                               ms=7, mfc="white", mew=1.6),
+                        "The same head at an earlier head step"))
     if overlay:
         entries += [
             (Line2D([], [], color=KEY_COLOUR, lw=3, marker="o", ms=7,
@@ -456,44 +410,39 @@ def style_y(ax, values, label):
 
 
 def draw_figure(groups, forecast, recon, out, overlay, floors=(), title=None,
-                snapshots=None, linear=None):
-    """One figure. Returns it, or None, and draws nothing, when no run of
-    the groups has an R score. ``linear``: the R scores of the linear head
-    of each run, as ``recon``."""
-    snapshots, linear = snapshots or {}, linear or {}
-    # A run with no R score (ABC keeps no checkpoint) has no pair to show,
-    # so its forecast stays in the #412 figures only. A run with the R of
-    # one of its two heads stays.
+                snapshots=None, linear=False, y_extra=()):
+    """One figure of one head. Returns it, or None, and draws nothing, when
+    no run of the groups has an R score. ``recon``: the R scores of that
+    head. ``linear``: the head is the linear head, so the key names it and
+    the chart holds no snapshot marker. ``y_extra``: scores of the other
+    head of the same graph, so the two versions share one y range."""
+    snapshots = {} if linear else (snapshots or {})
     runs = [run for _, members in groups for run in members
-            if recon.get(run[0]) or linear.get(run[0])]
+            if recon.get(run[0])]
     if not runs:
         return None
     arms = [arm for arm, *_ in runs]
-    # The R scores of the first head of each run of the figure: no score
-    # for a run with a linear score only.
-    recon = {arm: recon.get(arm) or {} for arm in arms}
+    recon = {arm: recon[arm] for arm in arms}
     if overlay:
         fig, (top, ax) = plt.subplots(2, 1, sharex=True, figsize=(12.5, 11.5),
                                       gridspec_kw={"hspace": 0.06})
     else:
         fig, ax = plt.subplots(figsize=(12.5, 9.0))
         top = ax
-    handles, linear_handles = {}, {}
+    handles = {}
     for arm, _, width, marker in runs:
         if overlay:
             draw_run(top, arm, width, marker, forecast.get(arm),
                      alpha=FORECAST_ALPHA)
-        handles[arm] = draw_run(ax, arm, width, marker, recon.get(arm))
-        linear_handles[arm] = draw_linear(ax, arm, width, marker,
-                                          linear.get(arm))
+        handles[arm] = draw_run(ax, arm, width, marker, recon[arm])
         draw_snapshots(ax, arm, marker, recon[arm], snapshots.get(arm, {}))
     floors = floors_of(arms, floors)
-    r_scores = {arm: [*recon[arm].values(), *linear.get(arm, {}).values()]
-                for arm in arms}
+    r_scores = {arm: list(recon[arm].values()) for arm in arms}
     r_values = [v for arm in arms for v in r_scores[arm]]
     r_values += [score for arm in arms for seen, (_, score)
                  in snapshots.get(arm, {}).items() if seen in recon[arm]]
     r_values += [floor["score"] for floor in near_floors(floors, r_scores)]
+    r_values += list(y_extra)
     style_x(ax)
     if overlay:
         style_y(top, [v for arm in arms for v in forecast.get(arm, {}).values()]
@@ -519,23 +468,15 @@ def draw_figure(groups, forecast, recon, out, overlay, floors=(), title=None,
         title = ("Reconstruction (R) and forecast (B4)" if overlay
                  else "Reconstruction (R)")
     top.set_title(title, fontsize=13, pad=10)
-    columns, blank = [], Line2D([], [], linestyle="none")
+    columns = []
     for name, members in groups:
-        entries = []
-        for arm, label, *_ in members:
-            if arm in handles:
-                entries.append((handles[arm] or blank,
-                                run_label(arm, label, recon[arm])))
-            if linear_handles.get(arm):
-                entries.append((linear_handles[arm],
-                                linear_label(linear[arm])))
+        entries = [(handles[arm], run_label(arm, label, recon[arm]))
+                   for arm, label, *_ in members if arm in handles]
         if entries:
             columns.append((name, entries))
-    earlier = any(seen in recon[arm] and step < HEAD_STEPS for arm in arms
-                  for seen, (step, _) in snapshots.get(arm, {}).items())
-    key = key_entries(overlay, floors, earlier, draw_floors(ax, floors),
-                      any(linear_handles.values()),
-                      last_step_note(arms, recon, snapshots))
+    shown = any(seen in recon[arm] for arm in arms
+                for seen in snapshots.get(arm, {}))
+    key = key_entries(overlay, floors, shown, draw_floors(ax, floors), linear)
     draw_legend(ax, top, columns, ("How to read", key))
     fig.savefig(out, dpi=135, bbox_inches="tight")
     plt.close(fig)
@@ -543,18 +484,37 @@ def draw_figure(groups, forecast, recon, out, overlay, floors=(), title=None,
     return fig
 
 
+def graph_values(groups, scores, snapshots):
+    """The R scores of one head in one graph, with the snapshot scores that
+    its charts hold: the y range that this head asks for."""
+    values = []
+    for _, members in groups:
+        for arm, *_ in members:
+            points = scores.get(arm, {})
+            values += list(points.values())
+            values += [score for seen, (_, score)
+                       in snapshots.get(arm, {}).items() if seen in points]
+    return values
+
+
 def main():
-    forecast, recon, linear = load(FORECAST), load([RECON]), load([LINEAR])
-    floors, snapshots = load_floors(FLOORS), load_snapshots(SNAPSHOTS)
+    forecast, floors = load(FORECAST), load_floors(FLOORS)
+    snapshots = load_snapshots(SNAPSHOTS)
+    heads = {"": (load([RECON]), snapshots, False),
+             "_linear": (load([LINEAR]), {}, True)}
     PLOTS.mkdir(parents=True, exist_ok=True)
     for name, groups in GRAPHS.items():
         runs = GRAPH_TITLES[name]
-        draw_figure(groups, forecast, recon, PLOTS / f"recon_{name}.png",
-                    False, floors, f"Reconstruction (R): {runs}", snapshots,
-                    linear)
-        draw_figure(groups, forecast, recon, PLOTS / f"overlay_{name}.png",
-                    True, floors, f"Reconstruction (R) and forecast (B4): {runs}",
-                    snapshots, linear)
+        shared = [v for scores, snaps, _ in heads.values()
+                  for v in graph_values(groups, scores, snaps)]
+        for suffix, (scores, snaps, linear) in heads.items():
+            head = HEAD_NAMES[suffix]
+            draw_figure(groups, forecast, scores,
+                        PLOTS / f"recon_{name}{suffix}.png", False, floors,
+                        f"R, {head}: {runs}", snaps, linear, shared)
+            draw_figure(groups, forecast, scores,
+                        PLOTS / f"overlay_{name}{suffix}.png", True, floors,
+                        f"R and B4, {head}: {runs}", snaps, linear, shared)
 
 
 if __name__ == "__main__":
