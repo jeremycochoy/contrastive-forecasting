@@ -1,9 +1,17 @@
-arm	stop_k	snapshot	head_step	score
-cf412oe2	40	best	28500	0.0836
-cf412oe2	200	best	29000	0.0905
-cf412om	10	best	25000	0.3162
-cf412om	166	best	25000	0.8652
-cf419_cos200k	100	best	28500	0.0398
-k3_r100_09_lr56_fix09_dec10k_cos200k	665	best	29500	0.0292
-k3_r100_09_lr56_fix09_dec10k_lr100x	1080	best	28500	0.0398
-k3_r100_09_lr56_fix09_dec10k_lr100x	1080	final	30000	0.0462
+run	arm	stop_k	scaling	snapshot	head_step	machine	r_snapshot	r_final	ratio
+BLK	cf419_cos200k	100	EWMA	best	28500	box	0.0398	0.0399	1.00
+OMB	cf412om	10	mean/std	best	25000	box	0.3162	0.3358	1.06
+OMB	cf412om	166	mean/std	best	25000	box	0.8652	0.8347	0.96
+OCF	cf412oc2	40	mean/std	best	25000	elisa	0.2931	0.3988	1.36
+OCF	cf412oc2	40	mean/std	final	30000	elisa	0.3988	0.3988	1.00
+OCF	cf412oc2	400	mean/std	best	25000	elisa	0.3202	0.2727	0.85
+OCF	cf412oc2	400	mean/std	final	30000	elisa	0.2727	0.2727	1.00
+OEF	cf412oe2	40	EWMA	best	28500	box	0.0836	0.0877	1.05
+OEF	cf412oe2	200	EWMA	best	29000	box	0.0905	0.0924	1.02
+BMS	cf419ms	100	mean/std	best	18500	elisa	0.2992	0.2097	0.70
+BMS	cf419ms	100	mean/std	final	30000	elisa	0.2097	0.2097	1.00
+BMS	cf419ms	140	mean/std	best	18500	elisa	0.3295	0.4873	1.48
+BMS	cf419ms	140	mean/std	final	30000	elisa	0.4873	0.4873	1.00
+CYN	k3_r100_09_lr56_fix09_dec10k_cos200k	665	EWMA	best	29500	box	0.0292	0.0293	1.00
+MIN	k3_r100_09_lr56_fix09_dec10k_lr100x	1080	EWMA	best	28500	box	0.0398	0.0462	1.16
+MIN	k3_r100_09_lr56_fix09_dec10k_lr100x	1080	EWMA	final	30000	box	0.0462	0.0462	1.00

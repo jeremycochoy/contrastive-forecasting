@@ -6,7 +6,8 @@ All times are UTC, on 2026-10-07 unless a date is given.
 
 - Box: vast.ai 51431200, `ssh -p 31200 root@ssh5.vast.ai`. The queue code is `/workspace/cf-425` at 366c246f. The results are in `/workspace/results/cf-425`, and the heads in `/workspace/ckpt/cf-425`.
 - elisa: the heads are in `~/checkpoints_backup/cf-412/vast_lr100x/cf-425`. The box results are in `~/checkpoints_backup/cf-425/box_results`. The sync log is `~/checkpoints_backup/cf-425/sync.log`.
-- To fill this folder from elisa: `python3 scripts/collect.py && python3 scripts/check_scores.py && python3 scripts/plot_recon.py`.
+- elisa, the snapshot scores of 10-08: `~/checkpoints_backup/cf-425-snap`. `code/` is the code at a2bbd7ac, `ckpt/eval/<tag>/` holds the copy of each head and the files of its eval, and `results/` holds the scores and `run.log`.
+- To fill this folder from elisa: `python3 scripts/collect.py && python3 scripts/check_scores.py && CF425_HEAD_ARCH=linear python3 scripts/check_scores.py && python3 scripts/plot_recon.py`.
 
 ## Timeline
 
@@ -28,10 +29,15 @@ All times are UTC, on 2026-10-07 unless a date is given.
 | 10-08 00:40 | `verify_mirror.sh`: elisa holds each box file at the same byte size, and no `.pth` stays on the box (`results/mirror_check.txt`). `check_scores.py`: 56 of 56 jobs pass. |
 | 10-08 00:42 | The sync loop of the box stops: it has no more file to bring. |
 | 10-08 05:06 | `QUEUE_END: 56 scores` of the linear-head queue on elisa, with no failed job. `CF425_HEAD_ARCH=linear check_scores.py`: 56 of 56 jobs pass (`results/checks_lin.tsv`). |
+| 10-08 05:21 | `snapshot_score.sh` with `CF425_SNAP_GPU`, on elisa: the earlier snapshot of 4 mean/std heads (BMS 100k, BMS 140k, OCF 40k, OCF 400k), and the final head of each as a control. Each GPU runs 3 scores at a time. |
+| 10-08 05:36 | The 4 snapshot scores and 2 controls exist. |
+| 10-08 05:49 | The 2 last controls exist. Each of the 8 evals ends with rc 0. `check_scores.py`: 56 of 56 jobs and 16 of 16 snapshot scores pass (`results/snapshots/checks.tsv`). |
 
 ## Events
 
 - **Sync gap, fixed.** The tick after a wave brings about 5 GB and takes 24 minutes. When a score came during that tick, the prune of the tick deleted the final head from the box, and no later tick listed the folder. So elisa had the head and the score of OCB 40k and OMB 166k, but not their per-config table. `check_scores.py` found the gap. Commit 9955742b lists the folder of each scored job. The first tick of the new loop brought the files.
-- **Snapshot scores.** They are not jobs of the queue. They use the eval slots of the queue, and they do not write in its folders. While a score runs, a wave trains about 35% slower, because the box has 8 CPU cores.
+- **Snapshot scores on the box (10-07).** They are not jobs of the queue. They use the eval slots of the queue, and they do not write in its folders. While a score runs, a wave trains about 35% slower, because the box has 8 CPU cores.
+- **Snapshot scores on elisa (10-08).** The 8 scores ran on the two GPUs of elisa. The box did not run them, and they trained no head. The eval code is the code of the two queues. For each of the 4 heads, the score of the final head on elisa is the score of the box to 4 decimals (0.2097, 0.4873, 0.3988 and 0.2727). So a snapshot score of elisa compares with a queue score of the box. `results/snapshots/scores.tsv` gives each snapshot score beside the score of the final head.
 - **Linear heads.** The owner added a linear head for the 56 checkpoints on 10-07. Its queue runs on the two GPUs of elisa, in `~/checkpoints_backup/cf-425-lin`, and it needs no sync. The figures draw its scores as dashed curves.
 - **Head loss of the mean/std runs.** The training loss of a mean/std head has a median near 0.25 and steps up to 160. The loss of an EWMA head is 0.009 to 0.04. All mean/std heads of wave 1 have their best loss at step 25,000.
+- **Tests.** The two test files of the card give 172 passed. `test_two_lanes_of_one_stream_train_two_waves_at_one_time` failed in 1 of 3 full runs on 10-08, and it passed 3 times alone: it compares the times of two stub waves.

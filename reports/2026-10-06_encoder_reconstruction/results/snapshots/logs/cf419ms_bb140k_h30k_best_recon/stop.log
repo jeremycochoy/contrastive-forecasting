@@ -1,0 +1,7 @@
+[10-08 06:21:51] [cf419ms_bb140k_h30k_best_recon] head-train SKIP (final exists)
+[10-08 06:21:51] [cf419ms_bb140k_h30k_best_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-08 06:21:51] START cf419ms_bb140k_h30k_best_recon bb140k enc=student shards=2 slot=1
+[10-08 06:36:09] merged 97 configs -> /home/jupyter/checkpoints_backup/cf-425-snap/ckpt/eval/cf419ms_bb140k_h30k_best_recon/gift_r/all_results.csv
+[10-08 06:36:12] DONE cf419ms_bb140k_h30k_best_recon bb140k student — Aggregate GM-Relative MASE (97 configs): 0.3295 -> 0.3295
+[10-08 06:36:12] [cf419ms_bb140k_h30k_best_recon] eval rc=0
+[10-08 06:36:12] [cf419ms_bb140k_h30k_best_recon] DONE — GM-Relative MASE 0.3295
