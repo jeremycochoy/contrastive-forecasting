@@ -113,6 +113,12 @@ RELABEL = {base.P + "_lr10xb": "lr 5.6e-5, old data, second run"}
 HEAD_STEPS = 30000
 FORECAST_ALPHA = 0.5
 LINK_WIDTH = 0.6
+# The marker of a snapshot has no face and is larger than the dot (ms=8),
+# so a snapshot near its dot is a ring around it, not a cover over it.
+SNAPSHOT_MS = 13
+# A run with one R score draws after the runs with a line, above them and
+# with a thin white marker edge, so the line of no other run hides its dot.
+LONE_DOT = dict(zorder=3.3, mec="white", mew=0.8)
 FLOOR_COLOUR = "0.55"
 FLOOR_WIDTH = 0.8
 # One line style for each floor, in the order of floors.tsv, so that a floor
@@ -250,27 +256,32 @@ def y_axis(values):
     return under / margin, above * margin, ticks
 
 
-def draw_run(ax, arm, width, marker, points, alpha=1.0):
-    """One run's line, or None when it has no point."""
+def draw_run(ax, arm, width, marker, points, alpha=1.0, **style):
+    """One run's line, or None when it has no point. ``style``: LONE_DOT
+    for a run with one R score."""
     if not points:
         return None
     x = sorted(points)
     handle, = ax.plot(x, [points[v] for v in x], line(arm), color=colour(arm),
-                      lw=width, marker=marker, ms=8, alpha=alpha, zorder=3)
+                      lw=width, marker=marker, ms=8, alpha=alpha,
+                      **{"zorder": 3, **style})
     return handle
 
 
 def draw_snapshots(ax, arm, marker, recon, snapshots):
     """A hollow marker at the R score of an earlier snapshot of a head, and
     a line from it to the dot of the final head. Both lie above the curves,
-    so the curve of no run hides a snapshot."""
+    so the curve of no run hides a snapshot. The marker has no face and is
+    larger than the dot: where the two scores are almost equal, it is a
+    ring around the dot, and the dot stays in view."""
     for seen, (_, score) in snapshots.items():
         if seen not in recon:
             continue
         ax.plot([seen, seen], [score, recon[seen]], color=colour(arm),
                 lw=1.4, zorder=3.4)
-        ax.plot([seen], [score], linestyle="none", marker=marker, ms=8,
-                mfc="white", mec=colour(arm), mew=1.6, zorder=3.5)
+        ax.plot([seen], [score], linestyle="none", marker=marker,
+                ms=SNAPSHOT_MS, mfc="none", mec=colour(arm), mew=1.6,
+                zorder=3.5)
 
 
 def draw_links(top, bottom, arm, forecast, recon):
@@ -325,7 +336,7 @@ def key_entries(overlay, floors, snapshots=False, floor_lines=None,
                (blank, "R a → b, ×c: first and last checkpoint, c = b / a")]
     if snapshots:
         entries.append((Line2D([], [], color=KEY_COLOUR, lw=0, marker="o",
-                               ms=7, mfc="white", mew=1.6),
+                               ms=SNAPSHOT_MS, mfc="none", mew=1.6),
                         "The same head at an earlier head step"))
     if overlay:
         entries += [
@@ -387,14 +398,21 @@ def draw_legend(ax, key_ax, columns, key):
     return runs, legend
 
 
-def style_x(ax):
+def style_x(ax, arms):
+    """The x axis. The label names the batch-256 runs of the figure only,
+    and drops that sentence when the figure holds none."""
     ax.set_xscale("log")
     ticks = [40000, 100000, 200000, 400000, 665000, 1000000]
     ax.set_xticks(ticks)
     ax.set_xticklabels(["40k", "100k", "200k", "400k", "665k", "1,000k"])
     ax.set_xlim(left=28000)
-    ax.set_xlabel("Data seen, in batch-64 steps (log scale). A step at batch "
-                  "256 (OMB, OMF, OBM, OBW and OAL) counts 4.")
+    label = "Data seen, in batch-64 steps (log scale)."
+    codes = [CODE[arm] for arm in arms if base.XSCALE.get(arm, 1) == 4]
+    if codes:
+        listed = codes[0] if len(codes) == 1 else \
+            ", ".join(codes[:-1]) + " and " + codes[-1]
+        label += f" A step at batch 256 ({listed}) counts 4."
+    ax.set_xlabel(label)
 
 
 def style_y(ax, values, label):
@@ -430,11 +448,14 @@ def draw_figure(groups, forecast, recon, out, overlay, floors=(), title=None,
         fig, ax = plt.subplots(figsize=(12.5, 9.0))
         top = ax
     handles = {}
+    # The runs with one R score draw last: their dot lies above the lines.
+    runs.sort(key=lambda run: len(recon[run[0]]) == 1)
     for arm, _, width, marker in runs:
         if overlay:
             draw_run(top, arm, width, marker, forecast.get(arm),
                      alpha=FORECAST_ALPHA)
-        handles[arm] = draw_run(ax, arm, width, marker, recon[arm])
+        lone = LONE_DOT if len(recon[arm]) == 1 else {}
+        handles[arm] = draw_run(ax, arm, width, marker, recon[arm], **lone)
         draw_snapshots(ax, arm, marker, recon[arm], snapshots.get(arm, {}))
     floors = floors_of(arms, floors)
     r_scores = {arm: list(recon[arm].values()) for arm in arms}
@@ -443,7 +464,7 @@ def draw_figure(groups, forecast, recon, out, overlay, floors=(), title=None,
                  in snapshots.get(arm, {}).items() if seen in recon[arm]]
     r_values += [floor["score"] for floor in near_floors(floors, r_scores)]
     r_values += list(y_extra)
-    style_x(ax)
+    style_x(ax, arms)
     if overlay:
         style_y(top, [v for arm in arms for v in forecast.get(arm, {}).values()]
                 or [1.0], "Forecast (B4)")
