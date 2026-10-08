@@ -2042,7 +2042,7 @@ def test_a_hollow_marker_shows_an_earlier_snapshot_of_a_head(tmp_path):
                            tmp_path / "s.png", False, snapshots=snapshots)
     ax, = fig.axes
     hollow = [line for line in ax.get_lines()
-              if line.get_markerfacecolor() == "white"]
+              if line.get_markerfacecolor() == "none"]
     assert [list(line.get_ydata()) for line in hollow] == [[0.2]]
     assert ax.get_ylim()[0] < 0.2
     # No curve hides the hollow marker: it lies above each of them.
@@ -2073,7 +2073,7 @@ def test_a_best_head_of_the_last_head_step_shows_no_marker(tmp_path):
                            tmp_path / "s.png", False, snapshots=snapshots)
     ax, = fig.axes
     hollow = [line for line in ax.get_lines()
-              if line.get_markerfacecolor() == "white"]
+              if line.get_markerfacecolor() == "none"]
     assert [list(line.get_ydata()) for line in hollow] == [[0.2]]
     texts = legend_texts(fig)
     assert "The same head at an earlier head step" in texts
