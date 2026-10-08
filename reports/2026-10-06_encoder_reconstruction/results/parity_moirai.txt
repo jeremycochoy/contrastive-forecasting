@@ -1,0 +1,39 @@
+# elisa (RTX 4090, GPU 1), 10-08 08:55 UTC. parity_moirai.sh, 1,000 steps. The log times are local (UTC+1).
+# Code e83c5bd2, in ~/checkpoints_backup/cf-425-moirai/code. It is the code of 365db04a of the PR branch (the same files, before a rebase).
+# The same test at 35fa0504 (08:24 UTC) gave the same compare lines and the same 4 R scores. From 35fa0504 to the PR head, the head trainer, the eval, the runners and src do not change.
+[10-08 09:55:31] [#425 moirai proof] code e83c5bd2, GPU 1 of elisa, jobs: MPM:100 MPE:100
+[10-08 09:55:31] [#425 transformer parity] solo MPM:100: 1000 steps, code e83c5bd2
+[10-08 09:55:31] [#425 transformer parity] solo MPE:100: 1000 steps, code e83c5bd2
+[10-08 09:59:22] [#425 transformer parity] waves: 3 jobs, 1000 steps
+[10-08 10:04:36] [#425 transformer parity] waves rc=0
+[10-08 10:04:36] [#425 transformer parity] solo MPM 100k: [   1000] loss=1.338634  ema_loss=1.069798  4.5 sps  ETA 0.0h
+[10-08 10:04:36] [#425 transformer parity] solo MPE 100k: [   1000] loss=0.096568  ema_loss=0.096395  4.7 sps  ETA 0.0h
+MPM 100k: 1000 steps, 1000 identical rows, first difference at step None, max |loss diff| 0, loss at step 1000: 1.338634 (wave) 1.338634 (solo)
+MPE 100k: 1000 steps, 1000 identical rows, first difference at step None, max |loss diff| 0, loss at step 1000: 0.096568 (wave) 0.096568 (solo)
+MPM 100k: 140 tensors in the wave head, 140 in the solo head, 140 identical
+MPE 100k: 140 tensors in the wave head, 140 in the solo head, 140 identical
+[shared] 3 jobs on one stream: qhead_cf412om_bb25k_h30k_recon_s20260722, qhead_cf421f_moirai_native_bb100k_h30k_recon_s20260722, qhead_cf421ew_moirai_native_bb100k_h30k_recon_s20260722
+[shared] 500 steps: 3.06 steps/s since the start, 4.48 steps/s over the last 499, 13.4 job steps/s, the stream took 8% of that time, peak 2.98 GiB allocated, 3.36 GiB reserved
+[shared] 1000 steps: 3.59 steps/s since the start, 4.35 steps/s over the last 500, 13.1 job steps/s, the stream took 13% of that time, peak 2.98 GiB allocated, 3.36 GiB reserved
+[shared] done
+[10-08 10:05:25] [#425 transformer parity] R, 4 configs, transformer head of MPM 100k: 0.4158
+[10-08 10:06:15] [#425 transformer parity] R, 4 configs, transformer head of MPE 100k: 0.3314
+[10-08 10:06:15] [#425 linear parity] solo MPM:100: 1000 steps, code e83c5bd2
+[10-08 10:06:15] [#425 linear parity] solo MPE:100: 1000 steps, code e83c5bd2
+[10-08 10:11:34] [#425 linear parity] waves: 3 jobs, 1000 steps
+[10-08 10:15:41] [#425 linear parity] waves rc=0
+[10-08 10:15:41] [#425 linear parity] solo MPM 100k: [   1000] loss=1.199794  ema_loss=1.121351  4.1 sps  ETA 0.0h
+[10-08 10:15:41] [#425 linear parity] solo MPE 100k: [   1000] loss=0.127887  ema_loss=0.126500  4.1 sps  ETA 0.0h
+MPM 100k: 1000 steps, 1000 identical rows, first difference at step None, max |loss diff| 0, loss at step 1000: 1.199794 (wave) 1.199794 (solo)
+MPE 100k: 1000 steps, 1000 identical rows, first difference at step None, max |loss diff| 0, loss at step 1000: 0.127887 (wave) 0.127887 (solo)
+MPM 100k: 10 tensors in the wave head, 10 in the solo head, 10 identical
+MPE 100k: 10 tensors in the wave head, 10 in the solo head, 10 identical
+[shared] 3 jobs on one stream: qhead_cf412om_bb25k_h30k_recon_lin_s20260722, qhead_cf421f_moirai_native_bb100k_h30k_recon_lin_s20260722, qhead_cf421ew_moirai_native_bb100k_h30k_recon_lin_s20260722
+[shared] 500 steps: 3.40 steps/s since the start, 5.23 steps/s over the last 499, 15.7 job steps/s, the stream took 26% of that time, peak 2.14 GiB allocated, 2.17 GiB reserved
+[shared] 1000 steps: 4.16 steps/s since the start, 5.35 steps/s over the last 500, 16.1 job steps/s, the stream took 27% of that time, peak 2.15 GiB allocated, 2.19 GiB reserved
+[shared] done
+[10-08 10:16:28] [#425 linear parity] R, 4 configs, linear head of MPM 100k: 0.5406
+[10-08 10:17:13] [#425 linear parity] R, 4 configs, linear head of MPE 100k: 0.4946
+floor of MPM 100k, 4 configs, against the floor meanstd: 4 configs, 4 with the MASE of the second table, max relative difference 0
+floor of MPE 100k, 4 configs, against the floor ewma_zero_pad: 4 configs, 4 with the MASE of the second table, max relative difference 0
+[10-08 10:18:43] [#425 moirai proof] done
