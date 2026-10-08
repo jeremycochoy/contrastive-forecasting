@@ -2155,9 +2155,83 @@ def test_a_best_head_of_the_last_head_step_shows_no_marker(tmp_path):
     assert not any("final head" in text for text in texts)
 
 
+def test_a_lone_dot_draws_above_the_rings_with_a_white_edge(tmp_path):
+    """A run with one R score has no line: one dot shows it. The dot draws
+    above the rings of the snapshots, with a thin white marker edge, so no
+    ring and no line hides it."""
+    pytest.importorskip("matplotlib")
+    plot = load_script("plot_recon")
+    table = tmp_path / "scores.tsv"
+    table.write_text(SNAPSHOTS_TSV)
+    snapshots = plot.load_snapshots(table)
+    points = {"cf412om": {40000: 0.3100, 100000: 0.2900},
+              "cf412oe2": {40000: 0.4500}}
+    fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], {}, points,
+                           tmp_path / "d.png", False, snapshots=snapshots)
+    ax, = fig.axes
+    (ring,) = [line for line in ax.get_lines()
+               if line.get_markerfacecolor() == "none"]
+    (dot,) = [line for line in ax.get_lines()
+              if line.get_color() == plot.colour("cf412oe2")]
+    assert list(dot.get_ydata()) == [0.45]
+    assert dot.get_markeredgecolor() == "white"
+    assert dot.get_zorder() > ring.get_zorder()
+
+
+def test_the_x_label_names_the_batch_256_runs_of_the_figure(tmp_path):
+    """The sentence of the x label about batch 256 names the batch-256 runs
+    of the figure only. A figure with no such run has no sentence about
+    batch 256."""
+    pytest.importorskip("matplotlib")
+    plot = load_script("plot_recon")
+    fig = plot.draw_figure(plot.GRAPHS["ours_one_patch_size"], {},
+                           {"cf419ms": {40000: 0.3100}}, tmp_path / "b.png",
+                           False)
+    ax, = fig.axes
+    assert ax.get_xlabel() == "Data seen, in batch-64 steps (log scale)."
+    fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], {},
+                           {"cf412om": {40000: 0.3100},
+                            "cf412oe2": {40000: 0.2000}},
+                           tmp_path / "c.png", False)
+    ax, = fig.axes
+    assert ax.get_xlabel().endswith(
+        " One step at batch 256 (OMB) is equal to 4 steps at batch 64.")
+
+
+def test_main_gives_one_y_range_to_the_two_heads_of_a_graph(tmp_path,
+                                                            monkeypatch):
+    """main() gives the four figures of a graph one ``y_extra``, with the
+    R scores of both heads, so a reader compares the two heads of a graph
+    at the same height."""
+    pytest.importorskip("matplotlib")
+    plot = load_script("plot_recon")
+    extras = {}
+
+    def record(groups, forecast, recon, out, overlay, floors=(), title=None,
+               snapshots=None, linear=False, y_extra=()):
+        extras[out.name] = list(y_extra)
+
+    monkeypatch.setattr(plot, "draw_figure", record)
+    monkeypatch.setattr(plot, "PLOTS", tmp_path / "plots")
+    plot.main()
+    for name in plot.GRAPHS:
+        shared = extras[f"recon_{name}.png"]
+        assert shared
+        for out in (f"recon_{name}_linear.png", f"overlay_{name}.png",
+                    f"overlay_{name}_linear.png"):
+            assert extras[out] == shared
+    # The shared range holds the scores of the two heads.
+    arms = [arm for _, members in plot.GRAPHS["moirai"] for arm, *_ in members]
+    for table in (plot.RECON, plot.LINEAR):
+        scores = plot.load([table])
+        values = [v for arm in arms for v in scores.get(arm, {}).values()]
+        assert values
+        assert set(values) <= set(extras["recon_moirai.png"])
+
+
 def test_each_entry_of_the_key_is_one_short_line(tmp_path):
     """The report holds the figures only, so a reader reads the key of each
-    figure. Each entry of the key is one line of 52 characters or less, for
+    figure. Each entry of the key is one line of 64 characters or less, for
     each kind of entry: each of the two heads, an earlier snapshot, the
     floors with and without a line in the chart, and in an overlay, the
     forecast."""
@@ -2175,7 +2249,7 @@ def test_each_entry_of_the_key_is_one_short_line(tmp_path):
             labels = [label for _, label in plot.key_entries(
                 overlay, floors, True, lines)]
             assert len(labels) == 7 + 3 * overlay + (note is not None)
-            assert all("\n" not in label and len(label) <= 52
+            assert all("\n" not in label and len(label) <= 64
                        for label in labels)
             assert (note is None) or note in labels
             assert ("B4: the forecast of the run" in labels) == overlay
@@ -2183,7 +2257,7 @@ def test_each_entry_of_the_key_is_one_short_line(tmp_path):
     # The first line of the key names the head of the figure.
     linear = [label for _, label in plot.key_entries(False, [], linear=True)]
     assert linear[0] == "R: one linear map decodes the horizon from latents"
-    assert all("\n" not in label and len(label) <= 52 for label in linear)
+    assert all("\n" not in label and len(label) <= 64 for label in linear)
     # The key of a figure holds these entries, under its name.
     snapshots = plot.load_snapshots(tmp_path / "scores.tsv")
     points = {"cf412om": {40000: 0.3100, 100000: 0.6000}}
@@ -2193,9 +2267,9 @@ def test_each_entry_of_the_key_is_one_short_line(tmp_path):
     (key,) = [ax.get_legend() for ax in fig.axes if ax.get_legend() is not None]
     assert [text.get_text() for text in key.get_texts()] == [
         "How to read",
-        "R: a head decodes the true horizon from its latents",
+        "R: a head decodes the true horizon from latents",
         "One dot: one checkpoint, one head",
-        "R a → b, ×c: first and last checkpoint, c = b / a",
+        "R a → b, ×c: scores at the first and last checkpoints, c = b / a",
         "The same head at an earlier head step",
         "Floor of R: a head that reads no latent",
         "mean/std: 0.9500"]

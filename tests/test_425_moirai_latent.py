@@ -748,9 +748,9 @@ def key_of(fig):
 def test_the_moirai_figure_draws_the_two_copies_as_the_412_report(tmp_path):
     """The Moirai graph of #412, with the R scores: MPM and MPE in their
     colour, with the dashed line of a copy of Moirai, and each step at
-    batch 256 counts 4. The two copies have one dash style and one width,
-    and MPE draws after MPM: the dashes of MPE start half a dash period
-    later, and the markers of MPM draw again above the line of MPE. The
+    batch 256 counts 4 batch-64 steps. The two copies have one dash style
+    and one width, and MPE draws after MPM: the dashes of MPE start half a
+    period later, and the markers of MPM draw again above the line of MPE. The
     run of ours is not in this graph."""
     pytest.importorskip("matplotlib")
     plot, points, forecast = moirai_scores(tmp_path)
@@ -779,15 +779,15 @@ def test_the_moirai_figure_draws_the_two_copies_as_the_412_report(tmp_path):
     assert any("MPE" in t and t.endswith("R 0.0900 → 0.0800, ×0.89")
                for t in texts)
     assert not any("OMB" in t for t in texts)
-    assert ax.get_xlabel().endswith("A step at batch 256 (MPM and MPE) "
-                                    "counts 4.")
+    assert ax.get_xlabel().endswith("One step at batch 256 (MPM and MPE) "
+                                    "is equal to 4 steps at batch 64.")
 
 
 def test_the_key_names_the_latent_and_the_forecast_of_a_moirai_copy(tmp_path):
     """The report holds the figures only. So the key of a figure with a copy
     of Moirai says that its R reads the output of the transformer, and that
     its forecast is the forecast of its own heads, not B4. Each entry is one
-    line of 52 characters or less. A figure with no copy of Moirai keeps
+    line of 64 characters or less. A figure with no copy of Moirai keeps
     its key."""
     pytest.importorskip("matplotlib")
     plot, points, forecast = moirai_scores(tmp_path)
@@ -827,7 +827,7 @@ def test_the_key_names_the_latent_and_the_forecast_of_a_moirai_copy(tmp_path):
         for overlay in (False, True):
             fig = plot.draw_figure(plot.GRAPHS[name], forecast, points,
                                    tmp_path / "k.png", overlay)
-            assert all("\n" not in label and len(label) <= 52
+            assert all("\n" not in label and len(label) <= 64
                        for label in key_of(fig))
 
 

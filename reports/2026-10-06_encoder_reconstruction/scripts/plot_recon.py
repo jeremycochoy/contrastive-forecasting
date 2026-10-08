@@ -161,7 +161,7 @@ FLOOR_NAMES_MOIRAI = {"ewma_zero_pad": "EWMA, new data (BLK, OEF, MPE)"}
 KEY_COLOUR = "0.3"
 METRIC = "GM-Relative MASE, 97-config GIFT-Eval (log scale, lower is better)"
 # The first line of the key: what R is, for each head.
-R_LINES = {False: "R: a head decodes the true horizon from its latents",
+R_LINES = {False: "R: a head decodes the true horizon from latents",
            True: "R: one linear map decodes the horizon from latents"}
 # The ticks of a log y axis: in each decade, the values of one ladder. An
 # axis takes the first ladder that gives it Y_MIN_TICKS ticks or more and
@@ -386,7 +386,8 @@ def key_entries(overlay, floors, snapshots=False, floor_lines=None,
     entries = [(Line2D([], [], color=KEY_COLOUR, lw=3, marker="o", ms=7),
                 R_LINES[bool(linear)]),
                (blank, "One dot: one checkpoint, one head"),
-               (blank, "R a → b, ×c: first and last checkpoint, c = b / a")]
+               (blank, "R a → b, ×c: scores at the first and last checkpoints,"
+                       " c = b / a")]
     names = moirai_names(moirai)
     if moirai:
         entries.append(
@@ -473,7 +474,8 @@ def style_x(ax, arms):
     if codes:
         listed = codes[0] if len(codes) == 1 else \
             ", ".join(codes[:-1]) + " and " + codes[-1]
-        label += f" A step at batch 256 ({listed}) counts 4."
+        label += (f" One step at batch 256 ({listed}) is equal to"
+                  " 4 steps at batch 64.")
     ax.set_xlabel(label)
 
 
