@@ -1233,8 +1233,7 @@ def test_the_job_table_holds_the_card_checkpoints():
 QUEUE_STUB = r'''#!/bin/bash
 # A runner that records each call. CF_HEAD_ARGV_TO: the flags of the head.
 # Else: the score. As head_eval_bb.sh, it does nothing for a job with a
-# score. A lane can make such a call: it reads the score file of a job
-# before it locks the job.
+# score.
 tag="$1"; out="$CF373_ROOT/eval/$tag"; mkdir -p "$out"
 if [ -s "$CF_RESULTS/score_$tag.txt" ]; then
   echo "$tag skip $CF_RECONSTRUCTION" >>"$CF_RESULTS/calls.log"; exit 0

@@ -231,6 +231,11 @@ lock_job(){  # <tag>
   local fd
   exec {fd}>>"$LOCKS/$1.lock" || return 1
   if ! flock -n "$fd"; then exec {fd}>&-; return 1; fi
+  # pick_wave reads the score and the tries of a job before this lock, and
+  # another lane can complete the job in that time. So read them again.
+  if [ -s "$RES/score_$1.txt" ] || [ "$(fail_count "$1")" -ge "$TRIES" ]; then
+    exec {fd}>&-; return 1
+  fi
   FD[$1]=$fd
 }
 

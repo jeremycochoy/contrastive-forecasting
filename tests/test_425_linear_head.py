@@ -1011,10 +1011,7 @@ def test_each_lane_trains_and_scores_on_its_gpu(queue_box):
 
 def test_two_lanes_of_one_stream_train_two_waves_at_one_time(queue_box):
     """Two lanes can take their waves from one stream: each wave has its
-    own jobs, and the two waves train at the same time. No job of the
-    old-data stream fails. A job that fails in one lane can get one try too
-    many from the other lane: the queue reads the tries of a job before it
-    locks the job."""
+    own jobs, and the two waves train at the same time."""
     _, res, env = lane_box(queue_box, "old:0 old:1", CF425_OLD_WAVE_SIZE="1")
     r = run_queue(dict(env, CF425_TEST_TRAIN_UNTIL=waves_train(res)))
     assert r.returncode == 0, r.stdout + r.stderr
@@ -1144,6 +1141,63 @@ def test_a_wave_that_fails_under_a_stop_file_counts_no_try(queue_box):
     assert len(waves(res)) == 1 and base.BAD + "_lin" in waves(res)[0]
     assert not (res / "failed").exists() or not list((res / "failed").iterdir())
     assert "counts no try" in out
+
+
+# A flock that makes a lane slow before the lock of the job
+# CF425_TEST_SLOW_JOB. While a process holds that lock, the lane writes the
+# file slow_lane, waits for the lock and takes it.
+SLOW_FLOCK = r'''#!/bin/bash
+real=$(PATH="${PATH#*:}" command -v flock)
+if [ "$1" = -n ] && [[ "$(readlink "/proc/$$/fd/$2" 2>/dev/null)" == */"$CF425_TEST_SLOW_JOB.lock" ]] \
+    && ! "$real" -n "$2"; then
+  touch "$CF425_TEST_RES/slow_lane"
+  exec "$real" "$2"
+fi
+exec "$real" "$@"
+'''
+
+
+def slow_lane(tmp_path, env, job):
+    """``env`` with a lane that is slow before the lock of ``job``. The lane
+    has read the score file and the tries of the job before."""
+    bin_dir = tmp_path / "slow_bin"
+    bin_dir.mkdir()
+    (bin_dir / "flock").write_text(SLOW_FLOCK)
+    (bin_dir / "flock").chmod(0o755)
+    return dict(env, CF425_TEST_SLOW_JOB=job,
+                PATH=f"{bin_dir}:{env.get('PATH', os.environ['PATH'])}")
+
+
+def test_a_failed_job_gets_no_try_from_a_slow_lane(queue_box):
+    """Two lanes of one stream, and CF425_TRIES=1. One lane trains the job
+    that fails. The other lane reads the tries of that job and waits for its
+    lock, and only then the wave ends. That lane does not train the job
+    again: it reads the tries again when it has the lock."""
+    tmp_path, res, env = lane_box(queue_box, "gift_pretrain:0 gift_pretrain:1",
+                                  CF425_WAVE_SIZE="2", CF425_TRIES="1")
+    bad = base.BAD + "_lin"
+    r = run_queue(dict(slow_lane(tmp_path, env, bad),
+                       CF425_TEST_TRAIN_UNTIL=f"[ -e {res}/slow_lane ]"))
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert (res / "slow_lane").exists()
+    assert sum(bad in wave for wave in waves(res)) == 1
+    assert len(list((res / "failed").glob(f"{bad}.*"))) == 1
+
+
+def test_a_scored_job_gets_no_call_from_a_slow_lane(queue_box):
+    """The score of a job ends when a lane has read that the job has no
+    score and waits for its lock. That lane does not call the runner for
+    the job again."""
+    tmp_path, res, env = queue_box
+    job = base.GOOD[2]
+    (tmp_path / "runner.sh").write_text(base.QUEUE_STUB.replace(
+        "sleep 0.2", 'for _ in $(seq 600); do\n'
+        '  [ "$tag" != "$CF425_TEST_SLOW_JOB" ] || [ -e "$CF_RESULTS/slow_lane" ]'
+        ' && break\n  sleep 0.1\ndone'))
+    r = run_queue(slow_lane(tmp_path, env, job))
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert (res / "slow_lane").exists()
+    assert [c[1] for c in job_calls(res) if c[0] == job] == ["argv", "score"]
 
 
 def test_the_probe_can_take_more_waves_of_each_stream(queue_box):
