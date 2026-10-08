@@ -31,12 +31,13 @@ import torch
 
 import src.forecasting_head as fh
 from src.checkpoint import reconstruction_latent_of
-from src.forecasting_head import (ForecastingHeadBank, bank_quantile_loss,
+from src.forecasting_head import (ForecastingHeadBank,
+                                  ZeroReconstructionHead, bank_quantile_loss,
                                   bank_training_inputs,
                                   extract_encoder_latents,
                                   extract_forecaster_latents,
                                   extract_reconstruction_latents,
-                                  reconstruct_horizon,
+                                  reconstruct_horizon, reconstruct_windows,
                                   reconstruction_quantile_loss,
                                   value_space_forward)
 from src.freq_embedding import FREQ_NAMES_V2
@@ -44,9 +45,9 @@ from src.models import ConfigurableModel
 from tests.test_425_encoder_reconstruction import (  # noqa: F401
     CPU, EVAL_PROTOCOL, HEAD_PROTOCOL, Q, SIZES, T, OracleHead,
     assert_same_run, bank_model, bank_of, corpus_flags, eval_args,
-    ewma_model, job_argv, labels_of, load_eval_module, load_head_trainer,
-    load_script, oracle_latents, saved, train_shared, train_solo, walk,
-    windows)
+    ewma_bank_model, ewma_model, job_argv, labels_of, load_eval_module,
+    load_head_trainer, load_script, meanstd_model, oracle_latents, saved,
+    train_shared, train_solo, walk, windows)
 
 
 def moirai_model(scaling="meanstd"):
@@ -284,6 +285,26 @@ def test_r_reads_the_latent_that_the_caller_names(monkeypatch):
     assert seen == [(T + 64, 32, True)]
     assert output.shape == default.shape and np.isfinite(output).all()
     assert not np.allclose(output, default)
+
+
+@pytest.mark.parametrize("scaling,ours", [("meanstd", meanstd_model),
+                                          ("ewma", ewma_bank_model)])
+def test_the_floor_of_a_moirai_copy_is_the_floor_of_its_scaling_setup(
+        scaling, ours):
+    """The floor of R reads the scaling and the padding of a run, and no
+    latent and no weight. So MPM has the floor of the mean/std runs of ours
+    (BMS), and MPE has the floor of the EWMA runs with zero padding (OEF),
+    with each of the two latents."""
+    m = moirai_model(scaling)
+    ctx, future = walk(T)[:, None], walk(100, seed=6)[:, None]
+    want = reconstruct_windows(ours(), ZeroReconstructionHead(16), ctx[None],
+                               future[None], CPU)
+    for size in (16, 64):
+        for latent in ("output", "encoder"):
+            got = reconstruct_windows(m, ZeroReconstructionHead(size),
+                                      ctx[None], future[None], CPU,
+                                      latent=latent)
+            assert np.allclose(got, want, rtol=1e-6, atol=1e-4), (size, latent)
 
 
 # ---------------------------------------------------------------------------
