@@ -60,10 +60,12 @@ the score, else the box. A linear job has the tag
 The last table joins the tables above:
 
 * ``job_scores.tsv``: one row for each job of jobs.tsv, in its order. The
-  columns: the code of the run, the stop in thousands of steps, the B4
+  columns: the code of the run, the stop in thousands of steps, the
   forecast, the R of the transformer head and the R of the linear head. A
-  score that does not exist yet is an empty cell. The B4 forecast is the
-  score of #412 (its ``gm_trajectories.tsv``), or the score of this card.
+  score that does not exist yet is an empty cell. The forecast is the score
+  of #412 (its ``gm_trajectories.tsv``), or the score of this card. It is
+  the B4 forecast for a run of ours. For a copy of Moirai (MPM, MPE), it is
+  the forecast of its own heads: #412 has no B4 score of such a run.
 
 It copies no head file: the heads stay on elisa.
 """
@@ -76,7 +78,8 @@ from pathlib import Path
 STUDY = Path(__file__).resolve().parent.parent
 RESULTS = STUDY / "results"
 JOBS = STUDY / "scripts" / "jobs.tsv"
-# The B4 forecast scores of #412, in the layout of the tables of this card.
+# The forecast scores of #412, in the layout of the tables of this card: B4
+# for a run of ours, the forecast of its own heads for a copy of Moirai.
 FORECAST_412 = (STUDY.parent / "2026-09-06_moirai_small_size" / "results"
                 / "gm_trajectories.tsv")
 HOME = Path.home() / "checkpoints_backup"
@@ -104,7 +107,7 @@ QUEUE_LOGS = ["queue.log", "scores.log", "heads.log", "stops.log",
 JOB_DIR = {"recon": ("recon", "gift_r", "eval_local_r.log"),
            "recon_lin": ("recon", "gift_r", "eval_local_r.log"),
            "student": ("forecast", "gift", "eval_local.log")}
-JOB_COLUMNS = ["run", "stop_k", "b4_forecast", "r_transformer_head",
+JOB_COLUMNS = ["run", "stop_k", "forecast", "r_transformer_head",
                "r_linear_head"]
 SNAPSHOT_COLUMNS = ["run", "arm", "stop_k", "scaling", "snapshot",
                     "head_step", "machine", "r_snapshot", "r_final", "ratio"]
@@ -339,10 +342,11 @@ def read_table(path):
 
 def job_scores():
     """One row for each job of jobs.tsv, in its order: the code of the run,
-    the stop in thousands of steps, the B4 forecast, the R of the transformer
+    the stop in thousands of steps, the forecast, the R of the transformer
     head and the R of the linear head. The scores come from the tables of
     the results directory, and a score that does not exist is an empty cell.
-    The B4 forecast is the score of #412, or the score of this card. For a
+    The forecast is the score of #412, or the score of this card: B4 for a
+    run of ours, the forecast of its own heads for a copy of Moirai. For a
     stop with the two, the score of this card wins, as in plot_recon.py."""
     tables = [{**read_table(FORECAST_412),
                **read_table(RESULTS / "forecast_425.tsv")},

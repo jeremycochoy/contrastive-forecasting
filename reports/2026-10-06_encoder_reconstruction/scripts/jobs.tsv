@@ -7,6 +7,12 @@
 # data on Hugging Face). One wave of queue.sh reads one stream.
 # The mirror got the ABC checkpoints on 10-08, from the external disk of
 # elisa (/media/jupyter/KINGSTON/checkpoints_backup/cf-412/vast_all).
+# MPM and MPE are two copies of Moirai (owner, 10-08): each stop with a
+# forecast score in #412. A copy of Moirai has no encoder latent with a
+# loss on it, so its head reads the output of its transformer at each patch,
+# the latent that its own value head reads. The head trainer and the eval
+# read that kind off the checkpoint. MPM 20k is the file of its forecast
+# score, in the folder of the third try of its leg.
 #code	arm	stop_k	tier	ckpt	bytes	data
 BLK	cf419_cos200k	100	1	cf-419c/cos200k/leg_665k/cf419_cos200k_100k.pth	69064488	gift_pretrain
 BLK	cf419_cos200k	200	2	cf-419c/cos200k/leg_665k/cf419_cos200k_r2_200k.pth	69064903	gift_pretrain
@@ -74,3 +80,20 @@ ABC	k3_r100_09_lr56_fix09_dec10k_lr10x	300	2	k3_r100_09_lr56_fix09_dec10k_lr10x/
 ABC	k3_r100_09_lr56_fix09_dec10k_lr10x	360	2	k3_r100_09_lr56_fix09_dec10k_lr10x/arm6_v2_combab_alignT/leg_360k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_fix09_dec10k_lr10x_360k.pth	69078218	old
 ABC	k3_r100_09_lr56_fix09_dec10k_lr10x	400	2	k3_r100_09_lr56_fix09_dec10k_lr10x/arm6_v2_combab_alignT/leg_400k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_fix09_dec10k_lr10x_400k.pth	69078218	old
 ABC	k3_r100_09_lr56_fix09_dec10k_lr10x	460	1	k3_r100_09_lr56_fix09_dec10k_lr10x/arm6_v2_combab_alignT/leg_460k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_fix09_dec10k_lr10x_r2_460k.pth	69078560	old
+MPM	cf421f_moirai_native	10	1	cf-421f/value_space/leg_10k/cf421f_moirai_k3_10k.pth	57581928	gift_pretrain
+MPM	cf421f_moirai_native	20	2	cf-421f/value_space/leg_25k_try3/cf421f_moirai_k3_20k.pth	57581928	gift_pretrain
+MPM	cf421f_moirai_native	25	2	cf-421f/value_space/leg_25k/cf421f_moirai_k3_25k.pth	57581928	gift_pretrain
+MPM	cf421f_moirai_native	50	2	cf-421f/value_space/leg_50k/cf421f_moirai_k3_50k.pth	57581928	gift_pretrain
+MPM	cf421f_moirai_native	75	2	cf-421f/value_space/leg_75k/cf421f_moirai_k3_75k.pth	57581928	gift_pretrain
+MPM	cf421f_moirai_native	100	2	cf-421f/value_space/leg_100k/cf421f_moirai_k3_100k.pth	57582047	gift_pretrain
+MPM	cf421f_moirai_native	125	2	cf-421f/value_space/leg_125k/cf421f_moirai_k3_125k.pth	57582047	gift_pretrain
+MPM	cf421f_moirai_native	150	2	cf-421f/value_space/leg_150k/cf421f_moirai_k3_150k.pth	57582047	gift_pretrain
+MPM	cf421f_moirai_native	166	1	cf-421f/value_space/leg_166k/cf421f_moirai_k3_166k.pth	57582047	gift_pretrain
+MPE	cf421ew_moirai_native	10	1	cf-421ew/value_space/leg_10k/cf421ew_moirai_k3_10k.pth	57581715	gift_pretrain
+MPE	cf421ew_moirai_native	25	2	cf-421ew/value_space/leg_25k/cf421ew_moirai_k3_25k.pth	57581715	gift_pretrain
+MPE	cf421ew_moirai_native	50	2	cf-421ew/value_space/leg_50k/cf421ew_moirai_k3_50k.pth	57581715	gift_pretrain
+MPE	cf421ew_moirai_native	75	2	cf-421ew/value_space/leg_75k/cf421ew_moirai_k3_75k.pth	57581715	gift_pretrain
+MPE	cf421ew_moirai_native	100	2	cf-421ew/value_space/leg_100k/cf421ew_moirai_k3_100k.pth	57581897	gift_pretrain
+MPE	cf421ew_moirai_native	125	2	cf-421ew/value_space/leg_125k/cf421ew_moirai_k3_125k.pth	57581897	gift_pretrain
+MPE	cf421ew_moirai_native	150	2	cf-421ew/value_space/leg_150k/cf421ew_moirai_k3_150k.pth	57581897	gift_pretrain
+MPE	cf421ew_moirai_native	166	1	cf-421ew/value_space/leg_166k/cf421ew_moirai_k3_166k.pth	57581897	gift_pretrain

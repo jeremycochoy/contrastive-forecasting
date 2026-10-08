@@ -56,6 +56,13 @@ hollow marker: no snapshot of a linear head has a score. The legend holds
 no list of the scores: results/snapshots/scores.tsv gives each one, with
 its head step and the R of the final head.
 
+A run of the Moirai group is a copy of Moirai (MPM, MPE). It has no encoder
+latent with a loss on it, so its R reads the output of its transformer, the
+latent that its own heads read. Its forecast score is the forecast of its
+own heads (#412), not B4. The key of a figure with such a run says both,
+and the forecast panel and the title of an overlay name B4 only for a
+figure with a run of ours.
+
 Reads results/recon_trajectories.tsv, results/forecast_425.tsv,
 results/snapshots/scores.tsv and results/recon_lin_trajectories.tsv
 (collect.py), results/floors.tsv (floors.sh), and #412's
@@ -89,6 +96,10 @@ SNAPSHOTS = STUDY / "results" / "snapshots" / "scores.tsv"
 LINEAR = STUDY / "results" / "recon_lin_trajectories.tsv"
 PLOTS = STUDY / "plots"
 OURS = base.GROUPS[:2]
+# The copies of Moirai: the runs of the Moirai group of #412. Their R reads
+# the output of the transformer, and their forecast score is the forecast
+# of their own heads, not B4.
+MOIRAI = {arm for arm, *_ in base.GROUPS[2][1]}
 GRAPHS = {
     "selected": [(name, [run for run in runs if run[0] not in base.OFF_MAIN])
                  for name, runs in base.GROUPS],
@@ -134,6 +145,9 @@ FLOOR_NAMES = {
     "ewma_old": "EWMA, old data",
     "meanstd": "mean/std",
 }
+# The name of a floor in a figure that holds a copy of Moirai with that
+# floor: it lists that run too.
+FLOOR_NAMES_MOIRAI = {"ewma_zero_pad": "EWMA, new data (BLK, OEF, MPE)"}
 KEY_COLOUR = "0.3"
 METRIC = "GM-Relative MASE, 97-config GIFT-Eval (log scale, lower is better)"
 # The first line of the key: what R is, for each head.
@@ -231,9 +245,14 @@ def draw_floors(ax, floors):
             for floor in floors if low <= floor["score"] <= high}
 
 
-def floor_legend(floor):
-    """The legend label of a floor: its setup and its score."""
-    name = FLOOR_NAMES.get(floor["setup"], floor["label"])
+def floor_legend(floor, moirai=()):
+    """The legend label of a floor: its setup and its score. ``moirai``: the
+    codes of the copies of Moirai in the chart. The name of a floor lists
+    such a run when the chart holds it."""
+    names = FLOOR_NAMES
+    if any(CODE.get(arm) in moirai for arm in floor["arms"]):
+        names = {**FLOOR_NAMES, **FLOOR_NAMES_MOIRAI}
+    name = names.get(floor["setup"], floor["label"])
     return f"{name}: {floor['score']:.4f}"
 
 
@@ -321,31 +340,57 @@ def score_span(points):
             f"×{scores[-1] / scores[0]:.2f}")
 
 
+def moirai_names(codes):
+    """The copies of Moirai of a chart, as the subject of a key line: their
+    codes, or one name for more than two codes, so the line stays short."""
+    return ", ".join(codes) if len(codes) <= 2 else "Moirai runs"
+
+
+def forecast_panel(ours, moirai):
+    """The label of the forecast panel of an overlay. It names B4 for runs
+    of ours, the own heads for copies of Moirai, and no kind for both."""
+    if not moirai:
+        return "Forecast (B4)"
+    return "Forecast" if ours else "Forecast (own heads)"
+
+
 def key_entries(overlay, floors, snapshots=False, floor_lines=None,
-                linear=False):
+                linear=False, moirai=(), ours=True):
     """The key: what R is, the earlier snapshot of a head, the floor of each
     scaling setup, and in an overlay, the forecast, the line that joins the
     two scores of a checkpoint and the break of the y axis. Each entry is
     one short line. ``snapshots``: the chart holds a hollow marker of an
     earlier head step. ``floor_lines``: ``{setup: line}`` of the floors
-    that the chart draws. ``linear``: the chart shows the linear head."""
+    that the chart draws. ``linear``: the chart shows the linear head.
+    ``moirai``: the codes of the copies of Moirai in the chart. The key then
+    names their latent, and in an overlay their forecast. ``ours``: the
+    chart holds a run of ours, so its forecast panel holds a B4 score."""
     blank = Line2D([], [], linestyle="none")
     entries = [(Line2D([], [], color=KEY_COLOUR, lw=3, marker="o", ms=7),
                 R_LINES[bool(linear)]),
                (blank, "One dot: one checkpoint, one head"),
                (blank, "R a → b, ×c: first and last checkpoint, c = b / a")]
+    names = moirai_names(moirai)
+    if moirai:
+        entries.append(
+            (blank, f"{names}: R reads the output of the transformer"))
     if snapshots:
         entries.append((Line2D([], [], color=KEY_COLOUR, lw=0, marker="o",
                                ms=SNAPSHOT_MS, mfc="none", mew=1.6),
                         "The same head at an earlier head step"))
     if overlay:
+        forecast = Line2D([], [], color=KEY_COLOUR, lw=3, marker="o", ms=7,
+                          alpha=FORECAST_ALPHA)
+        if ours:
+            entries.append((forecast, "B4: the forecast of the run"))
+        if moirai:
+            whose = "its" if len(moirai) == 1 else "their"
+            entries.append((blank if ours else forecast,
+                            f"{names}: the forecast of {whose} own heads"))
         entries += [
-            (Line2D([], [], color=KEY_COLOUR, lw=3, marker="o", ms=7,
-                    alpha=FORECAST_ALPHA),
-             "B4: the forecast of the run"),
             (Line2D([], [], color=KEY_COLOUR, lw=0, marker="|", ms=16,
                     mew=LINK_WIDTH * 1.5),
-             "One checkpoint: its B4 and its R"),
+             f"One checkpoint: its {'forecast' if moirai else 'B4'} and its R"),
             (Line2D([], [], color="k", lw=0, marker=[(-1, -0.6), (1, 0.6)],
                     ms=10, mew=1),
              "A break in the y axis"),
@@ -358,7 +403,7 @@ def key_entries(overlay, floors, snapshots=False, floor_lines=None,
                             if floor_lines else
                             "Each floor is above the chart"))
         entries += [(floor_lines.get(floor["setup"], blank),
-                     floor_legend(floor)) for floor in
+                     floor_legend(floor, moirai)) for floor in
                     sorted(floors, key=lambda floor: -floor["score"])]
     return entries
 
@@ -441,6 +486,9 @@ def draw_figure(groups, forecast, recon, out, overlay, floors=(), title=None,
         return None
     arms = [arm for arm, *_ in runs]
     recon = {arm: recon[arm] for arm in arms}
+    # The copies of Moirai of the figure, and whether it holds a run of ours.
+    moirai = [CODE[arm] for arm in arms if arm in MOIRAI]
+    ours = len(moirai) < len(arms)
     if overlay:
         fig, (top, ax) = plt.subplots(2, 1, sharex=True, figsize=(12.5, 11.5),
                                       gridspec_kw={"hspace": 0.06})
@@ -467,7 +515,7 @@ def draw_figure(groups, forecast, recon, out, overlay, floors=(), title=None,
     style_x(ax, arms)
     if overlay:
         style_y(top, [v for arm in arms for v in forecast.get(arm, {}).values()]
-                or [1.0], "Forecast (B4)")
+                or [1.0], forecast_panel(ours, moirai))
         style_y(ax, r_values, "Reconstruction (R)")
         # The two panel labels at one distance from the axes, and the label
         # of their common y axis at their left.
@@ -497,7 +545,8 @@ def draw_figure(groups, forecast, recon, out, overlay, floors=(), title=None,
             columns.append((name, entries))
     shown = any(seen in recon[arm] for arm in arms
                 for seen in snapshots.get(arm, {}))
-    key = key_entries(overlay, floors, shown, draw_floors(ax, floors), linear)
+    key = key_entries(overlay, floors, shown, draw_floors(ax, floors), linear,
+                      moirai, ours)
     draw_legend(ax, top, columns, ("How to read", key))
     fig.savefig(out, dpi=135, bbox_inches="tight")
     plt.close(fig)
@@ -526,6 +575,10 @@ def main():
     PLOTS.mkdir(parents=True, exist_ok=True)
     for name, groups in GRAPHS.items():
         runs = GRAPH_TITLES[name]
+        # B4 is the forecast of a run of ours: the title of a graph with no
+        # such run names no B4.
+        b4 = "B4" if any(arm not in MOIRAI for _, members in groups
+                         for arm, *_ in members) else "forecast"
         shared = [v for scores, snaps, _ in heads.values()
                   for v in graph_values(groups, scores, snaps)]
         for suffix, (scores, snaps, linear) in heads.items():
@@ -535,7 +588,7 @@ def main():
                         f"R, {head}: {runs}", snaps, linear, shared)
             draw_figure(groups, forecast, scores,
                         PLOTS / f"overlay_{name}{suffix}.png", True, floors,
-                        f"R and B4, {head}: {runs}", snaps, linear, shared)
+                        f"R and {b4}, {head}: {runs}", snaps, linear, shared)
 
 
 if __name__ == "__main__":

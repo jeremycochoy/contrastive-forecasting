@@ -1495,9 +1495,9 @@ def test_collect_reads_the_job_tree_of_each_linear_source(tmp_path):
 
 def test_collect_writes_one_table_of_the_scores_of_each_job(tmp_path):
     """``job_scores.tsv``: one row for each job of jobs.tsv, in its order.
-    The columns: the code of the run, the stop, the B4 forecast, the R of the
+    The columns: the code of the run, the stop, the forecast, the R of the
     transformer head and the R of the linear head. A score that does not
-    exist yet is an empty cell. The B4 forecast is the score of #412, or the
+    exist yet is an empty cell. The forecast is the score of #412, or the
     score of this card. For a stop with the two, the score of this card
     wins, as in the figures."""
     collect, results = collect_with(tmp_path)
@@ -1522,7 +1522,7 @@ def test_collect_writes_one_table_of_the_scores_of_each_job(tmp_path):
                 folder="box_results")
     collect.main()
     assert (results / "job_scores.tsv").read_text() == (
-        "run\tstop_k\tb4_forecast\tr_transformer_head\tr_linear_head\n"
+        "run\tstop_k\tforecast\tr_transformer_head\tr_linear_head\n"
         "OMB\t10\t1.3782\t0.3100\t0.7100\n"
         "OMB\t25\t1.3345\t\t0.6500\n"
         "LOW\t665\t1.1913\t0.0451\t\n"
@@ -1531,8 +1531,8 @@ def test_collect_writes_one_table_of_the_scores_of_each_job(tmp_path):
 
 def test_the_table_of_the_jobs_holds_each_job_of_the_card(tmp_path):
     """The real job table and the real scores of #412: one row for each job,
-    in the order of the job table. #412 gives the B4 forecast of each job
-    but the 5 stops that the card names: this card scores them
+    in the order of the job table. #412 gives the forecast of each job but
+    the 5 stops that the card names: this card scores them
     (``forecast_425.tsv``)."""
     collect = base.load_script("collect")
     collect.RESULTS = tmp_path                      # no table of this card

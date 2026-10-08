@@ -18,6 +18,8 @@ Groups, all on the CPU:
    wave.
 4. The eval script: strategy R scores a copy of Moirai on its output latent.
 5. The proof on elisa: the parity script compares two per-config tables.
+6. The scripts of the report: the job table, the plan of a new start of a
+   queue, the floors, the table of the scores and the figures.
 """
 
 from __future__ import annotations
@@ -42,6 +44,8 @@ from src.forecasting_head import (ForecastingHeadBank,
                                   value_space_forward)
 from src.freq_embedding import FREQ_NAMES_V2
 from src.models import ConfigurableModel
+from tests import test_425_encoder_reconstruction as base
+from tests import test_425_linear_head as linear
 from tests.test_425_encoder_reconstruction import (  # noqa: F401
     CPU, EVAL_PROTOCOL, HEAD_PROTOCOL, Q, SIZES, T, OracleHead,
     assert_same_run, bank_model, bank_of, corpus_flags, eval_args,
@@ -519,3 +523,252 @@ def test_the_parity_script_reads_tables_after_its_flag(tmp_path, capsys,
     assert capsys.readouterr().out.strip() == (
         "MPM: 1 configs, 1 with the MASE of the second table, "
         "max relative difference 0")
+
+
+# ---------------------------------------------------------------------------
+# 6. The scripts of the report
+# ---------------------------------------------------------------------------
+
+# The two copies of Moirai of the card: the code of each run, its arm (the
+# #412 run key) and its folder in the mirror of the box.
+MOIRAI = {"MPM": ("cf421f_moirai_native", "cf-421f"),
+          "MPE": ("cf421ew_moirai_native", "cf-421ew")}
+GM_412 = (base.REPO_ROOT / "reports" / "2026-09-06_moirai_small_size"
+          / "results" / "gm_trajectories.tsv")
+
+
+def forecast_stops(arm):
+    """The stops of a run with a forecast score in the #412 table."""
+    rows = (row.split() for row in open(GM_412))
+    return sorted(int(stop_k) for name, stop_k, _ in rows if name == arm)
+
+
+def test_the_job_table_holds_each_scored_stop_of_the_two_moirai_copies():
+    """One job for each stop of MPM and of MPE with a forecast score, on the
+    stream of the run. The checkpoint of MPM 20k is the file that its
+    forecast score read, in the folder of the third try of its leg."""
+    rows = base.job_rows()
+    for code, (arm, folder) in MOIRAI.items():
+        mine = [row for row in rows if row[0] == code]
+        assert {row[1] for row in mine} == {arm}
+        assert [int(row[2]) for row in mine] == forecast_stops(arm)
+        assert all(row[4].startswith(f"{folder}/value_space/leg_")
+                   for row in mine)
+        assert {row[6] for row in mine} == {"gift_pretrain"}
+    assert sum(row[0] in MOIRAI for row in rows) == 17
+    (ckpt,) = [row[4] for row in rows if row[0] == "MPM" and row[2] == "20"]
+    assert ckpt == "cf-421f/value_space/leg_25k_try3/cf421f_moirai_k3_20k.pth"
+
+
+def score_each_job_of_ours(res, suffix):
+    """A score file for each job of the real job table but those of the two
+    copies of Moirai: the state of a queue when the card got these runs."""
+    res.mkdir(parents=True, exist_ok=True)
+    for code, arm, stop_k, *_ in base.job_rows():
+        if code not in MOIRAI:
+            (res / f"score_{arm}_bb{stop_k}k_h30k_{suffix}.txt").write_text(
+                "0.5000\n")
+
+
+@pytest.mark.parametrize("arch,suffix,waves", [
+    ("transformer", "recon", [12, 5]), ("linear", "recon_lin", [17])])
+def test_a_new_start_trains_the_moirai_jobs_and_no_job_with_a_score(
+        tmp_path, arch, suffix, waves):
+    """Each job of ours has its score. So a new start of a queue trains the
+    17 Moirai jobs and no other job, in GiftEvalPretrain waves, with the
+    first and the last stop of each run first."""
+    res = tmp_path / "res"
+    score_each_job_of_ours(res, suffix)
+    plan = linear.plan_of(dict(linear.real_job_box(tmp_path),
+                               CF425_HEAD_ARCH=arch), res)
+    assert len(plan) == 17
+    assert {p[0] for p in plan} == {"gift_pretrain"}
+    assert {p[3] for p in plan} == set(MOIRAI)
+    assert all(p[5].endswith(f"_moirai_native_bb{p[4]}_h30k_{suffix}")
+               for p in plan)
+    assert [(p[3], p[4]) for p in plan[:4]] == [
+        ("MPM", "10k"), ("MPM", "166k"), ("MPE", "10k"), ("MPE", "166k")]
+    in_wave = [int(p[1]) for p in plan]
+    assert in_wave == sorted(in_wave)
+    assert [in_wave.count(wave) for wave in sorted(set(in_wave))] == waves
+
+
+def test_the_floor_table_gives_each_moirai_copy_the_floor_of_its_setup():
+    """MPM has the mean/std scaling and MPE the EWMA, each with zero
+    padding: the setups of two floors that exist. floors.sh names the two
+    runs in those setups, and floors.tsv gives each run its floor."""
+    rows = [line.rstrip("\n").split("\t")
+            for line in open(base.STUDY / "results" / "floors.tsv")][1:]
+    arms = {setup: listed.split(",") for setup, _, listed, _ in rows}
+    assert MOIRAI["MPM"][0] in arms["meanstd"]
+    assert MOIRAI["MPE"][0] in arms["ewma_zero_pad"]
+    setups = (base.SCRIPTS / "floors.sh").read_text().split('SETUPS="')[1]
+    runs = {line.split()[0]: line.split()[3].split(",")
+            for line in setups.split('"')[0].strip().splitlines()}
+    assert "MPM" in runs["meanstd"] and "MPE" in runs["ewma_zero_pad"]
+
+
+def test_the_score_table_names_the_forecast_of_each_run(tmp_path,
+                                                        monkeypatch):
+    """The forecast of a copy of Moirai is the forecast of its own heads
+    (#412), not B4. So the column of the forecast scores has the name
+    ``forecast``, and a Moirai job has its #412 score there."""
+    collect = base.load_script("collect")
+    monkeypatch.setattr(collect, "RESULTS", tmp_path)
+    assert collect.JOB_COLUMNS[2] == "forecast"
+    scores = {(row[0], row[1]): row[2] for row in collect.job_scores()}
+    assert scores["MPM", "166"] == "0.9250"
+    assert scores["MPE", "10"] == "1.0247"
+    assert scores["OMB", "10"] == "1.3782"
+
+
+def moirai_scores(tmp_path):
+    """R scores of the two copies of Moirai and of one run of ours, and the
+    forecast scores of #412."""
+    plot = base.load_script("plot_recon")
+    table = tmp_path / "recon.tsv"
+    table.write_text(
+        "cf421f_moirai_native\t10\t0.4100\ncf421f_moirai_native\t166\t0.3000\n"
+        "cf421ew_moirai_native\t10\t0.0900\ncf421ew_moirai_native\t166\t0.0800\n"
+        "cf412om\t10\t0.3100\ncf412om\t25\t0.2900\n")
+    return plot, plot.load([table]), plot.load(plot.FORECAST[:1])
+
+
+def key_of(fig):
+    """The entries of the key of a figure, under its name."""
+    (key,) = [ax.get_legend() for ax in fig.axes if ax.get_legend() is not None]
+    return [text.get_text() for text in key.get_texts()][1:]
+
+
+def test_the_moirai_figure_draws_the_two_copies_as_the_412_report(tmp_path):
+    """The Moirai graph of #412, with the R scores: MPM and MPE in their
+    colour, with the dashed line of a copy of Moirai, and each step at
+    batch 256 counts 4. The run of ours is not in this graph."""
+    pytest.importorskip("matplotlib")
+    plot, points, forecast = moirai_scores(tmp_path)
+    assert points["cf421f_moirai_native"] == {40000: 0.41, 664000: 0.30}
+    fig = plot.draw_figure(plot.GRAPHS["moirai"], forecast, points,
+                           tmp_path / "m.png", False)
+    assert (tmp_path / "m.png").stat().st_size > 10_000
+    (ax,) = fig.axes
+    for arm, scores in (("cf421f_moirai_native", [0.41, 0.30]),
+                        ("cf421ew_moirai_native", [0.09, 0.08])):
+        (curve,) = [line for line in ax.get_lines()
+                    if line.get_color() == plot.colour(arm)]
+        assert list(curve.get_ydata()) == scores
+        assert curve.get_linestyle() == "--"
+    texts = base.legend_texts(fig)
+    assert any("MPM" in t and t.endswith("R 0.4100 → 0.3000, ×0.73")
+               for t in texts)
+    assert any("MPE" in t and t.endswith("R 0.0900 → 0.0800, ×0.89")
+               for t in texts)
+    assert not any("OMB" in t for t in texts)
+    assert ax.get_xlabel().endswith("A step at batch 256 (MPM and MPE) "
+                                    "counts 4.")
+
+
+def test_the_key_names_the_latent_and_the_forecast_of_a_moirai_copy(tmp_path):
+    """The report holds the figures only. So the key of a figure with a copy
+    of Moirai says that its R reads the output of the transformer, and that
+    its forecast is the forecast of its own heads, not B4. Each entry is one
+    line of 52 characters or less. A figure with no copy of Moirai keeps
+    its key."""
+    pytest.importorskip("matplotlib")
+    plot, points, forecast = moirai_scores(tmp_path)
+    latent = "MPM, MPE: R reads the output of the transformer"
+    own = "MPM, MPE: the forecast of their own heads"
+    # The Moirai graph: no run of ours, so no B4.
+    fig = plot.draw_figure(plot.GRAPHS["moirai"], forecast, points,
+                           tmp_path / "m.png", True)
+    key = key_of(fig)
+    assert latent in key and own in key
+    assert not any("B4" in label for label in key)
+    assert "One checkpoint: its forecast and its R" in key
+    top, _ = fig.axes
+    assert top.get_ylabel() == "Forecast (own heads)"
+    # A graph with runs of ours and copies of Moirai: the two forecasts.
+    fig = plot.draw_figure(plot.GRAPHS["all"], forecast, points,
+                           tmp_path / "a.png", True)
+    key = key_of(fig)
+    assert latent in key and own in key
+    assert "B4: the forecast of the run" in key
+    assert key.index(own) == key.index("B4: the forecast of the run") + 1
+    assert fig.axes[0].get_ylabel() == "Forecast"
+    # With no forecast panel, the key names the latent only.
+    fig = plot.draw_figure(plot.GRAPHS["all"], forecast, points,
+                           tmp_path / "r.png", False)
+    key = key_of(fig)
+    assert latent in key and own not in key
+    # A graph of ours keeps its key.
+    fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], forecast, points,
+                           tmp_path / "o.png", True)
+    key = key_of(fig)
+    assert not any("MPM" in label for label in key)
+    assert "B4: the forecast of the run" in key
+    assert "One checkpoint: its B4 and its R" in key
+    assert fig.axes[0].get_ylabel() == "Forecast (B4)"
+    for name in ("moirai", "all"):
+        for overlay in (False, True):
+            fig = plot.draw_figure(plot.GRAPHS[name], forecast, points,
+                                   tmp_path / "k.png", overlay)
+            assert all("\n" not in label and len(label) <= 52
+                       for label in key_of(fig))
+
+
+def test_one_moirai_copy_in_a_figure_has_its_own_key_lines(tmp_path):
+    pytest.importorskip("matplotlib")
+    plot, points, forecast = moirai_scores(tmp_path)
+    del points["cf421ew_moirai_native"]
+    fig = plot.draw_figure(plot.GRAPHS["moirai"], forecast, points,
+                           tmp_path / "m.png", True)
+    key = key_of(fig)
+    assert "MPM: R reads the output of the transformer" in key
+    assert "MPM: the forecast of its own heads" in key
+
+
+def test_the_title_of_the_moirai_overlay_names_no_b4(tmp_path, monkeypatch):
+    """main() gives each overlay its title. The Moirai graph holds no B4
+    score, so its title says forecast."""
+    pytest.importorskip("matplotlib")
+    plot, points, forecast = moirai_scores(tmp_path)
+    titles = {}
+
+    def record(groups, forecast, recon, out, overlay, floors=(), title=None,
+               *args, **kwargs):
+        titles[out.name] = title
+
+    monkeypatch.setattr(plot, "draw_figure", record)
+    monkeypatch.setattr(plot, "PLOTS", tmp_path / "plots")
+    plot.main()
+    assert titles["overlay_moirai.png"] == (
+        "R and forecast, transformer head: Moirai, our copy")
+    assert titles["overlay_moirai_linear.png"] == (
+        "R and forecast, linear head: Moirai, our copy")
+    assert titles["overlay_all.png"] == "R and B4, transformer head: all runs"
+    assert titles["recon_moirai.png"] == (
+        "R, transformer head: Moirai, our copy")
+
+
+def test_the_legend_names_mpe_in_its_floor(tmp_path):
+    """MPE has the floor of the EWMA runs with zero padding, as BLK and
+    OEF. The legend of a figure with MPE names the three runs. A figure
+    with no MPE keeps the name of its floor."""
+    pytest.importorskip("matplotlib")
+    plot, points, forecast = moirai_scores(tmp_path)
+    floors = plot.load_floors(plot.FLOORS)
+    (floor,) = [f for f in floors if f["setup"] == "ewma_zero_pad"]
+    assert plot.floor_legend(floor) == "EWMA, new data (BLK, OEF): 1.2092"
+    assert plot.floor_legend(floor, ["MPM"]) == (
+        "EWMA, new data (BLK, OEF): 1.2092")
+    assert plot.floor_legend(floor, ["MPM", "MPE"]) == (
+        "EWMA, new data (BLK, OEF, MPE): 1.2092")
+    fig = plot.draw_figure(plot.GRAPHS["moirai"], forecast, points,
+                           tmp_path / "m.png", False, floors)
+    key = key_of(fig)
+    assert "EWMA, new data (BLK, OEF, MPE): 1.2092" in key
+    assert "mean/std: 1.5721" in key
+    assert not any("old data" in label for label in key)
+    fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], forecast,
+                           {"cf412oe2": {40000: 0.09}}, tmp_path / "o.png",
+                           False, floors)
+    assert "EWMA, new data (BLK, OEF): 1.2092" in key_of(fig)

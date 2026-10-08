@@ -12,10 +12,13 @@
 # The floor reads the scaling and the context padding of the run, and no
 # patch size and no weight (tests). So one checkpoint of each setup gives the
 # floor of all the runs of that setup:
-#   ewma_zero_pad  EWMA, zero padding (GiftEvalPretrain): BLK, OEF
+#   ewma_zero_pad  EWMA, zero padding (GiftEvalPretrain): BLK, OEF, MPE
 #   ewma_old       EWMA, no padding (the old data): CYN, MIN, TWN, LOW, LNG,
 #                  ABC
-#   meanstd        mean/std, zero padding: BMS and the other O* runs
+#   meanstd        mean/std, zero padding: BMS, the other O* runs, MPM
+# MPM and MPE are copies of Moirai. A floor reads no latent, so each one has
+# the floor of the runs of ours with its scaling (parity_moirai.sh compares
+# the two on 4 configs).
 #
 # Writes results/floors.tsv (setup, label, arms, GM-Relative MASE) and the
 # per-config table of each floor, results/per_config/floor_<setup>.csv. The
@@ -34,9 +37,9 @@ export WT="${WT:-$(cd "$HERE/../../.." && pwd)}"
 
 # <setup> <code and stop of the checkpoint that scores it> <runs> <label>
 SETUPS="
-ewma_zero_pad BLK 100 BLK,OEF EWMA floor (zero padding)
+ewma_zero_pad BLK 100 BLK,OEF,MPE EWMA floor (zero padding)
 ewma_old LOW 665 CYN,MIN,TWN,LOW,LNG,ABC EWMA floor (old data)
-meanstd BMS 40 OMB,OCB,OCF,OMF,OAF,OWF,OWR,OWL,OBM,OBW,OAL,BMS mean/std floor
+meanstd BMS 40 OMB,OCB,OCF,OMF,OAF,OWF,OWR,OWL,OBM,OBW,OAL,BMS,MPM mean/std floor
 "
 
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#425 floors] $*"; }

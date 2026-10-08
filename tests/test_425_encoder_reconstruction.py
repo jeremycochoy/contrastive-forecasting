@@ -1187,7 +1187,9 @@ JOBS = SCRIPTS / "jobs.tsv"
 
 # The card's table: each run of ours and its checkpoints on disk on 10-06.
 # ABC is not in that table: the external disk of elisa holds the checkpoint
-# of each of its scored stops.
+# of each of its scored stops. MPM and MPE are not in it either: the owner
+# added these two copies of Moirai on 10-08, at each stop with a forecast
+# score.
 CARD = {
     "ABC": (40, 100, 140, 180, 200, 240, 300, 360, 400, 460),
     "BLK": (100, 200, 300, 400),
@@ -1198,6 +1200,8 @@ CARD = {
     "OBW": (10, 25, 50), "OAL": (10, 25, 50), "BMS": (40, 100, 140),
     "CYN": (665, 1140, 1330), "MIN": (1000, 1080), "TWN": (100, 420),
     "LOW": (665,), "LNG": (665,),
+    "MPM": (10, 20, 25, 50, 75, 100, 125, 150, 166),
+    "MPE": (10, 25, 50, 75, 100, 125, 150, 166),
 }
 
 
