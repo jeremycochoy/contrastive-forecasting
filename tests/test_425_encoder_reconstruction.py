@@ -1705,6 +1705,77 @@ def test_collect_gives_the_snapshot_scores_their_own_table(tmp_path):
             / "cf412om_bb10k_h30k_best_recon.csv").is_file()
 
 
+def snapshot_on_elisa(stub_checkout, snapshot="best", **extra):
+    """snapshot_score.sh with CF425_SNAP_GPU, for the first job of jobs.tsv.
+    elisa's mirror holds the checkpoint of the job and its two heads. A call
+    of ssh or scp leaves a line in ``box_calls``. Returns the result, the
+    mirror, the folder of the snapshots, the checkpoint and the tag."""
+    tmp_path, _, env = stub_checkout
+    code, arm, stop, _, ckpt = job_rows()[0][:5]
+    mirror, base = tmp_path / "mirror", tmp_path / "snap"
+    (mirror / ckpt).parent.mkdir(parents=True, exist_ok=True)
+    (mirror / ckpt).write_text("backbone")
+    job = f"{arm}_bb{stop}k_h30k_recon"
+    heads = mirror / "cf-425" / "recon" / "eval" / job
+    heads.mkdir(parents=True, exist_ok=True)
+    for name in ("best", "final"):
+        (heads / f"qhead_{job}_s20260722_{name}.pth").write_text(f"{name} head")
+    for tool in ("ssh", "scp"):
+        path = tmp_path / "bin" / tool
+        path.write_text(f"#!/bin/sh\necho {tool} >>{tmp_path}/box_calls\n"
+                        "exit 1\n")
+        path.chmod(0o755)
+    env = {**env, "CF425_SNAP_GPU": "1", "CF425_SNAP_BASE": str(base),
+           "CF425_MIRROR": str(mirror), "CF425_CODE": env["WT"],
+           "CF425_RUNNER": str(B4_SCRIPTS / "head_eval_bb.sh"), **extra}
+    r = subprocess.run(["bash", str(SCRIPTS / "snapshot_score.sh"), code, stop,
+                        snapshot], capture_output=True, text=True, env=env,
+                       timeout=60)
+    return r, mirror, base, ckpt, f"{arm}_bb{stop}k_h30k_{snapshot}_recon"
+
+
+def test_a_snapshot_score_runs_on_a_gpu_of_elisa(stub_checkout):
+    """With CF425_SNAP_GPU, snapshot_score.sh scores a snapshot on elisa. It
+    copies the best head of the job, under the name of a final head, into
+    the folders of the snapshots. It trains no head, and it scores strategy
+    R on the GPU with the checkpoint of elisa's mirror. It does not use the
+    box."""
+    import time
+    tmp_path = stub_checkout[0]
+    r, mirror, base, ckpt, tag = snapshot_on_elisa(stub_checkout)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "on GPU 1 of elisa" in r.stdout
+    score = base / "results" / f"score_{tag}.txt"
+    deadline = time.time() + 60
+    while not score.exists() and time.time() < deadline:
+        time.sleep(0.1)
+    assert score.read_text().strip() == "0.5000"
+    out = base / "ckpt" / "eval" / tag
+    head = out / f"qhead_{tag}_s20260722_final.pth"
+    assert head.read_text() == "best head"
+    assert not (out / "head_argv.json").exists()        # no head training
+    shard = recorded(out / "gift_r" / "shard_0" / "argv.json")
+    assert shard[shard.index("--strategy") + 1] == "R"
+    assert shard[shard.index("--device") + 1] == "cuda"
+    assert shard[shard.index("--backbone-path") + 1] == str(mirror / ckpt)
+    assert shard[shard.index("--head-path") + 1] == str(head)
+    assert shard[shard.index("--d-model") + 1] == "384"
+    assert (base / "results" / "evalslots_gpu1").is_dir()
+    assert not (tmp_path / "box_calls").exists()
+
+
+def test_a_snapshot_score_on_elisa_needs_its_code_and_a_gpu_number(
+        stub_checkout):
+    tmp_path = stub_checkout[0]
+    r, _, base, _, tag = snapshot_on_elisa(stub_checkout, CF425_SNAP_GPU="x")
+    assert r.returncode == 2 and "GPU number" in r.stderr
+    r, _, base, _, tag = snapshot_on_elisa(
+        stub_checkout, CF425_RUNNER=str(tmp_path / "no_runner.sh"))
+    assert r.returncode == 2 and "deploy_elisa.sh" in r.stderr
+    assert not (base / "ckpt" / "eval" / tag).exists()
+    assert not (tmp_path / "box_calls").exists()
+
+
 def check_tree(tmp_path, score="0.5000\n", steps=30000):
     """check_scores.py on the artefacts of one job: 97 configs with a MASE
     of 1 and a seasonal-naive MASE of 2, so the score is 0.5."""
