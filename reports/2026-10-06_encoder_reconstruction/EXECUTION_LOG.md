@@ -4,9 +4,10 @@ All times are UTC, on 2026-10-07 unless a date is given.
 
 ## Where the files are
 
-- Box: vast.ai 51431200, `ssh -p 31200 root@ssh5.vast.ai`. The queue code is `/workspace/cf-425` at 366c246f. The results are in `/workspace/results/cf-425`, and the heads in `/workspace/ckpt/cf-425`.
+- Box: vast.ai 51431200, `ssh -p 31200 root@ssh5.vast.ai`. The queue code is `/workspace/cf-425` at 366c246f. Since 10-08 08:34, its `queue.sh` and its `jobs.tsv` are those of 2758c699, and `/workspace/cf-425-r3` keeps the code of the 56 scores. The results are in `/workspace/results/cf-425`, and the heads in `/workspace/ckpt/cf-425`.
 - elisa: the heads are in `~/checkpoints_backup/cf-412/vast_lr100x/cf-425`. The box results are in `~/checkpoints_backup/cf-425/box_results`. The sync log is `~/checkpoints_backup/cf-425/sync.log`.
 - elisa, the snapshot scores of 10-08: `~/checkpoints_backup/cf-425-snap`. `code/` is the code at a2bbd7ac, `ckpt/eval/<tag>/` holds the copy of each head and the files of its eval, and `results/` holds the scores and `run.log`.
+- ABC inputs: the external disk of elisa holds the checkpoints of ABC, in `/media/jupyter/KINGSTON/checkpoints_backup/cf-412/vast_all/k3_r100_09_lr56_fix09_dec10k_lr10x`. The mirror and the box hold a copy of its 10 scored stops, at the paths of `scripts/jobs.tsv`.
 - To fill this folder from elisa: `python3 scripts/collect.py && python3 scripts/check_scores.py && CF425_HEAD_ARCH=linear python3 scripts/check_scores.py && python3 scripts/plot_recon.py`.
 
 ## Timeline
@@ -35,6 +36,11 @@ All times are UTC, on 2026-10-07 unless a date is given.
 | 10-08 06:08 | `snapshot_score.sh` with `CF425_SNAP_GPU`, on elisa: the `_best.pth` snapshot of the first head of TWN 100k and of TWN 420k, one on each GPU. |
 | 10-08 06:22 | The 2 evals end with rc 0. `check_scores.py`: 56 of 56 jobs and 18 of 18 snapshot scores pass. |
 | 10-08 09:30 | Report stage. New rules of the owner: the report holds the title and the figures only, no figure mixes the two heads, and no legend or key uses the word "seed". `plot_recon.py` draws each graph two times (transformer head, linear head), as R and as the overlay, with one shared y range for the two versions of a graph. The TWN markers of the final head and their key line are gone. The graphs now hold the Moirai group, for the MPM and MPE scores that come later. The tables stay in `results/`, and the protocol lives in the docstrings of the scripts. |
+| 10-08 08:04 | The checkpoints of the 10 scored stops of ABC (40k to 460k) go from the external disk of elisa to the mirror. Each copy has the md5 of its source. |
+| 10-08 08:15 | `stage_inputs.sh` copies the 10 ABC inputs to the box. Each box copy has the md5 of its source. |
+| 10-08 08:33 | `deploy_elisa.sh` puts 2758c699 in the code folder of the linear queue. The trainer, the runner and the eval are the files of 557cb48e. |
+| 10-08 08:34 | The box code folder gets `queue.sh` and `jobs.tsv` of 2758c699. The dry run of each queue plans one old-data wave of the 10 ABC jobs, and no other job. |
+| 10-08 08:38 | `probe.sh` on the box, in test folders: the wave of the 10 ABC jobs trains 500 steps at 25.3 job steps/s, with 7,112 MiB of GPU memory (`results/probe_abc.txt`). No queue runs. |
 
 ## Events
 

@@ -1,0 +1,9 @@
+# Box (RTX 5090, 8 cores), 10-08 08:34 UTC, the GPU idle. The box code folder: 366c246f, with queue.sh and jobs.tsv of 2758c699.
+# CF425_PROBE_RES=/workspace/results/cf-425/probe_abc CF425_PROBE_ROOT=/workspace/cf425_abc_probe/ckpt bash probe.sh 500
+# Each other job has its score, so the plan of the queue gives the probe the 10 ABC jobs.
+probe: 10 jobs, 500 steps
+queue rc=0
+old_1008_083445_cXfe: 10 jobs
+[shared] 500 steps: 2.39 steps/s since the start, 2.53 steps/s over the last 499, 25.3 job steps/s, peak 5.76 GiB allocated, 6.34 GiB reserved
+[shared] done
+peak GPU memory: 7112 MiB
