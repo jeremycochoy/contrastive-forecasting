@@ -33,7 +33,9 @@ Group 2b: the floor of R, a head that gives the normalised value 0.
 
 from __future__ import annotations
 
+import contextlib
 import csv
+import fcntl
 import importlib.util
 import json
 import os
@@ -1226,8 +1228,13 @@ def test_the_job_table_holds_the_card_checkpoints():
 
 QUEUE_STUB = r'''#!/bin/bash
 # A runner that records each call. CF_HEAD_ARGV_TO: the flags of the head.
-# Else: the score.
+# Else: the score. As head_eval_bb.sh, it does nothing for a job with a
+# score. A lane can make such a call: it reads the score file of a job
+# before it locks the job.
 tag="$1"; out="$CF373_ROOT/eval/$tag"; mkdir -p "$out"
+if [ -s "$CF_RESULTS/score_$tag.txt" ]; then
+  echo "$tag skip $CF_RECONSTRUCTION" >>"$CF_RESULTS/calls.log"; exit 0
+fi
 if [ -n "${CF_HEAD_ARGV_TO:-}" ]; then
   echo "$tag argv $CF_RECONSTRUCTION $4 $HEAD_SAVE_EVERY" >>"$CF_RESULTS/calls.log"
   printf '["--save-dir", "%s", "--run-name", "qhead_%s"]\n' "$out" "$tag" \
@@ -1239,8 +1246,16 @@ sleep 0.2
 echo 0.1234 >"$CF_RESULTS/score_$tag.txt"
 '''
 
+# A stub trainer of one wave. CF425_TEST_TRAIN_UNTIL: the wave trains until
+# this shell test passes. So a test waits for an event, not for a time, and
+# its result does not change with the load of the machine. Only a queue with
+# a fault comes to the limit of 60 s.
 TRAINER_STUB = r'''
 import json, os, sys, time
+def wait(until, limit=60):
+    end = time.time() + limit
+    while until and os.system(until) and time.time() < end:
+        time.sleep(0.05)
 jobs = [json.loads(line) for line in open(sys.argv[sys.argv.index("--jobs") + 1])]
 res = os.environ["CF425_TEST_RES"]
 names = [a[a.index("--run-name") + 1][len("qhead_"):] for a in jobs]
@@ -1249,7 +1264,7 @@ with open(os.path.join(res, "calls.log"), "a") as f:
 with open(os.path.join(res, "gpu.log"), "a") as f:
     f.write(os.environ.get("CUDA_VISIBLE_DEVICES", "unset") + "\n")
 print("[shared] 1 steps: a stub", flush=True)
-time.sleep(float(os.environ.get("CF425_TEST_TRAIN_SLEEP", "0")))
+wait(os.environ.get("CF425_TEST_TRAIN_UNTIL"))
 for a, name in zip(jobs, names):
     if "bad" not in name:
         out = a[a.index("--save-dir") + 1]
@@ -1319,8 +1334,24 @@ def waves(res):
 
 
 def job_calls(res):
-    """The calls of the runner: "<tag> argv ..." and "<tag> score ..."."""
+    """The calls of the runner: "<tag> argv ...", "<tag> score ..." and,
+    for a job with a score, "<tag> skip ..."."""
     return [c for c in calls(res) if c[0] not in ("wave", "wave_end")]
+
+
+def waves_train(res, count=2):
+    """A shell test for CF425_TEST_TRAIN_UNTIL: ``count`` waves have their
+    start in the call log. So no wave ends before ``count`` waves train."""
+    return f"[ $(grep -c '^wave ' {res}/calls.log) -ge {count} ]"
+
+
+@contextlib.contextmanager
+def held(lock):
+    """Hold the lock file ``lock`` in this process, as ``flock`` does. The
+    lock is held before the code under test starts."""
+    with open(lock, "a") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        yield
 
 
 GOOD = ["arm_a_bb10k_h30k_recon", "arm_a_bb40k_h30k_recon",
@@ -1423,15 +1454,26 @@ def test_a_runner_that_reads_stdin_takes_no_job_of_the_list(queue_box):
     assert len(list(res.glob("score_*.txt"))) == 4
 
 
+# The scores of a queue with CF425_TEST_RELEASE run until that file exists.
+# Only a test with a fault comes to the limit of 60 s.
+HELD_SCORE = r'''sleep 0.2
+for _ in $(seq 600); do
+  [ -e "${CF425_TEST_RELEASE:-/}" ] && break
+  sleep 0.1
+done'''
+
+
 def test_a_score_that_outlives_its_queue_leaves_the_queue_lock_free(queue_box):
     """Kill the queue while a score runs. A new queue starts at once, and it
-    leaves the running job to the score that holds its lock."""
+    leaves the running job to the score that holds its lock. That score
+    still runs when the new queue ends."""
     import signal
     import time
     tmp_path, res, env = queue_box
-    stub = tmp_path / "runner.sh"
-    stub.write_text(QUEUE_STUB.replace("sleep 0.2", "sleep 4"))
-    first = subprocess.Popen(["bash", str(SCRIPTS / "queue.sh")], env=env,
+    stub, release = tmp_path / "runner.sh", tmp_path / "release"
+    stub.write_text(QUEUE_STUB.replace("sleep 0.2", HELD_SCORE))
+    first = subprocess.Popen(["bash", str(SCRIPTS / "queue.sh")],
+                             env=dict(env, CF425_TEST_RELEASE=str(release)),
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
         deadline = time.time() + 30
@@ -1443,12 +1485,13 @@ def test_a_score_that_outlives_its_queue_leaves_the_queue_lock_free(queue_box):
         first.send_signal(signal.SIGKILL)
         first.wait()
         again = run_queue(env, timeout=120)
+        scored = [c[0] for c in job_calls(res) if c[1] == "score"]
+        outlived = not (res / f"score_{scored[0]}.txt").exists()
     finally:
-        subprocess.run(["pkill", "-f", str(stub)])
+        release.touch()
     assert again.returncode == 0, again.stdout + again.stderr
     assert "another queue holds" not in again.stdout
-    scored = [c[0] for c in job_calls(res) if c[1] == "score"]
-    assert len(scored) == len(set(scored))
+    assert outlived and len(scored) == len(set(scored))
 
 
 def test_a_job_another_process_holds_is_skipped(queue_box):
@@ -1456,14 +1499,8 @@ def test_a_job_another_process_holds_is_skipped(queue_box):
     so a second queue never runs a job that an earlier one still runs."""
     _, res, env = queue_box
     (res / "locks").mkdir(parents=True)
-    lock = res / "locks" / "arm_c_bb100k_h30k_recon.lock"
-    holder = subprocess.Popen(["flock", str(lock), "sleep", "30"])
-    try:
-        import time
-        time.sleep(0.5)
+    with held(res / "locks" / "arm_c_bb100k_h30k_recon.lock"):
         r = run_queue(env)
-    finally:
-        holder.kill()
     assert r.returncode == 0, r.stdout + r.stderr
     assert not any(c[0] == "arm_c_bb100k_h30k_recon" for c in job_calls(res))
     assert not any("arm_c_bb100k_h30k_recon" in w for w in waves(res))
@@ -1491,20 +1528,22 @@ def test_the_queue_refuses_a_box_with_no_seasonal_naive_reference(queue_box):
 
 
 def test_the_queue_starts_after_the_forecast_scores(queue_box):
-    """forecast_scores.sh uses the same GPU with other locks."""
-    import time
+    """forecast_scores.sh uses the same GPU with other locks. Here it runs
+    until the queue says that it waits for it."""
     tmp_path, res, env = queue_box
-    script = tmp_path / "forecast_scores.sh"
-    script.write_text("sleep 3\n")
+    script, log = tmp_path / "forecast_scores.sh", tmp_path / "queue.log"
+    script.write_text(f"until grep -qs waiting {log}; do sleep 0.1; done\n")
     other = subprocess.Popen(["bash", str(script)])
     try:
-        time.sleep(0.3)
-        r = run_queue(env)
+        with open(log, "w") as out:
+            rc = subprocess.run(["bash", str(SCRIPTS / "queue.sh")], env=env,
+                                stdout=out, stderr=subprocess.STDOUT,
+                                timeout=120).returncode
         assert other.poll() is not None
     finally:
         other.kill()
-    assert r.returncode == 0, r.stdout + r.stderr
-    assert "waiting" in r.stdout
+    assert rc == 0, log.read_text()
+    assert "waiting" in log.read_text()
     assert len(list(res.glob("score_*.txt"))) == 4
 
 
@@ -1513,7 +1552,8 @@ def test_the_gpu_lock_frees_at_the_first_step_of_a_wave(queue_box):
     trainer does not keep it: the wave of the other lane starts while the
     first one still trains."""
     _, res, env = queue_box
-    r = run_queue(dict(env, CF425_TEST_TRAIN_SLEEP="2", CF425_WAVE_SIZE="3"))
+    r = run_queue(dict(env, CF425_TEST_TRAIN_UNTIL=waves_train(res),
+                       CF425_WAVE_SIZE="3"))
     assert r.returncode == 0, r.stdout + r.stderr
     order = [c[0] for c in calls(res) if c[0] in ("wave", "wave_end")]
     assert order[:3] == ["wave", "wave", "wave_end"]

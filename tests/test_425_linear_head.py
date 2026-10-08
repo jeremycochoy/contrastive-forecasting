@@ -38,9 +38,10 @@ from tests import test_425_encoder_reconstruction as base
 from tests.test_425_encoder_reconstruction import (  # noqa: F401
     B4_SCRIPTS, CPU, HEAD_PROTOCOL, OLD_DATA, Q, REPO_ROOT, SCRIPTS, SIZES,
     assert_same_run, bank_model, corpus_flags, ewma_bank_model, ewma_model,
-    eval_args, head_eval, job_calls, load_eval_module, meanstd_model,
+    eval_args, head_eval, held, job_calls, load_eval_module, meanstd_model,
     oracle_latents, queue_box, recorded, run_queue, saved, shifted,
-    stub_checkout, sync_box, train_shared, train_solo, walk, waves)
+    stub_checkout, sync_box, train_shared, train_solo, walk, waves,
+    waves_train)
 
 # The flags of the transformer head in head_eval_bb.sh. A linear head has
 # none of them.
@@ -492,15 +493,18 @@ def test_an_unknown_arch_starts_no_queue(queue_box):
     assert not (res / "calls.log").exists()
 
 
-# A shared trainer that holds the GPU lock for a moment: it writes the time
-# of its start and the time of its first step to one file for all queues.
+# A shared trainer that holds the GPU lock: it writes "start" to one file for
+# all queues, it waits for the shell command CF425_TEST_START_UNTIL, and it
+# writes "step" at its first step. The order of the lines is the order of
+# the events.
 SLOW_START_TRAINER = base.TRAINER_STUB.replace(
     'print("[shared] 1 steps: a stub", flush=True)',
-    '''events = os.environ["CF425_TEST_EVENTS"]
-began = time.time()
-time.sleep(0.4)
-with open(events, "a") as f:
-    f.write(f"{began} {time.time()}\\n")
+    '''def event(name):
+    with open(os.environ["CF425_TEST_EVENTS"], "a") as f:
+        f.write(name + "\\n")
+event("start")
+wait(os.environ["CF425_TEST_START_UNTIL"])
+event("step")
 print("[shared] 1 steps: a stub", flush=True)''')
 
 
@@ -508,7 +512,9 @@ def test_the_two_queues_run_together_and_share_the_gpu_lock(queue_box):
     """The linear queue starts while the queue of the transformer heads
     runs: each has its own queue lock, job locks and folders. One GPU lock
     holds from the memory check of a wave to its first step, so no two
-    waves of the two queues start in the same moment."""
+    waves of the two queues start in the same moment. Each wave holds the
+    lock for 0.4 s: with no lock, a second wave starts in that time. With
+    the lock, the load of the machine cannot change the order of the lines."""
     tmp_path, res, env = queue_box
     _, res_lin, env_lin = linear_queue(queue_box)
     (tmp_path / "trainer.py").write_text(SLOW_START_TRAINER)
@@ -516,22 +522,31 @@ def test_the_two_queues_run_together_and_share_the_gpu_lock(queue_box):
     queues = [subprocess.Popen(
         ["bash", str(SCRIPTS / "queue.sh")], stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT, text=True,
-        env=dict(e, CF425_TEST_EVENTS=str(events))) for e in (env, env_lin)]
+        env=dict(e, CF425_TEST_EVENTS=str(events),
+                 CF425_TEST_START_UNTIL="sleep 0.4")) for e in (env, env_lin)]
     outs = [q.communicate(timeout=180)[0] for q in queues]
     assert [q.returncode for q in queues] == [0, 0], "\n".join(outs)
     assert not any("another queue holds" in out for out in outs)
     assert sorted(p.name[6:-4] for p in res.glob("score_*.txt")) == base.GOOD
     assert sorted(p.name[6:-4] for p in res_lin.glob("score_*.txt")) == LIN_GOOD
-    starts = sorted(tuple(map(float, line.split())) for line in open(events))
-    assert len(starts) >= 6          # the waves of 2 lanes of 2 queues
-    assert all(end <= later for (_, end), (later, _)
-               in zip(starts, starts[1:])), starts
+    order = events.read_text().split()
+    assert len(order) >= 12          # the waves of 2 lanes of 2 queues
+    assert order == ["start", "step"] * (len(order) // 2), order
 
 
 FREE_NVIDIA_SMI = """#!/bin/bash
-# The free memory of the GPU comes from a file of the test.
+# The free memory of the GPU comes from a file of the test. Each call adds
+# one line to a second file.
+echo >>"$CF425_TEST_FREE.calls"
 cat "$CF425_TEST_FREE"
 """
+
+
+def wait_for(event, timeout=60):
+    """Wait until ``event()`` is true. Only a fault comes to the timeout."""
+    deadline = time.time() + timeout
+    while not event() and time.time() < deadline:
+        time.sleep(0.05)
 
 
 def gated_queue(queue_box, free):
@@ -558,12 +573,14 @@ def test_a_wave_leaves_room_for_the_scores_that_can_start(queue_box):
     scores on the same GPU. So a wave of the linear queue starts only when
     the GPU has its memory and the memory of a score for each eval slot
     with no score. Here 10,000 MiB are free: less than 6,000 and 2 times
-    3,000. The wave waits, and it starts when 12,000 MiB are free."""
+    3,000. The wave reads the free memory 3 times and does not start. It
+    starts when 12,000 MiB are free."""
     tmp_path, res, _, env = gated_queue(queue_box, 10000)
     queue = subprocess.Popen(["bash", str(SCRIPTS / "queue.sh")], env=env,
                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                              text=True)
-    time.sleep(4)
+    asked = tmp_path / "free.calls"
+    wait_for(lambda: asked.exists() and asked.stat().st_size >= 3)
     assert queue.poll() is None and not (res / "calls.log").exists() or not \
         waves(res)
     (tmp_path / "free").write_text("12000\n")
@@ -577,12 +594,8 @@ def test_a_score_that_runs_needs_no_room(queue_box):
     """An eval slot with a score holds its memory now, so the free memory
     counts it: with 1 of 2 slots in use, a wave needs 6,000 and 3,000."""
     tmp_path, res, slots, env = gated_queue(queue_box, 9000)
-    holder = subprocess.Popen(["flock", str(slots / "slot_0"), "sleep", "60"])
-    try:
-        time.sleep(0.5)
+    with held(slots / "slot_0"):
         r = run_queue(dict(env, CF425_SCORE="0"))
-    finally:
-        holder.kill()
     assert r.returncode == 0, r.stdout + r.stderr
     assert "stay free" not in r.stdout          # no wave waited
     assert len(waves(res)) == 3
@@ -890,6 +903,12 @@ case "$*" in
 esac
 """
 
+# A shell test for CF425_TEST_TRAIN_UNTIL, before the path of the sample log
+# of a probe: the log holds a line of 2 waves, and a line of GPU 0 while a
+# wave trains. So a wave trains until the probe has a sample of each wave.
+SAMPLED = ("""awk '$2 == "wave" && !seen[$3]++ { n++ } / total 0 16511 / """
+           """{ busy = 1 } END { exit !(busy && n >= 2) }' """)
+
 
 @pytest.mark.parametrize("arch,suffix", [(None, "_recon"),
                                          ("linear", "_recon_lin")])
@@ -907,7 +926,8 @@ def test_the_probe_trains_wave_1_of_each_lane_and_scores_nothing(
     env = dict(env, CF425_PROBE_RES=str(res),
                CF425_PROBE_ROOT=str(tmp_path / "probe_root"),
                CF425_TEST_RES=str(res / "queue"), CF425_TRIES="1",
-               CF425_TEST_TRAIN_SLEEP="1.5", CF425_PROBE_SAMPLE="0.5",
+               CF425_TEST_TRAIN_UNTIL=SAMPLED + str(res / "gpu.log"),
+               CF425_PROBE_SAMPLE="0.5",
                PATH=f"{bin_dir}:{os.environ['PATH']}")
     if arch:
         env["CF425_HEAD_ARCH"] = arch
@@ -991,20 +1011,20 @@ def test_each_lane_trains_and_scores_on_its_gpu(queue_box):
 
 def test_two_lanes_of_one_stream_train_two_waves_at_one_time(queue_box):
     """Two lanes can take their waves from one stream: each wave has its
-    own jobs, and the two waves train at the same time."""
-    _, res, env = lane_box(queue_box, "gift_pretrain:0 gift_pretrain:1",
-                           CF425_WAVE_SIZE="1", CF425_TEST_TRAIN_SLEEP="1.5",
-                           CF425_TRIES="1")
-    r = run_queue(env)
+    own jobs, and the two waves train at the same time. No job of the
+    old-data stream fails. A job that fails in one lane can get one try too
+    many from the other lane: the queue reads the tries of a job before it
+    locks the job."""
+    _, res, env = lane_box(queue_box, "old:0 old:1", CF425_OLD_WAVE_SIZE="1")
+    r = run_queue(dict(env, CF425_TEST_TRAIN_UNTIL=waves_train(res)))
     assert r.returncode == 0, r.stdout + r.stderr
     order = [c[0] for c in base.calls(res) if c[0] in ("wave", "wave_end")]
     assert order[:3] == ["wave", "wave", "wave_end"]
-    gift = [wave for wave in waves(res)]
-    assert all(len(wave) == 1 for wave in gift)
-    assert sorted(wave[0] for wave in gift) == sorted(
-        tag + "_lin" for tag in (base.GOOD[0], base.GOOD[1], base.BAD))
-    assert {wave_gpus(res)[tag] for tag in LIN_GOOD[:2]} <= {"0", "1"}
-    assert sorted(p.name[6:-4] for p in res.glob("score_*.txt")) == LIN_GOOD[:2]
+    old = waves(res)
+    assert all(len(wave) == 1 for wave in old)
+    assert sorted(wave[0] for wave in old) == LIN_GOOD[2:]
+    assert {wave_gpus(res)[tag] for tag in LIN_GOOD[2:]} == {"0", "1"}
+    assert sorted(p.name[6:-4] for p in res.glob("score_*.txt")) == LIN_GOOD[2:]
 
 
 def test_a_lane_takes_its_next_stream_when_the_first_has_no_job(queue_box):
@@ -1051,30 +1071,32 @@ def test_a_queue_with_no_thread_limit_sets_none(queue_box):
 
 def test_two_lanes_on_two_gpus_start_their_waves_at_one_time(queue_box):
     """The start lock is for one GPU: it counts the free memory of that
-    GPU. So lanes on two GPUs do not wait for each other."""
+    GPU. So lanes on two GPUs do not wait for each other. Each wave holds
+    its start lock until two waves have their start."""
     tmp_path, res, env = lane_box(queue_box, "gift_pretrain:0 old:1",
                                   CF425_WAVE_SIZE="3")
     (tmp_path / "trainer.py").write_text(SLOW_START_TRAINER)
     events = tmp_path / "events.log"
-    r = run_queue(dict(env, CF425_TEST_EVENTS=str(events)))
+    r = run_queue(dict(
+        env, CF425_TEST_EVENTS=str(events),
+        CF425_TEST_START_UNTIL=f"[ $(grep -c start {events}) -ge 2 ]"))
     assert r.returncode == 0, r.stdout + r.stderr
-    (a, a_end), (b, b_end) = sorted(tuple(map(float, line.split()))
-                                    for line in open(events))[:2]
-    assert b < a_end                 # the second wave starts before the
-    assert (tmp_path / "gpu.lock_gpu1").exists()   # first step of the first
+    # The second wave starts before the first step of the first.
+    assert events.read_text().split()[:2] == ["start", "start"]
+    assert (tmp_path / "gpu.lock_gpu1").exists()
 
 
-def run_until_wave(env, res, then, timeout=60):
-    """Start the queue, call ``then`` when its first wave trains, and
-    return the output of the queue."""
-    queue = subprocess.Popen(["bash", str(SCRIPTS / "queue.sh")], env=env,
-                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                             text=True)
-    deadline = time.time() + timeout
-    while time.time() < deadline and not (
-            (res / "calls.log").exists() and waves(res)):
-        time.sleep(0.05)
-    then()
+def run_until_wave(env, res, stop, lanes=1, script="queue.sh"):
+    """Start the queue, write the stop file ``stop`` when each of its
+    ``lanes`` lanes trains a wave, and return the output of the queue. Each
+    wave trains until the stop file exists, so the file comes in a wave."""
+    queue = subprocess.Popen(
+        ["bash", str(SCRIPTS / script)], stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT, text=True,
+        env=dict(env, CF425_TEST_TRAIN_UNTIL=f"[ -e {stop} ]"))
+    wait_for(lambda: (res / "calls.log").exists()
+             and len(waves(res)) >= lanes)
+    stop.touch()
     out = queue.communicate(timeout=120)[0]
     assert queue.returncode == 0, out
     return out
@@ -1086,9 +1108,8 @@ def test_a_stop_file_gives_a_gpu_back_at_the_end_of_a_wave(queue_box):
     other GPU go on. A new queue, with no stop file, scores the head that
     the lane left and trains the jobs that it did not start."""
     _, res, env = lane_box(queue_box, "gift_pretrain:0 old:1",
-                           CF425_WAVE_SIZE="1", CF425_TEST_TRAIN_SLEEP="1.5",
-                           CF425_LANE_STAGGER="0")
-    out = run_until_wave(env, res, (res / "stop_gpu0").touch)
+                           CF425_WAVE_SIZE="1", CF425_LANE_STAGGER="0")
+    out = run_until_wave(env, res, res / "stop_gpu0", lanes=2)
     gift = [wave for wave in waves(res) if not is_old(wave[0])]
     assert gift == [[LIN_GOOD[0]]]                 # one wave, to its end
     scored = sorted(p.name[6:-4] for p in res.glob("score_*.txt"))
@@ -1110,17 +1131,16 @@ def test_a_stop_file_gives_a_gpu_back_at_the_end_of_a_wave(queue_box):
 def test_the_stop_file_of_the_queue_ends_each_lane(queue_box):
     _, res, env = lane_box(queue_box, "gift_pretrain:0 old:1",
                            CF425_WAVE_SIZE="1", CF425_OLD_WAVE_SIZE="1",
-                           CF425_TEST_TRAIN_SLEEP="1.5", CF425_LANE_STAGGER="0")
-    run_until_wave(env, res, (res / "stop").touch)
-    assert len(waves(res)) <= 2 and not list(res.glob("score_*.txt"))
+                           CF425_LANE_STAGGER="0")
+    run_until_wave(env, res, res / "stop", lanes=2)
+    assert len(waves(res)) == 2 and not list(res.glob("score_*.txt"))
 
 
 def test_a_wave_that_fails_under_a_stop_file_counts_no_try(queue_box):
     """An owner who needs the GPU now writes the stop file and stops the
     trainer of the lane. The jobs of that wave keep all their tries."""
-    _, res, env = lane_box(queue_box, "gift_pretrain:0", CF425_WAVE_SIZE="3",
-                           CF425_TEST_TRAIN_SLEEP="1.5")
-    out = run_until_wave(env, res, (res / "stop_gpu0").touch)
+    _, res, env = lane_box(queue_box, "gift_pretrain:0", CF425_WAVE_SIZE="3")
+    out = run_until_wave(env, res, res / "stop_gpu0")
     assert len(waves(res)) == 1 and base.BAD + "_lin" in waves(res)[0]
     assert not (res / "failed").exists() or not list((res / "failed").iterdir())
     assert "counts no try" in out
@@ -1170,7 +1190,11 @@ def elisa_home(tmp_path, rows=None):
     (bin_dir / "nvidia-smi").chmod(0o755)
     env = {k: v for k, v in os.environ.items() if not k.startswith("CF425_")
            and k not in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "GIFT_EVAL")}
+    # The queue waits while a forecast_scores.sh runs on the machine, and a
+    # test of an other pytest worker starts one. So this queue looks for a
+    # process that does not exist.
     env.update(HOME=str(home), CF425_CODE=str(REPO_ROOT),
+               CF425_AFTER=str(tmp_path / "forecast_scores.sh"),
                PATH=f"{bin_dir}:{os.environ['PATH']}")
     return home, env
 
@@ -1258,19 +1282,13 @@ def test_the_elisa_queue_goes_on_after_a_stop(tmp_path, queue_box):
                CF425_TRAINER=str(box / "trainer.py"),
                CF425_TEST_RES=str(res), CF425_LANE_STAGGER="0",
                CF425_GPU_POLL="0.1", CF425_WAVE_SIZE="1",
-               CF425_OLD_WAVE_SIZE="1", CF425_TEST_TRAIN_SLEEP="1")
+               CF425_OLD_WAVE_SIZE="1")
     res.mkdir(parents=True)
     (res / "stop").touch()                      # a stop before the first wave
     r = run_elisa(env)
     assert r.returncode == 0 and not (res / "calls.log").exists()
     (res / "stop").unlink()
-    queue = subprocess.Popen(["bash", str(SCRIPTS / "queue_elisa.sh")],
-                             env=env, stdout=subprocess.DEVNULL,
-                             stderr=subprocess.DEVNULL)
-    while not ((res / "calls.log").exists() and waves(res)):
-        time.sleep(0.05)
-    (res / "stop").touch()
-    assert queue.wait(timeout=120) == 0
+    run_until_wave(env, res, res / "stop", script="queue_elisa.sh")
     done = {p.name[6:-4] for p in res.glob("score_*.txt")}
     first = [tag for wave in waves(res) for tag in wave]
     assert 0 < len(first) < 4 and not done      # heads, and no score yet
@@ -1280,10 +1298,12 @@ def test_the_elisa_queue_goes_on_after_a_stop(tmp_path, queue_box):
     assert sorted(p.name[6:-4] for p in res.glob("score_*.txt")) == LIN_GOOD
     trained = [tag for wave in waves(res) for tag in wave]
     assert sorted(trained) == LIN_GOOD          # each job trains one time
+    calls = job_calls(res)
     again = run_elisa(env)
     assert again.returncode == 0
     assert [tag for wave in waves(res) for tag in wave] == trained
-    assert len([c for c in job_calls(res) if c[1] == "score"]) == 4
+    assert job_calls(res) == calls              # no call for a scored job
+    assert len([c for c in calls if c[1] == "score"]) == 4
 
 
 def deploy(env, *args):
@@ -1331,13 +1351,8 @@ def test_the_deploy_changes_no_code_under_a_queue_that_runs(tmp_path):
     lin = tmp_path / "checkpoints_backup" / "cf-425-lin"
     (lin / "code" / "mark.txt").write_text("the code of the queue")
     (lin / "results").mkdir()
-    holder = subprocess.Popen(["flock", str(lin / "results" / "queue.lock"),
-                               "sleep", "30"])
-    try:
-        time.sleep(0.5)
+    with held(lin / "results" / "queue.lock"):
         r = deploy(env)
-    finally:
-        holder.kill()
     assert r.returncode != 0 and "queue" in r.stdout + r.stderr
     assert (lin / "code" / "mark.txt").exists()
 
