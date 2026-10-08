@@ -2137,6 +2137,10 @@ class TestTheLayoutIsWrittenIn:
     What it can be: elisa's root is where the sync loop LANDS the box's tree,
     and elisa refuses to score one root while a backbone arm of the same
     reduction climbs under another one.
+
+    A dry run of the head watcher runs `collect.sh`, which writes the scores
+    table again. Each test that starts one gives it a temporary results
+    folder, so that the tracked table of the mean arm keeps its bytes.
     """
 
     def test_the_box_runs_root_is_a_remote_path(self):
@@ -2153,12 +2157,13 @@ class TestTheLayoutIsWrittenIn:
         root = re.search(r"root=(\S+)", out.stdout).group(1)
         assert root == study_value("CF401_BOX_RUNS"), out.stdout
 
-    def test_elisa_reads_the_boxs_tree_and_not_a_local_root(self):
+    def test_elisa_reads_the_boxs_tree_and_not_a_local_root(self, tmp_path):
         """The sync loop keeps the relative tree under `<LOCAL_DIR>/sync`, so
         that directory IS the root on elisa's side."""
         sync_root = study_value("CF401_SYNC_ROOT")
         assert sync_root.endswith("/sync"), sync_root
-        out = run_sh(LAUNCH_ELISA, env={"CF401_DRY_RUN": "1"})
+        out = run_sh(LAUNCH_ELISA, env={"CF401_DRY_RUN": "1",
+                                       "CF401_RESULTS": str(tmp_path / "res")})
         assert out.returncode == 0, out.stderr
         root = re.search(r"root=(\S+)", out.stdout).group(1)
         assert root == sync_root, out.stdout
@@ -2167,16 +2172,18 @@ class TestTheLayoutIsWrittenIn:
 
     def test_a_root_given_on_the_command_line_still_wins(self, tmp_path):
         out = run_sh(LAUNCH_ELISA, env={"CF401_DRY_RUN": "1",
-                                       "CF401_ROOT": str(tmp_path / "given")})
+                                       "CF401_ROOT": str(tmp_path / "given"),
+                                       "CF401_RESULTS": str(tmp_path / "res")})
         assert out.returncode == 0, out.stderr
         assert f"root={tmp_path / 'given'}" in out.stdout, out.stdout
 
-    def test_the_watcher_reads_the_boxs_tree_too(self):
+    def test_the_watcher_reads_the_boxs_tree_too(self, tmp_path):
         """`heads_watch.sh` run on its own has to land on the same root as
         `launch_elisa.sh`, or a session that starts the watcher directly
         scores a different tree."""
         out = run_sh(HEADS_WATCH, env={"CF401_DRY_RUN": "1",
-                                      "CF401_ALLOW_LOCAL_ARMS": "1"})
+                                      "CF401_ALLOW_LOCAL_ARMS": "1",
+                                      "CF401_RESULTS": str(tmp_path / "res")})
         assert out.returncode == 0, out.stderr
         root = re.search(r"root=(\S+)", out.stdout).group(1)
         assert root == study_value("CF401_SYNC_ROOT"), out.stdout
