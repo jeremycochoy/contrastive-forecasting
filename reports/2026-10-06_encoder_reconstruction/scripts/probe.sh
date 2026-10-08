@@ -3,7 +3,8 @@
 # of queue.sh, as the queue plans it, for a few hundred steps and with no
 # score. It gives the step rate and the GPU memory of a wave, for the wave
 # sizes and the time estimate of the queue. The heads go to a test folder
-# that the queue never reads.
+# that the queue never reads. The plan is that of a start now: a job of the
+# queue with a score or a head is in no probe.
 #
 # For each wave: the last reports of its trainer (the step rate, the share of
 # time that it waited for its stream, the memory that torch holds), the peak

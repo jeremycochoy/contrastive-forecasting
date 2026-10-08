@@ -41,7 +41,8 @@
 #   mkdir -p ~/checkpoints_backup/cf-425-lin/results
 #   nohup setsid bash $S/queue_elisa.sh \
 #     >>~/checkpoints_backup/cf-425-lin/results/queue.log 2>&1 </dev/null &
-#   CF425_DRY_RUN=1 bash $S/queue_elisa.sh       # the waves and the inputs only
+#   CF425_DRY_RUN=1 bash $S/queue_elisa.sh       # the inputs, and the work of a
+#                                                # start now
 #   HEAD_LOG_EVERY=50 bash $S/queue_elisa.sh probe 150   # probe.sh, 4 lanes
 set -uo pipefail
 

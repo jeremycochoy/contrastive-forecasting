@@ -69,7 +69,8 @@
 #
 # Usage, on the box:
 #   nohup setsid bash queue.sh >>/workspace/results/cf-425/queue.log 2>&1 &
-#   CF425_DRY_RUN=1 bash queue.sh     # the waves and the input check only
+#   CF425_DRY_RUN=1 bash queue.sh     # the input check, and the work of a
+#                                     # start now: no line for a done job
 #   CF425_SCORE=0 ...                 # train the heads, and score nothing
 #   CF425_GPU=1 ...                   # the GPU of the waves and the scores
 #   CF425_TRAIN_THREADS=4 ...         # the CPU threads of each trainer
@@ -172,16 +173,29 @@ wait_for_others(){
   done
 }
 
-# The waves of a queue that starts with no head and no score:
-# "<stream> <wave> <tier> <code> <stop k> <tag>".
+# The work of a queue that starts now:
+# "<stream> <wave> <tier> <code> <stop k> <tag>". The plan reads the results
+# folder as pick_wave does. A job with a score is done, and a job that failed
+# CF425_TRIES times stays failed: the plan names neither. A job with a head
+# and no score gets its score only, and its wave is "score". The other jobs
+# train, in waves that count from 1 for each stream. The plan takes no lock:
+# it also names a job that a wave or a score of another queue holds now.
 plan(){
-  local stream n tier row code arm stop ckpt bytes data
+  local stream n tier row code arm stop ckpt bytes data tag wave
   for stream in $STREAMS; do
     n=0
     while read -r tier row code arm stop ckpt bytes data; do
       [ "$data" = "$stream" ] || continue
-      echo "$stream $(( n / $(wave_size "$stream") + 1 )) $tier $code ${stop}k $(tag_of "$arm" "$stop")"
-      n=$(( n + 1 ))
+      tag="$(tag_of "$arm" "$stop")"
+      [ -s "$RES/score_$tag.txt" ] && continue
+      [ "$(fail_count "$tag")" -lt "$TRIES" ] || continue
+      if has_head "$tag"; then
+        [ "$SCORE" = 1 ] || continue
+        wave=score
+      else
+        wave=$(( n / $(wave_size "$stream") + 1 )); n=$(( n + 1 ))
+      fi
+      echo "$stream $wave $tier $code ${stop}k $tag"
     done < <(ordered_jobs)
   done
 }

@@ -1530,6 +1530,35 @@ def test_the_dry_run_lists_the_waves_and_runs_nothing(queue_box):
     assert not (res / "calls.log").exists()
 
 
+def test_the_dry_run_lists_the_work_of_a_start_now(queue_box):
+    """The dry run reads the results folder as a start of the queue does. A
+    job with a score is done, and a job that failed each of its tries stays
+    failed: the plan names neither. A job with a head and no score gets its
+    score only. The other jobs train, in waves that count from 1. An empty
+    score file is no score."""
+    tmp_path, res, env = queue_box
+    for done in ("arm_c_bb100k", "arm_a_bb10k"):
+        (res / f"score_{done}_h30k_recon.txt").write_text("0.1234\n")
+    (res / "score_arm_d_bb50k_h30k_recon.txt").write_text("")
+    head = tmp_path / "ckpt" / "cf-425" / "recon" / "eval" / "arm_a_bb40k_h30k_recon"
+    head.mkdir(parents=True)
+    (head / "qhead_arm_a_bb40k_h30k_recon_final.pth").write_text("head")
+    (res / "failed").mkdir()
+    for attempt in (1, 2):
+        (res / "failed" / f"{BAD}.{attempt}").write_text("wave rc=1\n")
+    r = run_queue(dict(env, CF425_DRY_RUN="1"))
+    assert r.returncode == 0, r.stdout + r.stderr
+    plan = [line.split() for line in r.stdout.splitlines()]
+    assert [(p[0], p[1], p[5]) for p in plan] == [
+        ("old", "1", "arm_d_bb50k_h30k_recon"),
+        ("gift_pretrain", "score", "arm_a_bb40k_h30k_recon")]
+    assert not (res / "calls.log").exists()
+    # With no score to give (CF425_SCORE=0), a job with a head has no work.
+    r = run_queue(dict(env, CF425_DRY_RUN="1", CF425_SCORE="0"))
+    assert [line.split()[5] for line in r.stdout.splitlines()] == [
+        "arm_d_bb50k_h30k_recon"]
+
+
 def test_the_queue_hands_the_runner_the_b4_head_steps(queue_box):
     """Each job gets the reconstruction mode, no snapshot every 5,000
     steps, and the 30,000 head steps."""
