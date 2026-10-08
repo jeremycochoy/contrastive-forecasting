@@ -15,8 +15,9 @@ Two figures:
                        set, all 53 points. Values from
                        results/diag/collapse_all.csv.
 
-Usage:  python3 plot_diag_collapse.py
+Usage:  python3 plot_diag_collapse.py [--out-dir DIR]
 """
+import argparse
 import csv
 import sys
 from pathlib import Path
@@ -172,7 +173,7 @@ def smooth(step, y, nbins=110):
     return np.asarray(sx), np.asarray(sy)
 
 
-def collapse_onset():
+def collapse_onset(out_dir):
     fig, axes = plt.subplots(1, 3, figsize=(15, 4.4))
     for ax, (col, title, ref, reflab) in zip(axes, PANELS):
         for label, colour, ls, paths in ARMS:
@@ -197,7 +198,7 @@ def collapse_onset():
     fig.suptitle("Training-time collapse probes, both reductions, "
                  "against backbone step", fontsize=11)
     fig.tight_layout(rect=(0, 0.12, 0.98, 0.95))
-    out = PLOTS / "collapse_onset.png"
+    out = out_dir / "collapse_onset.png"
     fig.savefig(out, dpi=150)
     print(f"-> {out}")
 
@@ -209,7 +210,7 @@ def strip_y(base, n, halfwidth=0.26):
     return base + np.linspace(-halfwidth, halfwidth, n)
 
 
-def latent_rank():
+def latent_rank(out_dir):
     rows = list(csv.DictReader(open(RES / "diag/collapse_all.csv")))
     by_row = {name: [] for name in ROWS}
     for r in rows:
@@ -251,12 +252,20 @@ def latent_rank():
     # No suptitle. The markdown caption of the report names this figure, and
     # a second copy inside it is the same label printed twice.
     fig.tight_layout(rect=(0, 0.10, 1, 1))
-    out = PLOTS / "latent_rank.png"
+    out = out_dir / "latent_rank.png"
     fig.savefig(out, dpi=150)
     print(f"-> {out} ({len(rows)} checkpoints)")
 
 
+def main(argv=None):
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--out-dir", default=str(PLOTS))
+    out_dir = Path(ap.parse_args(argv).out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    collapse_onset(out_dir)
+    latent_rank(out_dir)
+    return 0
+
+
 if __name__ == "__main__":
-    PLOTS.mkdir(parents=True, exist_ok=True)
-    collapse_onset()
-    latent_rank()
+    sys.exit(main())
