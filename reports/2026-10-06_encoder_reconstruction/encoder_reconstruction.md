@@ -14,6 +14,10 @@
 
 ![R and B4, transformer head: ours, one patch size](plots/overlay_ours_one_patch_size.png)
 
+![R, transformer head: Moirai, our copy](plots/recon_moirai.png)
+
+![R and forecast, transformer head: Moirai, our copy](plots/overlay_moirai.png)
+
 ![R, transformer head: selected runs](plots/recon_selected.png)
 
 ![R and B4, transformer head: selected runs](plots/overlay_selected.png)
@@ -31,6 +35,10 @@
 ![R, linear head: ours, one patch size](plots/recon_ours_one_patch_size_linear.png)
 
 ![R and B4, linear head: ours, one patch size](plots/overlay_ours_one_patch_size_linear.png)
+
+![R, linear head: Moirai, our copy](plots/recon_moirai_linear.png)
+
+![R and forecast, linear head: Moirai, our copy](plots/overlay_moirai_linear.png)
 
 ![R, linear head: selected runs](plots/recon_selected_linear.png)
 

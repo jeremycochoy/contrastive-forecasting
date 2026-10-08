@@ -19,7 +19,8 @@ score in the tables gives a new curve, and a graph with no scored run
 gives no figure. The groups, the labels, the colours and the x scale are
 those of #412 (``plot_gm_rates.py`` and ``run_style.py``), so a run looks
 the same in every figure. The two versions of a graph share one y range
-(``y_extra``), so a reader compares the two heads at the same height.
+(``y_extra``), with the floors that either version holds, so a reader
+compares the two heads at the same height.
 
 The report holds the figures only. So a figure keeps each fact in its plot
 or in its legend, never in its title or in an annotation. The legend gives
@@ -127,9 +128,10 @@ LINK_WIDTH = 0.6
 # The marker of a snapshot has no face and is larger than the dot (ms=8),
 # so a snapshot near its dot is a ring around it, not a cover over it.
 SNAPSHOT_MS = 13
-# A run with one R score draws after the runs with a line, above them and
-# with a thin white marker edge, so the line of no other run hides its dot.
-LONE_DOT = dict(zorder=3.3, mec="white", mew=0.8)
+# A run with one R score draws after the runs with a line, above their
+# lines, their links and their rings, with a thin white marker edge, so
+# nothing hides its dot. The rings have no face, so the dot hides no ring.
+LONE_DOT = dict(zorder=3.6, mec="white", mew=0.8)
 FLOOR_COLOUR = "0.55"
 FLOOR_WIDTH = 0.8
 # One line style for each floor, in the order of floors.tsv, so that a floor
@@ -477,8 +479,9 @@ def draw_figure(groups, forecast, recon, out, overlay, floors=(), title=None,
     """One figure of one head. Returns it, or None, and draws nothing, when
     no run of the groups has an R score. ``recon``: the R scores of that
     head. ``linear``: the head is the linear head, so the key names it and
-    the chart holds no snapshot marker. ``y_extra``: scores of the other
-    head of the same graph, so the two versions share one y range."""
+    the chart holds no snapshot marker. ``y_extra``: the scores and the
+    near floors of the two heads of the same graph, so the two versions
+    share one y range."""
     snapshots = {} if linear else (snapshots or {})
     runs = [run for _, members in groups for run in members
             if recon.get(run[0])]
@@ -579,8 +582,15 @@ def main():
         # such run names no B4.
         b4 = "B4" if any(arm not in MOIRAI for _, members in groups
                          for arm, *_ in members) else "forecast"
-        shared = [v for scores, snaps, _ in heads.values()
-                  for v in graph_values(groups, scores, snaps)]
+        arms = [arm for _, members in groups for arm, *_ in members]
+        graph_floors = floors_of(arms, floors)
+        shared = []
+        for scores, snaps, _ in heads.values():
+            shared += graph_values(groups, scores, snaps)
+            r_scores = {arm: list(scores.get(arm, {}).values())
+                        for arm in arms}
+            shared += [floor["score"]
+                       for floor in near_floors(graph_floors, r_scores)]
         for suffix, (scores, snaps, linear) in heads.items():
             head = HEAD_NAMES[suffix]
             draw_figure(groups, forecast, scores,
