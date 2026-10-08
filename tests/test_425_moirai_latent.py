@@ -17,6 +17,7 @@ Groups, all on the CPU:
    latent, the head of a run of ours on the encoder latent, alone or in a
    wave.
 4. The eval script: strategy R scores a copy of Moirai on its output latent.
+5. The proof on elisa: the parity script compares two per-config tables.
 """
 
 from __future__ import annotations
@@ -44,7 +45,8 @@ from tests.test_425_encoder_reconstruction import (  # noqa: F401
     CPU, EVAL_PROTOCOL, HEAD_PROTOCOL, Q, SIZES, T, OracleHead,
     assert_same_run, bank_model, bank_of, corpus_flags, eval_args,
     ewma_model, job_argv, labels_of, load_eval_module, load_head_trainer,
-    oracle_latents, saved, train_shared, train_solo, walk, windows)
+    load_script, oracle_latents, saved, train_shared, train_solo, walk,
+    windows)
 
 
 def moirai_model(scaling="meanstd"):
@@ -450,3 +452,49 @@ def test_the_eval_scores_a_checkpoint_on_its_own_latent(tmp_path, monkeypatch,
         "--config-filter", "^m4_hourly/short$"])
     module.main()
     assert seen == [("ReconstructionPredictor", latent)]
+
+
+# ---------------------------------------------------------------------------
+# 5. The proof on elisa
+# ---------------------------------------------------------------------------
+
+def per_config(path, rows):
+    """A per-config table of the eval, with the two columns that the
+    comparison reads."""
+    path.write_text("dataset,model,eval_metrics/MASE[0.5]\n" + "".join(
+        f"{config},x,{mase}\n" for config, mase in rows))
+    return str(path)
+
+
+def test_the_parity_script_compares_the_mase_of_two_tables(tmp_path):
+    """The floor of a checkpoint on some configs, beside the floor table of
+    a scaling setup: the same MASE on each config shows the same setup."""
+    compare = load_script("parity_compare")
+    floor = per_config(tmp_path / "floor.csv", [
+        ("ett1/15T/long", 2.5), ("m4_hourly/H/short", 1.25),
+        ("us_births/D/short", 0.75)])
+    same = per_config(tmp_path / "same.csv", [
+        ("m4_hourly/H/short", 1.25), ("ett1/15T/long", 2.5)])
+    assert compare.compare_tables("MPM 100k", same, floor) == (
+        "MPM 100k: 2 configs, 2 with the MASE of the second table, "
+        "max relative difference 0")
+    other = per_config(tmp_path / "other.csv", [
+        ("m4_hourly/H/short", 1.25), ("ett1/15T/long", 2.0)])
+    assert compare.compare_tables("x", other, floor) == (
+        "x: 2 configs, 1 with the MASE of the second table, "
+        "max relative difference 0.2")
+    lost = per_config(tmp_path / "lost.csv", [("solar/H/short", 1.0)])
+    with pytest.raises(KeyError):
+        compare.compare_tables("x", lost, floor)
+
+
+def test_the_parity_script_reads_tables_after_its_flag(tmp_path, capsys,
+                                                       monkeypatch):
+    compare = load_script("parity_compare")
+    table = per_config(tmp_path / "a.csv", [("m4_hourly/H/short", 1.25)])
+    monkeypatch.setattr(sys, "argv", ["parity_compare.py", "--tables", "MPM",
+                                      table, table])
+    compare.main()
+    assert capsys.readouterr().out.strip() == (
+        "MPM: 1 configs, 1 with the MASE of the second table, "
+        "max relative difference 0")

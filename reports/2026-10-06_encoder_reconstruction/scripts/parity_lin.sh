@@ -17,10 +17,30 @@
 # holds about 5 GiB of GPU memory, so the two solo runs end before the two
 # waves start.
 #
+# The test can take other jobs and the other head (parity_moirai.sh: the
+# Moirai jobs on elisa, with each head):
+#   CF425_PARITY_PAIRS   the jobs with a solo run, "<code>:<stop k>" each
+#   CF425_PARITY_WAVES   all the jobs of the waves
+#   CF425_JOBS           the job table that holds them
+#   CF425_HEAD_ARCH=transformer   the transformer head. It needs its own
+#                        CF425_PARITY_ROOT and CF425_PARITY_RES: the default
+#                        folders are those of the linear test.
+#
 # Usage, on the box:  bash parity_lin.sh
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ARCH="${CF425_HEAD_ARCH:-linear}"
+case "$ARCH" in
+  linear) SUFFIX=recon_lin ;;
+  transformer)
+    SUFFIX=recon
+    [ -n "${CF425_PARITY_ROOT:-}" ] && [ -n "${CF425_PARITY_RES:-}" ] || {
+      echo "ABORT: CF425_HEAD_ARCH=transformer needs CF425_PARITY_ROOT and CF425_PARITY_RES." >&2
+      exit 2; } ;;
+  *) echo "ABORT: CF425_HEAD_ARCH=$ARCH. Use linear or transformer." >&2; exit 2 ;;
+esac
+JOBS="${CF425_JOBS:-$HERE/jobs.tsv}"
 CODE="${CF425_CODE:-/workspace/cf-425-lin}"
 CK="${CF425_CK:-/workspace/ckpt}"
 OUT="${CF425_PARITY_ROOT:-$CK/cf-425-lin/parity}"
@@ -33,27 +53,27 @@ SHAPE="--d-model 384 --n-heads 8 --num-layers 3"
 export GIFT_EVAL="${GIFT_EVAL:-/workspace/gift-eval-data}"
 SEED=20260722
 # The jobs with a solo run, and all the jobs of the waves: "<code>:<stop k>".
-PAIRS="OMB:25 LOW:665"
-WAVES="$PAIRS BLK:200 BMS:40 OEF:40 TWN:100"
+PAIRS="${CF425_PARITY_PAIRS:-OMB:25 LOW:665}"
+WAVES="${CF425_PARITY_WAVES:-$PAIRS BLK:200 BMS:40 OEF:40 TWN:100}"
 
-log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#425 linear parity] $*"; }
+log(){ echo "[$(date '+%m-%d %H:%M:%S')] [#425 $ARCH parity] $*"; }
 
 # "<arm> <ckpt>" of one job of jobs.tsv.
 job_of(){  # <code>:<stop k>
-  awk -F'\t' -v job="$1" '!/^#/ && $1 ":" $3 == job { print $2, $5 }' "$HERE/jobs.tsv"
+  awk -F'\t' -v job="$1" '!/^#/ && $1 ":" $3 == job { print $2, $5 }' "$JOBS"
 }
 
 tag_of(){  # <code>:<stop k>
   local arm ckpt
   read -r arm ckpt < <(job_of "$1")
-  echo "${arm}_bb${1#*:}k_h30k_recon_lin"
+  echo "${arm}_bb${1#*:}k_h30k_$SUFFIX"
 }
 
 head_of(){ echo "$OUT/$1/eval/$2/qhead_${2}_s${SEED}_$3"; }   # <solo|queue> <tag> <file end>
 
 mkdir -p "$OUT" "$RES"
 awk -F'\t' -v want=" $WAVES " '/^#code/ || index(want, " " $1 ":" $3 " ")' \
-  "$HERE/jobs.tsv" >"$RES/jobs.tsv"
+  "$JOBS" >"$RES/jobs.tsv"
 
 pids=()
 for pair in $PAIRS; do
@@ -64,7 +84,7 @@ for pair in $PAIRS; do
   fi
   log "solo $pair: $STEPS steps, code $(cat "$CODE/DEPLOYED_COMMIT" 2>/dev/null)"
   WT="$CODE" CF373_ROOT="$OUT/solo" CF_RESULTS="$RES/solo" CF_STOP_K="${pair#*:}" \
-    CF_RECONSTRUCTION=encoder CF_HEAD_ARCH=linear HEAD_SAVE_EVERY=1000000 \
+    CF_RECONSTRUCTION=encoder CF_HEAD_ARCH="$ARCH" HEAD_SAVE_EVERY=1000000 \
     CF_SKIP_EVAL=1 CF_BB_SHAPE="$SHAPE" BB_GPU="$GPU" HEAD_VRAM_MIB=7000 \
     GPU_GATE_LOCKDIR="/tmp/cf425_parity_lin_${pair%:*}" \
     bash "$B4/head_eval_bb.sh" "$tag" "$CK/$ckpt" student "$STEPS" \
@@ -74,7 +94,7 @@ done
 for pid in "${pids[@]}"; do wait "$pid" || log "a solo run failed: see $RES/solo_*.out"; done
 
 log "waves: $(grep -vc '^#' "$RES/jobs.tsv") jobs, $STEPS steps"
-CF425_HEAD_ARCH=linear CF425_CODE="$CODE" CF425_CK="$CK" CF425_JOBS="$RES/jobs.tsv" \
+CF425_HEAD_ARCH="$ARCH" CF425_CODE="$CODE" CF425_CK="$CK" CF425_JOBS="$RES/jobs.tsv" \
   CF425_HEAD_STEPS="$STEPS" CF425_SCORE=0 CF425_ROOT="$OUT/queue" \
   CF425_RES="$RES/queue" CF425_LANE_STAGGER=30 CF425_GPU="$GPU" \
   bash "$HERE/queue.sh" >"$RES/queue.out" 2>&1
@@ -101,5 +121,5 @@ for pair in $PAIRS; do
     bash "$B4/eval_local.sh" "$tag" "${pair#*:}" student "$CK/$ckpt" \
     "$(head_of queue "$tag" final.pth)" "$OUT/r4/$tag" "$RES/score_r4_$tag.txt" \
     >>"$RES/r4.out" 2>&1 </dev/null
-  log "R, 4 configs, linear head of ${pair%:*} ${pair#*:}k: $(cat "$RES/score_r4_$tag.txt" 2>/dev/null || echo FAILED)"
+  log "R, 4 configs, $ARCH head of ${pair%:*} ${pair#*:}k: $(cat "$RES/score_r4_$tag.txt" 2>/dev/null || echo FAILED)"
 done
