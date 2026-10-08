@@ -22,6 +22,11 @@ With CF425_HEAD_ARCH=linear, it checks the linear head of each job (the tag
 CF425_LINEAR (default ~/checkpoints_backup/cf-425-lin): in ``ckpt`` for a
 score of the queue of elisa, and in ``box_ckpt`` for a score of the box
 fallback.
+
+It also checks each score of ``results/snapshots/scores.tsv`` (the scores
+of snapshot_score.sh), and writes ``results/snapshots/checks.tsv``. A
+snapshot score passes the first four checks: a snapshot is a head of a job,
+so the last two are the checks of that job.
 """
 import csv
 import gzip
@@ -57,6 +62,8 @@ SUMMARY_ROW = re.compile(r"(\S+/\S+)\s+[\d.]+\s+([\d.]+)\s+[\d.]+\s*")
 EVAL_START = re.compile(r"eval start \((\d+) configs, (\w+),")
 COLUMNS = ["code", "stop_k", "score", "configs", "gm", "strategy",
            "head_steps", "head_bytes", "result"]
+SNAPSHOT_COLUMNS = ["code", "stop_k", "snapshot", "machine", "score",
+                    "configs", "gm", "strategy", "result"]
 
 
 def jobs(path):
@@ -159,18 +166,53 @@ def check(code, arm, stop_k):
             "result": "ok" if not failed else "FAIL " + ",".join(failed)}
 
 
-def main():
-    rows = [check(*job) for job in jobs(JOBS)]
-    with open(RESULTS / TABLE, "w", newline="") as out:
-        writer = csv.DictWriter(out, COLUMNS, delimiter="\t",
+def check_snapshot(row):
+    """One row of snapshots/checks.tsv, for one row of snapshots/scores.tsv."""
+    tag = f"{row['arm']}_bb{row['stop_k']}k_h30k_{row['snapshot']}_recon"
+    folder = RESULTS / "snapshots"
+    score = float(row["r_snapshot"])
+    mase = config_mase(folder / "per_config" / f"{tag}.csv")
+    gm = geometric_mean(mase, naive_mase(folder / "logs" / tag / "summary.txt"))
+    configs, strategy = eval_start(folder / "logs" / tag / "stop.log")
+    failed = [name for name, passed in [
+        ("configs", len(mase) == CONFIGS and configs == CONFIGS
+         and all(math.isfinite(v) for v in mase.values())),
+        ("gm", gm is not None and abs(gm - score) < 1e-4),
+        ("strategy", strategy == "R"),
+    ] if not passed]
+    return {"code": row["run"], "stop_k": row["stop_k"],
+            "snapshot": row["snapshot"], "machine": row["machine"],
+            "score": f"{score:.4f}", "configs": len(mase),
+            "gm": "" if gm is None else f"{gm:.4f}", "strategy": strategy,
+            "result": "ok" if not failed else "FAIL " + ",".join(failed)}
+
+
+def write_checks(rows, columns, path, what):
+    """Write a table of checks, and print each row that fails. Returns the
+    number of rows that fail."""
+    with open(path, "w", newline="") as out:
+        writer = csv.DictWriter(out, columns, delimiter="\t",
                                 lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
     bad = [row for row in rows if row["result"] != "ok"]
     for row in bad:
-        print(f"{row['code']} {row['stop_k']}k: {row['result']}")
-    print(f"{len(rows) - len(bad)} of {len(rows)} jobs pass "
-          f"-> {RESULTS / TABLE}")
+        snapshot = f" {row['snapshot']}" if "snapshot" in row else ""
+        print(f"{row['code']} {row['stop_k']}k{snapshot}: {row['result']}")
+    print(f"{len(rows) - len(bad)} of {len(rows)} {what} pass -> {path}")
+    return len(bad)
+
+
+def main():
+    bad = write_checks([check(*job) for job in jobs(JOBS)], COLUMNS,
+                       RESULTS / TABLE, "jobs")
+    snapshots = RESULTS / "snapshots" / "scores.tsv"
+    if SUFFIX == "recon" and snapshots.is_file():
+        rows = csv.DictReader(open(snapshots), delimiter="\t")
+        bad += write_checks([check_snapshot(row) for row in rows],
+                            SNAPSHOT_COLUMNS,
+                            RESULTS / "snapshots" / "checks.tsv",
+                            "snapshot scores")
     return 1 if bad else 0
 
 

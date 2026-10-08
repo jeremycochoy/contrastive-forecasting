@@ -1659,6 +1659,7 @@ def test_collect_copies_the_raw_artefacts_and_no_head(tmp_path):
     results = tmp_path / "results"
     collect.BOX_RESULTS, collect.MIRROR, collect.RESULTS = box, mirror, results
     collect.SYNC_LOG, collect.LINEAR = tmp_path / "no_sync.log", tmp_path / "lin"
+    collect.ELISA_SNAPSHOTS = tmp_path / "no_snap"
     collect.main()
     assert (results / "recon_trajectories.tsv").read_text() == "cf412om\t10\t0.3100\n"
     assert (results / "scores" / f"score_{tag}.txt").read_text() == "0.3100\n"
@@ -1676,33 +1677,61 @@ def test_collect_copies_the_raw_artefacts_and_no_head(tmp_path):
 
 def test_collect_gives_the_snapshot_scores_their_own_table(tmp_path):
     """The scores of snapshot_score.sh stay out of the table of the jobs.
-    Their own table gives the head step of each snapshot: the step of the
-    best head from the log of its wave, and 30,000 for the final head."""
+    Their own table has one row for each score, from the box and from
+    elisa: the run, the scaling, the head step of the snapshot (the step of
+    the best head from the log of its wave, and 30,000 for the final head),
+    the machine of the eval, the R of the snapshot, the R of the final head
+    in the queue, and the ratio of the two. A snapshot with a score from the
+    two machines keeps the score of the box. A job with no score in the
+    queue has no R of the final head."""
     collect = load_script("collect")
     box, mirror = tmp_path / "box", tmp_path / "mirror" / "cf-425"
-    job = "cf412om_bb10k_h30k_recon"
+    snap = tmp_path / "snap"
     (box / "snapshots").mkdir(parents=True)
     (box / "waves" / "gift_x").mkdir(parents=True)
+    (snap / "results").mkdir(parents=True)
+    (box / "score_cf412om_bb10k_h30k_recon.txt").write_text("0.3100\n")
     (box / "waves" / "gift_x" / "train.log").write_text(
-        f"[qhead_{job}_s20260722] Done in 4.5h. "
-        "Best loss=0.007695 at step 28500\n")
+        "[qhead_cf412om_bb10k_h30k_recon_s20260722] Done in 4.5h. "
+        "Best loss=0.007695 at step 28500\n"
+        "[qhead_cf412om_bb25k_h30k_recon_s20260722] Done in 4.5h. "
+        "Best loss=0.5 at step 25000\n")
     for snapshot, score in (("best", "0.3000\n"), ("final", "0.3100\n")):
         tag = f"cf412om_bb10k_h30k_{snapshot}_recon"
         (box / "snapshots" / f"score_{tag}.txt").write_text(score)
         gift = mirror / "snapshots" / "eval" / tag / "gift_r"
         gift.mkdir(parents=True)
         (gift / "all_results.csv").write_text("dataset,mase\n")
+    for tag, score in (("cf412om_bb25k_h30k_best_recon", "0.5000\n"),
+                       ("cf412om_bb10k_h30k_final_recon", "0.9999\n")):
+        (snap / "results" / f"score_{tag}.txt").write_text(score)
+        gift = snap / "ckpt" / "eval" / tag / "gift_r"
+        gift.mkdir(parents=True)
+        (gift / "all_results.csv").write_text("dataset,mase\nelisa,1\n")
+        (gift / "summary.txt").write_text("summary of elisa\n")
     results = tmp_path / "results"
+    results.mkdir()
+    (results / "floors.tsv").write_text(FLOORS_TSV)
     collect.BOX_RESULTS, collect.MIRROR, collect.RESULTS = box, mirror, results
     collect.SYNC_LOG, collect.LINEAR = tmp_path / "no_sync.log", tmp_path / "lin"
+    collect.ELISA_SNAPSHOTS = snap
     collect.main()
-    assert (results / "recon_trajectories.tsv").read_text() == ""
+    assert (results / "recon_trajectories.tsv").read_text() == (
+        "cf412om\t10\t0.3100\n")
     assert (results / "snapshots" / "scores.tsv").read_text() == (
-        "arm\tstop_k\tsnapshot\thead_step\tscore\n"
-        "cf412om\t10\tbest\t28500\t0.3000\n"
-        "cf412om\t10\tfinal\t30000\t0.3100\n")
-    assert (results / "snapshots" / "per_config"
-            / "cf412om_bb10k_h30k_best_recon.csv").is_file()
+        "run\tarm\tstop_k\tscaling\tsnapshot\thead_step\tmachine"
+        "\tr_snapshot\tr_final\tratio\n"
+        "OMB\tcf412om\t10\tmean/std\tbest\t28500\tbox\t0.3000\t0.3100\t1.03\n"
+        "OMB\tcf412om\t10\tmean/std\tfinal\t30000\tbox\t0.3100\t0.3100\t1.00\n"
+        "OMB\tcf412om\t25\tmean/std\tbest\t25000\telisa\t0.5000\t\t\n")
+    per_config = results / "snapshots" / "per_config"
+    assert (per_config / "cf412om_bb10k_h30k_best_recon.csv").is_file()
+    assert (per_config / "cf412om_bb10k_h30k_final_recon.csv"
+            ).read_text() == "dataset,mase\n"                 # of the box
+    assert (per_config / "cf412om_bb25k_h30k_best_recon.csv"
+            ).read_text() == "dataset,mase\nelisa,1\n"
+    assert (results / "snapshots" / "logs" / "cf412om_bb25k_h30k_best_recon"
+            / "summary.txt").read_text() == "summary of elisa\n"
 
 
 def snapshot_on_elisa(stub_checkout, snapshot="best", **extra):
@@ -1823,6 +1852,44 @@ def test_the_check_names_what_a_job_lacks(tmp_path):
     assert check.main() == 1
     row, = csv.DictReader(open(results / "checks.tsv"), delimiter="\t")
     assert row["result"] == "FAIL gm,head_steps"
+
+
+def test_the_check_reads_each_snapshot_score(tmp_path, capsys):
+    """check_scores.py also checks each row of snapshots/scores.tsv: 97
+    configs, the geometric mean and strategy R. It writes
+    snapshots/checks.tsv, and a snapshot score that fails gives exit 1."""
+    check, results = check_tree(tmp_path)
+    folder = results / "snapshots"
+    configs = [f"data_{i}/H/short" for i in range(97)]
+    rows = []
+    for snapshot, score, mase in (("best", "0.5000", "1.0"),
+                                  ("final", "0.4000", "1.0")):
+        tag = f"cf412om_bb10k_h30k_{snapshot}_recon"
+        (folder / "per_config").mkdir(parents=True, exist_ok=True)
+        (folder / "logs" / tag).mkdir(parents=True)
+        (folder / "per_config" / f"{tag}.csv").write_text(
+            f"dataset,{check.MASE}\n" + "".join(f"{c},{mase}\n"
+                                                for c in configs))
+        (folder / "logs" / tag / "summary.txt").write_text(
+            "".join(f"{c}    1.0000   2.0000     0.5000\n" for c in configs))
+        (folder / "logs" / tag / "stop.log").write_text(
+            "[10-08] [x] eval start (97 configs, R, forecast-len 16, cuda)\n")
+        rows.append(f"OMB\tcf412om\t10\tmean/std\t{snapshot}\t30000\telisa"
+                    f"\t{score}\t0.5000\t1.00\n")
+    header = ("run\tarm\tstop_k\tscaling\tsnapshot\thead_step\tmachine"
+              "\tr_snapshot\tr_final\tratio\n")
+    (folder / "scores.tsv").write_text(header + rows[0])
+    assert check.main() == 0
+    row, = csv.DictReader(open(folder / "checks.tsv"), delimiter="\t")
+    assert row == {"code": "OMB", "stop_k": "10", "snapshot": "best",
+                   "machine": "elisa", "score": "0.5000", "configs": "97",
+                   "gm": "0.5000", "strategy": "R", "result": "ok"}
+    # A score that is not the geometric mean of its configs.
+    (folder / "scores.tsv").write_text(header + "".join(rows))
+    assert check.main() == 1
+    best, final = csv.DictReader(open(folder / "checks.tsv"), delimiter="\t")
+    assert (best["result"], final["result"]) == ("ok", "FAIL gm")
+    assert "OMB 10k final: FAIL gm" in capsys.readouterr().out
 
 
 def test_the_figures_pair_the_two_scores_of_a_checkpoint(tmp_path,
@@ -1951,17 +2018,23 @@ def test_the_facts_are_in_the_plot_and_the_legend(tmp_path):
         assert top.get_ylim()[0] > bottom.get_ylim()[1]
 
 
+SNAPSHOTS_TSV = (
+    "run\tarm\tstop_k\tscaling\tsnapshot\thead_step\tmachine"
+    "\tr_snapshot\tr_final\tratio\n"
+    "OMB\tcf412om\t10\tmean/std\tbest\t28500\telisa\t0.2000\t0.3100\t1.55\n"
+    "OMB\tcf412om\t10\tmean/std\tfinal\t30000\tbox\t0.3100\t0.3100\t1.00\n")
+
+
 def test_a_hollow_marker_shows_an_earlier_snapshot_of_a_head(tmp_path):
     """snapshot_score.sh scores an earlier snapshot of a head. A figure
-    shows that score as a hollow marker at the checkpoint of the head, its
-    y range holds it, and its key gives it beside the score of the final
-    head. The control score of a final head is no snapshot."""
+    shows that score as a hollow marker at the checkpoint of the head, and
+    its y range holds it. The key names the marker in one line. The scores
+    are in the table of collect.py, and the legend holds none of them. The
+    control score of a final head is no snapshot."""
     pytest.importorskip("matplotlib")
     plot = load_script("plot_recon")
     table = tmp_path / "scores.tsv"
-    table.write_text("arm\tstop_k\tsnapshot\thead_step\tscore\n"
-                     "cf412om\t10\tbest\t28500\t0.2000\n"
-                     "cf412om\t10\tfinal\t30000\t0.3100\n")
+    table.write_text(SNAPSHOTS_TSV)
     snapshots = plot.load_snapshots(table)
     assert snapshots == {"cf412om": {40000: (28500, 0.2)}}   # batch 256: x4
     points = {"cf412om": {40000: 0.3100, 100000: 0.2900}}
@@ -1972,8 +2045,57 @@ def test_a_hollow_marker_shows_an_earlier_snapshot_of_a_head(tmp_path):
               if line.get_markerfacecolor() == "white"]
     assert [list(line.get_ydata()) for line in hollow] == [[0.2]]
     assert ax.get_ylim()[0] < 0.2
-    assert any("OMB 10k: 0.2000 at step 28,500, then 0.3100" in text
-               for text in legend_texts(fig))
+    # No curve hides the hollow marker: it lies above each of them.
+    assert all(hollow[0].get_zorder() > line.get_zorder()
+               for line in ax.get_lines() if line is not hollow[0])
+    texts = legend_texts(fig)
+    assert "The same head at an earlier head step" in texts
+    assert not any("0.2000" in text or "28,500" in text for text in texts)
+    plain = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], {}, points,
+                             tmp_path / "p.png", False)
+    assert "The same head at an earlier head step" not in legend_texts(plain)
+
+
+def test_each_entry_of_the_key_is_one_short_line(tmp_path):
+    """The report holds the figures only, so a reader reads the key of each
+    figure. Each entry of the key is one line of 52 characters or less, for
+    each kind of entry: the two heads, an earlier snapshot, the floors with
+    and without a line in the chart, and in an overlay, the forecast."""
+    pytest.importorskip("matplotlib")
+    plot = load_script("plot_recon")
+    (tmp_path / "floors.tsv").write_text(FLOORS_TSV)
+    (tmp_path / "scores.tsv").write_text(SNAPSHOTS_TSV)
+    floors = plot.load_floors(tmp_path / "floors.tsv")
+    drawn = plot.Line2D([], [])
+    for overlay in (False, True):
+        for lines, note in (
+                ({}, "Each floor is above the chart"),
+                ({"meanstd": drawn}, "A floor with no line is above the chart"),
+                ({"meanstd": drawn, "ewma_old": drawn}, None)):
+            labels = [label for _, label in plot.key_entries(
+                overlay, floors, True, lines, True)]
+            assert len(labels) == 8 + 3 * overlay + (note is not None)
+            assert all("\n" not in label and len(label) <= 52
+                       for label in labels)
+            assert (note is None) or note in labels
+            assert ("B4: the forecast of the run" in labels) == overlay
+    # The key of a figure holds these entries, under its name.
+    snapshots = plot.load_snapshots(tmp_path / "scores.tsv")
+    points = {"cf412om": {40000: 0.3100, 100000: 0.6000}}
+    linear = {"cf412om": {40000: 0.5000, 100000: 0.7000}}
+    fig = plot.draw_figure(plot.GRAPHS["ours_patch_sizes"], {}, points,
+                           tmp_path / "k.png", False, floors,
+                           snapshots=snapshots, linear=linear)
+    (key,) = [ax.get_legend() for ax in fig.axes if ax.get_legend() is not None]
+    assert [text.get_text() for text in key.get_texts()] == [
+        "How to read",
+        "R: a head decodes the true horizon from its latents",
+        "One dot: one checkpoint, one head, one seed",
+        "R a → b, ×c: first and last checkpoint, c = b / a",
+        "R with a linear head",
+        "The same head at an earlier head step",
+        "Floor of R: a head that reads no latent",
+        "mean/std: 0.9500"]
 
 
 def floor_checkout(stub_checkout):

@@ -18,7 +18,8 @@ and ``run_style.py``), so a run looks the same in every figure.
 The report holds the figures only. So a figure keeps each fact in its plot
 or in its legend, never in its title or in an annotation. The legend gives
 the first and the last R score of each run with their ratio, the floor of
-each scaling setup with its score, and the key to the line styles.
+each scaling setup with its score, and the key to the line styles. Each
+entry of the key ("How to read") is one short line.
 
 The y axis is logarithmic: each graph shows the change of a score through
 training, so a ratio keeps the same height at each level. The range of an
@@ -41,7 +42,10 @@ Each R score comes from one head with one seed, so the figures cannot show
 the noise between two heads. snapshot_score.sh scores an earlier snapshot of
 some heads (the head of the best training loss). A hollow marker shows that
 score under or above the dot of its checkpoint: the distance between the
-two is the change of R in the last steps of one head training.
+two is the change of R in the last steps of one head training. The hollow
+markers lie above the curves, so the curve of no run hides one. The legend
+holds no list of these scores: results/snapshots/scores.tsv gives each one,
+with its head step and the R of the final head.
 
 A second head of each checkpoint is a linear head: one linear map decodes
 each encoder latent into the values of its patch. Its R curve has the colour
@@ -56,6 +60,7 @@ results/snapshots/scores.tsv and results/recon_lin_trajectories.tsv
 (collect.py), results/floors.tsv (floors.sh), and #412's
 results/gm_trajectories.tsv.
 """
+import csv
 import math
 import sys
 from collections import defaultdict
@@ -73,7 +78,7 @@ STUDY = Path(__file__).resolve().parent.parent
 BASE = STUDY.parent / "2026-09-06_moirai_small_size"
 sys.path.insert(0, str(BASE / "scripts"))
 import plot_gm_rates as base  # noqa: E402
-from run_style import CODE, colour, line, tagged  # noqa: E402
+from run_style import colour, line, tagged  # noqa: E402
 
 FORECAST = [BASE / "results" / "gm_trajectories.tsv",
             STUDY / "results" / "forecast_425.tsv"]
@@ -110,7 +115,7 @@ FLOOR_REACH = 3.0
 # The floor of each setup of floors.sh in the legend. A setup that is not
 # here shows its floors.tsv label.
 FLOOR_NAMES = {
-    "ewma_zero_pad": "EWMA, new data with zero padding (BLK, OEF)",
+    "ewma_zero_pad": "EWMA, new data (BLK, OEF)",
     "ewma_old": "EWMA, old data",
     "meanstd": "mean/std",
 }
@@ -169,16 +174,18 @@ def load_floors(path):
 
 def load_snapshots(path):
     """The R score of an earlier snapshot of a head:
-    ``{arm: {data seen: (head step, score)}}``. The final head is the dot
-    of the checkpoint, so its control score is not a snapshot here."""
+    ``{arm: {data seen: (head step, score)}}``, from the columns of the
+    table of collect.py. The final head is the dot of the checkpoint, so
+    its control score is not a snapshot here."""
     points = defaultdict(dict)
     if not Path(path).is_file():
         return points
-    for row in list(open(path))[1:]:
-        arm, stop_k, snapshot, step, score = row.split()
-        if snapshot != "final":
-            seen = int(stop_k) * 1000 * base.XSCALE.get(arm, 1)
-            points[arm][seen] = (int(step), float(score))
+    for row in csv.DictReader(open(path), delimiter="\t"):
+        if row["snapshot"] != "final":
+            arm = row["arm"]
+            seen = int(row["stop_k"]) * 1000 * base.XSCALE.get(arm, 1)
+            points[arm][seen] = (int(row["head_step"]),
+                                 float(row["r_snapshot"]))
     return points
 
 
@@ -259,15 +266,16 @@ def draw_linear(ax, arm, width, marker, points):
 
 def draw_snapshots(ax, arm, marker, recon, snapshots):
     """A hollow marker at the R score of an earlier snapshot of a head, and
-    a line from it to the dot of the final head. Both lie under the dot, so
-    two equal scores show the dot."""
+    a line from it to the dot of the final head. Both lie above the curves,
+    so the curve of no run hides a snapshot. For two equal scores, the
+    hollow marker lies on the dot."""
     for seen, (_, score) in snapshots.items():
         if seen not in recon:
             continue
         ax.plot([seen, seen], [score, recon[seen]], color=colour(arm),
-                lw=1.4, zorder=2.5)
+                lw=1.4, zorder=3.4)
         ax.plot([seen], [score], linestyle="none", marker=marker, ms=8,
-                mfc="white", mec=colour(arm), mew=1.6, zorder=2.6)
+                mfc="white", mec=colour(arm), mew=1.6, zorder=3.5)
 
 
 def draw_links(top, bottom, arm, forecast, recon):
@@ -315,59 +323,47 @@ def linear_label(points):
     return f"        linear head.  {score_span(points)}"
 
 
-def key_entries(overlay, floors, snapshots=(), floor_lines=None,
+def key_entries(overlay, floors, snapshots=False, floor_lines=None,
                 linear=False):
-    """The key: what R is, the earlier snapshots of a head, the floor of
-    each scaling setup, and in an overlay, the forecast, the line that
-    joins the two scores of a checkpoint and the break of the y axis.
-    ``snapshots``: ``(run code, stop label, head step, score, score of
-    the final head)`` of each. ``floor_lines``: ``{setup: line}`` of the
-    floors that the chart draws. ``linear``: the chart holds the curve of a
-    linear head."""
+    """The key: what R is, the earlier snapshot of a head, the floor of each
+    scaling setup, and in an overlay, the forecast, the line that joins the
+    two scores of a checkpoint and the break of the y axis. Each entry is
+    one short line. ``snapshots``: the chart holds a hollow marker.
+    ``floor_lines``: ``{setup: line}`` of the floors that the chart draws.
+    ``linear``: the chart holds the curve of a linear head."""
     blank = Line2D([], [], linestyle="none")
     entries = [(Line2D([], [], color=KEY_COLOUR, lw=3, marker="o", ms=7),
-                "R: the encoder reads the context and the true\n"
-                "horizon. A head decodes the horizon from the\n"
-                "encoder latents. One dot for each checkpoint,\n"
-                "one head with one seed for each dot."),
-               (blank, "R a → b, ×c: R at the first and the last\n"
-                       "checkpoint, and the ratio b / a")]
+                "R: a head decodes the true horizon from its latents"),
+               (blank, "One dot: one checkpoint, one head, one seed"),
+               (blank, "R a → b, ×c: first and last checkpoint, c = b / a")]
     if linear:
         entries.append((Line2D([], [], color=KEY_COLOUR, ls=LINEAR_STYLE,
                                lw=3 * LINEAR_WIDTH, marker="o",
                                ms=LINEAR_MARKER),
-                        "R with a linear head, dashed: one linear map\n"
-                        "decodes each encoder latent. Its other settings\n"
-                        "are those of the head of the thick line."))
+                        "R with a linear head"))
     if snapshots:
-        text = ("The same head at an earlier head step.\n"
-                "Its R there, then the R of the dot (step 30,000):\n")
-        text += "\n".join(
-            f"{code} {stop}: {score:.4f} at step {step:,}, then {final:.4f}"
-            for code, stop, step, score, final in snapshots)
         entries.append((Line2D([], [], color=KEY_COLOUR, lw=0, marker="o",
-                               ms=7, mfc="white", mew=1.6), text))
+                               ms=7, mfc="white", mew=1.6),
+                        "The same head at an earlier head step"))
     if overlay:
         entries += [
             (Line2D([], [], color=KEY_COLOUR, lw=3, marker="o", ms=7,
                     alpha=FORECAST_ALPHA),
-             "B4, top panel: the forecast of the run"),
+             "B4: the forecast of the run"),
             (Line2D([], [], color=KEY_COLOUR, lw=0, marker="|", ms=16,
                     mew=LINK_WIDTH * 1.5),
-             "The B4 score and the R score of one checkpoint"),
+             "One checkpoint: its B4 and its R"),
             (Line2D([], [], color="k", lw=0, marker=[(-1, -0.6), (1, 0.6)],
                     ms=10, mew=1),
-             "A break in the y axis: each panel has\n"
-             "the range of its scores"),
+             "A break in the y axis"),
         ]
     if floors:
         floor_lines = floor_lines or {}
-        text = ("Floor of R: R of a head that gives the mean\n"
-                "of the scaling. It reads no latent.")
+        entries.append((blank, "Floor of R: a head that reads no latent"))
         if len(floor_lines) < len(floors):
-            text += ("\nA floor with no line here is above the chart."
-                     if floor_lines else "\nEach floor is above the chart.")
-        entries.append((blank, text))
+            entries.append((blank, "A floor with no line is above the chart"
+                            if floor_lines else
+                            "Each floor is above the chart"))
         entries += [(floor_lines.get(floor["setup"], blank),
                      floor_legend(floor)) for floor in
                     sorted(floors, key=lambda floor: -floor["score"])]
@@ -429,11 +425,6 @@ def style_y(ax, values, label):
     ax.yaxis.set_minor_locator(NullLocator())
     ax.set_ylabel(label)
     ax.grid(alpha=0.3)
-
-
-def stop_label(arm, seen):
-    """The stop of a checkpoint as its run counts it: 1080k."""
-    return f"{seen // (1000 * base.XSCALE.get(arm, 1))}k"
 
 
 def draw_figure(groups, forecast, recon, out, overlay, floors=(), title=None,
@@ -512,10 +503,9 @@ def draw_figure(groups, forecast, recon, out, overlay, floors=(), title=None,
                                 linear_label(linear[arm])))
         if entries:
             columns.append((name, entries))
-    shown = [(CODE[arm], stop_label(arm, seen), step, score, recon[arm][seen])
-             for arm in arms for seen, (step, score)
-             in sorted(snapshots.get(arm, {}).items()) if seen in recon[arm]]
-    key = key_entries(overlay, floors, shown, draw_floors(ax, floors),
+    hollow = any(seen in recon[arm] for arm in arms
+                 for seen in snapshots.get(arm, {}))
+    key = key_entries(overlay, floors, hollow, draw_floors(ax, floors),
                       any(linear_handles.values()))
     draw_legend(ax, top, columns, ("How to read", key))
     fig.savefig(out, dpi=135, bbox_inches="tight")

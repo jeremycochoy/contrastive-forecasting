@@ -1324,6 +1324,7 @@ def collect_with(tmp_path):
     collect.BOX_RESULTS = tmp_path / "box"
     collect.MIRROR = tmp_path / "mirror" / "cf-425"
     collect.LINEAR = tmp_path / "lin"
+    collect.ELISA_SNAPSHOTS = tmp_path / "no_snap"
     collect.RESULTS = tmp_path / "results"
     collect.SYNC_LOG = tmp_path / "no_sync.log"
     collect.BOX_RESULTS.mkdir()
@@ -1512,8 +1513,7 @@ def test_a_figure_shows_the_linear_head_of_a_run_in_the_colour_of_the_run(
     assert any("linear head" in text
                and text.endswith("R 0.7100 → 0.6500, ×0.92") for text in texts)
     assert any(text.endswith("R 0.3100 → 0.2900, ×0.94") for text in texts)
-    key = [text for text in texts if "one linear map" in text.lower()]
-    assert key and "0.7100" not in key[0]
+    assert "R with a linear head" in texts               # the key, one line
     assert all(len(axis.texts) == 0 for axis in fig.axes)
     assert fig.axes[0].get_title() == "Reconstruction (R): ours"
     # The legend row of the linear head shows its line style and its colour.

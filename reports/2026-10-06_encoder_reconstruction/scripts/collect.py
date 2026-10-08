@@ -26,9 +26,15 @@ Writes, in the results directory of the report:
   The gzip has no time stamp, so the same CSV gives the same bytes.
 
 * ``snapshots/``: the R score of other snapshots of some heads
-  (snapshot_score.sh). ``scores.tsv`` gives the arm, the stop, the snapshot,
-  its head step and its score. Beside it, the per-config table and the logs
-  of each snapshot.
+  (snapshot_score.sh), from the box and from elisa (CF425_SNAPSHOTS, default
+  ~/checkpoints_backup/cf-425-snap). ``scores.tsv`` has one row for each
+  score: the code of the run, the arm, the stop, the scaling of the run, the
+  snapshot, its head step, the machine of the eval, the R of the snapshot,
+  the R of the final head of the job in the queue, and the ratio of the
+  second R to the first. For a ``best`` snapshot, the ratio is the change of
+  R from that head step to step 30,000. For a ``final`` snapshot, the same
+  head has the two scores, so the ratio is a control of the eval path.
+  Beside the table, the per-config table and the logs of each snapshot.
 
 The linear heads come next. Their queue runs on elisa (queue_elisa.sh), and
 its fallback on the box. Each machine has its own folders in CF425_LINEAR
@@ -75,6 +81,8 @@ MIRROR = Path(os.environ.get("CF425_MIRROR",
                              HOME / "cf-412" / "vast_lr100x")) / "cf-425"
 SYNC_LOG = Path(os.environ.get("CF425_SYNC_LOG", HOME / "cf-425" / "sync.log"))
 LINEAR = Path(os.environ.get("CF425_LINEAR", HOME / "cf-425-lin"))
+# The snapshot scores of elisa (snapshot_score.sh with CF425_SNAP_GPU).
+ELISA_SNAPSHOTS = Path(os.environ.get("CF425_SNAPSHOTS", HOME / "cf-425-snap"))
 # The sources of the linear scores, in order: the queue of elisa, then its
 # fallback on the box. For each: the folder of its scores and its logs, and
 # the tree that holds the folder of each of its jobs.
@@ -93,6 +101,10 @@ JOB_DIR = {"recon": ("recon", "gift_r", "eval_local_r.log"),
            "student": ("forecast", "gift", "eval_local.log")}
 JOB_COLUMNS = ["run", "stop_k", "b4_forecast", "r_transformer_head",
                "r_linear_head"]
+SNAPSHOT_COLUMNS = ["run", "arm", "stop_k", "scaling", "snapshot",
+                    "head_step", "machine", "r_snapshot", "r_final", "ratio"]
+# The scaling of the runs of each setup of floors.tsv.
+SCALINGS = {"ewma_zero_pad": "EWMA", "ewma_old": "EWMA", "meanstd": "mean/std"}
 
 
 def scores(folder):
@@ -193,32 +205,81 @@ def best_step(job):
     return 0
 
 
-def copy_snapshots():
+def snapshot_sources():
+    """The sources of the snapshot scores, in order: the machine of the
+    eval, the folder of its score files, and the tree that holds the folder
+    of each eval."""
+    return (("box", BOX_RESULTS / "snapshots", MIRROR / "snapshots"),
+            ("elisa", ELISA_SNAPSHOTS / "results", ELISA_SNAPSHOTS / "ckpt"))
+
+
+def job_codes():
+    """``{arm: code of the run}``, and the place of each ``(arm, stop_k)``
+    in jobs.tsv. {} with no job table."""
+    codes, places = {}, {}
+    if JOBS.is_file():
+        for row in open(JOBS):
+            if row.strip() and not row.startswith("#"):
+                code, arm, stop_k = row.rstrip("\n").split("\t")[:3]
+                codes[arm] = code
+                places[arm, int(stop_k)] = len(places)
+    return codes, places
+
+
+def scalings():
+    """``{arm: scaling of its run}`` from floors.tsv: EWMA or mean/std. {}
+    with no table."""
+    path = RESULTS / "floors.tsv"
+    if not path.is_file():
+        return {}
+    rows = [row.rstrip("\n").split("\t") for row in open(path)][1:]
+    return {arm: SCALINGS.get(setup, setup)
+            for setup, _, arms, _ in rows for arm in arms.split(",")}
+
+
+def copy_snapshots(final_scores=()):
     """The scores of snapshot_score.sh: one table, and the per-config table
-    and the logs of each snapshot. Returns the number of scores."""
-    rows = []
-    for path in sorted((BOX_RESULTS / "snapshots").glob("score_*.txt")):
-        match = SNAPSHOT.fullmatch(path.name)
-        text = path.read_text().strip()
-        if not (match and text):
-            continue
-        arm, stop_k, snapshot = match.groups()
-        job = tag_of(arm, stop_k, "recon")
-        step = HEAD_STEPS if snapshot == "final" else best_step(job)
-        rows.append((arm, int(stop_k), snapshot, step, float(text)))
-        tag = f"{arm}_bb{stop_k}k_h30k_{snapshot}_recon"
-        source = MIRROR / "snapshots" / "eval" / tag
-        target = RESULTS / "snapshots"
-        copy(source / "gift_r" / "all_results.csv",
-             target / "per_config" / f"{tag}.csv")
-        for name in ("stop.log", "gift_r/summary.txt"):
-            copy(source / name, target / "logs" / tag / Path(name).name)
+    and the logs of each snapshot. ``final_scores``: ``(arm, stop_k, R)`` of
+    the final head of each job of the queue. A snapshot with a score from
+    the box and one from elisa keeps the score of the box. The rows have the
+    order of jobs.tsv. Returns the number of scores."""
+    final = {(arm, stop_k): score for arm, stop_k, score in final_scores}
+    rows = {}
+    for machine, folder, tree in snapshot_sources():
+        for path in sorted(folder.glob("score_*.txt")):
+            match = SNAPSHOT.fullmatch(path.name)
+            text = path.read_text().strip()
+            if not (match and text):
+                continue
+            arm, stop_k, snapshot = match.groups()
+            if (arm, int(stop_k), snapshot) in rows:
+                continue
+            job = tag_of(arm, stop_k, "recon")
+            step = HEAD_STEPS if snapshot == "final" else best_step(job)
+            rows[arm, int(stop_k), snapshot] = (step, machine, float(text))
+            tag = f"{arm}_bb{stop_k}k_h30k_{snapshot}_recon"
+            source = tree / "eval" / tag
+            target = RESULTS / "snapshots"
+            copy(source / "gift_r" / "all_results.csv",
+                 target / "per_config" / f"{tag}.csv")
+            for name in ("stop.log", "gift_r/summary.txt"):
+                copy(source / name, target / "logs" / tag / Path(name).name)
     if rows:
+        codes, places = job_codes()
+        scaling = scalings()
         (RESULTS / "snapshots").mkdir(parents=True, exist_ok=True)
         with open(RESULTS / "snapshots" / "scores.tsv", "w") as out:
-            out.write("arm\tstop_k\tsnapshot\thead_step\tscore\n")
-            for arm, stop_k, snapshot, step, score in sorted(rows):
-                out.write(f"{arm}\t{stop_k}\t{snapshot}\t{step}\t{score:.4f}\n")
+            out.write("\t".join(SNAPSHOT_COLUMNS) + "\n")
+            for key in sorted(rows, key=lambda key: (
+                    places.get(key[:2], len(places)), key)):
+                arm, stop_k, snapshot = key
+                step, machine, score = rows[key]
+                queue = final.get((arm, stop_k))
+                out.write("\t".join([
+                    codes.get(arm, ""), arm, str(stop_k),
+                    scaling.get(arm, ""), snapshot, str(step), machine,
+                    f"{score:.4f}", "" if queue is None else f"{queue:.4f}",
+                    "" if queue is None else f"{queue / score:.2f}"]) + "\n")
     return len(rows)
 
 
@@ -309,7 +370,7 @@ def main():
     write_table(found["student"], RESULTS / "forecast_425.tsv")
     counts = copy_jobs(found)
     counts["queue and wave logs"] = copy_logs()
-    counts["snapshot scores"] = copy_snapshots()
+    counts["snapshot scores"] = copy_snapshots(found["recon"])
     print(", ".join(f"{n} {what}" for what, n in counts.items()),
           f"-> {RESULTS}")
     linear = collect_linear()
