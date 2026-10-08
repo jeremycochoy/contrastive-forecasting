@@ -1,0 +1,120 @@
+[qhead_cf412om_bb100k_h30k_recon_lin_s20260722]   [head-train] the checkpoint names the mean/std scaling (#421); --rev-norm-kind ewma is not read
+[qhead_cf412om_bb100k_h30k_recon_lin_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf412om_bb100k_h30k_recon_lin_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf412om_bb100k_h30k_recon_lin_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf412om_bb100k_h30k_recon_lin_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf412om_bb100k_h30k_recon_lin_s20260722] Backbone loaded from /home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-412om/leg_100k/cf412om_k3_100k.pth (0 params, frozen, encoder=student)
+[qhead_cf412om_bb100k_h30k_recon_lin_s20260722] Forecasting head [bank of 5 heads, sizes (8, 16, 32, 64, 128), each linear-probe quantile (9 levels) decoding its P values (#412)]: 859,320 trainable params
+[qhead_cf412om_bb100k_h30k_recon_lin_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf412om_bb100k_h30k_recon_lin_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf412om_bb125k_h30k_recon_lin_s20260722]   [head-train] the checkpoint names the mean/std scaling (#421); --rev-norm-kind ewma is not read
+[qhead_cf412om_bb125k_h30k_recon_lin_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf412om_bb125k_h30k_recon_lin_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf412om_bb125k_h30k_recon_lin_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf412om_bb125k_h30k_recon_lin_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf412om_bb125k_h30k_recon_lin_s20260722] Backbone loaded from /home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-412om/leg_125k/cf412om_k3_125k.pth (0 params, frozen, encoder=student)
+[qhead_cf412om_bb125k_h30k_recon_lin_s20260722] Forecasting head [bank of 5 heads, sizes (8, 16, 32, 64, 128), each linear-probe quantile (9 levels) decoding its P values (#412)]: 859,320 trainable params
+[qhead_cf412om_bb125k_h30k_recon_lin_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf412om_bb125k_h30k_recon_lin_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf412om_bb150k_h30k_recon_lin_s20260722]   [head-train] the checkpoint names the mean/std scaling (#421); --rev-norm-kind ewma is not read
+[qhead_cf412om_bb150k_h30k_recon_lin_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf412om_bb150k_h30k_recon_lin_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf412om_bb150k_h30k_recon_lin_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf412om_bb150k_h30k_recon_lin_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf412om_bb150k_h30k_recon_lin_s20260722] Backbone loaded from /home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-412om/leg_150k/cf412om_k3_150k.pth (0 params, frozen, encoder=student)
+[qhead_cf412om_bb150k_h30k_recon_lin_s20260722] Forecasting head [bank of 5 heads, sizes (8, 16, 32, 64, 128), each linear-probe quantile (9 levels) decoding its P values (#412)]: 859,320 trainable params
+[qhead_cf412om_bb150k_h30k_recon_lin_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf412om_bb150k_h30k_recon_lin_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf412oc2_bb100k_h30k_recon_lin_s20260722]   [head-train] the checkpoint names the mean/std scaling (#421); --rev-norm-kind ewma is not read
+[qhead_cf412oc2_bb100k_h30k_recon_lin_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf412oc2_bb100k_h30k_recon_lin_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf412oc2_bb100k_h30k_recon_lin_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf412oc2_bb100k_h30k_recon_lin_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf412oc2_bb100k_h30k_recon_lin_s20260722] Backbone loaded from /home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-412oc2/leg_100k/cf412oc2_k3_100k.pth (0 params, frozen, encoder=student)
+[qhead_cf412oc2_bb100k_h30k_recon_lin_s20260722] Forecasting head [bank of 5 heads, sizes (8, 16, 32, 64, 128), each linear-probe quantile (9 levels) decoding its P values (#412)]: 859,320 trainable params
+[qhead_cf412oc2_bb100k_h30k_recon_lin_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf412oc2_bb100k_h30k_recon_lin_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf412oc2_bb200k_h30k_recon_lin_s20260722]   [head-train] the checkpoint names the mean/std scaling (#421); --rev-norm-kind ewma is not read
+[qhead_cf412oc2_bb200k_h30k_recon_lin_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf412oc2_bb200k_h30k_recon_lin_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf412oc2_bb200k_h30k_recon_lin_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf412oc2_bb200k_h30k_recon_lin_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf412oc2_bb200k_h30k_recon_lin_s20260722] Backbone loaded from /home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-412oc2/leg_200k/cf412oc2_k3_200k.pth (0 params, frozen, encoder=student)
+[qhead_cf412oc2_bb200k_h30k_recon_lin_s20260722] Forecasting head [bank of 5 heads, sizes (8, 16, 32, 64, 128), each linear-probe quantile (9 levels) decoding its P values (#412)]: 859,320 trainable params
+[qhead_cf412oc2_bb200k_h30k_recon_lin_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf412oc2_bb200k_h30k_recon_lin_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf412oc2_bb300k_h30k_recon_lin_s20260722]   [head-train] the checkpoint names the mean/std scaling (#421); --rev-norm-kind ewma is not read
+[qhead_cf412oc2_bb300k_h30k_recon_lin_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf412oc2_bb300k_h30k_recon_lin_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf412oc2_bb300k_h30k_recon_lin_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf412oc2_bb300k_h30k_recon_lin_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf412oc2_bb300k_h30k_recon_lin_s20260722] Backbone loaded from /home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-412oc2/leg_300k/cf412oc2_k3_300k.pth (0 params, frozen, encoder=student)
+[qhead_cf412oc2_bb300k_h30k_recon_lin_s20260722] Forecasting head [bank of 5 heads, sizes (8, 16, 32, 64, 128), each linear-probe quantile (9 levels) decoding its P values (#412)]: 859,320 trainable params
+[qhead_cf412oc2_bb300k_h30k_recon_lin_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf412oc2_bb300k_h30k_recon_lin_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf412om_bb100k_h30k_recon_lin_s20260722] Data: the backbone trained on GiftEvalPretrain with zero padding (#419): the head trains on the same stream, vocabulary v2, padded targets skipped. --hf-repo/--hf-path are not read.
+[qhead_cf412om_bb100k_h30k_recon_lin_s20260722] Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20280722, emit_labels=True
+[shared] 6 jobs on one stream: qhead_cf412om_bb100k_h30k_recon_lin_s20260722, qhead_cf412om_bb125k_h30k_recon_lin_s20260722, qhead_cf412om_bb150k_h30k_recon_lin_s20260722, qhead_cf412oc2_bb100k_h30k_recon_lin_s20260722, qhead_cf412oc2_bb200k_h30k_recon_lin_s20260722, qhead_cf412oc2_bb300k_h30k_recon_lin_s20260722
+[qhead_cf412om_bb100k_h30k_recon_lin_s20260722] Loss CSV: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412om_bb100k_h30k_recon_lin/qhead_cf412om_bb100k_h30k_recon_lin_s20260722_losses.csv
+[qhead_cf412om_bb100k_h30k_recon_lin_s20260722] 
+[qhead_cf412om_bb100k_h30k_recon_lin_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf412om_bb100k_h30k_recon_lin_s20260722] Head bank (#412): each row draws its patch size from its frequency's range and its split as the backbone trained, and trains the head of that size. --forecast-len is not read.
+[qhead_cf412om_bb100k_h30k_recon_lin_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf412om_bb100k_h30k_recon_lin_s20260722] Checkpoints: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412om_bb100k_h30k_recon_lin/qhead_cf412om_bb100k_h30k_recon_lin_s20260722_*.pth
+[qhead_cf412om_bb125k_h30k_recon_lin_s20260722] Loss CSV: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412om_bb125k_h30k_recon_lin/qhead_cf412om_bb125k_h30k_recon_lin_s20260722_losses.csv
+[qhead_cf412om_bb125k_h30k_recon_lin_s20260722] 
+[qhead_cf412om_bb125k_h30k_recon_lin_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf412om_bb125k_h30k_recon_lin_s20260722] Head bank (#412): each row draws its patch size from its frequency's range and its split as the backbone trained, and trains the head of that size. --forecast-len is not read.
+[qhead_cf412om_bb125k_h30k_recon_lin_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf412om_bb125k_h30k_recon_lin_s20260722] Checkpoints: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412om_bb125k_h30k_recon_lin/qhead_cf412om_bb125k_h30k_recon_lin_s20260722_*.pth
+[qhead_cf412om_bb150k_h30k_recon_lin_s20260722] Loss CSV: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412om_bb150k_h30k_recon_lin/qhead_cf412om_bb150k_h30k_recon_lin_s20260722_losses.csv
+[qhead_cf412om_bb150k_h30k_recon_lin_s20260722] 
+[qhead_cf412om_bb150k_h30k_recon_lin_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf412om_bb150k_h30k_recon_lin_s20260722] Head bank (#412): each row draws its patch size from its frequency's range and its split as the backbone trained, and trains the head of that size. --forecast-len is not read.
+[qhead_cf412om_bb150k_h30k_recon_lin_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf412om_bb150k_h30k_recon_lin_s20260722] Checkpoints: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412om_bb150k_h30k_recon_lin/qhead_cf412om_bb150k_h30k_recon_lin_s20260722_*.pth
+[qhead_cf412oc2_bb100k_h30k_recon_lin_s20260722] Loss CSV: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412oc2_bb100k_h30k_recon_lin/qhead_cf412oc2_bb100k_h30k_recon_lin_s20260722_losses.csv
+[qhead_cf412oc2_bb100k_h30k_recon_lin_s20260722] 
+[qhead_cf412oc2_bb100k_h30k_recon_lin_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf412oc2_bb100k_h30k_recon_lin_s20260722] Head bank (#412): each row draws its patch size from its frequency's range and its split as the backbone trained, and trains the head of that size. --forecast-len is not read.
+[qhead_cf412oc2_bb100k_h30k_recon_lin_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf412oc2_bb100k_h30k_recon_lin_s20260722] Checkpoints: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412oc2_bb100k_h30k_recon_lin/qhead_cf412oc2_bb100k_h30k_recon_lin_s20260722_*.pth
+[qhead_cf412oc2_bb200k_h30k_recon_lin_s20260722] Loss CSV: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412oc2_bb200k_h30k_recon_lin/qhead_cf412oc2_bb200k_h30k_recon_lin_s20260722_losses.csv
+[qhead_cf412oc2_bb200k_h30k_recon_lin_s20260722] 
+[qhead_cf412oc2_bb200k_h30k_recon_lin_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf412oc2_bb200k_h30k_recon_lin_s20260722] Head bank (#412): each row draws its patch size from its frequency's range and its split as the backbone trained, and trains the head of that size. --forecast-len is not read.
+[qhead_cf412oc2_bb200k_h30k_recon_lin_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf412oc2_bb200k_h30k_recon_lin_s20260722] Checkpoints: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412oc2_bb200k_h30k_recon_lin/qhead_cf412oc2_bb200k_h30k_recon_lin_s20260722_*.pth
+[qhead_cf412oc2_bb300k_h30k_recon_lin_s20260722] Loss CSV: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412oc2_bb300k_h30k_recon_lin/qhead_cf412oc2_bb300k_h30k_recon_lin_s20260722_losses.csv
+[qhead_cf412oc2_bb300k_h30k_recon_lin_s20260722] 
+[qhead_cf412oc2_bb300k_h30k_recon_lin_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf412oc2_bb300k_h30k_recon_lin_s20260722] Head bank (#412): each row draws its patch size from its frequency's range and its split as the backbone trained, and trains the head of that size. --forecast-len is not read.
+[qhead_cf412oc2_bb300k_h30k_recon_lin_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf412oc2_bb300k_h30k_recon_lin_s20260722] Checkpoints: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412oc2_bb300k_h30k_recon_lin/qhead_cf412oc2_bb300k_h30k_recon_lin_s20260722_*.pth
+[shared] 1 steps: 0.02 steps/s since the start, 0.02 steps/s over the last 1, 0.1 job steps/s, the stream took 98% of that time, peak 2.02 GiB allocated, 2.06 GiB reserved
+[qhead_cf412om_bb100k_h30k_recon_lin_s20260722] [    500] loss=2.859397  ema_loss=1.968504  1.7 sps  ETA 4.8h
+[qhead_cf412om_bb100k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412om_bb100k_h30k_recon_lin/qhead_cf412om_bb100k_h30k_recon_lin_s20260722_best.pth (ema_loss=1.968504)
+[qhead_cf412om_bb125k_h30k_recon_lin_s20260722] [    500] loss=2.880549  ema_loss=1.983230  1.7 sps  ETA 4.8h
+[qhead_cf412om_bb125k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412om_bb125k_h30k_recon_lin/qhead_cf412om_bb125k_h30k_recon_lin_s20260722_best.pth (ema_loss=1.983230)
+[qhead_cf412om_bb150k_h30k_recon_lin_s20260722] [    500] loss=2.860226  ema_loss=1.979423  1.7 sps  ETA 4.8h
+[qhead_cf412om_bb150k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412om_bb150k_h30k_recon_lin/qhead_cf412om_bb150k_h30k_recon_lin_s20260722_best.pth (ema_loss=1.979423)
+[qhead_cf412oc2_bb100k_h30k_recon_lin_s20260722] [    500] loss=2.681489  ema_loss=1.825238  1.7 sps  ETA 4.8h
+[qhead_cf412oc2_bb100k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412oc2_bb100k_h30k_recon_lin/qhead_cf412oc2_bb100k_h30k_recon_lin_s20260722_best.pth (ema_loss=1.825238)
+[qhead_cf412oc2_bb200k_h30k_recon_lin_s20260722] [    500] loss=2.680846  ema_loss=1.824903  1.7 sps  ETA 4.8h
+[qhead_cf412oc2_bb200k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412oc2_bb200k_h30k_recon_lin/qhead_cf412oc2_bb200k_h30k_recon_lin_s20260722_best.pth (ema_loss=1.824903)
+[qhead_cf412oc2_bb300k_h30k_recon_lin_s20260722] [    500] loss=2.681059  ema_loss=1.824710  1.7 sps  ETA 4.8h
+[qhead_cf412oc2_bb300k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412oc2_bb300k_h30k_recon_lin/qhead_cf412oc2_bb300k_h30k_recon_lin_s20260722_best.pth (ema_loss=1.824710)
+[shared] 500 steps: 1.70 steps/s since the start, 2.04 steps/s over the last 499, 12.2 job steps/s, the stream took 1% of that time, peak 2.32 GiB allocated, 2.38 GiB reserved
+[qhead_cf412om_bb100k_h30k_recon_lin_s20260722] [   1000] loss=1.635165  ema_loss=1.445472  1.9 sps  ETA 4.2h
+[qhead_cf412om_bb100k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412om_bb100k_h30k_recon_lin/qhead_cf412om_bb100k_h30k_recon_lin_s20260722_best.pth (ema_loss=1.445472)
+[qhead_cf412om_bb125k_h30k_recon_lin_s20260722] [   1000] loss=1.629715  ema_loss=1.459303  1.9 sps  ETA 4.2h
+[qhead_cf412om_bb125k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412om_bb125k_h30k_recon_lin/qhead_cf412om_bb125k_h30k_recon_lin_s20260722_best.pth (ema_loss=1.459303)
+[qhead_cf412om_bb150k_h30k_recon_lin_s20260722] [   1000] loss=1.629889  ema_loss=1.452034  1.9 sps  ETA 4.2h
+[qhead_cf412om_bb150k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412om_bb150k_h30k_recon_lin/qhead_cf412om_bb150k_h30k_recon_lin_s20260722_best.pth (ema_loss=1.452034)
+[qhead_cf412oc2_bb100k_h30k_recon_lin_s20260722] [   1000] loss=1.501656  ema_loss=1.311428  1.9 sps  ETA 4.2h
+[qhead_cf412oc2_bb100k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412oc2_bb100k_h30k_recon_lin/qhead_cf412oc2_bb100k_h30k_recon_lin_s20260722_best.pth (ema_loss=1.311428)
+[qhead_cf412oc2_bb200k_h30k_recon_lin_s20260722] [   1000] loss=1.490816  ema_loss=1.308816  1.9 sps  ETA 4.2h
+[qhead_cf412oc2_bb200k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412oc2_bb200k_h30k_recon_lin/qhead_cf412oc2_bb200k_h30k_recon_lin_s20260722_best.pth (ema_loss=1.308816)
+[qhead_cf412oc2_bb300k_h30k_recon_lin_s20260722] [   1000] loss=1.495219  ema_loss=1.308381  1.9 sps  ETA 4.2h
+[qhead_cf412oc2_bb300k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412oc2_bb300k_h30k_recon_lin/qhead_cf412oc2_bb300k_h30k_recon_lin_s20260722_best.pth (ema_loss=1.308381)
+[shared] 1000 steps: 1.91 steps/s since the start, 2.17 steps/s over the last 500, 13.0 job steps/s, the stream took 0% of that time, peak 2.34 GiB allocated, 2.40 GiB reserved

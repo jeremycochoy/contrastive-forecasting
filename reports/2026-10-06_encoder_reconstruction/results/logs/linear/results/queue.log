@@ -1,0 +1,21 @@
+[10-07 21:54:21] [#425 linear queue] start: 56 jobs, linear heads, lanes: gift_pretrain:0 gift_pretrain:0 gift_pretrain:1 old,gift_pretrain:1, code /home/jupyter/checkpoints_backup/cf-425-lin/code (557cb48e)
+[10-07 21:54:22] [#425 linear queue] lane 1 (gift_pretrain, GPU 0): wave /home/jupyter/checkpoints_backup/cf-425-lin/results/waves/gift_pretrain_1007_215422_z8Fb: 6 jobs: cf419_cos200k_bb100k_h30k_recon_lin cf419_cos200k_bb400k_h30k_recon_lin cf412om_bb10k_h30k_recon_lin cf412om_bb166k_h30k_recon_lin cf412oc_bb40k_h30k_recon_lin cf412oc2_bb40k_h30k_recon_lin 
+[10-07 21:54:52] [#425 linear queue] lane 2 (gift_pretrain, GPU 0): wave /home/jupyter/checkpoints_backup/cf-425-lin/results/waves/gift_pretrain_1007_215452_3hTt: 6 jobs: cf412oc2_bb400k_h30k_recon_lin cf412oe2_bb40k_h30k_recon_lin cf412oe2_bb200k_h30k_recon_lin cf412om2_bb10k_h30k_recon_lin cf412om2_bb125k_h30k_recon_lin cf412oa2_bb40k_h30k_recon_lin 
+[10-07 21:55:22] [#425 linear queue] lane 3 (gift_pretrain, GPU 1): wave /home/jupyter/checkpoints_backup/cf-425-lin/results/waves/gift_pretrain_1007_215522_uVu2: 6 jobs: cf412oa2_bb200k_h30k_recon_lin cf412ow2_bb40k_h30k_recon_lin cf412or2_bb40k_h30k_recon_lin cf412or2_bb200k_h30k_recon_lin cf412ol2_bb40k_h30k_recon_lin cf412bm_bb10k_h30k_recon_lin 
+[10-07 21:55:52] [#425 linear queue] lane 4 (old,gift_pretrain, GPU 1): wave /home/jupyter/checkpoints_backup/cf-425-lin/results/waves/old_1007_215551_dzI5: 9 jobs: k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_lin 
+[10-08 00:27:35] [#425 linear queue] lane 1 (gift_pretrain, GPU 0): wave rc=0
+[10-08 00:27:35] [#425 linear queue] lane 1 (gift_pretrain, GPU 0): wave /home/jupyter/checkpoints_backup/cf-425-lin/results/waves/gift_pretrain_1008_002735_Ztmx: 6 jobs: cf412bm_bb50k_h30k_recon_lin cf412bw_bb10k_h30k_recon_lin cf412bw_bb50k_h30k_recon_lin cf412al_bb10k_h30k_recon_lin cf412al_bb50k_h30k_recon_lin cf419ms_bb40k_h30k_recon_lin 
+[10-08 00:41:30] [#425 linear queue] score cf412om_bb10k_h30k_recon_lin rc=0
+[10-08 00:41:43] [#425 linear queue] score cf419_cos200k_bb100k_h30k_recon_lin rc=0
+[10-08 00:55:53] [#425 linear queue] score cf419_cos200k_bb400k_h30k_recon_lin rc=0
+[10-08 00:56:06] [#425 linear queue] score cf412om_bb166k_h30k_recon_lin rc=0
+[10-08 00:56:25] [#425 linear queue] lane 2 (gift_pretrain, GPU 0): wave rc=0
+[10-08 00:56:25] [#425 linear queue] lane 2 (gift_pretrain, GPU 0): wave /home/jupyter/checkpoints_backup/cf-425-lin/results/waves/gift_pretrain_1008_005625_J1wD: 6 jobs: cf419ms_bb140k_h30k_recon_lin cf419_cos200k_bb200k_h30k_recon_lin cf419_cos200k_bb300k_h30k_recon_lin cf412om_bb25k_h30k_recon_lin cf412om_bb50k_h30k_recon_lin cf412om_bb75k_h30k_recon_lin 
+[10-08 01:09:55] [#425 linear queue] score cf412oc2_bb40k_h30k_recon_lin rc=0
+[10-08 01:10:14] [#425 linear queue] score cf412oc_bb40k_h30k_recon_lin rc=0
+[10-08 01:23:55] [#425 linear queue] score cf412oc2_bb400k_h30k_recon_lin rc=0
+[10-08 01:24:42] [#425 linear queue] score cf412oe2_bb40k_h30k_recon_lin rc=0
+[10-08 01:28:02] [#425 linear queue] lane 3 (gift_pretrain, GPU 1): wave rc=0
+[10-08 01:28:02] [#425 linear queue] lane 3 (gift_pretrain, GPU 1): wave /home/jupyter/checkpoints_backup/cf-425-lin/results/waves/gift_pretrain_1008_012802_Zfmx: 6 jobs: cf412om_bb100k_h30k_recon_lin cf412om_bb125k_h30k_recon_lin cf412om_bb150k_h30k_recon_lin cf412oc2_bb100k_h30k_recon_lin cf412oc2_bb200k_h30k_recon_lin cf412oc2_bb300k_h30k_recon_lin 
+[10-08 01:39:20] [#425 linear queue] score cf412oe2_bb200k_h30k_recon_lin rc=0
+[10-08 01:39:59] [#425 linear queue] score cf412om2_bb10k_h30k_recon_lin rc=0
