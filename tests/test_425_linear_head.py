@@ -625,31 +625,75 @@ def plan_of(env, res):
     return [line.split() for line in r.stdout.splitlines()]
 
 
+def stream_waves(stream, size):
+    """``{(stream, wave): jobs}`` for the jobs of one stream of the real job
+    table, in waves of ``size`` jobs."""
+    count = sum(row[6] == stream for row in base.job_rows())
+    return {(stream, str(wave + 1)): min(size, count - wave * size)
+            for wave in range(-(-count // size))}
+
+
 def test_the_plan_of_the_transformer_queue_is_unchanged(tmp_path):
-    """The 56 jobs in the waves of round 2: the 9 old-data jobs in 1 wave,
-    and the GiftEvalPretrain jobs in waves of 12, 12, 12 and 11."""
+    """Each job of the job table in the waves of a queue with no head and no
+    score: the old-data jobs in waves of 10, and the GiftEvalPretrain jobs
+    in waves of 12."""
     plan = plan_of(real_job_box(tmp_path), tmp_path / "res")
-    assert len(plan) == 56 and all(p[5].endswith("_recon") for p in plan)
+    assert len(plan) == len(base.job_rows())
+    assert all(p[5].endswith("_recon") for p in plan)
     sizes = {}
     for stream, wave, *_ in plan:
         sizes[stream, wave] = sizes.get((stream, wave), 0) + 1
-    assert sizes == {("old", "1"): 9, ("gift_pretrain", "1"): 12,
-                     ("gift_pretrain", "2"): 12, ("gift_pretrain", "3"): 12,
-                     ("gift_pretrain", "4"): 11}
+    assert sizes == {**stream_waves("old", 10),
+                     **stream_waves("gift_pretrain", 12)}
 
 
-def test_the_plan_of_the_linear_queue_holds_the_56_jobs(tmp_path):
+def test_the_plan_of_the_linear_queue_holds_each_job(tmp_path):
     """The linear queue plans each job of the job table one time, under its
     linear tag, with tier 1 first in each lane."""
     env = dict(real_job_box(tmp_path), CF425_HEAD_ARCH="linear")
     plan = plan_of(env, tmp_path / "res_lin")
     tags = [p[5] for p in plan]
-    assert len(set(tags)) == 56 and all(t.endswith("_recon_lin") for t in tags)
+    assert len(set(tags)) == len(base.job_rows())
+    assert all(t.endswith("_recon_lin") for t in tags)
     for stream in ("old", "gift_pretrain"):
         lane = [p for p in plan if p[0] == stream]
         assert [int(p[1]) for p in lane] == sorted(int(p[1]) for p in lane)
         assert [p[2] for p in lane] == sorted(p[2] for p in lane)
-    assert sum(p[0] == "old" for p in plan) == 9
+    assert sum(p[0] == "old" for p in plan) == sum(
+        row[6] == "old" for row in base.job_rows())
+
+
+def score_each_job_but(res, suffix, run="ABC"):
+    """A score file for each job of the real job table but those of one run:
+    the state of a queue that ended before the card got that run."""
+    res.mkdir(parents=True, exist_ok=True)
+    for code, arm, stop_k, *_ in base.job_rows():
+        if code != run:
+            (res / f"score_{arm}_bb{stop_k}k_h30k_{suffix}.txt").write_text(
+                "0.5000\n")
+
+
+def abc_wave(plan, suffix):
+    """True when a plan is one old-data wave of the jobs of ABC and no other
+    job, with the first and the last stop of the run first."""
+    first, *between, last = base.CARD["ABC"]
+    stops = [f"{stop}k" for stop in (first, last, *between)]
+    return ([(p[0], p[1], p[3], p[4]) for p in plan]
+            == [("old", "1", "ABC", stop) for stop in stops]
+            and all(p[5].endswith(f"lr10x_bb{p[4]}_h30k_{suffix}")
+                    for p in plan))
+
+
+@pytest.mark.parametrize("arch, suffix", [("transformer", "recon"),
+                                          ("linear", "recon_lin")])
+def test_a_new_start_trains_the_abc_jobs_in_one_wave(tmp_path, arch, suffix):
+    """The card got ABC after the two queues ended. Each other job has its
+    score. So a new start of a queue trains the 10 jobs of ABC and no other
+    job, in one wave."""
+    res = tmp_path / "res"
+    score_each_job_but(res, suffix)
+    plan = plan_of(dict(real_job_box(tmp_path), CF425_HEAD_ARCH=arch), res)
+    assert len(plan) == 10 and abc_wave(plan, suffix)
 
 
 # ---------------------------------------------------------------------------
@@ -1137,7 +1181,7 @@ def run_elisa(env, *args, timeout=180):
                           timeout=timeout)
 
 
-def test_the_elisa_queue_plans_the_56_jobs_under_its_home_folder(tmp_path):
+def test_the_elisa_queue_plans_each_job_under_its_home_folder(tmp_path):
     """queue_elisa.sh: the linear queue with the folders of elisa. Each
     folder is under ~/checkpoints_backup/cf-425-lin, so a restart of elisa
     keeps the heads, the scores and the logs."""
@@ -1145,12 +1189,25 @@ def test_the_elisa_queue_plans_the_56_jobs_under_its_home_folder(tmp_path):
     r = run_elisa(dict(env, CF425_DRY_RUN="1"))
     assert r.returncode == 0, r.stdout + r.stderr
     plan = [line.split() for line in r.stdout.splitlines()]
-    assert len({p[5] for p in plan}) == 56
+    assert len({p[5] for p in plan}) == len(base.job_rows())
     assert all(p[5].endswith("_recon_lin") for p in plan)
     lin = home / "checkpoints_backup" / "cf-425-lin"
     assert (lin / "results").is_dir() and (lin / "ckpt" / "recon").is_dir()
     gift = [int(p[1]) for p in plan if p[0] == "gift_pretrain"]
     assert max(gift.count(wave) for wave in set(gift)) <= 8
+
+
+def test_a_new_start_of_the_elisa_queue_trains_the_abc_jobs_in_one_wave(
+        tmp_path):
+    """The folder of the linear queue of elisa holds the score of each job
+    but those of ABC. A new start trains the 10 jobs of ABC in one wave."""
+    home, env = elisa_home(tmp_path)
+    score_each_job_but(home / "checkpoints_backup" / "cf-425-lin" / "results",
+                       "recon_lin")
+    r = run_elisa(dict(env, CF425_DRY_RUN="1"))
+    assert r.returncode == 0, r.stdout + r.stderr
+    plan = [line.split() for line in r.stdout.splitlines()]
+    assert len(plan) == 10 and abc_wave(plan, "recon_lin")
 
 
 def test_the_elisa_queue_uses_two_gpus_and_keeps_no_state_in_tmp(tmp_path,
@@ -1457,14 +1514,15 @@ def test_collect_writes_one_table_of_the_scores_of_each_job(tmp_path):
         "OCB\t40\t\t\t\n")
 
 
-def test_the_table_of_the_jobs_holds_the_56_jobs_of_the_card(tmp_path):
-    """The real job table and the real scores of #412: 56 rows in the order
-    of the card. #412 gives the B4 forecast of each job but the 5 stops that
-    the card names: this card scores them (``forecast_425.tsv``)."""
+def test_the_table_of_the_jobs_holds_each_job_of_the_card(tmp_path):
+    """The real job table and the real scores of #412: one row for each job,
+    in the order of the job table. #412 gives the B4 forecast of each job
+    but the 5 stops that the card names: this card scores them
+    (``forecast_425.tsv``)."""
     collect = base.load_script("collect")
     collect.RESULTS = tmp_path                      # no table of this card
     rows = collect.job_scores()
-    assert len(rows) == 56
+    assert len(rows) == len(base.job_rows())
     assert [row[:2] for row in rows] == [[job[0], job[2]]
                                          for job in base.job_rows()]
     assert {(row[0], row[1]) for row in rows if not row[2]} == {
@@ -1565,6 +1623,18 @@ def test_a_floor_near_a_linear_score_is_on_the_chart(tmp_path):
     ax, = fig.axes
     flat = [line for line in ax.get_lines() if len(set(line.get_ydata())) == 1]
     assert [float(line.get_ydata()[0]) for line in flat] == [1.5721]
+
+
+def test_the_floors_table_names_each_arm_of_the_job_table():
+    """A figure reads the floor of a run in ``results/floors.tsv``, by the
+    arm of the run. So each arm of the job table is in the row of one
+    scaling setup, and an old-data arm is in the row of the old data."""
+    plot = base.load_script("plot_recon")
+    floors = plot.load_floors(plot.FLOORS)
+    arms = [arm for floor in floors for arm in sorted(floor["arms"])]
+    assert sorted(arms) == sorted({row[1] for row in base.job_rows()})
+    old, = [floor["arms"] for floor in floors if floor["setup"] == "ewma_old"]
+    assert old == {row[1] for row in base.job_rows() if row[6] == "old"}
 
 
 def test_the_figures_read_the_linear_table(tmp_path):

@@ -13,7 +13,8 @@
 #   * Four lanes, two for each GPU: one trainer process keeps a RTX 4090 busy
 #     72% of the time (probe.sh, 10-07), so two lanes use a GPU fully. Three
 #     lanes take their waves from GiftEvalPretrain. The fourth lane trains
-#     the 9 old-data jobs, then it also takes GiftEvalPretrain waves.
+#     the old-data jobs in waves of 10 (the 10 jobs of ABC make one wave),
+#     then it also takes GiftEvalPretrain waves.
 #   * Waves of 6 jobs on GiftEvalPretrain. The frozen backbone sets the rate
 #     of a job, so the size of a wave changes no rate, and elisa pays no
 #     download. A small wave gives its scores early, loses little at a stop,
@@ -56,7 +57,7 @@ export CF425_RES="${CF425_RES:-$BASE/results}"
 export GIFT_EVAL="${GIFT_EVAL:-$HOME/workspaces/gift-eval-data}"
 export CF425_LANES="${CF425_LANES:-gift_pretrain:0 gift_pretrain:0 gift_pretrain:1 old,gift_pretrain:1}"
 export CF425_WAVE_SIZE="${CF425_WAVE_SIZE:-6}"
-export CF425_OLD_WAVE_SIZE="${CF425_OLD_WAVE_SIZE:-9}"
+export CF425_OLD_WAVE_SIZE="${CF425_OLD_WAVE_SIZE:-10}"
 export CF425_TRAIN_THREADS="${CF425_TRAIN_THREADS:-4}"
 export CF425_EVAL_SLOTS="${CF425_EVAL_SLOTS:-2}"
 export CF425_WAVE_VRAM_MIB="${CF425_WAVE_VRAM_MIB:-6500}"

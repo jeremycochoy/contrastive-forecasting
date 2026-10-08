@@ -13,7 +13,8 @@
 # patch size and no weight (tests). So one checkpoint of each setup gives the
 # floor of all the runs of that setup:
 #   ewma_zero_pad  EWMA, zero padding (GiftEvalPretrain): BLK, OEF
-#   ewma_old       EWMA, no padding (the old data): CYN, MIN, TWN, LOW, LNG
+#   ewma_old       EWMA, no padding (the old data): CYN, MIN, TWN, LOW, LNG,
+#                  ABC
 #   meanstd        mean/std, zero padding: BMS and the other O* runs
 #
 # Writes results/floors.tsv (setup, label, arms, GM-Relative MASE) and the
@@ -34,7 +35,7 @@ export WT="${WT:-$(cd "$HERE/../../.." && pwd)}"
 # <setup> <code and stop of the checkpoint that scores it> <runs> <label>
 SETUPS="
 ewma_zero_pad BLK 100 BLK,OEF EWMA floor (zero padding)
-ewma_old LOW 665 CYN,MIN,TWN,LOW,LNG EWMA floor (old data)
+ewma_old LOW 665 CYN,MIN,TWN,LOW,LNG,ABC EWMA floor (old data)
 meanstd BMS 40 OMB,OCB,OCF,OMF,OAF,OWF,OWR,OWL,OBM,OBW,OAL,BMS mean/std floor
 "
 

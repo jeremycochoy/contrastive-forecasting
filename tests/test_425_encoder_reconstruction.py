@@ -1184,7 +1184,10 @@ SCRIPTS = STUDY / "scripts"
 JOBS = SCRIPTS / "jobs.tsv"
 
 # The card's table: each run of ours and its checkpoints on disk on 10-06.
+# ABC is not in that table: the external disk of elisa holds the checkpoint
+# of each of its scored stops.
 CARD = {
+    "ABC": (40, 100, 140, 180, 200, 240, 300, 360, 400, 460),
     "BLK": (100, 200, 300, 400),
     "OMB": (10, 25, 50, 75, 100, 125, 150, 166), "OCB": (40,),
     "OCF": (40, 100, 200, 300, 400), "OEF": (40, 100, 200),
@@ -1196,7 +1199,7 @@ CARD = {
 }
 
 
-OLD_RUNS = {"CYN", "MIN", "TWN", "LOW", "LNG"}
+OLD_RUNS = {"ABC", "CYN", "MIN", "TWN", "LOW", "LNG"}
 
 
 def job_rows(path=JOBS):
@@ -1209,7 +1212,7 @@ def test_the_job_table_holds_the_card_checkpoints():
                            / "scripts"))
     from run_style import CODE
     rows = job_rows()
-    assert len(rows) == 56
+    assert len(rows) == sum(len(stops) for stops in CARD.values())
     stops = {}
     for code, arm, stop_k, tier, ckpt, size, data in rows:
         assert CODE[arm] == code
