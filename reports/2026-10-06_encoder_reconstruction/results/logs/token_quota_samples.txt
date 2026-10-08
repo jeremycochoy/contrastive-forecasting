@@ -1,0 +1,81 @@
+# #425, run stage of 10-08: samples of the quota header of the Hugging Face token.
+# Each line: UTC time, r=<requests left in the window>;t=<seconds to the reset>, then the state of the waves.
+# One sample uses one request. The window is fixed: 300 s, 5,000 requests.
+
+## The second box wave of ABC alone (old data, 10 jobs)
+09:19:59 r=4993;t=62
+09:20:18 r=4992;t=43
+09:20:37 r=4991;t=23
+09:20:57 r=4988;t=4
+09:21:16 r=4999;t=285
+09:21:35 r=4998;t=266
+09:21:54 r=4995;t=247
+09:22:14 r=4994;t=227
+09:22:33 r=4993;t=208
+09:22:52 r=4992;t=189
+09:23:11 r=4989;t=170
+09:23:30 r=4988;t=150
+09:23:50 r=4987;t=131
+09:24:09 r=4984;t=112
+09:24:28 r=4983;t=93
+
+## The two ABC waves (old data): the box wave and the start of the elisa wave
+09:25:47 r=4978;t=14 :: elisa: [shared] 1 steps: 0.14 steps/s since the start, 0.14 steps/s over the 
+09:26:06 r=4999;t=295 :: elisa: [shared] 1 steps: 0.14 steps/s since the start, 0.14 steps/s over the 
+09:26:26 r=4998;t=275 :: elisa: [shared] 1 steps: 0.14 steps/s since the start, 0.14 steps/s over the 
+09:26:45 r=4995;t=256 :: elisa: [shared] 1 steps: 0.14 steps/s since the start, 0.14 steps/s over the 
+09:27:04 r=4992;t=237 :: elisa: [shared] 1 steps: 0.14 steps/s since the start, 0.14 steps/s over the 
+09:27:23 r=4991;t=218 :: elisa: [shared] 1 steps: 0.14 steps/s since the start, 0.14 steps/s over the 
+09:27:42 r=4990;t=198 :: elisa: [shared] 1 steps: 0.14 steps/s since the start, 0.14 steps/s over the 
+09:28:02 r=4986;t=179 :: elisa: [shared] 1 steps: 0.14 steps/s since the start, 0.14 steps/s over the 
+09:28:21 r=4984;t=160 :: elisa: [shared] 1 steps: 0.14 steps/s since the start, 0.14 steps/s over the 
+09:28:40 r=4983;t=141 :: elisa: [shared] 1 steps: 0.14 steps/s since the start, 0.14 steps/s over the 
+09:28:59 r=4980;t=122 :: elisa: [shared] 1 steps: 0.14 steps/s since the start, 0.14 steps/s over the 
+09:29:18 r=4977;t=102 :: elisa: [shared] 1 steps: 0.14 steps/s since the start, 0.14 steps/s over the 
+09:29:38 r=4976;t=83 :: elisa: [shared] 1 steps: 0.14 steps/s since the start, 0.14 steps/s over the 
+09:29:57 r=4975;t=64 :: elisa: [shared] 1 steps: 0.14 steps/s since the start, 0.14 steps/s over the 
+09:30:16 r=4972;t=45 :: elisa: [shared] 1 steps: 0.14 steps/s since the start, 0.14 steps/s over the 
+09:30:35 r=4971;t=26 :: elisa: [shared] 1 steps: 0.14 steps/s since the start, 0.14 steps/s over the 
+09:30:55 r=4970;t=6 :: elisa: [shared] 1 steps: 0.14 steps/s since the start, 0.14 steps/s over the 
+
+## The start of the first Moirai wave of the box (GiftEvalPretrain, 12 jobs), with the end of the elisa ABC wave
+13:52:36 r=4993;t=205 | elisa ABC: [shared] 29500 steps: 1.85 s | box: old_1008_091941_h3HY: [shared] done gpu 2 MiB
+13:53:04 r=4992;t=176 | elisa ABC: [shared] 29500 steps: 1.85 s 
+13:53:33 r=4991;t=148 | elisa ABC: [shared] 29500 steps: 1.85 s 
+13:54:04 r=4990;t=117 | elisa ABC: [shared] 29500 steps: 1.85 s | box: old_1008_091941_h3HY: [shared] done gpu 2 MiB
+13:54:32 r=4918;t=89 | elisa ABC: [shared] 29500 steps: 1.85 s 
+13:55:00 r=4696;t=60 | elisa ABC: [shared] 29500 steps: 1.85 s 
+13:55:32 r=4445;t=29 | elisa ABC: [shared] 29500 steps: 1.85 s | box: gift_pretrain_1008_135416_R4vG: [shared] 12 jobs on one stream: qhead_cf421f_moirai_native_bb10k_h30k_recon_s20260722, qhead_cf421f_moirai_native_bb166k gpu 2142 MiB
+13:56:00 r=4999;t=300 | elisa ABC: [shared] 29500 steps: 1.85 s 
+13:56:29 r=4978;t=272 | elisa ABC: [shared] 29500 steps: 1.85 s 
+13:57:00 r=4915;t=241 | elisa ABC: [shared] done | box: gift_pretrain_1008_135416_R4vG: [shared] 1 steps: 0.01 steps/s since the start, 0.01 steps/s over the last 1, 0.1 job steps/s, the stream took 99% of th gpu 7080 MiB
+13:57:28 r=4867;t=213 | elisa ABC: [shared] done 
+13:57:57 r=4812;t=184 | elisa ABC: [shared] done 
+13:58:28 r=4695;t=153 | elisa ABC: [shared] done | box: gift_pretrain_1008_135416_R4vG: [shared] 1 steps: 0.01 steps/s since the start, 0.01 steps/s over the last 1, 0.1 job steps/s, the stream took 99% of th gpu 7208 MiB
+13:58:56 r=4639;t=124 | elisa ABC: [shared] done 
+13:59:25 r=4571;t=96 | elisa ABC: [shared] done 
+13:59:56 r=4499;t=65 | elisa ABC: [shared] done | box: gift_pretrain_1008_135416_R4vG: [shared] 500 steps: 1.65 steps/s since the start, 2.27 steps/s over the last 499, 27.3 job steps/s, the stream took 5% o gpu 7248 MiB
+
+## The start of the 3 linear Moirai waves of elisa, beside the Moirai wave of the box
+15:05:38 r=4129;t=23 | 160502: 6 jobs on one stream: qhead_cf421f_moirai_native_ |  gpu 858 MiB 2 MiB 
+15:06:06 r=4989;t=295 | 160502: 1 steps: 0.02 steps/s since the start, 0.02 steps |  gpu 2836 MiB 2 MiB 
+15:06:34 r=4880;t=267 | 160502: 1 steps: 0.02 steps/s since the start, 0.02 steps |  gpu 2898 MiB 2 MiB 
+15:07:02 r=4746;t=238 | 160502: 1 steps: 0.02 steps/s since the start, 0.02 steps |  gpu 2898 MiB 2 MiB 
+15:07:31 r=4593;t=210 | 160502: 1 steps: 0.02 steps/s since the start, 0.02 steps |  gpu 2918 MiB 2 MiB 
+15:07:59 r=4405;t=182 | 160502: 1 steps: 0.02 steps/s since the start, 0.02 steps |  gpu 2918 MiB 2 MiB 
+15:08:27 r=4214;t=154 | 160502: 500 steps: 2.67 steps/s since the start, 3.71 ste |  gpu 2918 MiB 2 MiB 
+15:08:56 r=4073;t=125 | 160502: 500 steps: 2.67 steps/s since the start, 3.71 ste |  gpu 2938 MiB 2 MiB 
+15:09:24 r=3904;t=97 | 160502: 500 steps: 2.67 steps/s since the start, 3.71 ste |  gpu 2938 MiB 2 MiB 
+15:09:52 r=3735;t=69 | 160502: 500 steps: 2.67 steps/s since the start, 3.71 ste |  gpu 2938 MiB 2 MiB 
+15:10:20 r=3429;t=40 | 161002: 6 jobs on one stream: qhead_cf421f_moirai_native_ | 160502: 1000 steps: 3.20 steps/s since the start, 3.99 st |  gpu 3792 MiB 2 MiB 
+15:10:49 r=2933;t=12 | 161002: 6 jobs on one stream: qhead_cf421f_moirai_native_ | 160502: 1000 steps: 3.20 steps/s since the start, 3.99 st |  gpu 3792 MiB 2 MiB 
+15:12:20 r=4524;t=221 | 160502: 1000 steps: 33.99 | 161002: 1 steps: 0.020.02 |  gpu 5830 MiB, 95 % 2 MiB, 0 % 
+15:12:48 r=4347;t=193 | 160502: 1000 steps: 33.99 | 161002: 1 steps: 0.020.02 |  gpu 5850 MiB, 91 % 2 MiB, 0 % 
+15:13:16 r=4109;t=164 | 160502: 1500 steps: 32.96 | 161002: 1 steps: 0.020.02 |  gpu 5870 MiB, 95 % 2 MiB, 0 % 
+15:13:45 r=3900;t=136 | 160502: 1500 steps: 32.96 | 161002: 1 steps: 0.020.02 |  gpu 5870 MiB, 93 % 2 MiB, 0 % 
+15:14:13 r=3671;t=108 | 160502: 1500 steps: 32.96 | 161002: 500 steps: 2.2.75 |  gpu 5870 MiB, 95 % 2 MiB, 0 % 
+15:14:41 r=3513;t=80 | 160502: 1500 steps: 32.96 | 161002: 500 steps: 2.2.75 |  gpu 5870 MiB, 36 % 2 MiB, 0 % 
+15:15:10 r=3291;t=51 | 160502: 1500 steps: 32.96 | 161002: 500 steps: 2.2.75 | 161502: 5 jobs on one |  gpu 5870 MiB, 98 % 790 MiB, 0 % 
+15:15:38 r=2797;t=23 | 160502: 1500 steps: 32.96 | 161002: 500 steps: 2.2.75 | 161502: 5 jobs on one |  gpu 5950 MiB, 91 % 790 MiB, 0 % 
+15:16:06 r=4952;t=294 | 160502: 1500 steps: 32.96 | 161002: 500 steps: 2.2.75 | 161502: 1 steps: 0.020.02 |  gpu 5950 MiB, 90 % 2708 MiB, 64 % 
+15:16:35 r=4688;t=266 | 160502: 2000 steps: 22.42 | 161002: 500 steps: 2.2.75 | 161502: 1 steps: 0.020.02 |  gpu 5950 MiB, 97 % 2770 MiB, 0 % 

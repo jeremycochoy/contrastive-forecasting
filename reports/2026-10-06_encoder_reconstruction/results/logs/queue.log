@@ -95,3 +95,25 @@
 [10-08 13:52:16] [#425 queue] start: 83 jobs, transformer heads, lanes: old:0 gift_pretrain:0, code /workspace/cf-425-moirai (3a23c579)
 [10-08 13:52:16] [#425 queue] lane 1 (old, GPU 0): done
 [10-08 13:54:16] [#425 queue] lane 2 (gift_pretrain, GPU 0): wave /workspace/results/cf-425/waves/gift_pretrain_1008_135416_R4vG: 12 jobs: cf421f_moirai_native_bb10k_h30k_recon cf421f_moirai_native_bb166k_h30k_recon cf421ew_moirai_native_bb10k_h30k_recon cf421ew_moirai_native_bb166k_h30k_recon cf421f_moirai_native_bb20k_h30k_recon cf421f_moirai_native_bb25k_h30k_recon cf421f_moirai_native_bb50k_h30k_recon cf421f_moirai_native_bb75k_h30k_recon cf421f_moirai_native_bb100k_h30k_recon cf421f_moirai_native_bb125k_h30k_recon cf421f_moirai_native_bb150k_h30k_recon cf421ew_moirai_native_bb25k_h30k_recon 
+[10-08 17:24:37] [#425 queue] lane 2 (gift_pretrain, GPU 0): wave rc=0
+[10-08 17:24:37] [#425 queue] lane 2 (gift_pretrain, GPU 0): wave /workspace/results/cf-425/waves/gift_pretrain_1008_172437_MX3S: 5 jobs: cf421ew_moirai_native_bb50k_h30k_recon cf421ew_moirai_native_bb75k_h30k_recon cf421ew_moirai_native_bb100k_h30k_recon cf421ew_moirai_native_bb125k_h30k_recon cf421ew_moirai_native_bb150k_h30k_recon 
+[10-08 17:36:59] [#425 queue] score cf421f_moirai_native_bb50k_h30k_recon rc=0
+[10-08 17:37:13] [#425 queue] score cf421ew_moirai_native_bb166k_h30k_recon rc=0
+[10-08 17:49:38] [#425 queue] score cf421f_moirai_native_bb100k_h30k_recon rc=0
+[10-08 17:50:00] [#425 queue] score cf421f_moirai_native_bb25k_h30k_recon rc=0
+[10-08 18:02:16] [#425 queue] score cf421f_moirai_native_bb125k_h30k_recon rc=0
+[10-08 18:02:34] [#425 queue] score cf421f_moirai_native_bb10k_h30k_recon rc=0
+[10-08 18:14:31] [#425 queue] score cf421f_moirai_native_bb150k_h30k_recon rc=0
+[10-08 18:15:00] [#425 queue] score cf421ew_moirai_native_bb10k_h30k_recon rc=0
+[10-08 18:27:08] [#425 queue] score cf421f_moirai_native_bb20k_h30k_recon rc=0
+[10-08 18:27:45] [#425 queue] score cf421f_moirai_native_bb166k_h30k_recon rc=0
+[10-08 18:39:53] [#425 queue] score cf421ew_moirai_native_bb25k_h30k_recon rc=0
+[10-08 18:40:07] [#425 queue] score cf421f_moirai_native_bb75k_h30k_recon rc=0
+[10-08 19:36:09] [#425 queue] lane 2 (gift_pretrain, GPU 0): wave rc=0
+[10-08 19:47:52] [#425 queue] score cf421ew_moirai_native_bb50k_h30k_recon rc=0
+[10-08 19:48:17] [#425 queue] score cf421ew_moirai_native_bb125k_h30k_recon rc=0
+[10-08 20:00:01] [#425 queue] score cf421ew_moirai_native_bb150k_h30k_recon rc=0
+[10-08 20:00:22] [#425 queue] score cf421ew_moirai_native_bb100k_h30k_recon rc=0
+[10-08 20:11:53] [#425 queue] score cf421ew_moirai_native_bb75k_h30k_recon rc=0
+[10-08 20:11:53] [#425 queue] lane 2 (gift_pretrain, GPU 0): done
+[10-08 20:11:53] [#425 queue] QUEUE_END: 83 scores
