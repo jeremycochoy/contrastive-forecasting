@@ -1,19 +1,21 @@
 # The encoder alone through training: the GM-Relative MASE of a reconstruction head
 
-Between the kept checkpoints, the encoder alone stays the same in 4 of 5 EWMA runs and gets worse in 3 of 9 mean/std runs. The 7 other runs give no clear answer, and no run gets better with both heads.
+Between the kept checkpoints, the encoder alone stays the same in 4 EWMA runs and gets worse in 3 mean/std runs. The 7 other runs with 2 or more kept checkpoints (1 EWMA, 6 mean/std) give no clear answer, and no run gets better with both heads.
 
 R is the GM-Relative MASE of a head that decodes the true horizon from the encoder latents of that horizon. Each checkpoint has two heads with one seed each: a transformer head and a linear head. The head noise is the change of R between two snapshots of one head training (an open marker and its dot).
 
 ![recon_all](plots/recon_all.png)
 *R of each checkpoint, all 19 runs.*
 
-A run is "worse" when each head gets more than 50% worse. A run is "same" when each head changes by less than 25% and a snapshot measures its head noise at less than 20%.
+From the first to the last kept checkpoint, a run is "worse" when each head gets more than 50% worse. It is "same" when each head changes by less than 25% and its measured head noise is under 20%.
 
 ![recon_ours_one_patch_size](plots/recon_ours_one_patch_size.png)
 *R of the runs with one patch size.*
 
 ![recon_ours_patch_sizes](plots/recon_ours_patch_sizes.png)
 *R of the runs with patch sizes 8 to 128.*
+
+OMB, OMF and OBM end at an R of 0.83 to 1.09, and the floor of mean/std is 1.57.
 
 ![recon_selected](plots/recon_selected.png)
 *R of the selected runs: all runs but TWN and OCB.*
@@ -31,6 +33,14 @@ A run is "worse" when each head gets more than 50% worse. A run is "same" when e
 *The forecast score and R of the selected runs.*
 
 ## Verdict of each run
+
+The rule compares the first and the last kept checkpoint of a run.
+
+| Encoder alone | Rule |
+|---|---|
+| worse | Each of the two heads gets more than 50% worse. |
+| same | Each of the two heads changes by less than 25%. One or more heads of the run have a noise measure, and each measure is under 20%. |
+| no clear answer | The other runs. |
 
 Each score cell gives the score at the first and at the last kept checkpoint, and the ratio of the last score to the first. The checkpoint cell gives the two steps and the number of kept checkpoints. OMB, OMF, OBM, OBW and OAL count their steps at batch 256. The head noise is that of the transformer head, at the checkpoint in parentheses.
 
