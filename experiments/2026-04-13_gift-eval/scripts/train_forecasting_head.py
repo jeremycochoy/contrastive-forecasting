@@ -32,7 +32,8 @@ import torch.optim as optim
 
 from src.models import ConfigurableModel, count_parameters
 from src.checkpoint import (gru_input_bound_of, multi_patch_sizes_of,
-                            prepare_backbone_state_dict, save_atomic,
+                            prepare_backbone_state_dict,
+                            reconstruction_latent_of, save_atomic,
                             save_encoder_source)
 from src.dataloader import create_hf_dataloader, create_mixed_periodic_dataloader
 from src.freq_embedding import vocab_of_rows
@@ -54,6 +55,7 @@ from src.forecasting_head import (
     FORECAST_LEN,
     extract_forecaster_latents,
     extract_encoder_latents,
+    extract_reconstruction_latents,
     rollout_latent,
     compute_valid_targets,
     masked_quantile_loss,
@@ -178,7 +180,11 @@ def parse_args(argv=None):
                    choices=["forecaster", "encoder"],
                    help="Train as RECONSTRUCTION head (time-aligned targets). "
                         "'forecaster': f[t]→patch t+1 values. "
-                        "'encoder': e[t]→patch t values. "
+                        "'encoder': e[t]→patch t values. On a checkpoint "
+                        "with a value head (#415, a copy of Moirai), the "
+                        "latent of patch t is the output of the whole "
+                        "transformer, f[t]: the vector that its value head "
+                        "reads (#425). "
                         "If not set, uses old prediction targets (head predicts future).")
     p.add_argument("--encoder-type", default=None,
                    choices=["mlp", "mlp_wide", "residual_silu", "gru", "conv"],
@@ -660,6 +666,9 @@ class HeadJob:
         self.zero_pad = config["rev_norm_skip_leading_zeros"]
         self.patch_sizes = config["multi_patch_sizes"]
         self.use_bank = bool(self.patch_sizes) or args.rev_norm_kind == "meanstd"
+        # #425: the latent that --reconstruction encoder reads. The eval
+        # reads it off the same checkpoint.
+        self.recon_latent = reconstruction_latent_of(sd)
         freq_w = sd.get("freq_embedding.embedding.weight")
         self.freq_vocab = vocab_of_rows(freq_w.shape[0]) if freq_w is not None else "v1"
         self.emit_labels = (args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0)
@@ -793,6 +802,10 @@ class HeadJob:
         if args.reconstruction:
             print(f"RECONSTRUCTION mode: {args.reconstruction} "
                   f"(head decodes what latent represents, not future)")
+        if args.reconstruction == "encoder" and self.recon_latent == "output":
+            print("  The checkpoint holds a value head (#415, a copy of "
+                  "Moirai): the head reads the output of the transformer at "
+                  "each patch, the latent that the value head reads.")
         if args.mixed_rollout > 0:
             print(f"Mixed-rollout mode: {args.mixed_rollout} rolled tokens per step "
                   f"(48 context patches + {args.mixed_rollout} rolled)")
@@ -850,7 +863,8 @@ class HeadJob:
                 loss = bank_quantile_loss(
                     backbone, head, x_norm, sample_sizes, keep,
                     freq_ids=freq_ids, seasonality_ids=seasonality_ids,
-                    reconstruction=args.reconstruction == "encoder")
+                    reconstruction=args.reconstruction == "encoder",
+                    latent=self.recon_latent)
             elif args.mixed_rollout > 0:
                 # Mixed training: use first 48 patches as context, roll out N tokens
                 N_roll = args.mixed_rollout
@@ -904,8 +918,8 @@ class HeadJob:
             elif args.reconstruction == 'encoder' and args.quantile_head:
                 # #425: the B4 quantile head on e[t] → patch t values, on
                 # the pinball loss. Left padding (#419) counts in no term.
-                e_bc, x_norm = extract_encoder_latents(
-                    backbone, x, freq_ids=freq_ids,
+                e_bc, x_norm = extract_reconstruction_latents(
+                    backbone, x, self.recon_latent, freq_ids=freq_ids,
                     seasonality_ids=seasonality_ids)
                 keep = ~backbone.rev_norm.pad_mask if zero_pad else None
                 loss = reconstruction_quantile_loss(
@@ -914,8 +928,8 @@ class HeadJob:
 
             elif args.reconstruction == 'encoder':
                 # Encoder reconstruction: e[t] → patch t values
-                e_bc, x_norm = extract_encoder_latents(
-                    backbone, x, freq_ids=freq_ids,
+                e_bc, x_norm = extract_reconstruction_latents(
+                    backbone, x, self.recon_latent, freq_ids=freq_ids,
                     seasonality_ids=seasonality_ids)
                 targets, T_valid = compute_reconstruction_targets(
                     x_norm, W=W, output_len=args.forecast_len, mode='encoder')

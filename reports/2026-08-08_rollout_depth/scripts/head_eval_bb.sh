@@ -18,6 +18,10 @@
 #                              values of its own patch, and the eval scores
 #                              that reconstruction of the true horizon
 #                              (strategy R). The tag must end in `_recon`.
+#                              For a copy of Moirai (a checkpoint with a
+#                              value head), the head trainer and the eval
+#                              read the output of the transformer: the
+#                              latent that the value head reads.
 #   HEAD_SAVE_EVERY            the head snapshot interval (default 5000).
 #   HEAD_LOG_EVERY             the steps between two log lines of the head
 #                              trainer (default 500). A short probe of a

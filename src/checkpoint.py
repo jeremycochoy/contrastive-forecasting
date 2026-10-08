@@ -382,6 +382,24 @@ def save_atomic(obj, path: str) -> None:
     os.replace(tmp, path)
 
 
+def reconstruction_latent_of(state_dict: dict) -> str:
+    """The latent that a reconstruction head reads on a checkpoint (#425).
+
+    ``'output'`` for a checkpoint of the value-space objective (#415, our
+    copy of Moirai). It holds a value head (``value_head.*``, or
+    ``value_heads.<P>.*`` for patch sizes), and that head reads the output
+    of the whole transformer. No loss reads another latent of that model.
+
+    ``'encoder'`` for each other checkpoint: the encoder latent, the target
+    of the contrastive loss.
+
+    The head trainer and the eval read the kind off the same checkpoint, so
+    a head is always scored on the latent that it trained on.
+    """
+    has_value_head = any(k.startswith("value_head") for k in state_dict)
+    return "output" if has_value_head else "encoder"
+
+
 def load_backbone_from_checkpoint(
     checkpoint_path: str,
     device,

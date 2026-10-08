@@ -161,6 +161,14 @@ that patch. The loss counts the same values as above. A backbone with one
 patch size trains one quantile head on this target, and its zero padding
 counts in no term.
 
+A copy of Moirai (#415, `--value-space-objective`) has no loss on its encoder
+latent. Its value head reads the output of the whole transformer, so that
+output is its one latent. On a checkpoint with a value head, the head of
+`--reconstruction encoder` reads the transformer output of each patch and
+decodes the values of that patch. Strategy R reads the same latent. The two
+scripts read the kind off the checkpoint (`reconstruction_latent_of`), so
+they need no flag and they always agree.
+
 `eval_gift_eval_official.py` loads the bank, checks that its sizes are the
 backbone's, and gives each config the head of its frequency's inference
 size. Strategy B4 reads the context at that size and rolls out one latent per

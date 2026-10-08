@@ -64,6 +64,7 @@ from src.checkpoint import (
     load_encoder_source,
     multi_patch_sizes_of,
     prepare_backbone_state_dict,
+    reconstruction_latent_of,
 )
 from src.forecasting_head import (
     ForecastingHead,
@@ -375,12 +376,16 @@ class ReconstructionPredictor(ContrastiveForecasterPredictor):
     (:func:`reconstruct_windows`). The model sees the future, so the MASE of
     the result measures the encoder, not a forecast. The windows of one
     config share their lengths, so ``batch_size`` windows run in one pass.
+    ``latent`` names the latent that the head reads: the encoder latent, or
+    ``'output'`` for the head of a copy of Moirai.
     """
 
-    def __init__(self, *args, labels, batch_size=64, **kwargs):
+    def __init__(self, *args, labels, batch_size=64, latent="encoder",
+                 **kwargs):
         super().__init__(*args, **kwargs)
         self.labels = labels
         self.batch_size = batch_size
+        self.latent = latent
 
     def predict(self, dataset: GluonTSDataset, **kwargs) -> Iterator[Forecast]:
         pairs = []
@@ -410,7 +415,7 @@ class ReconstructionPredictor(ContrastiveForecasterPredictor):
             futures.append(torch.from_numpy(future)[:, None])
         raw = reconstruct_windows(self.backbone, self.head,
                                   torch.stack(contexts), torch.stack(futures),
-                                  self.device)
+                                  self.device, latent=self.latent)
         for (item, _), out in zip(pairs, raw):
             yield self.to_forecast(out, item)
 
@@ -474,7 +479,10 @@ def parse_args():
                    help="Forecast rollout strategy (default: A1). R (#425) "
                         "is not a forecast: the encoder reads the context "
                         "and the true horizon, and a reconstruction head "
-                        "decodes the horizon patches.")
+                        "decodes the horizon patches. The head reads the "
+                        "encoder latent. On a checkpoint with a value head "
+                        "(#415, a copy of Moirai), it reads the output of "
+                        "the whole transformer, as the head trainer does.")
     p.add_argument("--zero-head", action="store_true",
                    help="R only (#425): score the floor of R. A head with no "
                         "weights gives the normalised value 0, so each value "
@@ -707,6 +715,11 @@ def load_models(args, device):
     # Auto-detect freq_emb_dim and seasonality_emb_dim so backbones
     # trained with either / both axes load cleanly without CLI flags.
     sd = torch.load(args.backbone_path, map_location=device, weights_only=True)
+    # #425: the latent that a reconstruction head of this checkpoint reads.
+    # The head trainer reads it off the same checkpoint.
+    args.reconstruction_latent = reconstruction_latent_of(sd)
+    if args.strategy == "R":
+        print(f"  [eval] reconstruction latent: {args.reconstruction_latent}")
     # A multi-patch backbone (#417) holds one patch encoder per patch size.
     # Its own value heads score it (A2V), or a head bank with one head per
     # size, trained on the frozen backbone (#412).
@@ -1024,7 +1037,8 @@ def main():
                 )
                 if args.strategy == "R":
                     predictor = ReconstructionPredictor(
-                        labels=test_data.label, **predictor_kwargs)
+                        labels=test_data.label,
+                        latent=args.reconstruction_latent, **predictor_kwargs)
                 else:
                     predictor = ContrastiveForecasterPredictor(
                         **predictor_kwargs)
