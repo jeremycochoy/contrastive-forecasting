@@ -1,0 +1,186 @@
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/k3_r100_09_lr56_fix09_dec10k_lr10x/arm6_v2_combab_alignT/leg_40k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_fix09_dec10k_lr10x_40k.pth (0 params, frozen, encoder=student)
+/workspace/cf-425/src/forecasting_head.py:188: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.transformer = nn.TransformerEncoder(layer, num_layers=num_layers)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_s20260722] Forecasting head [transformer-q (2L H384 nhead8 causal)]: 3,605,136 trainable params
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb460k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb460k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb460k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb460k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb460k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/k3_r100_09_lr56_fix09_dec10k_lr10x/arm6_v2_combab_alignT/leg_460k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_fix09_dec10k_lr10x_r2_460k.pth (0 params, frozen, encoder=student)
+/workspace/cf-425/src/forecasting_head.py:188: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.transformer = nn.TransformerEncoder(layer, num_layers=num_layers)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb460k_h30k_recon_s20260722] Forecasting head [transformer-q (2L H384 nhead8 causal)]: 3,605,136 trainable params
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb460k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb460k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb100k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb100k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb100k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb100k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb100k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/k3_r100_09_lr56_fix09_dec10k_lr10x/arm6_v2_combab_alignT/leg_100k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_fix09_dec10k_lr10x_100k.pth (0 params, frozen, encoder=student)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb100k_h30k_recon_s20260722] Forecasting head [transformer-q (2L H384 nhead8 causal)]: 3,605,136 trainable params
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb100k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb100k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb140k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb140k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb140k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb140k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb140k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/k3_r100_09_lr56_fix09_dec10k_lr10x/arm6_v2_combab_alignT/leg_140k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_fix09_dec10k_lr10x_140k.pth (0 params, frozen, encoder=student)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb140k_h30k_recon_s20260722] Forecasting head [transformer-q (2L H384 nhead8 causal)]: 3,605,136 trainable params
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb140k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb140k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb180k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb180k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb180k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb180k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb180k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/k3_r100_09_lr56_fix09_dec10k_lr10x/arm6_v2_combab_alignT/leg_180k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_fix09_dec10k_lr10x_180k.pth (0 params, frozen, encoder=student)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb180k_h30k_recon_s20260722] Forecasting head [transformer-q (2L H384 nhead8 causal)]: 3,605,136 trainable params
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb180k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb180k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb200k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb200k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb200k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb200k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb200k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/k3_r100_09_lr56_fix09_dec10k_lr10x/arm6_v2_combab_alignT/leg_200k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_fix09_dec10k_lr10x_200k.pth (0 params, frozen, encoder=student)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb200k_h30k_recon_s20260722] Forecasting head [transformer-q (2L H384 nhead8 causal)]: 3,605,136 trainable params
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb200k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb200k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/k3_r100_09_lr56_fix09_dec10k_lr10x/arm6_v2_combab_alignT/leg_240k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_fix09_dec10k_lr10x_240k.pth (0 params, frozen, encoder=student)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon_s20260722] Forecasting head [transformer-q (2L H384 nhead8 causal)]: 3,605,136 trainable params
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb300k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb300k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb300k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb300k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb300k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/k3_r100_09_lr56_fix09_dec10k_lr10x/arm6_v2_combab_alignT/leg_300k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_fix09_dec10k_lr10x_300k.pth (0 params, frozen, encoder=student)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb300k_h30k_recon_s20260722] Forecasting head [transformer-q (2L H384 nhead8 causal)]: 3,605,136 trainable params
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb300k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb300k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb360k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb360k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb360k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb360k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb360k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/k3_r100_09_lr56_fix09_dec10k_lr10x/arm6_v2_combab_alignT/leg_360k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_fix09_dec10k_lr10x_360k.pth (0 params, frozen, encoder=student)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb360k_h30k_recon_s20260722] Forecasting head [transformer-q (2L H384 nhead8 causal)]: 3,605,136 trainable params
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb360k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb360k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb400k_h30k_recon_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb400k_h30k_recon_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb400k_h30k_recon_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb400k_h30k_recon_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb400k_h30k_recon_s20260722] Backbone loaded from /workspace/ckpt/k3_r100_09_lr56_fix09_dec10k_lr10x/arm6_v2_combab_alignT/leg_400k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_fix09_dec10k_lr10x_400k.pth (0 params, frozen, encoder=student)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb400k_h30k_recon_s20260722] Forecasting head [transformer-q (2L H384 nhead8 causal)]: 3,605,136 trainable params
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb400k_h30k_recon_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb400k_h30k_recon_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_s20260722] Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20280722, emit_labels=True
+[shared] 10 jobs on one stream: qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_s20260722, qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb460k_h30k_recon_s20260722, qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb100k_h30k_recon_s20260722, qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb140k_h30k_recon_s20260722, qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb180k_h30k_recon_s20260722, qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb200k_h30k_recon_s20260722, qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon_s20260722, qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb300k_h30k_recon_s20260722, qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb360k_h30k_recon_s20260722, qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb400k_h30k_recon_s20260722
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_s20260722_losses.csv
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_s20260722] 
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_s20260722_*.pth
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb460k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10x_bb460k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb460k_h30k_recon_s20260722_losses.csv
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb460k_h30k_recon_s20260722] 
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb460k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb460k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb460k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10x_bb460k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb460k_h30k_recon_s20260722_*.pth
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb100k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10x_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb100k_h30k_recon_s20260722_losses.csv
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb100k_h30k_recon_s20260722] 
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb100k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb100k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb100k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10x_bb100k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb100k_h30k_recon_s20260722_*.pth
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb140k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10x_bb140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb140k_h30k_recon_s20260722_losses.csv
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb140k_h30k_recon_s20260722] 
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb140k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb140k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb140k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10x_bb140k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb140k_h30k_recon_s20260722_*.pth
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb180k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10x_bb180k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb180k_h30k_recon_s20260722_losses.csv
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb180k_h30k_recon_s20260722] 
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb180k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb180k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb180k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10x_bb180k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb180k_h30k_recon_s20260722_*.pth
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb200k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10x_bb200k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb200k_h30k_recon_s20260722_losses.csv
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb200k_h30k_recon_s20260722] 
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb200k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb200k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb200k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10x_bb200k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb200k_h30k_recon_s20260722_*.pth
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon_s20260722_losses.csv
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon_s20260722] 
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon_s20260722_*.pth
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb300k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10x_bb300k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb300k_h30k_recon_s20260722_losses.csv
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb300k_h30k_recon_s20260722] 
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb300k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb300k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb300k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10x_bb300k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb300k_h30k_recon_s20260722_*.pth
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb360k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10x_bb360k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb360k_h30k_recon_s20260722_losses.csv
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb360k_h30k_recon_s20260722] 
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb360k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb360k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb360k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10x_bb360k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb360k_h30k_recon_s20260722_*.pth
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb400k_h30k_recon_s20260722] Loss CSV: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10x_bb400k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb400k_h30k_recon_s20260722_losses.csv
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb400k_h30k_recon_s20260722] 
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb400k_h30k_recon_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb400k_h30k_recon_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb400k_h30k_recon_s20260722] Checkpoints: /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10x_bb400k_h30k_recon/qhead_k3_r100_09_lr56_fix09_dec10k_lr10x_bb400k_h30k_recon_s20260722_*.pth
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/dist-packages/huggingface_hub/utils/_http.py", line 402, in hf_raise_for_status
+    response.raise_for_status()
+  File "/usr/local/lib/python3.12/dist-packages/requests/models.py", line 1167, in raise_for_status
+    raise HTTPError(http_error_msg, response=self)
+requests.exceptions.HTTPError: 429 Client Error: Too Many Requests for url: https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00000.parquet
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/workspace/cf-425/experiments/2026-04-13_gift-eval/scripts/train_forecasting_heads_shared.py", line 195, in <module>
+    main()
+  File "/workspace/cf-425/experiments/2026-04-13_gift-eval/scripts/train_forecasting_heads_shared.py", line 190, in main
+    train(members, loader)
+  File "/workspace/cf-425/experiments/2026-04-13_gift-eval/scripts/train_forecasting_heads_shared.py", line 150, in train
+    batch = next(data_iter)
+            ^^^^^^^^^^^^^^^
+  File "/workspace/cf-425/src/dataloader.py", line 784, in __iter__
+    hf_batch = next(hf_iter)
+               ^^^^^^^^^^^^^
+  File "/workspace/cf-425/src/dataloader.py", line 196, in __iter__
+    raise item
+  File "/workspace/cf-425/src/dataloader.py", line 163, in _producer
+    for item in self._iterable:
+  File "/workspace/cf-425/src/dataloader.py", line 498, in _raw_iter
+    row = next(row_iter)
+          ^^^^^^^^^^^^^^
+  File "/workspace/cf-425/src/dataloader.py", line 332, in _pyarrow_stream_from_shards
+    pf = pq.ParquetFile(f)
+         ^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/pyarrow/parquet/core.py", line 331, in __init__
+    self.reader.open(
+  File "pyarrow/_parquet.pyx", line 1676, in pyarrow._parquet.ParquetReader.open
+  File "pyarrow/error.pxi", line 89, in pyarrow.lib.check_status
+  File "/usr/local/lib/python3.12/dist-packages/huggingface_hub/hf_file_system.py", line 1016, in read
+    return super().read(length)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/fsspec/spec.py", line 1856, in read
+    out = self.cache._fetch(self.loc, self.loc + length)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/fsspec/caching.py", line 189, in _fetch
+    self.cache = self.fetcher(start, end)  # new block replaces old
+                 ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/huggingface_hub/hf_file_system.py", line 977, in _fetch_range
+    hf_raise_for_status(r)
+  File "/usr/local/lib/python3.12/dist-packages/huggingface_hub/utils/_http.py", line 475, in hf_raise_for_status
+    raise _format(HfHubHTTPError, str(e), response) from e
+huggingface_hub.errors.HfHubHTTPError: 429 Client Error: Too Many Requests for url: https://huggingface.co/datasets/jeremycochoy/gift-pretrain-full-4096/resolve/main/small_v1/shard_00000.parquet (Request ID: Root=1-6ac75e1d-4702d4197b7d762202d52989;153cadfe-7328-4f09-9fbd-549c429a5d4b)
+
+We had to rate limit you, you hit the quota of 5000 resolvers requests per 5 minutes period. Upgrade to a PRO user or Team/Enterprise organization account (https://hf.co/pricing) to get higher limits. See https://huggingface.co/docs/hub/rate-limits

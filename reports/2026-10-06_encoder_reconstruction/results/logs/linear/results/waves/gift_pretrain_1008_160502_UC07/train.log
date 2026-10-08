@@ -1,0 +1,97 @@
+[qhead_cf421f_moirai_native_bb10k_h30k_recon_lin_s20260722]   [head-train] the checkpoint names the mean/std scaling (#421); --rev-norm-kind ewma is not read
+[qhead_cf421f_moirai_native_bb10k_h30k_recon_lin_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf421f_moirai_native_bb10k_h30k_recon_lin_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf421f_moirai_native_bb10k_h30k_recon_lin_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf421f_moirai_native_bb10k_h30k_recon_lin_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf421f_moirai_native_bb10k_h30k_recon_lin_s20260722] Backbone loaded from /home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-421f/value_space/leg_10k/cf421f_moirai_k3_10k.pth (0 params, frozen, encoder=student)
+[qhead_cf421f_moirai_native_bb10k_h30k_recon_lin_s20260722] Forecasting head [bank of 5 heads, sizes (8, 16, 32, 64, 128), each linear-probe quantile (9 levels) decoding its P values (#412)]: 859,320 trainable params
+[qhead_cf421f_moirai_native_bb10k_h30k_recon_lin_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf421f_moirai_native_bb10k_h30k_recon_lin_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf421f_moirai_native_bb166k_h30k_recon_lin_s20260722]   [head-train] the checkpoint names the mean/std scaling (#421); --rev-norm-kind ewma is not read
+[qhead_cf421f_moirai_native_bb166k_h30k_recon_lin_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf421f_moirai_native_bb166k_h30k_recon_lin_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf421f_moirai_native_bb166k_h30k_recon_lin_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf421f_moirai_native_bb166k_h30k_recon_lin_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf421f_moirai_native_bb166k_h30k_recon_lin_s20260722] Backbone loaded from /home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-421f/value_space/leg_166k/cf421f_moirai_k3_166k.pth (0 params, frozen, encoder=student)
+[qhead_cf421f_moirai_native_bb166k_h30k_recon_lin_s20260722] Forecasting head [bank of 5 heads, sizes (8, 16, 32, 64, 128), each linear-probe quantile (9 levels) decoding its P values (#412)]: 859,320 trainable params
+[qhead_cf421f_moirai_native_bb166k_h30k_recon_lin_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf421f_moirai_native_bb166k_h30k_recon_lin_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf421ew_moirai_native_bb10k_h30k_recon_lin_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf421ew_moirai_native_bb10k_h30k_recon_lin_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf421ew_moirai_native_bb10k_h30k_recon_lin_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf421ew_moirai_native_bb10k_h30k_recon_lin_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf421ew_moirai_native_bb10k_h30k_recon_lin_s20260722] Backbone loaded from /home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-421ew/value_space/leg_10k/cf421ew_moirai_k3_10k.pth (0 params, frozen, encoder=student)
+[qhead_cf421ew_moirai_native_bb10k_h30k_recon_lin_s20260722] Forecasting head [bank of 5 heads, sizes (8, 16, 32, 64, 128), each linear-probe quantile (9 levels) decoding its P values (#412)]: 859,320 trainable params
+[qhead_cf421ew_moirai_native_bb10k_h30k_recon_lin_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf421ew_moirai_native_bb10k_h30k_recon_lin_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf421ew_moirai_native_bb166k_h30k_recon_lin_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf421ew_moirai_native_bb166k_h30k_recon_lin_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf421ew_moirai_native_bb166k_h30k_recon_lin_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf421ew_moirai_native_bb166k_h30k_recon_lin_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf421ew_moirai_native_bb166k_h30k_recon_lin_s20260722] Backbone loaded from /home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-421ew/value_space/leg_166k/cf421ew_moirai_k3_166k.pth (0 params, frozen, encoder=student)
+[qhead_cf421ew_moirai_native_bb166k_h30k_recon_lin_s20260722] Forecasting head [bank of 5 heads, sizes (8, 16, 32, 64, 128), each linear-probe quantile (9 levels) decoding its P values (#412)]: 859,320 trainable params
+[qhead_cf421ew_moirai_native_bb166k_h30k_recon_lin_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf421ew_moirai_native_bb166k_h30k_recon_lin_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf421f_moirai_native_bb20k_h30k_recon_lin_s20260722]   [head-train] the checkpoint names the mean/std scaling (#421); --rev-norm-kind ewma is not read
+[qhead_cf421f_moirai_native_bb20k_h30k_recon_lin_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf421f_moirai_native_bb20k_h30k_recon_lin_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf421f_moirai_native_bb20k_h30k_recon_lin_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf421f_moirai_native_bb20k_h30k_recon_lin_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf421f_moirai_native_bb20k_h30k_recon_lin_s20260722] Backbone loaded from /home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-421f/value_space/leg_25k_try3/cf421f_moirai_k3_20k.pth (0 params, frozen, encoder=student)
+[qhead_cf421f_moirai_native_bb20k_h30k_recon_lin_s20260722] Forecasting head [bank of 5 heads, sizes (8, 16, 32, 64, 128), each linear-probe quantile (9 levels) decoding its P values (#412)]: 859,320 trainable params
+[qhead_cf421f_moirai_native_bb20k_h30k_recon_lin_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf421f_moirai_native_bb20k_h30k_recon_lin_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf421f_moirai_native_bb25k_h30k_recon_lin_s20260722]   [head-train] the checkpoint names the mean/std scaling (#421); --rev-norm-kind ewma is not read
+[qhead_cf421f_moirai_native_bb25k_h30k_recon_lin_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf421f_moirai_native_bb25k_h30k_recon_lin_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf421f_moirai_native_bb25k_h30k_recon_lin_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf421f_moirai_native_bb25k_h30k_recon_lin_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf421f_moirai_native_bb25k_h30k_recon_lin_s20260722] Backbone loaded from /home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-421f/value_space/leg_25k/cf421f_moirai_k3_25k.pth (0 params, frozen, encoder=student)
+[qhead_cf421f_moirai_native_bb25k_h30k_recon_lin_s20260722] Forecasting head [bank of 5 heads, sizes (8, 16, 32, 64, 128), each linear-probe quantile (9 levels) decoding its P values (#412)]: 859,320 trainable params
+[qhead_cf421f_moirai_native_bb25k_h30k_recon_lin_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf421f_moirai_native_bb25k_h30k_recon_lin_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf421f_moirai_native_bb10k_h30k_recon_lin_s20260722] Data: the backbone trained on GiftEvalPretrain with zero padding (#419): the head trains on the same stream, vocabulary v2, padded targets skipped. --hf-repo/--hf-path are not read.
+[qhead_cf421f_moirai_native_bb10k_h30k_recon_lin_s20260722] Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20280722, emit_labels=True
+[shared] 6 jobs on one stream: qhead_cf421f_moirai_native_bb10k_h30k_recon_lin_s20260722, qhead_cf421f_moirai_native_bb166k_h30k_recon_lin_s20260722, qhead_cf421ew_moirai_native_bb10k_h30k_recon_lin_s20260722, qhead_cf421ew_moirai_native_bb166k_h30k_recon_lin_s20260722, qhead_cf421f_moirai_native_bb20k_h30k_recon_lin_s20260722, qhead_cf421f_moirai_native_bb25k_h30k_recon_lin_s20260722
+[qhead_cf421f_moirai_native_bb10k_h30k_recon_lin_s20260722] Loss CSV: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf421f_moirai_native_bb10k_h30k_recon_lin/qhead_cf421f_moirai_native_bb10k_h30k_recon_lin_s20260722_losses.csv
+[qhead_cf421f_moirai_native_bb10k_h30k_recon_lin_s20260722] 
+[qhead_cf421f_moirai_native_bb10k_h30k_recon_lin_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf421f_moirai_native_bb10k_h30k_recon_lin_s20260722] Head bank (#412): each row draws its patch size from its frequency's range and its split as the backbone trained, and trains the head of that size. --forecast-len is not read.
+[qhead_cf421f_moirai_native_bb10k_h30k_recon_lin_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf421f_moirai_native_bb10k_h30k_recon_lin_s20260722]   The checkpoint holds a value head (#415, a copy of Moirai): the head reads the output of the transformer at each patch, the latent that the value head reads.
+[qhead_cf421f_moirai_native_bb10k_h30k_recon_lin_s20260722] Checkpoints: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf421f_moirai_native_bb10k_h30k_recon_lin/qhead_cf421f_moirai_native_bb10k_h30k_recon_lin_s20260722_*.pth
+[qhead_cf421f_moirai_native_bb166k_h30k_recon_lin_s20260722] Loss CSV: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf421f_moirai_native_bb166k_h30k_recon_lin/qhead_cf421f_moirai_native_bb166k_h30k_recon_lin_s20260722_losses.csv
+[qhead_cf421f_moirai_native_bb166k_h30k_recon_lin_s20260722] 
+[qhead_cf421f_moirai_native_bb166k_h30k_recon_lin_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf421f_moirai_native_bb166k_h30k_recon_lin_s20260722] Head bank (#412): each row draws its patch size from its frequency's range and its split as the backbone trained, and trains the head of that size. --forecast-len is not read.
+[qhead_cf421f_moirai_native_bb166k_h30k_recon_lin_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf421f_moirai_native_bb166k_h30k_recon_lin_s20260722]   The checkpoint holds a value head (#415, a copy of Moirai): the head reads the output of the transformer at each patch, the latent that the value head reads.
+[qhead_cf421f_moirai_native_bb166k_h30k_recon_lin_s20260722] Checkpoints: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf421f_moirai_native_bb166k_h30k_recon_lin/qhead_cf421f_moirai_native_bb166k_h30k_recon_lin_s20260722_*.pth
+[qhead_cf421ew_moirai_native_bb10k_h30k_recon_lin_s20260722] Loss CSV: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf421ew_moirai_native_bb10k_h30k_recon_lin/qhead_cf421ew_moirai_native_bb10k_h30k_recon_lin_s20260722_losses.csv
+[qhead_cf421ew_moirai_native_bb10k_h30k_recon_lin_s20260722] 
+[qhead_cf421ew_moirai_native_bb10k_h30k_recon_lin_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf421ew_moirai_native_bb10k_h30k_recon_lin_s20260722] Head bank (#412): each row draws its patch size from its frequency's range as the backbone trained, and trains the head of that size. --forecast-len is not read.
+[qhead_cf421ew_moirai_native_bb10k_h30k_recon_lin_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf421ew_moirai_native_bb10k_h30k_recon_lin_s20260722]   The checkpoint holds a value head (#415, a copy of Moirai): the head reads the output of the transformer at each patch, the latent that the value head reads.
+[qhead_cf421ew_moirai_native_bb10k_h30k_recon_lin_s20260722] Checkpoints: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf421ew_moirai_native_bb10k_h30k_recon_lin/qhead_cf421ew_moirai_native_bb10k_h30k_recon_lin_s20260722_*.pth
+[qhead_cf421ew_moirai_native_bb166k_h30k_recon_lin_s20260722] Loss CSV: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf421ew_moirai_native_bb166k_h30k_recon_lin/qhead_cf421ew_moirai_native_bb166k_h30k_recon_lin_s20260722_losses.csv
+[qhead_cf421ew_moirai_native_bb166k_h30k_recon_lin_s20260722] 
+[qhead_cf421ew_moirai_native_bb166k_h30k_recon_lin_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf421ew_moirai_native_bb166k_h30k_recon_lin_s20260722] Head bank (#412): each row draws its patch size from its frequency's range as the backbone trained, and trains the head of that size. --forecast-len is not read.
+[qhead_cf421ew_moirai_native_bb166k_h30k_recon_lin_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf421ew_moirai_native_bb166k_h30k_recon_lin_s20260722]   The checkpoint holds a value head (#415, a copy of Moirai): the head reads the output of the transformer at each patch, the latent that the value head reads.
+[qhead_cf421ew_moirai_native_bb166k_h30k_recon_lin_s20260722] Checkpoints: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf421ew_moirai_native_bb166k_h30k_recon_lin/qhead_cf421ew_moirai_native_bb166k_h30k_recon_lin_s20260722_*.pth
+[qhead_cf421f_moirai_native_bb20k_h30k_recon_lin_s20260722] Loss CSV: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf421f_moirai_native_bb20k_h30k_recon_lin/qhead_cf421f_moirai_native_bb20k_h30k_recon_lin_s20260722_losses.csv
+[qhead_cf421f_moirai_native_bb20k_h30k_recon_lin_s20260722] 
+[qhead_cf421f_moirai_native_bb20k_h30k_recon_lin_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf421f_moirai_native_bb20k_h30k_recon_lin_s20260722] Head bank (#412): each row draws its patch size from its frequency's range and its split as the backbone trained, and trains the head of that size. --forecast-len is not read.
+[qhead_cf421f_moirai_native_bb20k_h30k_recon_lin_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf421f_moirai_native_bb20k_h30k_recon_lin_s20260722]   The checkpoint holds a value head (#415, a copy of Moirai): the head reads the output of the transformer at each patch, the latent that the value head reads.
+[qhead_cf421f_moirai_native_bb20k_h30k_recon_lin_s20260722] Checkpoints: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf421f_moirai_native_bb20k_h30k_recon_lin/qhead_cf421f_moirai_native_bb20k_h30k_recon_lin_s20260722_*.pth
+[qhead_cf421f_moirai_native_bb25k_h30k_recon_lin_s20260722] Loss CSV: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf421f_moirai_native_bb25k_h30k_recon_lin/qhead_cf421f_moirai_native_bb25k_h30k_recon_lin_s20260722_losses.csv
+[qhead_cf421f_moirai_native_bb25k_h30k_recon_lin_s20260722] 
+[qhead_cf421f_moirai_native_bb25k_h30k_recon_lin_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf421f_moirai_native_bb25k_h30k_recon_lin_s20260722] Head bank (#412): each row draws its patch size from its frequency's range and its split as the backbone trained, and trains the head of that size. --forecast-len is not read.
+[qhead_cf421f_moirai_native_bb25k_h30k_recon_lin_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf421f_moirai_native_bb25k_h30k_recon_lin_s20260722]   The checkpoint holds a value head (#415, a copy of Moirai): the head reads the output of the transformer at each patch, the latent that the value head reads.
+[qhead_cf421f_moirai_native_bb25k_h30k_recon_lin_s20260722] Checkpoints: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf421f_moirai_native_bb25k_h30k_recon_lin/qhead_cf421f_moirai_native_bb25k_h30k_recon_lin_s20260722_*.pth

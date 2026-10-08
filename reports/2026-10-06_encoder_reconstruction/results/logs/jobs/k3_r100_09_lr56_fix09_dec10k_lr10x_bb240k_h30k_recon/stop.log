@@ -1,0 +1,14 @@
+[10-08 08:58:08] [k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon] head argv -> /workspace/results/cf-425/waves/old_1008_085808_a2w8/jobs.jsonl reconstruction=encoder
+[10-08 09:10:46] [k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon] head argv -> /workspace/results/cf-425/waves/old_1008_091046_DK7G/jobs.jsonl reconstruction=encoder
+[10-08 09:19:41] [k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon] head argv -> /workspace/results/cf-425/waves/old_1008_091941_h3HY/jobs.jsonl reconstruction=encoder
+[10-08 12:49:51] [k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon] head-train SKIP (final exists)
+[10-08 12:49:51] [k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-08 12:49:51] [eval-slot] all 2 slots busy, 0s so far
+[10-08 12:54:51] [eval-slot] all 2 slots busy, 300s so far
+[10-08 12:59:51] [eval-slot] all 2 slots busy, 600s so far
+[10-08 13:02:31] [eval-slot] slot 0 after 760s
+[10-08 13:02:31] START k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon bb240k enc=student shards=2 slot=0
+[10-08 13:14:10] merged 97 configs -> /workspace/ckpt/cf-425/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon/gift_r/all_results.csv
+[10-08 13:14:12] DONE k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon bb240k student — Aggregate GM-Relative MASE (97 configs): 0.0286 -> 0.0286
+[10-08 13:14:12] [k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon] eval rc=0
+[10-08 13:14:12] [k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon] DONE — GM-Relative MASE 0.0286
