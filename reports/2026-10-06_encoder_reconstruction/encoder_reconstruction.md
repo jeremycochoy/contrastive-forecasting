@@ -4,7 +4,7 @@
 
 ![R, transformer head: all runs](plots/recon_all.png)
 
-![R and B4, transformer head: all runs](plots/overlay_all.png)
+![R and forecast, transformer head: all runs](plots/overlay_all.png)
 
 ![R, transformer head: ours, patch sizes 8 to 128](plots/recon_ours_patch_sizes.png)
 
@@ -20,13 +20,13 @@
 
 ![R, transformer head: selected runs](plots/recon_selected.png)
 
-![R and B4, transformer head: selected runs](plots/overlay_selected.png)
+![R and forecast, transformer head: selected runs](plots/overlay_selected.png)
 
 ## The linear head
 
 ![R, linear head: all runs](plots/recon_all_linear.png)
 
-![R and B4, linear head: all runs](plots/overlay_all_linear.png)
+![R and forecast, linear head: all runs](plots/overlay_all_linear.png)
 
 ![R, linear head: ours, patch sizes 8 to 128](plots/recon_ours_patch_sizes_linear.png)
 
@@ -42,4 +42,4 @@
 
 ![R, linear head: selected runs](plots/recon_selected_linear.png)
 
-![R and B4, linear head: selected runs](plots/overlay_selected_linear.png)
+![R and forecast, linear head: selected runs](plots/overlay_selected_linear.png)

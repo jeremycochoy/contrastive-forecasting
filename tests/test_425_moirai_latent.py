@@ -748,7 +748,10 @@ def key_of(fig):
 def test_the_moirai_figure_draws_the_two_copies_as_the_412_report(tmp_path):
     """The Moirai graph of #412, with the R scores: MPM and MPE in their
     colour, with the dashed line of a copy of Moirai, and each step at
-    batch 256 counts 4. The run of ours is not in this graph."""
+    batch 256 counts 4. The two copies have one dash style and one width,
+    and MPE draws after MPM: the dashes of MPE start half a dash period
+    later, and the markers of MPM draw again above the line of MPE. The
+    run of ours is not in this graph."""
     pytest.importorskip("matplotlib")
     plot, points, forecast = moirai_scores(tmp_path)
     assert points["cf421f_moirai_native"] == {40000: 0.41, 664000: 0.30}
@@ -756,12 +759,20 @@ def test_the_moirai_figure_draws_the_two_copies_as_the_412_report(tmp_path):
                            tmp_path / "m.png", False)
     assert (tmp_path / "m.png").stat().st_size > 10_000
     (ax,) = fig.axes
-    for arm, scores in (("cf421f_moirai_native", [0.41, 0.30]),
-                        ("cf421ew_moirai_native", [0.09, 0.08])):
-        (curve,) = [line for line in ax.get_lines()
-                    if line.get_color() == plot.colour(arm)]
-        assert list(curve.get_ydata()) == scores
-        assert curve.get_linestyle() == "--"
+    curve, markers = [line for line in ax.get_lines()
+                      if line.get_color() == plot.colour(
+                          "cf421f_moirai_native")]
+    assert list(curve.get_ydata()) == [0.41, 0.30]
+    assert curve.get_linestyle() == "--"
+    assert list(markers.get_ydata()) == [0.41, 0.30]
+    assert markers.get_linestyle() == "None"
+    assert markers.get_zorder() > curve.get_zorder()
+    (curve,) = [line for line in ax.get_lines()
+                if line.get_color() == plot.colour("cf421ew_moirai_native")]
+    assert list(curve.get_ydata()) == [0.09, 0.08]
+    assert curve.get_linestyle() == "--"
+    offset, dashes = curve._unscaled_dash_pattern
+    assert offset == pytest.approx(sum(dashes) / 2)
     texts = base.legend_texts(fig)
     assert any("MPM" in t and t.endswith("R 0.4100 → 0.3000, ×0.73")
                for t in texts)
@@ -832,8 +843,9 @@ def test_one_moirai_copy_in_a_figure_has_its_own_key_lines(tmp_path):
 
 
 def test_the_title_of_the_moirai_overlay_names_no_b4(tmp_path, monkeypatch):
-    """main() gives each overlay its title. The Moirai graph holds no B4
-    score, so its title says forecast."""
+    """main() gives each overlay its title. A graph with a copy of Moirai
+    holds forecast scores that are not B4, so its title says forecast. A
+    graph of ours alone keeps B4."""
     pytest.importorskip("matplotlib")
     plot, points, forecast = moirai_scores(tmp_path)
     titles = {}
@@ -849,7 +861,10 @@ def test_the_title_of_the_moirai_overlay_names_no_b4(tmp_path, monkeypatch):
         "R and forecast, transformer head: Moirai, our copy")
     assert titles["overlay_moirai_linear.png"] == (
         "R and forecast, linear head: Moirai, our copy")
-    assert titles["overlay_all.png"] == "R and B4, transformer head: all runs"
+    assert titles["overlay_all.png"] == (
+        "R and forecast, transformer head: all runs")
+    assert titles["overlay_ours_patch_sizes.png"] == (
+        "R and B4, transformer head: ours, patch sizes 8 to 128")
     assert titles["recon_moirai.png"] == (
         "R, transformer head: Moirai, our copy")
 

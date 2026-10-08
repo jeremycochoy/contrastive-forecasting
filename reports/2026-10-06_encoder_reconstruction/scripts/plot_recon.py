@@ -62,7 +62,7 @@ latent with a loss on it, so its R reads the output of its transformer, the
 latent that its own heads read. Its forecast score is the forecast of its
 own heads (#412), not B4. The key of a figure with such a run says both,
 and the forecast panel and the title of an overlay name B4 only for a
-figure with a run of ours.
+figure with runs of ours alone.
 
 Reads results/recon_trajectories.tsv, results/forecast_425.tsv,
 results/snapshots/scores.tsv and results/recon_lin_trajectories.tsv
@@ -132,6 +132,14 @@ SNAPSHOT_MS = 13
 # lines, their links and their rings, with a thin white marker edge, so
 # nothing hides its dot. The rings have no face, so the dot hides no ring.
 LONE_DOT = dict(zorder=3.6, mec="white", mew=0.8)
+# MPM and MPE have one dash style and one width, and MPE draws after MPM.
+# Where the two curves meet, the dashes of MPE start half a dash period
+# later, so the dashes of the two copies alternate, and the markers of MPM
+# draw a second time above the line of MPE, under the rings and the lone
+# dots.
+DASH = plt.rcParams["lines.dashed_pattern"]
+MPE_DASHES = (sum(DASH) / 2, DASH)
+MPM_MARKERS = 3.2
 FLOOR_COLOUR = "0.55"
 FLOOR_WIDTH = 0.8
 # One line style for each floor, in the order of floors.tsv, so that a floor
@@ -279,13 +287,20 @@ def y_axis(values):
 
 def draw_run(ax, arm, width, marker, points, alpha=1.0, **style):
     """One run's line, or None when it has no point. ``style``: LONE_DOT
-    for a run with one R score."""
+    for a run with one R score. MPE draws with MPE_DASHES, and the markers
+    of MPM draw again at MPM_MARKERS, so each copy of Moirai stays in view
+    where the two curves meet."""
     if not points:
         return None
     x = sorted(points)
-    handle, = ax.plot(x, [points[v] for v in x], line(arm), color=colour(arm),
+    y = [points[v] for v in x]
+    dashes = MPE_DASHES if CODE.get(arm) == "MPE" else line(arm)
+    handle, = ax.plot(x, y, color=colour(arm), ls=dashes,
                       lw=width, marker=marker, ms=8, alpha=alpha,
                       **{"zorder": 3, **style})
+    if CODE.get(arm) == "MPM" and alpha == 1.0:
+        ax.plot(x, y, linestyle="none", color=colour(arm), marker=marker,
+                ms=8, zorder=MPM_MARKERS)
     return handle
 
 
@@ -578,10 +593,10 @@ def main():
     PLOTS.mkdir(parents=True, exist_ok=True)
     for name, groups in GRAPHS.items():
         runs = GRAPH_TITLES[name]
-        # B4 is the forecast of a run of ours: the title of a graph with no
-        # such run names no B4.
-        b4 = "B4" if any(arm not in MOIRAI for _, members in groups
-                         for arm, *_ in members) else "forecast"
+        # B4 is the forecast of a run of ours: the title of a graph that
+        # holds a copy of Moirai names no B4.
+        b4 = "forecast" if any(arm in MOIRAI for _, members in groups
+                               for arm, *_ in members) else "B4"
         arms = [arm for _, members in groups for arm, *_ in members]
         graph_floors = floors_of(arms, floors)
         shared = []
