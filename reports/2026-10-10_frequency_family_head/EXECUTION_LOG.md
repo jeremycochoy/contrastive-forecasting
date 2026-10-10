@@ -1,7 +1,7 @@
 # Execution log: the frequency family of forecast decoders
 
 This work has no issue card. The owner asked for it in chat on 2026-10-10.
-All times are UTC, on 2026-10-10.
+All times are UTC, on 2026-10-10. The log files of elisa show British Summer Time, one hour later.
 
 ## Where the files are
 
@@ -46,7 +46,7 @@ The eval log names the member of each config. From the test score of `shared_dra
 
 ### The test wave of 500 steps
 
-`smoke.sh` at 10:53, code 56780425, GPU 1, backbone BLK 200k. One process trained 7 arms on one data stream: the control, the 4 family arms and the two families of one member. It ended with code 0 at 10:58.
+`smoke.sh` at 09:53, code 56780425, GPU 1, backbone BLK 200k. One process trained 7 arms on one data stream: the control, the 4 family arms and the two families of one member. It ended with code 0 at 09:58.
 
 Rows of each member, of 128,000 rows (500 steps of 256 rows):
 
@@ -71,7 +71,7 @@ Parameters: 3,605,136 for the control, 3,771,456 for a `shared` family and 14,42
 
 | Fact | Value |
 |---|---|
-| Time of the score, 97 configs, 4 shards | 37 min 24 s (10:12:56 to 10:50:20) |
+| Time of the score, 97 configs, 4 shards | 37 min 24 s (09:12:56 to 09:50:20) |
 | Peak GPU memory, 4 shards | 2,703 MiB |
 | GM-Relative MASE, GPU of elisa | 1.126275 (the eval prints 1.1263) |
 | GM-Relative MASE, CPU of the box | 1.126227 (the eval prints 1.1262) |
@@ -92,9 +92,18 @@ One GPU process alone ran the 4 probe configs 9% faster than a shard beside 3 ot
 
 ## Tests
 
-`CUDA_VISIBLE_DEVICES= python3 -m pytest tests`, one process for each file, 8 at a time, with the code of 73d29629: 4,477 passed, 0 failed, 3 skipped. On the base commit 88f967ca, the tests of #412, #417, #421 and #425 gave the same counts: 666 passed.
+`CUDA_VISIBLE_DEVICES= python3 -m pytest tests`, one process for each file, 8 at a time:
 
-`tests/test_freq_family.py`: 151 passed with the last commit.
+| Code | Passed | Failed | Skipped |
+|---|---|---|---|
+| 73d29629 | 4,477 | 0 | 3 |
+| 6a27ba82 | 4,477 | 1 | 3 |
+
+The failed test is `test_390_launcher_shape.py::test_monitor_does_not_quit_before_the_first_arm_is_up`. The monitor of #390 looks for its runs in the process table of the machine, where the other test processes ran. The test passed in the first run, and it passed 3 of 3 times alone. This work changes no file of #390.
+
+`tests/test_freq_family.py`: 151 passed with 6a27ba82.
+
+The tests of #412, #417, #421 and #425: 666 passed with 6a27ba82, and 666 passed on the base commit 88f967ca.
 
 ## How to start the waves
 
