@@ -1,0 +1,8 @@
+[10-08 17:24:37] [cf421ew_moirai_native_bb125k_h30k_recon] head argv -> /workspace/results/cf-425/waves/gift_pretrain_1008_172437_MX3S/jobs.jsonl reconstruction=encoder
+[10-08 19:36:09] [cf421ew_moirai_native_bb125k_h30k_recon] head-train SKIP (final exists)
+[10-08 19:36:09] [cf421ew_moirai_native_bb125k_h30k_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-08 19:36:09] START cf421ew_moirai_native_bb125k_h30k_recon bb125k enc=student shards=2 slot=1
+[10-08 19:48:14] merged 97 configs -> /workspace/ckpt/cf-425/recon/eval/cf421ew_moirai_native_bb125k_h30k_recon/gift_r/all_results.csv
+[10-08 19:48:17] DONE cf421ew_moirai_native_bb125k_h30k_recon bb125k student — Aggregate GM-Relative MASE (97 configs): 0.2120 -> 0.2120
+[10-08 19:48:17] [cf421ew_moirai_native_bb125k_h30k_recon] eval rc=0
+[10-08 19:48:17] [cf421ew_moirai_native_bb125k_h30k_recon] DONE — GM-Relative MASE 0.2120

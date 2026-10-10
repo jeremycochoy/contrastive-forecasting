@@ -1,0 +1,104 @@
+[10-06 21:47:57] [k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student] head-train start enc=student steps=30000 seed=20260722 gpu=0 bb=cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_fix09_dec10k_cos200k_1140k.pth
+  [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+  [head-train] auto-detected qk_norm=True from backbone checkpoint
+  [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+  [head-train] auto-detected patch_stats=none
+Backbone loaded from /workspace/ckpt/k3_r100_09_lr56_fix09_dec10k_cos200k/arm6_v2_combab_alignT/leg_1330k/cf393_arm6_v2_combab_alignT_cf373k3_cf412_k3_r100_09_lr56_fix09_dec10k_cos200k_1140k.pth (0 params, frozen, encoder=student)
+/workspace/cf-412bm/src/forecasting_head.py:188: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  self.transformer = nn.TransformerEncoder(layer, num_layers=num_layers)
+Forecasting head [transformer-q (2L H384 nhead8 causal)]: 3,605,136 trainable params
+Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+Loss CSV: /workspace/ckpt/cf-425/forecast/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student_s20260722_losses.csv
+Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20280722, emit_labels=True
+
+Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+Checkpoints: /workspace/ckpt/cf-425/forecast/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student_s20260722_*.pth
+[    500] loss=0.206324  ema_loss=0.208754  6.8 sps  ETA 1.2h
+  -> New best: /workspace/ckpt/cf-425/forecast/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student_s20260722_best.pth (ema_loss=0.208754)
+[   1000] loss=0.210251  ema_loss=0.206001  7.4 sps  ETA 1.1h
+  -> New best: /workspace/ckpt/cf-425/forecast/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student_s20260722_best.pth (ema_loss=0.206001)
+[   1500] loss=0.214296  ema_loss=0.203691  7.8 sps  ETA 1.0h
+  -> New best: /workspace/ckpt/cf-425/forecast/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student_s20260722_best.pth (ema_loss=0.203691)
+[   2000] loss=0.199473  ema_loss=0.203978  8.1 sps  ETA 1.0h
+[   2500] loss=0.210667  ema_loss=0.202943  8.0 sps  ETA 1.0h
+  -> New best: /workspace/ckpt/cf-425/forecast/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student_s20260722_best.pth (ema_loss=0.202943)
+[   3000] loss=0.199914  ema_loss=0.202764  8.3 sps  ETA 0.9h
+  -> New best: /workspace/ckpt/cf-425/forecast/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student_s20260722_best.pth (ema_loss=0.202764)
+[   3500] loss=0.190695  ema_loss=0.202898  8.4 sps  ETA 0.9h
+[   4000] loss=0.222925  ema_loss=0.202715  8.5 sps  ETA 0.8h
+  -> New best: /workspace/ckpt/cf-425/forecast/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student_s20260722_best.pth (ema_loss=0.202715)
+[   4500] loss=0.216898  ema_loss=0.203402  8.7 sps  ETA 0.8h
+[   5000] loss=0.203423  ema_loss=0.202822  8.6 sps  ETA 0.8h
+  -> Saved /workspace/ckpt/cf-425/forecast/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student_s20260722_5k.pth
+[   5500] loss=0.203375  ema_loss=0.202773  8.6 sps  ETA 0.8h
+[   6000] loss=0.195085  ema_loss=0.202042  8.5 sps  ETA 0.8h
+  -> New best: /workspace/ckpt/cf-425/forecast/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student_s20260722_best.pth (ema_loss=0.202042)
+[   6500] loss=0.198702  ema_loss=0.201595  8.5 sps  ETA 0.8h
+  -> New best: /workspace/ckpt/cf-425/forecast/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student_s20260722_best.pth (ema_loss=0.201595)
+[   7000] loss=0.190283  ema_loss=0.202137  8.6 sps  ETA 0.7h
+[   7500] loss=0.204661  ema_loss=0.202256  8.6 sps  ETA 0.7h
+[   8000] loss=0.197671  ema_loss=0.201903  8.6 sps  ETA 0.7h
+[   8500] loss=0.209459  ema_loss=0.200717  8.6 sps  ETA 0.7h
+  -> New best: /workspace/ckpt/cf-425/forecast/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student_s20260722_best.pth (ema_loss=0.200717)
+[   9000] loss=0.190494  ema_loss=0.200828  8.7 sps  ETA 0.7h
+[   9500] loss=0.194022  ema_loss=0.201001  8.7 sps  ETA 0.7h
+[  10000] loss=0.199313  ema_loss=0.201303  8.6 sps  ETA 0.6h
+  -> Saved /workspace/ckpt/cf-425/forecast/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student_s20260722_10k.pth
+[  10500] loss=0.205593  ema_loss=0.199308  8.7 sps  ETA 0.6h
+  -> New best: /workspace/ckpt/cf-425/forecast/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student_s20260722_best.pth (ema_loss=0.199308)
+[  11000] loss=0.198840  ema_loss=0.201386  8.7 sps  ETA 0.6h
+[  11500] loss=0.207396  ema_loss=0.201284  8.7 sps  ETA 0.6h
+[  12000] loss=0.197442  ema_loss=0.200647  8.6 sps  ETA 0.6h
+[  12500] loss=0.204089  ema_loss=0.201677  8.6 sps  ETA 0.6h
+[  13000] loss=0.197238  ema_loss=0.200142  8.6 sps  ETA 0.6h
+[  13500] loss=0.208312  ema_loss=0.200716  8.6 sps  ETA 0.5h
+[  14000] loss=0.215094  ema_loss=0.201604  8.6 sps  ETA 0.5h
+[  14500] loss=0.182183  ema_loss=0.199789  8.6 sps  ETA 0.5h
+[  15000] loss=0.204798  ema_loss=0.200673  8.6 sps  ETA 0.5h
+  -> Saved /workspace/ckpt/cf-425/forecast/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student_s20260722_15k.pth
+[  15500] loss=0.194438  ema_loss=0.199968  8.6 sps  ETA 0.5h
+[  16000] loss=0.211931  ema_loss=0.200606  8.6 sps  ETA 0.5h
+[  16500] loss=0.194010  ema_loss=0.200431  8.6 sps  ETA 0.4h
+[  17000] loss=0.184730  ema_loss=0.199159  8.5 sps  ETA 0.4h
+  -> New best: /workspace/ckpt/cf-425/forecast/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student_s20260722_best.pth (ema_loss=0.199159)
+[  17500] loss=0.205459  ema_loss=0.200681  8.5 sps  ETA 0.4h
+[  18000] loss=0.208399  ema_loss=0.200202  8.5 sps  ETA 0.4h
+[  18500] loss=0.193265  ema_loss=0.199586  8.5 sps  ETA 0.4h
+[  19000] loss=0.210467  ema_loss=0.200509  8.5 sps  ETA 0.4h
+[  19500] loss=0.174610  ema_loss=0.200576  8.5 sps  ETA 0.3h
+[  20000] loss=0.198475  ema_loss=0.200291  8.5 sps  ETA 0.3h
+  -> Saved /workspace/ckpt/cf-425/forecast/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student_s20260722_20k.pth
+[  20500] loss=0.203933  ema_loss=0.199316  8.5 sps  ETA 0.3h
+[  21000] loss=0.210063  ema_loss=0.200237  8.6 sps  ETA 0.3h
+[  21500] loss=0.202264  ema_loss=0.199416  8.6 sps  ETA 0.3h
+[  22000] loss=0.207627  ema_loss=0.200044  8.6 sps  ETA 0.3h
+[  22500] loss=0.198961  ema_loss=0.198792  8.6 sps  ETA 0.2h
+  -> New best: /workspace/ckpt/cf-425/forecast/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student_s20260722_best.pth (ema_loss=0.198792)
+[  23000] loss=0.200870  ema_loss=0.200031  8.6 sps  ETA 0.2h
+[  23500] loss=0.198655  ema_loss=0.199719  8.7 sps  ETA 0.2h
+[  24000] loss=0.204023  ema_loss=0.199673  8.7 sps  ETA 0.2h
+[  24500] loss=0.211584  ema_loss=0.199731  8.7 sps  ETA 0.2h
+[  25000] loss=0.183490  ema_loss=0.200111  8.7 sps  ETA 0.2h
+  -> Saved /workspace/ckpt/cf-425/forecast/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student_s20260722_25k.pth
+[  25500] loss=0.194481  ema_loss=0.200025  8.7 sps  ETA 0.1h
+[  26000] loss=0.198054  ema_loss=0.199297  8.7 sps  ETA 0.1h
+[  26500] loss=0.204986  ema_loss=0.200548  8.7 sps  ETA 0.1h
+[  27000] loss=0.209066  ema_loss=0.199885  8.7 sps  ETA 0.1h
+[  27500] loss=0.198672  ema_loss=0.199797  8.7 sps  ETA 0.1h
+[  28000] loss=0.205479  ema_loss=0.199489  8.8 sps  ETA 0.1h
+[  28500] loss=0.208907  ema_loss=0.199261  8.8 sps  ETA 0.0h
+[  29000] loss=0.193737  ema_loss=0.200017  8.8 sps  ETA 0.0h
+[  29500] loss=0.195269  ema_loss=0.200281  8.8 sps  ETA 0.0h
+[  30000] loss=0.189685  ema_loss=0.198362  8.8 sps  ETA 0.0h
+  -> New best: /workspace/ckpt/cf-425/forecast/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student_s20260722_best.pth (ema_loss=0.198362)
+  -> Saved /workspace/ckpt/cf-425/forecast/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student/qhead_k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student_s20260722_30k.pth
+
+Done in 0.9h. Best loss=0.198362 at step 30000
+[10-06 22:44:54] [k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student] head-train rc=0
+[10-06 22:44:54] [k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student] eval start (97 configs, B4, forecast-len 16, elisa CPUs)
+[10-06 22:44:54] START k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student bb1140k enc=student shards=3 slot=2
+[10-07 00:01:03] merged 97 configs -> /workspace/ckpt/cf-425/forecast/eval/k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student/gift/all_results.csv
+[10-07 00:01:05] DONE k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student bb1140k student — Aggregate GM-Relative MASE (97 configs): 1.1452 -> 1.1452
+[10-07 00:01:05] [k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student] eval rc=0
+[10-07 00:01:05] [k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_student] DONE — GM-Relative MASE 1.1452

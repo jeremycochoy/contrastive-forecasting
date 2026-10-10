@@ -1,0 +1,554 @@
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] Backbone loaded from /home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-419c/cos200k/leg_665k/cf419_cos200k_100k.pth (0 params, frozen, encoder=student)
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] Forecasting head [linear-probe quantile (9 levels)]: 55,440 trainable params
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] Backbone loaded from /home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-419c/cos200k/leg_665k/cf419_cos200k_r2_400k.pth (0 params, frozen, encoder=student)
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] Forecasting head [linear-probe quantile (9 levels)]: 55,440 trainable params
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722]   [head-train] the checkpoint names the mean/std scaling (#421); --rev-norm-kind ewma is not read
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] Backbone loaded from /home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-412om/leg_10k/cf412om_k3_10k.pth (0 params, frozen, encoder=student)
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] Forecasting head [bank of 5 heads, sizes (8, 16, 32, 64, 128), each linear-probe quantile (9 levels) decoding its P values (#412)]: 859,320 trainable params
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722]   [head-train] the checkpoint names the mean/std scaling (#421); --rev-norm-kind ewma is not read
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] Backbone loaded from /home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-412om/leg_166k/cf412om_k3_166k.pth (0 params, frozen, encoder=student)
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] Forecasting head [bank of 5 heads, sizes (8, 16, 32, 64, 128), each linear-probe quantile (9 levels) decoding its P values (#412)]: 859,320 trainable params
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722]   [head-train] the checkpoint names the mean/std scaling (#421); --rev-norm-kind ewma is not read
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] Backbone loaded from /home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-412oc/leg_40k/cf412oc_k3_40k.pth (0 params, frozen, encoder=student)
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] Forecasting head [bank of 5 heads, sizes (8, 16, 32, 64, 128), each linear-probe quantile (9 levels) decoding its P values (#412)]: 859,320 trainable params
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722]   [head-train] the checkpoint names the mean/std scaling (#421); --rev-norm-kind ewma is not read
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] Backbone loaded from /home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-412oc2/leg_40k/cf412oc2_k3_40k.pth (0 params, frozen, encoder=student)
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] Forecasting head [bank of 5 heads, sizes (8, 16, 32, 64, 128), each linear-probe quantile (9 levels) decoding its P values (#412)]: 859,320 trainable params
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] Schedule: constant warmup=0 decay_start=24000 final_ratio=0.1
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] Data: the backbone trained on GiftEvalPretrain with zero padding (#419): the head trains on the same stream, vocabulary v2, padded targets skipped. --hf-repo/--hf-path are not read.
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20280722, emit_labels=True
+[shared] 6 jobs on one stream: qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722, qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722, qhead_cf412om_bb10k_h30k_recon_lin_s20260722, qhead_cf412om_bb166k_h30k_recon_lin_s20260722, qhead_cf412oc_bb40k_h30k_recon_lin_s20260722, qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] Loss CSV: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf419_cos200k_bb100k_h30k_recon_lin/qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722_losses.csv
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] 
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] Checkpoints: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf419_cos200k_bb100k_h30k_recon_lin/qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722_*.pth
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] Loss CSV: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf419_cos200k_bb400k_h30k_recon_lin/qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722_losses.csv
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] 
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] Checkpoints: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf419_cos200k_bb400k_h30k_recon_lin/qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722_*.pth
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] Loss CSV: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412om_bb10k_h30k_recon_lin/qhead_cf412om_bb10k_h30k_recon_lin_s20260722_losses.csv
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] 
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] Head bank (#412): each row draws its patch size from its frequency's range and its split as the backbone trained, and trains the head of that size. --forecast-len is not read.
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] Checkpoints: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412om_bb10k_h30k_recon_lin/qhead_cf412om_bb10k_h30k_recon_lin_s20260722_*.pth
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] Loss CSV: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412om_bb166k_h30k_recon_lin/qhead_cf412om_bb166k_h30k_recon_lin_s20260722_losses.csv
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] 
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] Head bank (#412): each row draws its patch size from its frequency's range and its split as the backbone trained, and trains the head of that size. --forecast-len is not read.
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] Checkpoints: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412om_bb166k_h30k_recon_lin/qhead_cf412om_bb166k_h30k_recon_lin_s20260722_*.pth
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] Loss CSV: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412oc_bb40k_h30k_recon_lin/qhead_cf412oc_bb40k_h30k_recon_lin_s20260722_losses.csv
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] 
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] Head bank (#412): each row draws its patch size from its frequency's range and its split as the backbone trained, and trains the head of that size. --forecast-len is not read.
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] Checkpoints: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412oc_bb40k_h30k_recon_lin/qhead_cf412oc_bb40k_h30k_recon_lin_s20260722_*.pth
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] Loss CSV: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412oc2_bb40k_h30k_recon_lin/qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722_losses.csv
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] 
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] Training for 30000 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] Head bank (#412): each row draws its patch size from its frequency's range and its split as the backbone trained, and trains the head of that size. --forecast-len is not read.
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] RECONSTRUCTION mode: encoder (head decodes what latent represents, not future)
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] Checkpoints: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412oc2_bb40k_h30k_recon_lin/qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722_*.pth
+[shared] 1 steps: 0.02 steps/s since the start, 0.02 steps/s over the last 1, 0.1 job steps/s, the stream took 99% of that time, peak 5.05 GiB allocated, 5.11 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [    500] loss=0.059025  ema_loss=0.062704  2.7 sps  ETA 3.0h
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf419_cos200k_bb100k_h30k_recon_lin/qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722_best.pth (ema_loss=0.062704)
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [    500] loss=0.059298  ema_loss=0.063306  2.7 sps  ETA 3.0h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf419_cos200k_bb400k_h30k_recon_lin/qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722_best.pth (ema_loss=0.063306)
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [    500] loss=2.484133  ema_loss=1.808306  2.7 sps  ETA 3.0h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412om_bb10k_h30k_recon_lin/qhead_cf412om_bb10k_h30k_recon_lin_s20260722_best.pth (ema_loss=1.808306)
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [    500] loss=2.871748  ema_loss=1.980524  2.7 sps  ETA 3.0h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412om_bb166k_h30k_recon_lin/qhead_cf412om_bb166k_h30k_recon_lin_s20260722_best.pth (ema_loss=1.980524)
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [    500] loss=2.675877  ema_loss=1.820547  2.7 sps  ETA 3.0h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412oc_bb40k_h30k_recon_lin/qhead_cf412oc_bb40k_h30k_recon_lin_s20260722_best.pth (ema_loss=1.820547)
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [    500] loss=2.690399  ema_loss=1.829519  2.7 sps  ETA 3.0h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412oc2_bb40k_h30k_recon_lin/qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722_best.pth (ema_loss=1.829519)
+[shared] 500 steps: 2.71 steps/s since the start, 3.80 steps/s over the last 499, 22.8 job steps/s, the stream took 9% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [   1000] loss=0.055607  ema_loss=0.055453  3.0 sps  ETA 2.7h
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf419_cos200k_bb100k_h30k_recon_lin/qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722_best.pth (ema_loss=0.055453)
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [   1000] loss=0.054829  ema_loss=0.055104  3.0 sps  ETA 2.7h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf419_cos200k_bb400k_h30k_recon_lin/qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722_best.pth (ema_loss=0.055104)
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [   1000] loss=1.546635  ema_loss=1.291030  3.0 sps  ETA 2.7h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412om_bb10k_h30k_recon_lin/qhead_cf412om_bb10k_h30k_recon_lin_s20260722_best.pth (ema_loss=1.291030)
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [   1000] loss=1.630691  ema_loss=1.455800  3.0 sps  ETA 2.7h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412om_bb166k_h30k_recon_lin/qhead_cf412om_bb166k_h30k_recon_lin_s20260722_best.pth (ema_loss=1.455800)
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [   1000] loss=1.522901  ema_loss=1.315136  3.0 sps  ETA 2.7h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412oc_bb40k_h30k_recon_lin/qhead_cf412oc_bb40k_h30k_recon_lin_s20260722_best.pth (ema_loss=1.315136)
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [   1000] loss=1.504130  ema_loss=1.316048  3.0 sps  ETA 2.7h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412oc2_bb40k_h30k_recon_lin/qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722_best.pth (ema_loss=1.316048)
+[shared] 1000 steps: 2.98 steps/s since the start, 3.32 steps/s over the last 500, 19.9 job steps/s, the stream took 1% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [   1500] loss=0.054601  ema_loss=0.055083  3.0 sps  ETA 2.6h
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf419_cos200k_bb100k_h30k_recon_lin/qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722_best.pth (ema_loss=0.055083)
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [   1500] loss=0.053755  ema_loss=0.054270  3.0 sps  ETA 2.6h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf419_cos200k_bb400k_h30k_recon_lin/qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722_best.pth (ema_loss=0.054270)
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [   1500] loss=0.166259  ema_loss=1.055709  3.0 sps  ETA 2.6h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412om_bb10k_h30k_recon_lin/qhead_cf412om_bb10k_h30k_recon_lin_s20260722_best.pth (ema_loss=1.055709)
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [   1500] loss=0.270396  ema_loss=1.195853  3.0 sps  ETA 2.6h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412om_bb166k_h30k_recon_lin/qhead_cf412om_bb166k_h30k_recon_lin_s20260722_best.pth (ema_loss=1.195853)
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [   1500] loss=0.137483  ema_loss=1.070906  3.0 sps  ETA 2.6h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412oc_bb40k_h30k_recon_lin/qhead_cf412oc_bb40k_h30k_recon_lin_s20260722_best.pth (ema_loss=1.070906)
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [   1500] loss=0.145374  ema_loss=1.066838  3.0 sps  ETA 2.6h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412oc2_bb40k_h30k_recon_lin/qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722_best.pth (ema_loss=1.066838)
+[shared] 1500 steps: 3.03 steps/s since the start, 3.12 steps/s over the last 500, 18.7 job steps/s, the stream took 7% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [   2000] loss=0.052838  ema_loss=0.053165  3.1 sps  ETA 2.5h
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf419_cos200k_bb100k_h30k_recon_lin/qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722_best.pth (ema_loss=0.053165)
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [   2000] loss=0.051504  ema_loss=0.051959  3.1 sps  ETA 2.5h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf419_cos200k_bb400k_h30k_recon_lin/qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722_best.pth (ema_loss=0.051959)
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [   2000] loss=22.887224  ema_loss=3.231245  3.1 sps  ETA 2.5h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [   2000] loss=23.003096  ema_loss=3.346920  3.1 sps  ETA 2.5h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [   2000] loss=22.885000  ema_loss=3.232123  3.1 sps  ETA 2.5h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [   2000] loss=22.882717  ema_loss=3.224553  3.1 sps  ETA 2.5h
+[shared] 2000 steps: 3.08 steps/s since the start, 3.24 steps/s over the last 500, 19.4 job steps/s, the stream took 3% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [   2500] loss=0.054624  ema_loss=0.053758  3.1 sps  ETA 2.5h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [   2500] loss=0.052953  ema_loss=0.052450  3.1 sps  ETA 2.5h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [   2500] loss=2.356541  ema_loss=1.323579  3.1 sps  ETA 2.5h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [   2500] loss=2.441146  ema_loss=1.453805  3.1 sps  ETA 2.5h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [   2500] loss=2.332280  ema_loss=1.340529  3.1 sps  ETA 2.5h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [   2500] loss=2.315448  ema_loss=1.332680  3.1 sps  ETA 2.5h
+[shared] 2500 steps: 3.11 steps/s since the start, 3.27 steps/s over the last 500, 19.6 job steps/s, the stream took 3% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [   3000] loss=0.052730  ema_loss=0.053095  3.1 sps  ETA 2.4h
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf419_cos200k_bb100k_h30k_recon_lin/qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722_best.pth (ema_loss=0.053095)
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [   3000] loss=0.051306  ema_loss=0.051563  3.1 sps  ETA 2.4h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf419_cos200k_bb400k_h30k_recon_lin/qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722_best.pth (ema_loss=0.051563)
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [   3000] loss=0.126722  ema_loss=0.731637  3.1 sps  ETA 2.4h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412om_bb10k_h30k_recon_lin/qhead_cf412om_bb10k_h30k_recon_lin_s20260722_best.pth (ema_loss=0.731637)
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [   3000] loss=0.206360  ema_loss=0.837426  3.1 sps  ETA 2.4h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412om_bb166k_h30k_recon_lin/qhead_cf412om_bb166k_h30k_recon_lin_s20260722_best.pth (ema_loss=0.837426)
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [   3000] loss=0.101336  ema_loss=0.733783  3.1 sps  ETA 2.4h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412oc_bb40k_h30k_recon_lin/qhead_cf412oc_bb40k_h30k_recon_lin_s20260722_best.pth (ema_loss=0.733783)
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [   3000] loss=0.094334  ema_loss=0.726260  3.1 sps  ETA 2.4h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412oc2_bb40k_h30k_recon_lin/qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722_best.pth (ema_loss=0.726260)
+[shared] 3000 steps: 3.14 steps/s since the start, 3.30 steps/s over the last 500, 19.8 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [   3500] loss=0.053477  ema_loss=0.053661  3.2 sps  ETA 2.3h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [   3500] loss=0.051887  ema_loss=0.051885  3.2 sps  ETA 2.3h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [   3500] loss=1.582540  ema_loss=3.256898  3.2 sps  ETA 2.3h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [   3500] loss=1.640918  ema_loss=3.389017  3.2 sps  ETA 2.3h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [   3500] loss=1.558392  ema_loss=3.288721  3.2 sps  ETA 2.3h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [   3500] loss=1.525073  ema_loss=3.278138  3.2 sps  ETA 2.3h
+[shared] 3500 steps: 3.16 steps/s since the start, 3.25 steps/s over the last 500, 19.5 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [   4000] loss=0.052551  ema_loss=0.053553  3.2 sps  ETA 2.3h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [   4000] loss=0.050853  ema_loss=0.051773  3.2 sps  ETA 2.3h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [   4000] loss=0.269555  ema_loss=1.287718  3.2 sps  ETA 2.3h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [   4000] loss=0.319225  ema_loss=1.413305  3.2 sps  ETA 2.3h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [   4000] loss=0.234239  ema_loss=1.314085  3.2 sps  ETA 2.3h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [   4000] loss=0.207945  ema_loss=1.303089  3.2 sps  ETA 2.3h
+[shared] 4000 steps: 3.17 steps/s since the start, 3.27 steps/s over the last 500, 19.6 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [   4500] loss=0.051717  ema_loss=0.053252  3.2 sps  ETA 2.2h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [   4500] loss=0.049812  ema_loss=0.051388  3.2 sps  ETA 2.2h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf419_cos200k_bb400k_h30k_recon_lin/qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722_best.pth (ema_loss=0.051388)
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [   4500] loss=0.260994  ema_loss=1.661948  3.2 sps  ETA 2.2h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [   4500] loss=0.303923  ema_loss=1.793088  3.2 sps  ETA 2.2h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [   4500] loss=0.227877  ema_loss=1.701482  3.2 sps  ETA 2.2h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [   4500] loss=0.213364  ema_loss=1.687214  3.2 sps  ETA 2.2h
+[shared] 4500 steps: 3.18 steps/s since the start, 3.28 steps/s over the last 500, 19.7 job steps/s, the stream took 1% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [   5000] loss=0.054320  ema_loss=0.053443  3.2 sps  ETA 2.2h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [   5000] loss=0.052156  ema_loss=0.051690  3.2 sps  ETA 2.2h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [   5000] loss=1.592671  ema_loss=2.235587  3.2 sps  ETA 2.2h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [   5000] loss=1.657291  ema_loss=2.356711  3.2 sps  ETA 2.2h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [   5000] loss=1.559370  ema_loss=2.265504  3.2 sps  ETA 2.2h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [   5000] loss=1.551345  ema_loss=2.249678  3.2 sps  ETA 2.2h
+[shared] 5000 steps: 3.18 steps/s since the start, 3.20 steps/s over the last 500, 19.2 job steps/s, the stream took 3% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [   5500] loss=0.053314  ema_loss=0.053638  3.2 sps  ETA 2.1h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [   5500] loss=0.050874  ema_loss=0.051770  3.2 sps  ETA 2.1h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [   5500] loss=0.175426  ema_loss=2.847412  3.2 sps  ETA 2.1h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [   5500] loss=0.217068  ema_loss=2.961989  3.2 sps  ETA 2.1h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [   5500] loss=0.128449  ema_loss=2.872696  3.2 sps  ETA 2.1h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [   5500] loss=0.119942  ema_loss=2.857631  3.2 sps  ETA 2.1h
+[shared] 5500 steps: 3.20 steps/s since the start, 3.32 steps/s over the last 500, 19.9 job steps/s, the stream took 1% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [   6000] loss=0.053290  ema_loss=0.053814  3.2 sps  ETA 2.1h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [   6000] loss=0.051518  ema_loss=0.051950  3.2 sps  ETA 2.1h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [   6000] loss=0.197605  ema_loss=2.188149  3.2 sps  ETA 2.1h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [   6000] loss=0.263257  ema_loss=2.300855  3.2 sps  ETA 2.1h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [   6000] loss=0.157889  ema_loss=2.212033  3.2 sps  ETA 2.1h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [   6000] loss=0.159803  ema_loss=2.196822  3.2 sps  ETA 2.1h
+[shared] 6000 steps: 3.20 steps/s since the start, 3.23 steps/s over the last 500, 19.4 job steps/s, the stream took 1% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [   6500] loss=0.054563  ema_loss=0.053594  3.2 sps  ETA 2.0h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [   6500] loss=0.052787  ema_loss=0.051704  3.2 sps  ETA 2.0h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [   6500] loss=0.146583  ema_loss=1.174918  3.2 sps  ETA 2.0h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [   6500] loss=0.210154  ema_loss=1.266179  3.2 sps  ETA 2.0h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [   6500] loss=0.121267  ema_loss=1.183126  3.2 sps  ETA 2.0h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [   6500] loss=0.112144  ema_loss=1.166774  3.2 sps  ETA 2.0h
+[shared] 6500 steps: 3.19 steps/s since the start, 3.07 steps/s over the last 500, 18.4 job steps/s, the stream took 5% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [   7000] loss=0.054402  ema_loss=0.053432  3.2 sps  ETA 2.0h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [   7000] loss=0.052566  ema_loss=0.051457  3.2 sps  ETA 2.0h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [   7000] loss=2.324682  ema_loss=1.565173  3.2 sps  ETA 2.0h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [   7000] loss=2.382390  ema_loss=1.679292  3.2 sps  ETA 2.0h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [   7000] loss=2.306213  ema_loss=1.595716  3.2 sps  ETA 2.0h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [   7000] loss=2.259818  ema_loss=1.580508  3.2 sps  ETA 2.0h
+[shared] 7000 steps: 3.19 steps/s since the start, 3.27 steps/s over the last 500, 19.6 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [   7500] loss=0.055666  ema_loss=0.053692  3.2 sps  ETA 2.0h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [   7500] loss=0.053454  ema_loss=0.051668  3.2 sps  ETA 2.0h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [   7500] loss=0.159286  ema_loss=1.990273  3.2 sps  ETA 2.0h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [   7500] loss=0.214393  ema_loss=2.086665  3.2 sps  ETA 2.0h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [   7500] loss=0.127741  ema_loss=2.003553  3.2 sps  ETA 2.0h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [   7500] loss=0.121576  ema_loss=1.987505  3.2 sps  ETA 2.0h
+[shared] 7500 steps: 3.20 steps/s since the start, 3.27 steps/s over the last 500, 19.6 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [   8000] loss=0.055322  ema_loss=0.053498  3.2 sps  ETA 1.9h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [   8000] loss=0.053133  ema_loss=0.051438  3.2 sps  ETA 1.9h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [   8000] loss=0.168573  ema_loss=2.770075  3.2 sps  ETA 1.9h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [   8000] loss=0.217345  ema_loss=2.875268  3.2 sps  ETA 1.9h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [   8000] loss=0.141245  ema_loss=2.795845  3.2 sps  ETA 1.9h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [   8000] loss=0.123061  ema_loss=2.779960  3.2 sps  ETA 1.9h
+[shared] 8000 steps: 3.20 steps/s since the start, 3.24 steps/s over the last 500, 19.5 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [   8500] loss=0.054101  ema_loss=0.054431  3.2 sps  ETA 1.9h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [   8500] loss=0.052549  ema_loss=0.052445  3.2 sps  ETA 1.9h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [   8500] loss=0.224454  ema_loss=2.641435  3.2 sps  ETA 1.9h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [   8500] loss=0.261113  ema_loss=2.793778  3.2 sps  ETA 1.9h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [   8500] loss=0.192882  ema_loss=2.711061  3.2 sps  ETA 1.9h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [   8500] loss=0.158120  ema_loss=2.692957  3.2 sps  ETA 1.9h
+[shared] 8500 steps: 3.20 steps/s since the start, 3.23 steps/s over the last 500, 19.4 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [   9000] loss=0.054849  ema_loss=0.053508  3.2 sps  ETA 1.8h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [   9000] loss=0.053219  ema_loss=0.051488  3.2 sps  ETA 1.8h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [   9000] loss=0.148507  ema_loss=1.169642  3.2 sps  ETA 1.8h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [   9000] loss=0.201468  ema_loss=1.250941  3.2 sps  ETA 1.8h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [   9000] loss=0.117963  ema_loss=1.174118  3.2 sps  ETA 1.8h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [   9000] loss=0.108380  ema_loss=1.156427  3.2 sps  ETA 1.8h
+[shared] 9000 steps: 3.21 steps/s since the start, 3.27 steps/s over the last 500, 19.6 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [   9500] loss=0.052016  ema_loss=0.053721  3.2 sps  ETA 1.8h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [   9500] loss=0.049804  ema_loss=0.051591  3.2 sps  ETA 1.8h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [   9500] loss=2.720211  ema_loss=1.841735  3.2 sps  ETA 1.8h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [   9500] loss=2.762550  ema_loss=1.922545  3.2 sps  ETA 1.8h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [   9500] loss=2.711919  ema_loss=1.848177  3.2 sps  ETA 1.8h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [   9500] loss=2.677415  ema_loss=1.828882  3.2 sps  ETA 1.8h
+[shared] 9500 steps: 3.21 steps/s since the start, 3.24 steps/s over the last 500, 19.4 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  10000] loss=0.055542  ema_loss=0.054136  3.2 sps  ETA 1.7h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  10000] loss=0.053173  ema_loss=0.052071  3.2 sps  ETA 1.7h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  10000] loss=0.312269  ema_loss=2.045767  3.2 sps  ETA 1.7h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  10000] loss=0.376540  ema_loss=2.151631  3.2 sps  ETA 1.7h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  10000] loss=0.292774  ema_loss=2.075267  3.2 sps  ETA 1.7h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  10000] loss=0.282136  ema_loss=2.056168  3.2 sps  ETA 1.7h
+[shared] 10000 steps: 3.21 steps/s since the start, 3.23 steps/s over the last 500, 19.4 job steps/s, the stream took 3% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  10500] loss=0.054703  ema_loss=0.052961  3.2 sps  ETA 1.7h
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf419_cos200k_bb100k_h30k_recon_lin/qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722_best.pth (ema_loss=0.052961)
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  10500] loss=0.053082  ema_loss=0.050939  3.2 sps  ETA 1.7h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf419_cos200k_bb400k_h30k_recon_lin/qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722_best.pth (ema_loss=0.050939)
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  10500] loss=0.281719  ema_loss=1.044040  3.2 sps  ETA 1.7h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  10500] loss=0.296097  ema_loss=1.128768  3.2 sps  ETA 1.7h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  10500] loss=0.256174  ema_loss=1.056260  3.2 sps  ETA 1.7h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  10500] loss=0.225595  ema_loss=1.036994  3.2 sps  ETA 1.7h
+[shared] 10500 steps: 3.21 steps/s since the start, 3.26 steps/s over the last 500, 19.6 job steps/s, the stream took 1% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  11000] loss=0.052388  ema_loss=0.053061  3.2 sps  ETA 1.6h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  11000] loss=0.050398  ema_loss=0.051168  3.2 sps  ETA 1.6h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  11000] loss=0.550142  ema_loss=1.539125  3.2 sps  ETA 1.6h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  11000] loss=0.620291  ema_loss=1.658203  3.2 sps  ETA 1.6h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  11000] loss=0.526623  ema_loss=1.579550  3.2 sps  ETA 1.6h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  11000] loss=0.512312  ema_loss=1.560425  3.2 sps  ETA 1.6h
+[shared] 11000 steps: 3.22 steps/s since the start, 3.30 steps/s over the last 500, 19.8 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  11500] loss=0.055778  ema_loss=0.054134  3.2 sps  ETA 1.6h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  11500] loss=0.054017  ema_loss=0.052108  3.2 sps  ETA 1.6h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  11500] loss=25.612169  ema_loss=1.692276  3.2 sps  ETA 1.6h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  11500] loss=25.558834  ema_loss=1.798170  3.2 sps  ETA 1.6h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  11500] loss=25.585768  ema_loss=1.722817  3.2 sps  ETA 1.6h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  11500] loss=25.507692  ema_loss=1.702275  3.2 sps  ETA 1.6h
+[shared] 11500 steps: 3.22 steps/s since the start, 3.30 steps/s over the last 500, 19.8 job steps/s, the stream took 1% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  12000] loss=0.051471  ema_loss=0.053997  3.2 sps  ETA 1.6h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  12000] loss=0.049658  ema_loss=0.051981  3.2 sps  ETA 1.6h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  12000] loss=0.504143  ema_loss=1.034909  3.2 sps  ETA 1.6h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  12000] loss=0.580040  ema_loss=1.111589  3.2 sps  ETA 1.6h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  12000] loss=0.481560  ema_loss=1.040569  3.2 sps  ETA 1.6h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  12000] loss=0.464915  ema_loss=1.020278  3.2 sps  ETA 1.6h
+[shared] 12000 steps: 3.22 steps/s since the start, 3.18 steps/s over the last 500, 19.1 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  12500] loss=0.052547  ema_loss=0.053499  3.2 sps  ETA 1.5h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  12500] loss=0.050288  ema_loss=0.051478  3.2 sps  ETA 1.5h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  12500] loss=0.179811  ema_loss=1.414528  3.2 sps  ETA 1.5h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  12500] loss=0.234348  ema_loss=1.507857  3.2 sps  ETA 1.5h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  12500] loss=0.158364  ema_loss=1.436874  3.2 sps  ETA 1.5h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  12500] loss=0.132156  ema_loss=1.416277  3.2 sps  ETA 1.5h
+[shared] 12500 steps: 3.22 steps/s since the start, 3.32 steps/s over the last 500, 19.9 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  13000] loss=0.052205  ema_loss=0.053439  3.2 sps  ETA 1.5h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  13000] loss=0.050094  ema_loss=0.051420  3.2 sps  ETA 1.5h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  13000] loss=1.583116  ema_loss=1.605026  3.2 sps  ETA 1.5h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  13000] loss=1.611388  ema_loss=1.691210  3.2 sps  ETA 1.5h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  13000] loss=1.570538  ema_loss=1.617430  3.2 sps  ETA 1.5h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  13000] loss=1.523597  ema_loss=1.597510  3.2 sps  ETA 1.5h
+[shared] 13000 steps: 3.23 steps/s since the start, 3.31 steps/s over the last 500, 19.8 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  13500] loss=0.053857  ema_loss=0.053924  3.2 sps  ETA 1.4h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  13500] loss=0.051556  ema_loss=0.051945  3.2 sps  ETA 1.4h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  13500] loss=0.281198  ema_loss=0.991879  3.2 sps  ETA 1.4h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  13500] loss=0.361934  ema_loss=1.076476  3.2 sps  ETA 1.4h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  13500] loss=0.279944  ema_loss=1.003695  3.2 sps  ETA 1.4h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  13500] loss=0.257890  ema_loss=0.984546  3.2 sps  ETA 1.4h
+[shared] 13500 steps: 3.23 steps/s since the start, 3.32 steps/s over the last 500, 19.9 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  14000] loss=0.052374  ema_loss=0.052657  3.2 sps  ETA 1.4h
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf419_cos200k_bb100k_h30k_recon_lin/qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722_best.pth (ema_loss=0.052657)
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  14000] loss=0.050445  ema_loss=0.050669  3.2 sps  ETA 1.4h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722]   -> New best: /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf419_cos200k_bb400k_h30k_recon_lin/qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722_best.pth (ema_loss=0.050669)
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  14000] loss=0.971933  ema_loss=2.348846  3.2 sps  ETA 1.4h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  14000] loss=1.296569  ema_loss=2.432764  3.2 sps  ETA 1.4h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  14000] loss=1.205804  ema_loss=2.362818  3.2 sps  ETA 1.4h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  14000] loss=1.203471  ema_loss=2.342448  3.2 sps  ETA 1.4h
+[shared] 14000 steps: 3.23 steps/s since the start, 3.33 steps/s over the last 500, 20.0 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  14500] loss=0.052641  ema_loss=0.054227  3.2 sps  ETA 1.3h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  14500] loss=0.051369  ema_loss=0.052221  3.2 sps  ETA 1.3h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  14500] loss=0.178684  ema_loss=1.084832  3.2 sps  ETA 1.3h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  14500] loss=0.212353  ema_loss=1.170267  3.2 sps  ETA 1.3h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  14500] loss=0.155681  ema_loss=1.101800  3.2 sps  ETA 1.3h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  14500] loss=0.125792  ema_loss=1.080725  3.2 sps  ETA 1.3h
+[shared] 14500 steps: 3.24 steps/s since the start, 3.32 steps/s over the last 500, 19.9 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  15000] loss=0.053909  ema_loss=0.053436  3.2 sps  ETA 1.3h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  15000] loss=0.052048  ema_loss=0.051445  3.2 sps  ETA 1.3h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  15000] loss=0.263547  ema_loss=1.938385  3.2 sps  ETA 1.3h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  15000] loss=0.395080  ema_loss=2.042146  3.2 sps  ETA 1.3h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  15000] loss=0.307018  ema_loss=1.971880  3.2 sps  ETA 1.3h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  15000] loss=0.296769  ema_loss=1.950605  3.2 sps  ETA 1.3h
+[shared] 15000 steps: 3.24 steps/s since the start, 3.26 steps/s over the last 500, 19.6 job steps/s, the stream took 2% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  15500] loss=0.052546  ema_loss=0.052882  3.2 sps  ETA 1.2h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  15500] loss=0.050841  ema_loss=0.050930  3.2 sps  ETA 1.2h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  15500] loss=0.156839  ema_loss=1.027119  3.2 sps  ETA 1.2h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  15500] loss=0.221269  ema_loss=1.096112  3.2 sps  ETA 1.2h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  15500] loss=0.135028  ema_loss=1.024416  3.2 sps  ETA 1.2h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  15500] loss=0.131489  ema_loss=1.005466  3.2 sps  ETA 1.2h
+[shared] 15500 steps: 3.24 steps/s since the start, 3.32 steps/s over the last 500, 19.9 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  16000] loss=0.054668  ema_loss=0.054434  3.2 sps  ETA 1.2h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  16000] loss=0.053807  ema_loss=0.052553  3.2 sps  ETA 1.2h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  16000] loss=0.319391  ema_loss=1.571166  3.2 sps  ETA 1.2h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  16000] loss=0.344208  ema_loss=1.659847  3.2 sps  ETA 1.2h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  16000] loss=0.289350  ema_loss=1.596425  3.2 sps  ETA 1.2h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  16000] loss=0.272449  ema_loss=1.570464  3.2 sps  ETA 1.2h
+[shared] 16000 steps: 3.24 steps/s since the start, 3.32 steps/s over the last 500, 19.9 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  16500] loss=0.052052  ema_loss=0.053645  3.2 sps  ETA 1.2h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  16500] loss=0.050223  ema_loss=0.051511  3.2 sps  ETA 1.2h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  16500] loss=1.344559  ema_loss=1.239455  3.2 sps  ETA 1.2h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  16500] loss=1.289311  ema_loss=1.322037  3.2 sps  ETA 1.2h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  16500] loss=1.307956  ema_loss=1.257978  3.2 sps  ETA 1.2h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  16500] loss=1.248791  ema_loss=1.236064  3.2 sps  ETA 1.2h
+[shared] 16500 steps: 3.24 steps/s since the start, 3.34 steps/s over the last 500, 20.0 job steps/s, the stream took 5% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  17000] loss=0.055173  ema_loss=0.053704  3.2 sps  ETA 1.1h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  17000] loss=0.053769  ema_loss=0.051736  3.2 sps  ETA 1.1h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  17000] loss=0.217755  ema_loss=1.580190  3.2 sps  ETA 1.1h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  17000] loss=0.305318  ema_loss=1.682319  3.2 sps  ETA 1.1h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  17000] loss=0.196026  ema_loss=1.611699  3.2 sps  ETA 1.1h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  17000] loss=0.200400  ema_loss=1.591027  3.2 sps  ETA 1.1h
+[shared] 17000 steps: 3.25 steps/s since the start, 3.34 steps/s over the last 500, 20.0 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  17500] loss=0.053496  ema_loss=0.052974  3.2 sps  ETA 1.1h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  17500] loss=0.051994  ema_loss=0.050976  3.2 sps  ETA 1.1h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  17500] loss=0.183397  ema_loss=0.838958  3.2 sps  ETA 1.1h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  17500] loss=0.236634  ema_loss=0.920962  3.2 sps  ETA 1.1h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  17500] loss=0.151166  ema_loss=0.850136  3.2 sps  ETA 1.1h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  17500] loss=0.137888  ema_loss=0.830668  3.2 sps  ETA 1.1h
+[shared] 17500 steps: 3.25 steps/s since the start, 3.34 steps/s over the last 500, 20.0 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  18000] loss=0.052198  ema_loss=0.053183  3.2 sps  ETA 1.0h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  18000] loss=0.050720  ema_loss=0.051272  3.2 sps  ETA 1.0h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  18000] loss=4.964231  ema_loss=1.230871  3.2 sps  ETA 1.0h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  18000] loss=5.289009  ema_loss=1.330363  3.2 sps  ETA 1.0h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  18000] loss=5.208707  ema_loss=1.264764  3.2 sps  ETA 1.0h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  18000] loss=5.198941  ema_loss=1.241280  3.2 sps  ETA 1.0h
+[shared] 18000 steps: 3.25 steps/s since the start, 3.25 steps/s over the last 500, 19.5 job steps/s, the stream took 2% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  18500] loss=0.053829  ema_loss=0.053391  3.3 sps  ETA 1.0h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  18500] loss=0.051158  ema_loss=0.051294  3.3 sps  ETA 1.0h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  18500] loss=0.523189  ema_loss=0.943640  3.3 sps  ETA 1.0h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  18500] loss=0.728391  ema_loss=1.028557  3.3 sps  ETA 1.0h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  18500] loss=0.631154  ema_loss=0.961388  3.3 sps  ETA 1.0h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  18500] loss=0.598514  ema_loss=0.939098  3.3 sps  ETA 1.0h
+[shared] 18500 steps: 3.25 steps/s since the start, 3.34 steps/s over the last 500, 20.0 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  19000] loss=0.054566  ema_loss=0.053044  3.3 sps  ETA 0.9h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  19000] loss=0.052296  ema_loss=0.051029  3.3 sps  ETA 0.9h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  19000] loss=0.400277  ema_loss=1.677471  3.3 sps  ETA 0.9h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  19000] loss=0.408081  ema_loss=1.759822  3.3 sps  ETA 0.9h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  19000] loss=0.378434  ema_loss=1.696057  3.3 sps  ETA 0.9h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  19000] loss=0.340156  ema_loss=1.673613  3.3 sps  ETA 0.9h
+[shared] 19000 steps: 3.25 steps/s since the start, 3.33 steps/s over the last 500, 20.0 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  19500] loss=0.054288  ema_loss=0.054209  3.3 sps  ETA 0.9h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  19500] loss=0.051844  ema_loss=0.052125  3.3 sps  ETA 0.9h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  19500] loss=0.168966  ema_loss=1.101438  3.3 sps  ETA 0.9h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  19500] loss=0.234178  ema_loss=1.190668  3.3 sps  ETA 0.9h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  19500] loss=0.143668  ema_loss=1.124180  3.3 sps  ETA 0.9h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  19500] loss=0.123536  ema_loss=1.101465  3.3 sps  ETA 0.9h
+[shared] 19500 steps: 3.26 steps/s since the start, 3.32 steps/s over the last 500, 19.9 job steps/s, the stream took 1% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  20000] loss=0.053592  ema_loss=0.053668  3.3 sps  ETA 0.9h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  20000] loss=0.051829  ema_loss=0.051754  3.3 sps  ETA 0.9h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  20000] loss=1.015941  ema_loss=1.474131  3.3 sps  ETA 0.9h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  20000] loss=1.077450  ema_loss=1.571472  3.3 sps  ETA 0.9h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  20000] loss=0.994337  ema_loss=1.507223  3.3 sps  ETA 0.9h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  20000] loss=0.973590  ema_loss=1.483677  3.3 sps  ETA 0.9h
+[shared] 20000 steps: 3.26 steps/s since the start, 3.33 steps/s over the last 500, 20.0 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  20500] loss=0.052526  ema_loss=0.052928  3.3 sps  ETA 0.8h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  20500] loss=0.050623  ema_loss=0.051028  3.3 sps  ETA 0.8h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  20500] loss=7.669594  ema_loss=1.249866  3.3 sps  ETA 0.8h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  20500] loss=7.804144  ema_loss=1.336418  3.3 sps  ETA 0.8h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  20500] loss=7.661790  ema_loss=1.272016  3.3 sps  ETA 0.8h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  20500] loss=7.635787  ema_loss=1.248768  3.3 sps  ETA 0.8h
+[shared] 20500 steps: 3.26 steps/s since the start, 3.33 steps/s over the last 500, 20.0 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  21000] loss=0.055154  ema_loss=0.053415  3.3 sps  ETA 0.8h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  21000] loss=0.052888  ema_loss=0.051433  3.3 sps  ETA 0.8h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  21000] loss=1.779942  ema_loss=0.971970  3.3 sps  ETA 0.8h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  21000] loss=1.765034  ema_loss=1.068367  3.3 sps  ETA 0.8h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  21000] loss=1.758857  ema_loss=1.000812  3.3 sps  ETA 0.8h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  21000] loss=1.718239  ema_loss=0.979725  3.3 sps  ETA 0.8h
+[shared] 21000 steps: 3.26 steps/s since the start, 3.29 steps/s over the last 500, 19.7 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  21500] loss=0.054873  ema_loss=0.053308  3.3 sps  ETA 0.7h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  21500] loss=0.052820  ema_loss=0.051319  3.3 sps  ETA 0.7h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  21500] loss=0.144154  ema_loss=1.154811  3.3 sps  ETA 0.7h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  21500] loss=0.192668  ema_loss=1.234960  3.3 sps  ETA 0.7h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  21500] loss=0.119404  ema_loss=1.176654  3.3 sps  ETA 0.7h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  21500] loss=0.106639  ema_loss=1.150249  3.3 sps  ETA 0.7h
+[shared] 21500 steps: 3.26 steps/s since the start, 3.29 steps/s over the last 500, 19.7 job steps/s, the stream took 1% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  22000] loss=0.051455  ema_loss=0.053712  3.3 sps  ETA 0.7h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  22000] loss=0.049303  ema_loss=0.051775  3.3 sps  ETA 0.7h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  22000] loss=0.213513  ema_loss=1.010188  3.3 sps  ETA 0.7h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  22000] loss=0.247034  ema_loss=1.090021  3.3 sps  ETA 0.7h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  22000] loss=0.174443  ema_loss=1.027247  3.3 sps  ETA 0.7h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  22000] loss=0.147362  ema_loss=1.004392  3.3 sps  ETA 0.7h
+[shared] 22000 steps: 3.26 steps/s since the start, 3.32 steps/s over the last 500, 19.9 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  22500] loss=0.053393  ema_loss=0.053604  3.3 sps  ETA 0.6h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  22500] loss=0.051711  ema_loss=0.051670  3.3 sps  ETA 0.6h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  22500] loss=0.246388  ema_loss=1.077684  3.3 sps  ETA 0.6h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  22500] loss=0.246279  ema_loss=1.151417  3.3 sps  ETA 0.6h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  22500] loss=0.192218  ema_loss=1.089782  3.3 sps  ETA 0.6h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  22500] loss=0.165523  ema_loss=1.066540  3.3 sps  ETA 0.6h
+[shared] 22500 steps: 3.26 steps/s since the start, 3.12 steps/s over the last 500, 18.7 job steps/s, the stream took 6% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  23000] loss=0.053843  ema_loss=0.053776  3.3 sps  ETA 0.6h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  23000] loss=0.051487  ema_loss=0.051845  3.3 sps  ETA 0.6h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  23000] loss=0.146827  ema_loss=1.120113  3.3 sps  ETA 0.6h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  23000] loss=0.194752  ema_loss=1.213966  3.3 sps  ETA 0.6h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  23000] loss=0.122533  ema_loss=1.146862  3.3 sps  ETA 0.6h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  23000] loss=0.109078  ema_loss=1.125267  3.3 sps  ETA 0.6h
+[shared] 23000 steps: 3.26 steps/s since the start, 3.33 steps/s over the last 500, 20.0 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  23500] loss=0.053659  ema_loss=0.053953  3.3 sps  ETA 0.6h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  23500] loss=0.051862  ema_loss=0.052015  3.3 sps  ETA 0.6h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  23500] loss=3.586116  ema_loss=1.402434  3.3 sps  ETA 0.6h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  23500] loss=3.821037  ema_loss=1.487105  3.3 sps  ETA 0.6h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  23500] loss=3.827039  ema_loss=1.424017  3.3 sps  ETA 0.6h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  23500] loss=3.769513  ema_loss=1.401045  3.3 sps  ETA 0.6h
+[shared] 23500 steps: 3.26 steps/s since the start, 3.32 steps/s over the last 500, 19.9 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  24000] loss=0.053385  ema_loss=0.053625  3.3 sps  ETA 0.5h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  24000] loss=0.051912  ema_loss=0.051687  3.3 sps  ETA 0.5h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  24000] loss=1.046052  ema_loss=1.664334  3.3 sps  ETA 0.5h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  24000] loss=1.003594  ema_loss=1.736256  3.3 sps  ETA 0.5h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  24000] loss=1.014386  ema_loss=1.674660  3.3 sps  ETA 0.5h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  24000] loss=0.965584  ema_loss=1.651367  3.3 sps  ETA 0.5h
+[shared] 24000 steps: 3.26 steps/s since the start, 3.29 steps/s over the last 500, 19.7 job steps/s, the stream took 2% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  24500] loss=0.052987  ema_loss=0.053909  3.3 sps  ETA 0.5h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  24500] loss=0.050955  ema_loss=0.051866  3.3 sps  ETA 0.5h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  24500] loss=0.814107  ema_loss=1.076770  3.3 sps  ETA 0.5h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  24500] loss=1.087131  ema_loss=1.158846  3.3 sps  ETA 0.5h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  24500] loss=0.983557  ema_loss=1.087385  3.3 sps  ETA 0.5h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  24500] loss=0.987998  ema_loss=1.068912  3.3 sps  ETA 0.5h
+[shared] 24500 steps: 3.26 steps/s since the start, 3.21 steps/s over the last 500, 19.3 job steps/s, the stream took 4% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  25000] loss=0.055006  ema_loss=0.054438  3.3 sps  ETA 0.4h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  25000] loss=0.052517  ema_loss=0.052445  3.3 sps  ETA 0.4h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  25000] loss=0.212911  ema_loss=0.992659  3.3 sps  ETA 0.4h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  25000] loss=0.312059  ema_loss=1.058246  3.3 sps  ETA 0.4h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  25000] loss=0.227913  ema_loss=0.990324  3.3 sps  ETA 0.4h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  25000] loss=0.217817  ema_loss=0.969775  3.3 sps  ETA 0.4h
+[shared] 25000 steps: 3.26 steps/s since the start, 3.33 steps/s over the last 500, 20.0 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  25500] loss=0.055121  ema_loss=0.053176  3.3 sps  ETA 0.4h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  25500] loss=0.053358  ema_loss=0.051101  3.3 sps  ETA 0.4h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  25500] loss=8.385139  ema_loss=1.741489  3.3 sps  ETA 0.4h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  25500] loss=8.352508  ema_loss=1.819601  3.3 sps  ETA 0.4h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  25500] loss=8.339598  ema_loss=1.760678  3.3 sps  ETA 0.4h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  25500] loss=8.305499  ema_loss=1.736801  3.3 sps  ETA 0.4h
+[shared] 25500 steps: 3.26 steps/s since the start, 3.33 steps/s over the last 500, 20.0 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  26000] loss=0.054270  ema_loss=0.054009  3.3 sps  ETA 0.3h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  26000] loss=0.052290  ema_loss=0.051992  3.3 sps  ETA 0.3h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  26000] loss=0.777697  ema_loss=1.584198  3.3 sps  ETA 0.3h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  26000] loss=0.785251  ema_loss=1.682379  3.3 sps  ETA 0.3h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  26000] loss=0.740593  ema_loss=1.624612  3.3 sps  ETA 0.3h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  26000] loss=0.718140  ema_loss=1.598912  3.3 sps  ETA 0.3h
+[shared] 26000 steps: 3.26 steps/s since the start, 3.24 steps/s over the last 500, 19.4 job steps/s, the stream took 3% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  26500] loss=0.055272  ema_loss=0.053451  3.3 sps  ETA 0.3h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  26500] loss=0.052745  ema_loss=0.051367  3.3 sps  ETA 0.3h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  26500] loss=1.156335  ema_loss=0.947184  3.3 sps  ETA 0.3h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  26500] loss=1.390674  ema_loss=1.035302  3.3 sps  ETA 0.3h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  26500] loss=1.295233  ema_loss=0.972335  3.3 sps  ETA 0.3h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  26500] loss=1.291232  ema_loss=0.950051  3.3 sps  ETA 0.3h
+[shared] 26500 steps: 3.26 steps/s since the start, 3.30 steps/s over the last 500, 19.8 job steps/s, the stream took 1% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  27000] loss=0.053371  ema_loss=0.053964  3.3 sps  ETA 0.3h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  27000] loss=0.051343  ema_loss=0.051891  3.3 sps  ETA 0.3h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  27000] loss=0.765859  ema_loss=2.808312  3.3 sps  ETA 0.3h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  27000] loss=0.960831  ema_loss=2.892826  3.3 sps  ETA 0.3h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  27000] loss=0.917638  ema_loss=2.828922  3.3 sps  ETA 0.3h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  27000] loss=0.897319  ema_loss=2.807021  3.3 sps  ETA 0.3h
+[shared] 27000 steps: 3.26 steps/s since the start, 3.18 steps/s over the last 500, 19.1 job steps/s, the stream took 4% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  27500] loss=0.054532  ema_loss=0.054269  3.3 sps  ETA 0.2h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  27500] loss=0.051963  ema_loss=0.052161  3.3 sps  ETA 0.2h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  27500] loss=0.199990  ema_loss=1.344660  3.3 sps  ETA 0.2h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  27500] loss=0.219988  ema_loss=1.415817  3.3 sps  ETA 0.2h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  27500] loss=0.179756  ema_loss=1.351668  3.3 sps  ETA 0.2h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  27500] loss=0.149491  ema_loss=1.329720  3.3 sps  ETA 0.2h
+[shared] 27500 steps: 3.26 steps/s since the start, 3.27 steps/s over the last 500, 19.6 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  28000] loss=0.053439  ema_loss=0.053213  3.3 sps  ETA 0.2h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  28000] loss=0.051506  ema_loss=0.051191  3.3 sps  ETA 0.2h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  28000] loss=0.276790  ema_loss=1.043249  3.3 sps  ETA 0.2h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  28000] loss=0.373006  ema_loss=1.134476  3.3 sps  ETA 0.2h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  28000] loss=0.275978  ema_loss=1.070699  3.3 sps  ETA 0.2h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  28000] loss=0.267763  ema_loss=1.048195  3.3 sps  ETA 0.2h
+[shared] 28000 steps: 3.26 steps/s since the start, 3.24 steps/s over the last 500, 19.4 job steps/s, the stream took 4% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  28500] loss=0.055743  ema_loss=0.053040  3.3 sps  ETA 0.1h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  28500] loss=0.053684  ema_loss=0.051053  3.3 sps  ETA 0.1h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  28500] loss=1.962259  ema_loss=1.456595  3.3 sps  ETA 0.1h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  28500] loss=2.265465  ema_loss=1.533149  3.3 sps  ETA 0.1h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  28500] loss=2.172867  ema_loss=1.470030  3.3 sps  ETA 0.1h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  28500] loss=2.171079  ema_loss=1.448866  3.3 sps  ETA 0.1h
+[shared] 28500 steps: 3.26 steps/s since the start, 3.32 steps/s over the last 500, 19.9 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  29000] loss=0.052517  ema_loss=0.053256  3.3 sps  ETA 0.1h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  29000] loss=0.050566  ema_loss=0.051281  3.3 sps  ETA 0.1h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  29000] loss=0.278952  ema_loss=0.988838  3.3 sps  ETA 0.1h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  29000] loss=0.308474  ema_loss=1.062500  3.3 sps  ETA 0.1h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  29000] loss=0.256864  ema_loss=1.002812  3.3 sps  ETA 0.1h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  29000] loss=0.242861  ema_loss=0.977680  3.3 sps  ETA 0.1h
+[shared] 29000 steps: 3.26 steps/s since the start, 3.32 steps/s over the last 500, 19.9 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  29500] loss=0.053295  ema_loss=0.053379  3.3 sps  ETA 0.0h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  29500] loss=0.051801  ema_loss=0.051459  3.3 sps  ETA 0.0h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  29500] loss=0.175208  ema_loss=1.998136  3.3 sps  ETA 0.0h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  29500] loss=0.204463  ema_loss=2.083074  3.3 sps  ETA 0.0h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  29500] loss=0.150101  ema_loss=2.024811  3.3 sps  ETA 0.0h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  29500] loss=0.121298  ema_loss=2.000020  3.3 sps  ETA 0.0h
+[shared] 29500 steps: 3.26 steps/s since the start, 3.32 steps/s over the last 500, 19.9 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] [  30000] loss=0.055115  ema_loss=0.053510  3.3 sps  ETA 0.0h
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] [  30000] loss=0.053160  ema_loss=0.051657  3.3 sps  ETA 0.0h
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] [  30000] loss=0.152352  ema_loss=1.780042  3.3 sps  ETA 0.0h
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] [  30000] loss=0.194983  ema_loss=1.861673  3.3 sps  ETA 0.0h
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] [  30000] loss=0.123761  ema_loss=1.801555  3.3 sps  ETA 0.0h
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] [  30000] loss=0.101093  ema_loss=1.777481  3.3 sps  ETA 0.0h
+[shared] 30000 steps: 3.27 steps/s since the start, 3.33 steps/s over the last 500, 20.0 job steps/s, the stream took 0% of that time, peak 5.09 GiB allocated, 5.16 GiB reserved
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] 
+[qhead_cf419_cos200k_bb100k_h30k_recon_lin_s20260722] Done in 2.6h. Best loss=0.052657 at step 14000
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] 
+[qhead_cf419_cos200k_bb400k_h30k_recon_lin_s20260722] Done in 2.6h. Best loss=0.050669 at step 14000
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] 
+[qhead_cf412om_bb10k_h30k_recon_lin_s20260722] Done in 2.6h. Best loss=0.731637 at step 3000
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] 
+[qhead_cf412om_bb166k_h30k_recon_lin_s20260722] Done in 2.6h. Best loss=0.837426 at step 3000
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] 
+[qhead_cf412oc_bb40k_h30k_recon_lin_s20260722] Done in 2.6h. Best loss=0.733783 at step 3000
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] 
+[qhead_cf412oc2_bb40k_h30k_recon_lin_s20260722] Done in 2.6h. Best loss=0.726260 at step 3000
+[shared] done

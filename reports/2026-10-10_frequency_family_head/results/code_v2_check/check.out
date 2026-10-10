@@ -1,0 +1,84 @@
+code folder: /home/jupyter/cf_runs/freq_family/code_v2 (f4d9f5d2). The waves that run read ad1984a6.
+
+== A. The test wave of the old code (6 configs on the CPU, no protocol file)
+-- A1. collect_scores.py of the code folder
+4 scored arms -> <scratch>/a/results/scores.tsv, 24 config rows -> <scratch>/a/results/config_mase.tsv
+run  stop_k  arm                gm_rel_mase  ratio_to_control  configs  device
+blk  200     control            1.2653       1.0000            6        cpu
+blk  200     shared_draw        1.2697       1.0035            6        cpu
+blk  200     heads_strict_m16   1.2653       1.0000            6        cpu
+blk  200     shared_strict_m16  1.2653       1.0000            6        cpu
+-- the table of the old code
+run  stop_k  arm                gm_rel_mase  ratio_to_control  configs
+blk  200     control            1.2653       1.0000            6
+blk  200     shared_draw        1.2697       1.0035            6
+blk  200     heads_strict_m16   1.2653       1.0000            6
+blk  200     shared_strict_m16  1.2653       1.0000            6
+-- A2. run_wave.sh with the filter of the test wave: an old test score names no filter
+[10-10 12:55:58] [freq_family blk 200k] score: control shared_draw (device=cpu configs=6 filter=^(bizitobs_service/short|ett1/15T/short|ett1/H/short|us_births/D/short|m4_weekly/short|m4_yearly/short)$, 4 shards
+[10-10 12:55:58] [freq_family blk 200k] score shared_draw REFUSED: its eval files are of 'device=cpu configs=6', and this start asks for 'device=cpu configs=6 filter=^(bizitobs_service/short|ett1/15T/short|ett1
+[10-10 12:55:58] [freq_family blk 200k] score control REFUSED: its eval files are of 'device=cpu configs=6', and this start asks for 'device=cpu configs=6 filter=^(bizitobs_service/short|ett1/15T/short|ett1/H/s
+4 scored arms -> <scratch>/a/results/scores.tsv, 24 config rows -> <scratch>/a/results/config_mase.tsv
+[10-10 12:56:00] [freq_family blk 200k] WAVE_END rc=1
+rc=1
+
+== B. A score as the BLK wave of the old code leaves it (97 configs on the GPU, no protocol file)
+-- B1. FF_EVAL_DEVICE=cuda: the score is the work that is done
+[10-10 12:56:00] [freq_family blk 200k] score: control (device=cuda configs=97 filter=, 4 shards, 2 at a time)
+[10-10 12:56:00] [freq_family blk 200k] score control: 1.1263
+1 scored arms -> <scratch>/b/results/scores.tsv, 97 config rows -> <scratch>/b/results/config_mase.tsv
+[10-10 12:56:02] [freq_family blk 200k] WAVE_END rc=0
+rc=0
+run  stop_k  arm      gm_rel_mase  ratio_to_control  configs  device
+blk  200     control  1.1263       1.0000            97       cuda
+-- B2. the CPU default: the start refuses the GPU score
+[10-10 12:56:02] [freq_family blk 200k] score: control (device=cpu configs=97 filter=, 4 shards, 5 at a time)
+[10-10 12:56:02] [freq_family blk 200k] score control REFUSED: its eval files are of 'device=cuda configs=97', and this start asks for 'device=cpu configs=97 filter='. Give the same device and filter. Or set FF
+1 scored arms -> <scratch>/b/results/scores.tsv, 97 config rows -> <scratch>/b/results/config_mase.tsv
+[10-10 12:56:04] [freq_family blk 200k] WAVE_END rc=1
+rc=1
+
+== C. follow_abc_gift.sh on the checkpoint of abc_gift at 40k
+-- C1. with FF_CODE=/home/jupyter/cf_runs/freq_family/code_v2
+[10-10 12:56:04] [freq_family follow abc_gift] start: stops 40, arms control shared_strict
+[10-10 12:56:06] [freq_family follow abc_gift] checkpoint 40k: /home/jupyter/cf_runs/abc_gift/ckpt/abc_gift_40k.pth (69063722 bytes, sha256 a26088c07a6f0f39ece7af7e2cffcf1be36a70945f817c275dec19141f5e197f)
+[10-10 12:56:08] [freq_family abc_gift 40k] train: 2 arms, 30000 steps, GPU 1, code f4d9f5d2: control shared_strict -> <scratch>/c/results/waves/abc_gift_bb40k_1010_125608_sHMF/train.log
+[10-10 12:56:08] [freq_family abc_gift 40k] train rc=0
+[10-10 12:56:08] [freq_family abc_gift 40k] WAVE_END rc=0
+[10-10 12:56:10] [freq_family abc_gift 40k] score: control shared_strict (device=cuda configs=1 filter=^ett1/H/short$, 4 shards, 2 at a time)
+[10-10 12:56:10] [freq_family abc_gift 40k] score control: 1.1000
+[10-10 12:56:10] [freq_family abc_gift 40k] score shared_strict: 1.1000
+2 scored arms -> <scratch>/c/results/scores.tsv, 2 config rows -> <scratch>/c/results/config_mase.tsv
+[10-10 12:56:12] [freq_family abc_gift 40k] WAVE_END rc=0
+[10-10 12:56:12] [freq_family follow abc_gift] FOLLOW_END rc=0
+rc=0
+run       stop_k  arm            gm_rel_mase  ratio_to_control  configs  device
+abc_gift  40      control        1.1000       1.0000            1        cuda
+abc_gift  40      shared_strict  1.1000       1.0000            1        cuda
+-- the trainer log of the wave
+[shared] 2 stand-in heads, token set
+-- C2. a second start, with no FF_CODE: the script reads its own code folder
+[10-10 12:56:12] [freq_family follow abc_gift] start: stops 40, arms control shared_strict
+[10-10 12:56:14] [freq_family abc_gift 40k] train SKIP: each arm has its final head
+[10-10 12:56:14] [freq_family abc_gift 40k] WAVE_END rc=0
+[10-10 12:56:15] [freq_family abc_gift 40k] score: control shared_strict (device=cuda configs=1 filter=^ett1/H/short$, 4 shards, 2 at a time)
+[10-10 12:56:15] [freq_family abc_gift 40k] score control: 1.1000
+[10-10 12:56:15] [freq_family abc_gift 40k] score shared_strict: 1.1000
+2 scored arms -> <scratch>/c/results/scores.tsv, 2 config rows -> <scratch>/c/results/config_mase.tsv
+[10-10 12:56:17] [freq_family abc_gift 40k] WAVE_END rc=0
+[10-10 12:56:17] [freq_family follow abc_gift] FOLLOW_END rc=0
+rc=0
+run	stop_k	source	sha256
+abc_gift	40	/home/jupyter/cf_runs/abc_gift/ckpt/abc_gift_40k.pth	a26088c07a6f0f39ece7af7e2cffcf1be36a70945f817c275dec19141f5e197f
+-- C3. a start on another device
+[10-10 12:56:17] [freq_family follow abc_gift] start: stops 40, arms control shared_strict
+[10-10 12:56:18] [freq_family abc_gift 40k] train SKIP: each arm has its final head
+[10-10 12:56:18] [freq_family abc_gift 40k] WAVE_END rc=0
+[10-10 12:56:21] [freq_family abc_gift 40k] score: control shared_strict (device=cpu configs=1 filter=^ett1/H/short$, 4 shards, 5 at a time)
+[10-10 12:56:21] [freq_family abc_gift 40k] score control REFUSED: its eval files are of 'device=cuda configs=1 filter=^ett1/H/short$', and this start asks for 'device=cpu configs=1 filter=^ett1/H/short$'. Give
+[10-10 12:56:21] [freq_family abc_gift 40k] score shared_strict REFUSED: its eval files are of 'device=cuda configs=1 filter=^ett1/H/short$', and this start asks for 'device=cpu configs=1 filter=^ett1/H/short$'
+2 scored arms -> <scratch>/c/results/scores.tsv, 2 config rows -> <scratch>/c/results/config_mase.tsv
+[10-10 12:56:23] [freq_family abc_gift 40k] WAVE_END rc=1
+[10-10 12:56:23] [freq_family follow abc_gift] the scores of 40k FAILED
+[10-10 12:56:23] [freq_family follow abc_gift] FOLLOW_END rc=1
+rc=1
