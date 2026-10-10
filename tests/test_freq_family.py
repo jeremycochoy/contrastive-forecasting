@@ -1334,7 +1334,7 @@ def follow_box(tmp_path):
     ckpt.mkdir(parents=True)
     (tmp_path / "wave.sh").write_text(WAVE_STUB)
     env = dict(os.environ, FF_BASE=str(base), FF_WAVE=str(tmp_path / "wave.sh"),
-               FF_ABC_CKPT=str(ckpt), FF_POLL="0.2", FF_SETTLE="0",
+               FF_ABC_CKPT=str(ckpt), FF_POLL="0.2",
                FF_WAIT_MAX="20", FF_TEST_RES=str(base / "results"))
     for key in ("FF_STOPS", "FF_TRAIN", "FF_SCORE", "FF_RUN"):
         env.pop(key, None)
