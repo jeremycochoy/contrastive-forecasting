@@ -20,6 +20,7 @@ Usage:
 """
 
 import argparse
+import collections
 import csv
 import math
 import os
@@ -63,6 +64,9 @@ from src.forecasting_head import (
     compute_reconstruction_targets,
     reconstruction_quantile_loss,
 )
+from src.freq_family import (FAMILY_BODIES, FAMILY_MEMBERS, FAMILY_RULES,
+                             FrequencyFamilyHead, check_family_members,
+                             family_row_members)
 
 
 def lr_multiplier(step: int, total_steps: int, schedule: str,
@@ -310,6 +314,29 @@ def parse_args(argv=None):
                         "Matches the [e_ctx, rolled_f] input the head sees "
                         "at eval B-strategies, fixing a train-eval input "
                         "distribution mismatch.")
+    # -- Frequency family (src/freq_family.py) ------------------------------
+    p.add_argument("--freq-family", default=None, choices=FAMILY_BODIES,
+                   help="Train a family of forecast decoders in place of "
+                        "the one standard head. The frequency of a row "
+                        "selects its decoder (a member). Each member "
+                        "decodes the --forecast-len values of the next "
+                        "patch, as the standard head does. 'shared': one "
+                        "head body with one output layer for each member. "
+                        "'heads': one complete head for each member. Needs "
+                        "a backbone with one patch size and the EWMA, the "
+                        "prediction branch and --quantile-head.")
+    p.add_argument("--freq-family-rule", default=None, choices=FAMILY_RULES,
+                   help="The member that a row trains. 'strict' (default): "
+                        "the member that scores its frequency. 'draw': one "
+                        "member of the Moirai training range of its "
+                        "frequency, drawn for each row at each step. The "
+                        "score always uses the fixed member.")
+    p.add_argument("--freq-family-members", default=None,
+                   help="The member keys, as a comma list. Default: "
+                        f"{','.join(map(str, FAMILY_MEMBERS))}. A frequency "
+                        "class whose key is not in the list uses the member "
+                        "16. So '16' gives a family of one member, which "
+                        "trains as the standard head.")
     p.add_argument("--amp-dtype", default="none",
                    choices=["none", "bf16", "fp16"],
                    help="Mixed-precision dtype for backbone fwd + head fwd + "
@@ -409,6 +436,44 @@ def refuse_bank_flags(args):
         raise SystemExit("A head bank (#412) trains quantile heads on the "
                          "pinball loss. Pass --quantile-head, and a head "
                          "arch other than transformer-gaussian.")
+
+
+def family_of_flags(args, use_bank, emit_labels):
+    """``(body, rule, members)`` of the frequency family that the flags ask
+    for, or None for the standard head. SystemExit for a family that this
+    run cannot train: each of these cases would train one member only, or
+    another target, with no error."""
+    if args.freq_family is None:
+        if args.freq_family_rule or args.freq_family_members:
+            raise SystemExit("--freq-family-rule and --freq-family-members "
+                             "set a frequency family: pass --freq-family.")
+        return None
+    if use_bank:
+        raise SystemExit("--freq-family reads a backbone with one patch size "
+                         "and the EWMA. This checkpoint trains a head bank "
+                         "(#412): it has patch sizes or the mean/std scaling.")
+    if args.reconstruction or args.mixed_rollout > 0:
+        raise SystemExit("--freq-family trains the prediction branch. Drop "
+                         "--reconstruction / --mixed-rollout.")
+    if not args.quantile_head or args.head_arch == "transformer-gaussian":
+        raise SystemExit("--freq-family trains quantile heads on the pinball "
+                         "loss. Pass --quantile-head, and a head arch other "
+                         "than transformer-gaussian.")
+    if args.forecast_len != W:
+        raise SystemExit(f"Each member of a frequency family decodes the {W} "
+                         f"values of the next patch: pass --forecast-len {W}, "
+                         f"not {args.forecast_len}.")
+    if not emit_labels:
+        raise SystemExit("--freq-family needs the frequency label of each "
+                         "row. The stream of this backbone gives none: the "
+                         "backbone has no label embedding.")
+    try:
+        members = check_family_members(
+            (args.freq_family_members.split(",")
+             if args.freq_family_members else FAMILY_MEMBERS))
+    except ValueError as error:
+        raise SystemExit(f"--freq-family-members: {error}")
+    return args.freq_family, args.freq_family_rule or "strict", members
 
 
 def seed_everything(seed):
@@ -627,9 +692,22 @@ def load_frozen_backbone(args, config, sd, device):
     return backbone
 
 
-def build_job_head(args, config, head_config, use_bank, device):
-    """``(head, kind)``: the head of one run, on ``device``."""
-    if use_bank:
+def build_job_head(args, config, head_config, use_bank, device,
+                   family=None):
+    """``(head, kind)``: the head of one run, on ``device``. ``family``
+    (:func:`family_of_flags`) asks for a frequency family."""
+    if family is not None:
+        body, _, members = family
+        try:
+            head = FrequencyFamilyHead(
+                lambda: build_head(args, head_config, args.forecast_len)[0],
+                members, body).to(device)
+        except ValueError as error:
+            raise SystemExit(f"--freq-family {body}: {error}")
+        head_kind = (f"frequency family, body {body}, members {members}, "
+                     f"each a {args.head_arch} quantile head decoding the "
+                     f"{args.forecast_len} values of the next patch")
+    elif use_bank:
         sizes = config["multi_patch_sizes"] or (config["W"],)
         built = {p: build_head(args, head_config, p) for p in sizes}
         head = ForecastingHeadBank(
@@ -672,8 +750,13 @@ class HeadJob:
         freq_w = sd.get("freq_embedding.embedding.weight")
         self.freq_vocab = vocab_of_rows(freq_w.shape[0]) if freq_w is not None else "v1"
         self.emit_labels = (args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0)
+        # The frequency family of the run, and the rows that each member
+        # trained.
+        self.family = family_of_flags(args, self.use_bank, self.emit_labels)
+        self.member_rows = collections.Counter()
         self.backbone = load_frozen_backbone(args, config, sd, device)
-        head, _ = build_job_head(args, config, head_config, self.use_bank, device)
+        head, _ = build_job_head(args, config, head_config, self.use_bank,
+                                 device, self.family)
         optimizer = optim.AdamW(
             head.parameters(),
             lr=args.lr,
@@ -799,6 +882,13 @@ class HeadJob:
                   f"frequency's range {'and its split ' if args.rev_norm_kind == 'meanstd' else ''}"
                   f"as the backbone trained, and trains the head of that size. "
                   f"--forecast-len is not read.")
+        if self.family:
+            body, rule, members = self.family
+            print(f"Frequency family: body {body}, rule {rule}, members "
+                  f"{members}. The frequency of each row selects the "
+                  f"decoder that it trains. Each decoder reads the latents "
+                  f"at patch size {W} and decodes the next "
+                  f"{args.forecast_len} values.")
         if args.reconstruction:
             print(f"RECONSTRUCTION mode: {args.reconstruction} "
                   f"(head decodes what latent represents, not future)")
@@ -812,6 +902,16 @@ class HeadJob:
         print(f"Checkpoints: {args.save_dir}/{args.run_name}_*.pth")
         sys.stdout.flush()
         self.t0 = time.time()
+
+    def row_members(self, freq_ids, n):
+        """The family member that each latent row of a batch of ``n``
+        samples trains (:func:`src.freq_family.family_row_members`), one
+        key for each channel of each sample. Counts the samples of each
+        member."""
+        _, rule, members = self.family
+        drawn = family_row_members(freq_ids, n, rule, members)
+        self.member_rows.update(drawn.tolist())
+        return drawn.repeat_interleave(self.C)
 
     def train_step(self, step, batch):
         """One optimizer step on one batch of the stream."""
@@ -992,7 +1092,10 @@ class HeadJob:
                 targets, T_valid = compute_valid_targets(
                     x_norm, W=W, forecast_len=args.forecast_len)
                 targets = targets.to(device)
-                preds = head(f_bc)
+                # A frequency family decodes each row with the member of
+                # its frequency. All else is the standard head.
+                preds = (head(f_bc) if self.family is None else
+                         head(f_bc, self.row_members(freq_ids, x.shape[0])))
                 # #419: the padded targets of a zero-padding backbone.
                 keep = (valid_target_keep(backbone.rev_norm.pad_mask, W,
                                           args.forecast_len)
@@ -1068,6 +1171,15 @@ class HeadJob:
         _save_head(head, optimizer, path, args.total_steps, self.best_loss,
                    self.best_loss_step, args.encoder_source)
         self.csv_logger.close()
+        if self.family:
+            rows = sum(self.member_rows.values())
+            counts = ", ".join(
+                f"{m}: {self.member_rows[m]} "
+                f"({100 * self.member_rows[m] / max(rows, 1):.1f}%)"
+                for m in self.family[2])
+            print(f"Frequency family: rule {self.family[1]}, steps "
+                  f"{self.start_step + 1} to {args.total_steps}, rows of "
+                  f"each member: {counts}")
 
         total = time.time() - self.t0
         print(f"\nDone in {total / 3600:.1f}h. "

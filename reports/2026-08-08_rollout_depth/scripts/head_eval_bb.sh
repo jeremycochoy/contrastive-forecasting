@@ -37,6 +37,24 @@
 #                              patch, in place of the transformer head. Each
 #                              other setting stays. A reconstruction head
 #                              only, and the tag must end in `_recon_lin`.
+#
+# The frequency family (`src/freq_family.py`) adds these knobs. Unset, the
+# head is the standard head, as before.
+#   CF_FREQ_FAMILY=shared|heads  the head is a family of forecast decoders,
+#                              selected by the frequency of each series.
+#                              `shared`: one head body with one output layer
+#                              for each member. `heads`: one complete head
+#                              for each member. Each other flag of the head
+#                              stays. The eval reads the family from the
+#                              head file and scores it under B4.
+#   CF_FREQ_FAMILY_RULE=strict|draw  the member that a row trains (default
+#                              strict): the member that scores its
+#                              frequency, or a draw in the training range of
+#                              its frequency.
+#   CF_FREQ_FAMILY_MEMBERS=<list>  the member keys, as a comma list. Unset:
+#                              the 4 members of the trainer.
+# The tag must end in `_ff_<body>_<rule>`, and in `_m<keys with ->` after it
+# for a member list (`_ff_shared_strict_m16`).
 set -uo pipefail
 
 TAG="${1:?usage: head_eval_bb.sh <tag> <backbone> <student|teacher> [steps]}"
@@ -77,6 +95,37 @@ case "$RECON" in
 esac
 # The head in the log lines: nothing for the B4 head, as before.
 ARCH_NOTE=""; [ "$HEAD_ARCH" = transformer ] || ARCH_NOTE=" head-arch=$HEAD_ARCH"
+
+# A family head and a standard head of one checkpoint must never share a
+# head file or a score file, so the tag names the family: its body, its
+# rule, and a member list of its own. A rule or a member list with no
+# family would train a standard head with no error, so the script refuses.
+FAMILY="${CF_FREQ_FAMILY:-}"
+FAMILY_RULE="${CF_FREQ_FAMILY_RULE:-}"
+FAMILY_MEMBERS="${CF_FREQ_FAMILY_MEMBERS:-}"
+FAMILY_ARGS=(); FAMILY_NOTE=""
+if [ -z "$FAMILY" ]; then
+  [ -z "$FAMILY_RULE$FAMILY_MEMBERS" ] || {
+    echo "ABORT: CF_FREQ_FAMILY_RULE and CF_FREQ_FAMILY_MEMBERS need CF_FREQ_FAMILY" >&2; exit 2; }
+else
+  case "$FAMILY" in shared|heads) ;; *)
+    echo "ABORT: CF_FREQ_FAMILY=$FAMILY. Use shared or heads." >&2; exit 2 ;; esac
+  FAMILY_RULE="${FAMILY_RULE:-strict}"
+  case "$FAMILY_RULE" in strict|draw) ;; *)
+    echo "ABORT: CF_FREQ_FAMILY_RULE=$FAMILY_RULE. Use strict or draw." >&2; exit 2 ;; esac
+  [ -z "$RECON" ] || {
+    echo "ABORT: a frequency family is a forecast head. Unset CF_RECONSTRUCTION." >&2; exit 2; }
+  FAMILY_SUFFIX="_ff_${FAMILY}_${FAMILY_RULE}"
+  FAMILY_ARGS=(--freq-family "$FAMILY" --freq-family-rule "$FAMILY_RULE")
+  if [ -n "$FAMILY_MEMBERS" ]; then
+    FAMILY_SUFFIX="${FAMILY_SUFFIX}_m${FAMILY_MEMBERS//,/-}"
+    FAMILY_ARGS+=(--freq-family-members "$FAMILY_MEMBERS")
+  fi
+  case "$TAG" in *"$FAMILY_SUFFIX") ;; *)
+    echo "ABORT: this frequency family needs a tag that ends in $FAMILY_SUFFIX, not $TAG" >&2
+    exit 2 ;; esac
+  FAMILY_NOTE=" freq-family=${FAMILY_SUFFIX#_ff_}"
+fi
 
 HEAD_SEED="${HEAD_SEED:-20260722}"
 
@@ -177,7 +226,7 @@ HEAD_ARGS=(--backbone-path "$BB"
            --save-dir "$OUT" --run-name "$HEAD_NAME" --seed "$HEAD_SEED"
            --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1
            "${ARCH_ARGS[@]}" "${RECON_ARGS[@]}"
-           "${ARCH_HEAD[@]}")
+           "${ARCH_HEAD[@]}" "${FAMILY_ARGS[@]}")
 
 if [ -n "${CF_HEAD_ARGV_TO:-}" ]; then
   if [ -f "$HEAD_CKPT" ]; then
@@ -185,7 +234,7 @@ if [ -n "${CF_HEAD_ARGV_TO:-}" ]; then
   fi
   python3 -c 'import json, sys; print(json.dumps(sys.argv[1:]))' \
     "${HEAD_ARGS[@]}" >>"$CF_HEAD_ARGV_TO" || exit 1
-  log "head argv -> $CF_HEAD_ARGV_TO${RECON:+ reconstruction=$RECON}$ARCH_NOTE"
+  log "head argv -> $CF_HEAD_ARGV_TO${RECON:+ reconstruction=$RECON}$ARCH_NOTE$FAMILY_NOTE"
   exit 0
 fi
 
@@ -193,7 +242,7 @@ if [ ! -f "$HEAD_CKPT" ]; then
   BB_GPU="${BB_GPU:-0}"
   gpu_gate "$BB_GPU" || { log "ABORT: GPU $BB_GPU never came free"; exit 1; }
   head_vram_gate "$BB_GPU" || { log "ABORT: not enough VRAM on GPU $BB_GPU"; exit 1; }
-  log "head-train start enc=$ENC steps=$HEAD_STEPS seed=$HEAD_SEED gpu=$BB_GPU bb=$(basename "$BB")${RECON:+ reconstruction=$RECON}$ARCH_NOTE"
+  log "head-train start enc=$ENC steps=$HEAD_STEPS seed=$HEAD_SEED gpu=$BB_GPU bb=$(basename "$BB")${RECON:+ reconstruction=$RECON}$ARCH_NOTE$FAMILY_NOTE"
   CUDA_VISIBLE_DEVICES="$BB_GPU" python3 -u "$HEAD_TRAIN" "${HEAD_ARGS[@]}" \
     >>"$LOG" 2>&1
   rc=$?
