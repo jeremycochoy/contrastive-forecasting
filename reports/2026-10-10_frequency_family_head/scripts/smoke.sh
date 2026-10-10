@@ -21,11 +21,14 @@ STEPS="${1:-500}"
 BASE="${FF_BASE:-/home/jupyter/cf_runs/freq_family}"
 CODE="${FF_CODE:-$BASE/code}"
 SMOKE="$BASE/smoke"
+mkdir -p "$BASE/locks"
 BB="${FF_SMOKE_BB:-$HOME/checkpoints_backup/cf-412/vast_lr100x/cf-419c/cos200k/leg_665k/cf419_cos200k_r2_200k.pth}"
 ONE="shared_strict_m16 heads_strict_m16"
 FILTER='^(bizitobs_service/short|ett1/15T/short|ett1/H/short|us_births/D/short|m4_weekly/short|m4_yearly/short)$'
 
+# The test wave waits for a wave that trains: one stream at a time.
 wave(){ FF_BASE="$SMOKE" FF_CODE="$CODE" FF_HEAD_STEPS="$STEPS" \
+  FF_STREAM_LOCK="$BASE/locks/stream.lock" \
   FF_HEAD_SAVE_EVERY=1000000 FF_HEAD_LOG_EVERY=100 \
   bash "$HERE/run_wave.sh" blk 200 "$BB" "$@"; }
 head_dir(){ echo "$SMOKE/heads/eval/blk_bb200k_h${STEPS}_$1"; }

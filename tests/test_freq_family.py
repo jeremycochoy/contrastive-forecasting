@@ -1260,6 +1260,21 @@ def test_a_wave_waits_for_the_stream_and_its_wait_has_an_end(wave_box):
     assert not [c for c in calls(base) if c[0] == "wave"]
 
 
+def test_a_wave_of_another_base_folder_waits_for_the_named_stream_lock(
+        wave_box):
+    """The test wave has its own base folder. It names the stream lock of
+    the waves, so it reads no stream while a wave trains."""
+    tmp_path, base = wave_box[:2]
+    with open(tmp_path / "waves_stream.lock", "a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        r = run_wave(wave_box, FF_STREAM_WAIT="1",
+                     FF_STREAM_LOCK=str(tmp_path / "waves_stream.lock"))
+    assert r.returncode != 0 and "stream" in r.stdout + r.stderr
+    assert not [c for c in calls(base) if c[0] == "wave"]
+    r = run_wave(wave_box, FF_STREAM_LOCK=str(tmp_path / "waves_stream.lock"))
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+
+
 def test_a_wave_with_no_head_after_its_trainer_scores_nothing(wave_box):
     base = wave_box[1]
     r = run_wave(wave_box, FF_TEST_TRAIN_FAILS="1")
@@ -1282,13 +1297,18 @@ def test_a_score_that_fails_fails_the_wave_and_keeps_the_other_scores(
     assert len([c for c in calls(base) if c[0] == "wave"]) == 1
 
 
-def test_the_score_device_and_the_gpu_are_knobs(wave_box):
+def test_the_scores_run_on_the_cpu_unless_the_caller_asks(wave_box):
+    """The standard score runs on the CPU, and a GPU of elisa gives another
+    fifth digit of the score. So the GPU is a knob, and not the default."""
     base = wave_box[1]
-    r = run_wave(wave_box, "control", FF_EVAL_DEVICE="cpu", FF_GPU="0")
+    r = run_wave(wave_box, "control")
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    assert [c for c in calls(base) if c[1] == "score"][0][3:] == ["cpu", "1"]
+    r = run_wave(wave_box, "shared_draw", FF_EVAL_DEVICE="cuda", FF_GPU="0")
     assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
     log = calls(base)
-    assert [c for c in log if c[0] == "wave"][0][1] == "0"
-    assert [c for c in log if c[1] == "score"][0][3:] == ["cpu", "0"]
+    assert [c for c in log if c[0] == "wave"][-1][1] == "0"
+    assert [c for c in log if c[1] == "score"][-1][3:] == ["cuda", "0"]
 
 
 WAVE_STUB = r'''#!/bin/bash

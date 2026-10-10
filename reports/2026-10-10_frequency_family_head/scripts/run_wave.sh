@@ -23,6 +23,16 @@
 # Then each head gets its B4 score: the 97 GIFT-Eval configs with a context
 # of 1,024 values, the protocol of the standard score. The scores of a wave
 # run at the same time, and the eval slots of the base folder limit them.
+#
+# The scores run on the CPU, as the standard score does: about 3.3 hours
+# with 4 shards, and 5 scores at the same time use 20 cores. On a GPU of
+# elisa one score takes 37 minutes, but it is not the same score: for the
+# standard head of BLK 200k the GM-Relative MASE is 1.126275 on the GPU and
+# 1.126227 on the CPU, and the MASE of one config differs by up to 0.06%
+# (b4_gpu_check.sh, 10-10). On 6 configs, the CPU of elisa and the CPU of
+# the box agree to 0.00002%.
+# FF_EVAL_DEVICE=cuda scores on the GPU. Score each arm of one wave on one
+# device.
 # `collect_scores.py` then writes one row for each scored (run, stop, arm)
 # to `results/scores.tsv`, and the MASE of each config to
 # `results/config_mase.tsv`.
@@ -52,7 +62,7 @@
 #   FF_TRAIN=0 bash run_wave.sh ...     train nothing: score the heads that
 #                                       exist
 #   FF_GPU=<N>                          the GPU of the wave (default 1)
-#   FF_EVAL_DEVICE=cpu|cuda             the device of the scores
+#   FF_EVAL_DEVICE=cpu|cuda             the device of the scores (default cpu)
 #   FF_EVAL_SHARDS, FF_EVAL_SLOTS       the shards of one score, and the
 #                                       scores that run at the same time
 #   FF_HEAD_STEPS=500                   a short test wave (tags `_h500_`)
@@ -76,11 +86,14 @@ GPU="${FF_GPU:-1}"
 HEAD_STEPS="${FF_HEAD_STEPS:-30000}"
 TRAIN="${FF_TRAIN:-1}"
 SCORE="${FF_SCORE:-1}"
-DEVICE="${FF_EVAL_DEVICE:-cuda}"
+DEVICE="${FF_EVAL_DEVICE:-cpu}"
 SHARDS="${FF_EVAL_SHARDS:-4}"
-# The GPU runs at 99% with the 4 shards of one score, so 2 scores at a time
-# only keep the order. On the CPU, 5 scores use 20 cores.
+# On the CPU, 5 scores of 4 shards use 20 of the 32 cores of elisa. On the
+# GPU, 2 scores run at the same time.
 if [ "$DEVICE" = cuda ]; then SLOTS="${FF_EVAL_SLOTS:-2}"; else SLOTS="${FF_EVAL_SLOTS:-5}"; fi
+# One wave reads the stream at a time. A wave of another base folder (the
+# test wave) names the lock of the waves here, so it waits for them.
+STREAM_LOCK="${FF_STREAM_LOCK:-$LOCKS/stream.lock}"
 STREAM_WAIT="${FF_STREAM_WAIT:-86400}"
 VRAM="${FF_WAVE_VRAM_MIB:-8000}"
 VRAM_WAIT="${FF_VRAM_WAIT:-7200}"
@@ -197,8 +210,8 @@ train_wave(){
   [ "$(grep -c . "$dir/jobs.jsonl" 2>/dev/null)" = "${#todo[@]}" ] \
     || { log "ABORT: $dir/jobs.jsonl does not hold ${#todo[@]} jobs"; return 1; }
 
-  exec {lk}>>"$LOCKS/stream.lock"
-  flock -n "$lk" || log "waiting: another wave reads the data stream (locks/stream.lock)"
+  exec {lk}>>"$STREAM_LOCK"
+  flock -n "$lk" || log "waiting: another wave reads the data stream ($STREAM_LOCK)"
   flock -w "$STREAM_WAIT" "$lk" \
     || { log "ABORT: another wave reads the data stream after ${STREAM_WAIT} s"; return 1; }
   start=$SECONDS
