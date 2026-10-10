@@ -7,8 +7,12 @@
 #      load, with its optimizer file. The trainer writes the two files in
 #      turn and not in one step, so a file that does not load is not
 #      complete. After a new start, the trainer names its files
-#      `abc_gift_r2_...`: the script takes the file of the last start that
-#      loads. The wait ends after FF_WAIT_MAX seconds: the script then stops,
+#      `abc_gift_r2_...`: the script takes the file of the last start.
+#      When that file does not load, its trainer can write it now, or one
+#      load can fail: the script looks again, and does not take the file of
+#      an older start. A file that did not load at each look of FF_SETTLE
+#      seconds is cut: the script then names it and takes the start before
+#      it. The wait ends after FF_WAIT_MAX seconds: the script then stops,
 #      because a later stop cannot come before this one.
 #   2. Copy the checkpoint to <base>/ckpt/abc_gift/abc_gift_<stop>k.pth. The
 #      wave reads the copy, so it does not read the folder of the run again.
@@ -21,7 +25,13 @@
 # 1 when a wait ended, or when a wave or its scores failed.
 #
 # A second start skips the work that is done: a stop with a copy does not
-# wait, and run_wave.sh skips each head and each score that exists.
+# wait, and run_wave.sh skips each head and each score that exists. A second
+# follower with other arms can run at the same time: run_wave.sh trains one
+# wave at a time.
+#
+# A deployed follower starts its waves with the code of its own code folder.
+# Give each start the score device of the first start (FF_EVAL_DEVICE):
+# run_wave.sh refuses a score on another device.
 #
 # The script reads the folder of `abc_gift` and writes nothing there.
 #
@@ -30,6 +40,8 @@
 #     >>/home/jupyter/cf_runs/freq_family/results/follow.log 2>&1 </dev/null &
 #   FF_STOPS="40 100"     other stops, in thousands of steps
 #   FF_WAIT_MAX=43200     the longest wait for one checkpoint, in seconds
+#   FF_SETTLE=300         the seconds of looks after which a file that
+#                         does not load is cut
 # With no arm, each wave holds the control and the 4 family arms.
 set -uo pipefail
 
@@ -40,6 +52,7 @@ RUN="${FF_RUN:-abc_gift}"
 CKPT_DIR="${FF_ABC_CKPT:-/home/jupyter/cf_runs/abc_gift/ckpt}"
 STOPS="${FF_STOPS:-40 100 140 180 200 240 300 360 400 460}"
 WAIT_MAX="${FF_WAIT_MAX:-43200}"
+SETTLE="${FF_SETTLE:-300}"
 POLL="${FF_POLL:-60}"
 WAVE="${FF_WAVE:-$HERE/run_wave.sh}"
 RES="$BASE/results"
@@ -57,12 +70,30 @@ torch.load(path[:-4] + "_optimizer.pth", map_location="cpu", weights_only=False)
 PY
 }
 
-# The checkpoint of a stop, in CKPT: the file of the last start that loads.
+# The time of the first look at which a file did not load, for each file.
+declare -A BAD_SINCE
+
+# A file that did not load at each look of SETTLE seconds is cut. Before
+# that, its trainer can write it now, or one load can fail.
+is_cut(){  # <file>
+  local since="${BAD_SINCE["$1"]:-}"
+  [ "$since" != cut ] || return 0
+  if [ -z "$since" ]; then since=$SECONDS; BAD_SINCE["$1"]=$since; fi
+  (( SECONDS - since >= SETTLE )) || return 1
+  log "cut: $1 did not load for $SETTLE s. The start before it is next."
+  BAD_SINCE["$1"]=cut
+}
+
+# The checkpoint of a stop, in CKPT: the file of the last start, when it
+# loads. A file of a later start that does not load ends the search until it
+# is cut: the script does not take the file of an older start while a
+# trainer writes this one.
 find_ckpt(){  # <stop k>
   local f
   while read -r f; do
-    [ -n "$f" ] && [ -s "${f%.pth}_optimizer.pth" ] || continue
-    if loads "$f"; then CKPT="$f"; return 0; fi
+    [ -n "$f" ] || continue
+    if [ -s "${f%.pth}_optimizer.pth" ] && loads "$f"; then CKPT="$f"; return 0; fi
+    is_cut "$f" || return 1
   done < <(ls "$CKPT_DIR/$RUN"*_"$1"k.pth 2>/dev/null | sort -rV)
   return 1
 }
@@ -80,16 +111,19 @@ wait_ckpt(){  # <stop k>
   done
 }
 
-# The copy of the checkpoint of a stop that the wave reads, in COPY.
+# The copy of the checkpoint of a stop that the wave reads, in COPY. The
+# copy goes through a file of this process: a second follower can copy the
+# same checkpoint at the same time.
 copy_ckpt(){  # <stop k>
-  local bytes sum
+  local bytes sum tmp
   COPY="$COPIES/${RUN}_${1}k.pth"
   [ -s "$COPY" ] && return 0
   wait_ckpt "$1" || return 1
   bytes=$(stat -c %s "$CKPT")
-  cp "$CKPT" "$COPY.tmp" && [ "$(stat -c %s "$COPY.tmp")" = "$bytes" ] \
-    && mv -f "$COPY.tmp" "$COPY" \
-    || { log "ABORT: the copy of $CKPT is not $bytes bytes"; return 2; }
+  tmp="$COPY.tmp.$$"
+  cp "$CKPT" "$tmp" && [ "$(stat -c %s "$tmp")" = "$bytes" ] \
+    && mv -f "$tmp" "$COPY" \
+    || { rm -f "$tmp"; log "ABORT: the copy of $CKPT is not $bytes bytes"; return 2; }
   sum=$(sha256sum "$COPY" | cut -d' ' -f1)
   [ -s "$RES/checkpoints.tsv" ] \
     || printf 'run\tstop_k\tsource\tbytes\tsha256\n' >"$RES/checkpoints.tsv"

@@ -7,6 +7,10 @@
 # script trains no head: it reads the head and the table that elisa holds.
 # Every file goes to <base>/timing.
 #
+# The check runs one time in that folder. eval_local.sh skips a score that
+# exists and goes on from the shard tables, so a second start would time a
+# skip or a part of the eval. The script refuses it.
+#
 # Usage, on elisa, from the code folder (deploy.sh):  bash b4_gpu_check.sh
 #   FF_GPU=<N>          the GPU (default 1)
 #   FF_EVAL_SHARDS=<n>  the shards of the score (default 4)
@@ -14,7 +18,7 @@ set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE="${FF_BASE:-/home/jupyter/cf_runs/freq_family}"
-CODE="${FF_CODE:-$BASE/code}"
+. "$HERE/code_folder.sh"
 GPU="${FF_GPU:-1}"
 T="$BASE/timing"
 BLK="$HOME/checkpoints_backup/cf-412/vast_lr100x/cf-419c/cos200k"
@@ -23,6 +27,11 @@ OLD="$BLK/eval/cf419cos_bb200k_h30k_student"
 HEAD="$OLD/qhead_cf419cos_bb200k_h30k_student_s20260722_final.pth"
 OUT="$T/blk200_b4_gpu"
 
+for f in "$T/times.txt" "$T/score_blk200_b4_gpu.txt" "$OUT/gift"; do
+  [ ! -e "$f" ] || {
+    echo "ABORT: $f exists: this check ran in $T, and a second start times no full score. Its times are in $T/times.txt. Give another FF_BASE to time a score again." >&2
+    exit 3; }
+done
 mkdir -p "$OUT" || exit 2
 # Every 10 s: the memory in use (MiB) and the use (%) of the GPU.
 ( while :; do

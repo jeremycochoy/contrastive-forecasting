@@ -37,6 +37,7 @@ import subprocess
 import sys
 import threading
 import time
+import types
 from pathlib import Path
 
 import numpy as np
@@ -53,7 +54,7 @@ from src.forecasting_head import (QUANTILE_LEVELS,  # noqa: E402
                                   LinearQuantileForecastingHead,
                                   TransformerQuantileForecastingHead,
                                   forecast_B4, head_bank_sizes)
-from src.freq_embedding import FREQ_NAMES_V2  # noqa: E402
+from src.freq_embedding import FREQ_NAMES, FREQ_NAMES_V2  # noqa: E402
 from src.freq_family import (FAMILY_BODIES, FAMILY_MEMBERS,  # noqa: E402
                              FAMILY_RULES, FrequencyFamilyHead,
                              check_family_members, family_layout_of,
@@ -110,6 +111,17 @@ def test_a_frequency_id_of_the_stream_gives_the_member_of_its_name():
     assert set(expected) == set(FREQ_NAMES_V2)
     for name, member in expected.items():
         assert family_member(v2(name)) == member, name
+
+
+def test_a_v1_id_reads_the_same_name_in_the_v2_table():
+    """`family_row_members` gets no vocabulary: it reads each id in the v2
+    table. The vocabulary v2 keeps the ten v1 names at their ids. So the id
+    of a v1 stream gives the member of its v1 name."""
+    assert FREQ_NAMES_V2[:len(FREQ_NAMES)] == FREQ_NAMES
+    ids = torch.arange(len(FREQ_NAMES))
+    members = family_row_members(ids, len(ids), "strict").tolist()
+    assert members == [family_member(name) for name in FREQ_NAMES]
+    assert members == [16, 128, 64, 64, 64, 64, 64, 32, 16, 16]
 
 
 @pytest.mark.parametrize("freq,choices", [
@@ -714,6 +726,32 @@ def test_a_shared_run_gives_each_arm_the_steps_of_its_solo_run(
         assert line and member_rows(line.group(0)) == counts, arm
 
 
+def test_each_channel_of_a_sample_trains_the_member_of_its_sample():
+    """With more than one channel, the latents have one row for each channel
+    of each sample, sample by sample. `row_members` gives the member of a
+    sample to each of its channels, in that order."""
+    backbone, n, channels = tiny_backbone(C=2), 3, 2
+    g = torch.Generator().manual_seed(0)
+    x = 50.0 + torch.randn(n, T, channels, generator=g).cumsum(1)
+    freq_ids = torch.tensor([v2("10s"), v2("1h"), v2("1d")])
+    season = torch.zeros(n, dtype=torch.long)
+    latents, _ = fh.extract_forecaster_latents(
+        backbone, x, freq_ids=freq_ids, seasonality_ids=season)
+    assert latents.shape[0] == n * channels
+    for b in range(n):
+        alone, _ = fh.extract_forecaster_latents(
+            backbone, x[b:b + 1], freq_ids=freq_ids[b:b + 1],
+            seasonality_ids=season[b:b + 1])
+        rows = latents[channels * b:channels * (b + 1)]
+        assert torch.allclose(rows, alone, atol=1e-5), b
+    job = types.SimpleNamespace(family=("heads", "strict", FAMILY_MEMBERS),
+                                member_rows=collections.Counter(), C=channels)
+    members = load_head_trainer().HeadJob.row_members(job, freq_ids, n)
+    assert members.tolist() == [128, 128, 32, 32, 16, 16]
+    # The count is of samples, not of latent rows.
+    assert job.member_rows == {128: 1, 32: 1, 16: 1}
+
+
 def refused(tmp_path, backbone, corpus, *flags):
     r = train_solo(["--backbone-path", backbone, *HEAD_PROTOCOL, *corpus,
                     "--save-dir", str(tmp_path / "head"), "--run-name", "q",
@@ -1067,8 +1105,18 @@ if [ -n "${CF_HEAD_ARGV_TO:-}" ]; then
     >>"$CF_HEAD_ARGV_TO"
   exit 0
 fi
-echo "$tag score $family ${EVAL_DEVICE:-cpu} ${BB_GPU:-none}" >>"$CF_RESULTS/calls.log"
+# A score reads no stream: `stream=held` shows a wave that keeps its lock.
+stream=free
+flock -n "$FF_BASE/locks/stream.lock" true 2>/dev/null || stream=held
+echo "$tag score $family ${EVAL_DEVICE:-cpu} ${BB_GPU:-none} stream=$stream" \
+  "configs=${EVAL_EXPECT_CONFIGS:-97} filter=${EVAL_CONFIG_FILTER:-none}" \
+  >>"$CF_RESULTS/calls.log"
+[ "${FF_TEST_SCORE_FAILS:-}" = early ] && exit 1
+# The eval writes the table of each shard as it goes.
+mkdir -p "$out/gift/shard_0"
+echo "dataset,model" >"$out/gift/shard_0/all_results.csv"
 [ -n "${FF_TEST_SCORE_FAILS:-}" ] && exit 1
+sleep "${FF_TEST_SCORE_SLEEP:-0}"
 echo 1.1000 >"$CF_RESULTS/score_$tag.txt"
 '''
 
@@ -1096,6 +1144,12 @@ with open(os.path.join(os.environ["FF_TEST_RES"], "calls.log"), "a") as f:
 '''
 
 
+def save_vocab(path, names):
+    """A backbone file that holds the frequency table of a vocabulary."""
+    torch.save({"freq_embedding.embedding.weight":
+                torch.zeros(len(names), 3)}, path)
+
+
 @pytest.fixture
 def wave_box(tmp_path):
     """A base folder with a stub runner, a stub shared trainer, a stub
@@ -1106,12 +1160,13 @@ def wave_box(tmp_path):
     (code / "experiments").mkdir(parents=True)
     (code / "experiments" / "hf_token.txt").write_text("hf_test\n")
     (code / "DEPLOYED_COMMIT").write_text("abcdef12\n")
+    (code / "src").symlink_to(REPO_ROOT / "src")
     res.mkdir()
     for name, text in (("runner.sh", RUNNER_STUB), ("trainer.py", TRAINER_STUB),
                        ("collect.py", COLLECT_STUB)):
         (tmp_path / name).write_text(text)
     bb = tmp_path / "bb_200k.pth"
-    bb.write_text("backbone")
+    save_vocab(bb, FREQ_NAMES_V2)
     with open(tmp_path / "seasonal_naive.csv", "wb") as f:
         f.truncate(24831)
     (tmp_path / "gift").mkdir()
@@ -1130,11 +1185,42 @@ def wave_box(tmp_path):
     return tmp_path, base, bb, env
 
 
-def run_wave(box, *arms, run="blk", stop="200", **extra):
+def run_wave(box, *arms, run="blk", stop="200", timeout=120, **extra):
     tmp_path, base, bb, env = box
     return subprocess.run(
         ["bash", str(SCRIPTS / "run_wave.sh"), run, stop, str(bb), *arms],
-        capture_output=True, text=True, env=dict(env, **extra), timeout=120)
+        capture_output=True, text=True, env=dict(env, **extra),
+        timeout=timeout)
+
+
+def start_wave(box, *arms, out, run="blk", stop="200", **extra):
+    """A wave in the background. Its output goes to the file ``out``."""
+    tmp_path, base, bb, env = box
+    with open(out, "w") as f:
+        return subprocess.Popen(
+            ["bash", str(SCRIPTS / "run_wave.sh"), run, stop, str(bb), *arms],
+            stdout=f, stderr=subprocess.STDOUT, env=dict(env, **extra))
+
+
+def wait_for(path, text, timeout=60):
+    """Wait until the file ``path`` holds ``text``."""
+    end = time.time() + timeout
+    while text not in Path(path).read_text():
+        assert time.time() < end, f"no {text!r} in {Path(path).read_text()}"
+        time.sleep(0.05)
+
+
+def score_calls(base):
+    return [c for c in calls(base) if c[1] == "score"]
+
+
+def make_head(base, arm, **tag):
+    """The final head of an arm, as a trainer leaves it."""
+    out = base / "heads" / "eval" / tag_of(arm, **tag)
+    out.mkdir(parents=True, exist_ok=True)
+    name = f"qhead_{tag_of(arm, **tag)}_s20260722_final.pth"
+    (out / name).write_text("head")
+    return out
 
 
 def calls(base):
@@ -1303,12 +1389,435 @@ def test_the_scores_run_on_the_cpu_unless_the_caller_asks(wave_box):
     base = wave_box[1]
     r = run_wave(wave_box, "control")
     assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
-    assert [c for c in calls(base) if c[1] == "score"][0][3:] == ["cpu", "1"]
+    assert score_calls(base)[0][3:5] == ["cpu", "1"]
     r = run_wave(wave_box, "shared_draw", FF_EVAL_DEVICE="cuda", FF_GPU="0")
     assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
     log = calls(base)
     assert [c for c in log if c[0] == "wave"][-1][1] == "0"
-    assert [c for c in log if c[1] == "score"][-1][3:] == ["cuda", "0"]
+    assert [c for c in log if c[1] == "score"][-1][3:5] == ["cuda", "0"]
+
+
+# A second start, and two starts at the same time.
+
+def test_a_start_that_waited_for_the_stream_trains_no_arm_with_a_head(
+        wave_box):
+    """A second start of a wave waits for the stream of the first, and the
+    first trains the arms in that time. So the second start looks for the
+    final heads after its wait. A head that trains again would not be the
+    head of the score on disk."""
+    tmp_path, base, bb, _ = wave_box
+    (base / "locks").mkdir()
+    with open(base / "locks" / "stream.lock", "a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        wave = start_wave(wave_box, "control", "shared_strict",
+                          out=tmp_path / "wave.out", FF_SCORE="0")
+        wait_for(tmp_path / "wave.out", "waiting")
+        for arm in ("control", "shared_strict"):
+            make_head(base, arm)
+    assert wave.wait(timeout=60) == 0, (tmp_path / "wave.out").read_text()
+    assert not [c for c in calls(base) if c[0] == "wave"]
+    assert "train SKIP" in (tmp_path / "wave.out").read_text()
+
+
+def test_two_starts_at_the_same_time_score_an_arm_one_time(wave_box):
+    """Two evals of one tag would write the same shard tables. So one start
+    scores a tag at a time, and the other start finds the score."""
+    tmp_path, base, bb, _ = wave_box
+    assert run_wave(wave_box, "control", FF_SCORE="0").returncode == 0
+    waves = [start_wave(wave_box, "control", out=tmp_path / f"wave{i}.out",
+                        FF_TRAIN="0", FF_TEST_SCORE_SLEEP="3")
+             for i in range(2)]
+    outs = [(w.wait(timeout=60), (tmp_path / f"wave{i}.out").read_text())
+            for i, w in enumerate(waves)]
+    assert [rc for rc, _ in outs] == [0, 0], outs
+    assert len(score_calls(base)) == 1
+    assert sum("waiting: another start scores" in out for _, out in outs) == 1
+    # Each start ends with the score of the arm.
+    assert all("score control: 1.1000" in out for _, out in outs), outs
+
+
+def test_the_eval_keeps_the_score_lock_after_a_stop_of_the_wave(wave_box):
+    """A stop of the wave script does not stop its evals. They keep the
+    score lock, so the next start waits for them and scores nothing."""
+    tmp_path, base, bb, _ = wave_box
+    assert run_wave(wave_box, "control", FF_SCORE="0").returncode == 0
+    first = start_wave(wave_box, "control", out=tmp_path / "first.out",
+                       FF_TRAIN="0", FF_TEST_SCORE_SLEEP="3")
+    wait_for(base / "results" / "calls.log", " score ")
+    first.kill()
+    first.wait()
+    r = run_wave(wave_box, "control", FF_TRAIN="0")
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    assert "waiting: another start scores" in r.stdout
+    assert "score control: 1.1000" in r.stdout
+    assert len(score_calls(base)) == 1
+
+
+def test_the_wait_for_another_start_that_scores_has_an_end(wave_box):
+    tmp_path, base, bb, _ = wave_box
+    make_head(base, "control")
+    (base / "locks").mkdir()
+    name = f"score_{tag_of('control')}.lock"
+    with open(base / "locks" / name, "a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        r = run_wave(wave_box, "control", FF_TRAIN="0", FF_SCORE_WAIT="1",
+                     timeout=30)
+    assert r.returncode != 0 and "another start scores" in r.stdout
+    assert not score_calls(base)
+
+
+def test_a_wave_with_no_gpu_memory_frees_the_stream(wave_box):
+    """A wave that gets no GPU memory trains nothing. Its scores read no
+    stream, so the next wave must not wait for them."""
+    tmp_path, base, bb, _ = wave_box
+    assert run_wave(wave_box, "control", FF_SCORE="0").returncode == 0
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "nvidia-smi").write_text("#!/bin/sh\necho 100\n")
+    (bin_dir / "nvidia-smi").chmod(0o755)
+    r = run_wave(wave_box, "control", "shared_strict", FF_WAVE_VRAM_MIB="8000",
+                 FF_VRAM_WAIT="0", PATH=f"{bin_dir}:{os.environ['PATH']}")
+    assert r.returncode != 0 and "100 MiB free" in r.stdout
+    assert len([c for c in calls(base) if c[0] == "wave"]) == 1
+    (score,) = score_calls(base)
+    assert score[0] == tag_of("control") and "stream=free" in score
+
+
+def test_the_wait_for_the_table_lock_has_an_end(wave_box):
+    """A stopped process can hold the table lock. A wave then ends with an
+    error: it does not wait with no end."""
+    tmp_path, base, bb, _ = wave_box
+    (base / "locks").mkdir()
+    tables = base / "locks" / "tables.lock"
+    with open(tables, "a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        r = run_wave(wave_box, "control", FF_TABLES_WAIT="1", timeout=30)
+    assert r.returncode != 0 and "table lock" in r.stdout
+    assert not calls(base)
+    # The lock is held when the scores end: the score stays, and the wave
+    # says that it wrote no table.
+    assert run_wave(wave_box, "control", FF_SCORE="0").returncode == 0
+    wave = start_wave(wave_box, "control", out=tmp_path / "wave.out",
+                      FF_TRAIN="0", FF_TEST_SCORE_SLEEP="2",
+                      FF_TABLES_WAIT="1")
+    wait_for(tmp_path / "wave.out", "score:")
+    with open(tables, "a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        assert wave.wait(timeout=60) != 0
+    out = (tmp_path / "wave.out").read_text()
+    assert "table lock" in out and "collect FAILED" in out
+    assert (base / "results" / f"score_{tag_of('control')}.txt").exists()
+    assert not [c for c in calls(base) if c[0] == "collect"]
+
+
+# The protocol of a score: its device, its config count and its filter.
+
+FEW = "^(ett1/15T/short|ett1/H/short)$"
+
+
+def protocol_of(base, arm, folder="gift"):
+    out = base / "heads" / "eval" / tag_of(arm)
+    return (out / folder / "protocol.txt").read_text().strip()
+
+
+@pytest.mark.parametrize("first,second,asked", [
+    (dict(FF_EVAL_FILTER=FEW, FF_EVAL_EXPECT="2"), {},
+     "device=cpu configs=97 filter="),
+    ({}, dict(FF_EVAL_DEVICE="cuda"), "device=cuda configs=97 filter="),
+    (dict(FF_EVAL_FILTER=FEW, FF_EVAL_EXPECT="2"),
+     dict(FF_EVAL_FILTER="^(ett1/D/short|ett2/D/short)$", FF_EVAL_EXPECT="2"),
+     "device=cpu configs=2 filter=^(ett1/D/short|ett2/D/short)$")])
+def test_a_score_of_another_protocol_is_not_the_score_of_a_start(
+        wave_box, first, second, asked):
+    """The score file of a tag has one name for each config filter and each
+    device. A start that asks for other configs or for another device must
+    not take that score as its score, and must not go on from its tables."""
+    base = wave_box[1]
+    assert run_wave(wave_box, "control", **first).returncode == 0
+    made = protocol_of(base, "control")
+    r = run_wave(wave_box, "control", **second)
+    assert r.returncode != 0, r.stdout[-3000:]
+    assert "score control REFUSED" in r.stdout
+    assert f"'{made}'" in r.stdout and f"'{asked}'" in r.stdout
+    assert len(score_calls(base)) == 1
+    # FF_RESCORE=1 sets the score and its tables aside, and scores again.
+    r = run_wave(wave_box, "control", FF_RESCORE="1", **second)
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    assert len(score_calls(base)) == 2
+    assert protocol_of(base, "control") == asked
+    (old,) = (base / "heads" / "eval" / tag_of("control")).glob("old_eval_*")
+    assert (old / "gift" / "protocol.txt").read_text().strip() == made
+    assert (old / f"score_{tag_of('control')}.txt").read_text() == "1.1000\n"
+    # The score of this protocol is the work that is done.
+    r = run_wave(wave_box, "control", **second)
+    assert r.returncode == 0 and len(score_calls(base)) == 2
+
+
+def test_the_shards_of_another_device_are_not_resumed(wave_box):
+    """An eval that stops leaves the tables of its shards, and the next eval
+    goes on from them. On another device, the score would mix two devices
+    with no error."""
+    base = wave_box[1]
+    make_head(base, "control")
+    r = run_wave(wave_box, "control", FF_TRAIN="0", FF_EVAL_DEVICE="cuda",
+                 FF_TEST_SCORE_FAILS="1")
+    assert r.returncode != 0
+    r = run_wave(wave_box, "control", FF_TRAIN="0")
+    assert r.returncode != 0 and "score control REFUSED" in r.stdout
+    assert "'device=cuda configs=97 filter='" in r.stdout
+    assert len(score_calls(base)) == 1
+    # The same device goes on from the tables.
+    r = run_wave(wave_box, "control", FF_TRAIN="0", FF_EVAL_DEVICE="cuda")
+    assert r.returncode == 0, r.stdout[-3000:]
+    assert score_calls(base)[-1][3] == "cuda"
+
+
+def test_an_eval_that_wrote_no_table_does_not_fix_the_protocol(wave_box):
+    """An eval that stopped before its first config left no work. So the
+    next start can use another device."""
+    base = wave_box[1]
+    make_head(base, "control")
+    r = run_wave(wave_box, "control", FF_TRAIN="0", FF_EVAL_DEVICE="cuda",
+                 FF_TEST_SCORE_FAILS="early")
+    assert r.returncode != 0
+    r = run_wave(wave_box, "control", FF_TRAIN="0")
+    assert r.returncode == 0, r.stdout[-3000:]
+    assert protocol_of(base, "control") == "device=cpu configs=97 filter="
+
+
+def old_score(base, arm, device, configs=97, score="1.1300"):
+    """The files of a score that the code before the protocol file wrote
+    (ad1984a6): the head, the score, the table of the eval and the log of
+    the runner, which names the device of each eval start."""
+    tag, out = tag_of(arm), make_head(base, arm)
+    (out / "gift").mkdir()
+    (out / "gift" / "all_results.csv").write_text(
+        "dataset,model,eval_metrics/MSE[mean],eval_metrics/MASE[0.5]\n"
+        + "".join(f"set{i}/H/short,m,1.0,2.0\n" for i in range(configs)))
+    (out / "stop.log").write_text(
+        f"[10-10 11:34:49] [{tag}] head argv -> /waves/jobs.jsonl\n"
+        f"[10-10 14:10:00] [{tag}] head-train SKIP (final exists)\n"
+        f"[10-10 14:10:00] [{tag}] eval start (97 configs, B4, forecast-len "
+        f"16, {device})\n"
+        f"[10-10 14:10:00] START {tag} bb200k enc=student shards=4 slot=0\n"
+        f"[10-10 14:50:00] [{tag}] eval rc=0\n"
+        f"[10-10 14:50:00] [{tag}] DONE — GM-Relative MASE {score}\n")
+    (base / "results").mkdir(exist_ok=True)
+    (base / "results" / f"score_{tag}.txt").write_text(f"{score}\n")
+
+
+def test_a_wave_reads_a_score_of_the_code_before_the_protocol_file(wave_box):
+    """The wave of BLK 200k scores with the code of ad1984a6, which writes
+    no protocol file. The log of its runner names the device, and the table
+    of its eval gives the config count."""
+    base = wave_box[1]
+    old_score(base, "control", "cuda")
+    r = run_wave(wave_box, "control", FF_TRAIN="0", FF_EVAL_DEVICE="cuda")
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    assert "score control: 1.1300" in r.stdout and not score_calls(base)
+    r = run_wave(wave_box, "control", FF_TRAIN="0")
+    assert r.returncode != 0 and "score control REFUSED" in r.stdout
+    assert "'device=cuda configs=97'" in r.stdout
+    r = run_wave(wave_box, "control", FF_TRAIN="0", FF_EVAL_DEVICE="cuda",
+                 FF_EVAL_FILTER=FEW, FF_EVAL_EXPECT="2")
+    assert r.returncode != 0 and "score control REFUSED" in r.stdout
+    assert not score_calls(base)
+
+
+def test_a_test_score_of_the_code_before_the_protocol_file_is_not_kept(
+        wave_box):
+    """A test score of the code of ad1984a6 names no filter. A start with a
+    filter cannot know that it is the same filter, also with the same
+    config count. So it refuses the score, and FF_RESCORE=1 scores again."""
+    base = wave_box[1]
+    old_score(base, "control", "cpu", configs=2)
+    few = dict(FF_TRAIN="0", FF_EVAL_FILTER=FEW, FF_EVAL_EXPECT="2")
+    r = run_wave(wave_box, "control", **few)
+    assert r.returncode != 0 and "score control REFUSED" in r.stdout
+    assert "'device=cpu configs=2'" in r.stdout and not score_calls(base)
+    r = run_wave(wave_box, "control", FF_RESCORE="1", **few)
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    assert len(score_calls(base)) == 1
+    assert protocol_of(base, "control") == f"device=cpu configs=2 filter={FEW}"
+
+
+@pytest.mark.parametrize("state", ["no eval table", "empty protocol file"])
+def test_a_score_with_no_eval_table_or_no_protocol_is_not_kept(wave_box,
+                                                               state):
+    """A stop can leave a score with no eval table, or a protocol file with
+    no text. Such a score names no protocol, so no start takes it as its
+    score."""
+    base = wave_box[1]
+    out = make_head(base, "control")
+    tag = tag_of("control")
+    (base / "results").mkdir(exist_ok=True)
+    (base / "results" / f"score_{tag}.txt").write_text("1.1300\n")
+    (out / "stop.log").write_text(
+        f"[10-10 14:10:00] [{tag}] eval start (97 configs, B4, forecast-len "
+        f"16, cpu)\n")
+    if state == "empty protocol file":
+        (out / "gift").mkdir()
+        (out / "gift" / "protocol.txt").write_text("")
+    r = run_wave(wave_box, "control", FF_TRAIN="0")
+    assert r.returncode != 0 and "score control REFUSED" in r.stdout
+    assert "score control: 1.1300" not in r.stdout
+    assert not score_calls(base)
+    r = run_wave(wave_box, "control", FF_TRAIN="0", FF_RESCORE="1")
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    assert "score control: 1.1000" in r.stdout
+    (old,) = out.glob("old_eval_*")
+    assert (old / f"score_{tag}.txt").read_text() == "1.1300\n"
+
+
+def test_a_wrong_score_device_is_refused(wave_box):
+    base = wave_box[1]
+    r = run_wave(wave_box, "control", FF_EVAL_DEVICE="gpu")
+    assert r.returncode != 0 and "ABORT" in r.stdout and not calls(base)
+
+
+def test_a_family_arm_needs_a_backbone_with_the_vocabulary_v2(wave_box):
+    """With the vocabulary v1, the stream gives no label to a row of 4
+    seconds, of 6 hours, of a month, a quarter or a year. Such a row would
+    train another member than with v2, with no error. So a wave with a
+    family arm refuses a backbone that is not v2."""
+    tmp_path, base, bb, _ = wave_box
+    save_vocab(bb, FREQ_NAMES)
+    r = run_wave(wave_box, "control", "shared_strict")
+    assert r.returncode != 0 and "vocabulary v2" in r.stdout
+    assert "'v1'" in r.stdout and not calls(base)
+    torch.save({"weight": torch.zeros(2)}, bb)
+    r = run_wave(wave_box, "heads_draw")
+    assert r.returncode != 0 and "vocabulary v2" in r.stdout
+    # The control is the standard head: it selects no member.
+    r = run_wave(wave_box, "control")
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+
+
+def test_a_deployed_wave_reads_the_code_of_its_own_folder(wave_box):
+    """A fix goes to a second code folder while a wave reads the first. A
+    deployed wave script reads the folder that holds it (the folder with
+    DEPLOYED_COMMIT), so no start mixes the code of two deploys. FF_CODE
+    names another folder."""
+    tmp_path, base, bb, env = wave_box
+    code_v2 = base / "code_v2"
+    scripts = code_v2 / SCRIPTS.relative_to(REPO_ROOT)
+    scripts.mkdir(parents=True)
+    for name in ("run_wave.sh", "code_folder.sh"):
+        (scripts / name).write_text((SCRIPTS / name).read_text())
+    (code_v2 / "experiments").mkdir()
+    (code_v2 / "experiments" / "hf_token.txt").write_text("hf_v2\n")
+    (code_v2 / "DEPLOYED_COMMIT").write_text("22222222\n")
+    (code_v2 / "src").symlink_to(REPO_ROOT / "src")
+
+    def wave(**extra):
+        return subprocess.run(
+            ["bash", str(scripts / "run_wave.sh"), "blk", "200", str(bb),
+             "control", "shared_strict"], capture_output=True, text=True,
+            env=dict(env, FF_SCORE="0", **extra), timeout=120)
+
+    r = wave()
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    assert "code 22222222" in r.stdout
+    assert [c for c in calls(base) if c[0] == "wave"][0][2] == "hf_v2"
+    for arm in ("control", "shared_strict"):       # the wave trains again
+        os.remove(base / "heads" / "eval" / tag_of(arm)
+                  / f"qhead_{tag_of(arm)}_final.pth")
+    r = wave(FF_CODE=str(base / "code"))
+    assert r.returncode == 0 and "code abcdef12" in r.stdout
+    assert [c for c in calls(base) if c[0] == "wave"][1][2] == "hf_test"
+
+
+# The wave with the real runner and the real collect script.
+
+@pytest.fixture
+def runner_box(tmp_path):
+    """A base folder whose waves score with the runner of the B4 score
+    (head_eval_bb.sh and eval_local.sh) and collect_scores.py. The eval
+    script is a stub that writes the table of one config."""
+    code = tmp_path / "code"
+    scripts = code / "experiments" / "2026-04-13_gift-eval" / "scripts"
+    scripts.mkdir(parents=True)
+    (scripts / "train_forecasting_head.py").write_text(STUB_HEAD)
+    (scripts / "eval_gift_eval_official.py").write_text(STUB_EVAL.replace(
+        "dataset,model,mase", "dataset,model,eval_metrics/MASE[0.5]"))
+    (code / "experiments" / "hf_token.txt").write_text("hf_test\n")
+    (code / "src").symlink_to(REPO_ROOT / "src")
+    bb = tmp_path / "bb.pth"
+    save_vocab(bb, FREQ_NAMES_V2)
+    with open(tmp_path / "seasonal_naive.csv", "wb") as f:
+        f.truncate(24831)
+    (tmp_path / "gift").mkdir()
+    env = {k: v for k, v in os.environ.items() if not k.startswith(
+        ("FF_", "CF_", "CF393_", "EVAL_", "HEAD_"))}
+    env.update(FF_BASE=str(tmp_path / "base"), FF_CODE=str(code),
+               FF_RUNNER=str(B4_SCRIPTS / "head_eval_bb.sh"),
+               FF_TRAINER=str(scripts / "train_forecasting_head.py"),
+               FF_COLLECT=str(SCRIPTS / "collect_scores.py"),
+               FF_SN_REF=str(tmp_path / "seasonal_naive.csv"),
+               GIFT_EVAL=str(tmp_path / "gift"), FF_TRAIN="0",
+               FF_EVAL_FILTER="^m4_yearly/short$", FF_EVAL_EXPECT="1")
+    return tmp_path, tmp_path / "base", bb, env
+
+
+def test_the_wave_and_the_tables_read_the_files_of_the_real_runner(
+        runner_box):
+    """The wave, the runner and the collect script together. The score
+    table names the device and the config count. A score of the code of
+    ad1984a6 has no protocol file: the wave and the table then read the
+    device in the log line of the runner."""
+    base = runner_box[1]
+    out = make_head(base, "control")
+    r = run_wave(runner_box, "control")
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    assert "score control: 0.5000" in r.stdout
+    (row,) = read_tsv(base / "results" / "scores.tsv")
+    assert (row["device"], row["configs"], row["gm_rel_mase"]) == (
+        "cpu", "1", "0.5000")
+    assert protocol_of(base, "control") == (
+        "device=cpu configs=1 filter=^m4_yearly/short$")
+    # The files as the code of ad1984a6 leaves them.
+    os.remove(out / "gift" / "protocol.txt")
+    os.remove(base / "results" / "scores.tsv")
+    assert "eval start (97 configs, B4, forecast-len 16, cpu)" in (
+        out / "stop.log").read_text()
+    assert load_collect().main(["--base", str(base)]) == 0
+    (row,) = read_tsv(base / "results" / "scores.tsv")
+    assert (row["device"], row["configs"]) == ("cpu", "1")
+    # The wave reads the same device and the same count in these files. A
+    # test score of that code names no filter, so the wave does not keep it.
+    r = run_wave(runner_box, "control")
+    assert r.returncode != 0 and "score control REFUSED" in r.stdout
+    assert "'device=cpu configs=1'" in r.stdout
+    assert (out / "stop.log").read_text().count("eval start") == 1
+    r = run_wave(runner_box, "control", FF_RESCORE="1")
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    assert (out / "stop.log").read_text().count("eval start") == 2
+    (row,) = read_tsv(base / "results" / "scores.tsv")
+    assert (row["device"], row["configs"]) == ("cpu", "1")
+
+
+def test_the_wait_for_an_eval_slot_has_an_end(runner_box):
+    """eval_local.sh waits for one of the eval slots (eval_slot.sh). The
+    wait ends after CF393_EVAL_SLOT_TIMEOUT seconds: one day, unless the
+    caller sets it. The score then fails with no score file, and a later
+    start scores the arm."""
+    base = runner_box[1]
+    out = make_head(base, "control")
+    slots = base / "results" / "evalslots"
+    slots.mkdir(parents=True)
+    with open(slots / "slot_0", "a") as slot:
+        fcntl.flock(slot, fcntl.LOCK_EX)
+        r = run_wave(runner_box, "control", FF_EVAL_SLOTS="1",
+                     CF393_EVAL_SLOT_TIMEOUT="1", CF393_EVAL_SLOT_POLL="1",
+                     timeout=60)
+    assert r.returncode != 0 and "score control FAILED" in r.stdout
+    log = (out / "stop.log").read_text()
+    assert "TIMEOUT after 1s" in log and "no eval slot" in log
+    assert not (base / "results" / f"score_{tag_of('control')}.txt").exists()
+    r = run_wave(runner_box, "control", FF_EVAL_SLOTS="1")
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    assert 'CF393_EVAL_SLOT_TIMEOUT="${CF393_EVAL_SLOT_TIMEOUT:-86400}"' in (
+        B4_SCRIPTS / "eval_slot.sh").read_text()
 
 
 WAVE_STUB = r'''#!/bin/bash
@@ -1403,19 +1912,90 @@ def test_each_wait_of_the_follower_has_an_end(follow_box):
 def test_the_follower_takes_the_checkpoint_of_the_last_start_that_loads(
         follow_box):
     """After a new start, the trainer names its files `<name>_r2`. A cut
-    file does not load, so the follower does not take it."""
+    file does not load at each look of FF_SETTLE seconds. The follower then
+    names it and takes the start before it."""
     tmp_path, base, ckpt, _ = follow_box
     save_checkpoint(ckpt, "abc_gift_40k")
     save_checkpoint(ckpt, "abc_gift_r2_40k")
     (ckpt / "abc_gift_r3_40k.pth").write_bytes(b"PK\x03\x04 cut")
     (ckpt / "abc_gift_r3_40k_optimizer.pth").write_bytes(b"PK\x03\x04 cut")
     torch.save({"w": torch.ones(5)}, ckpt / "abc_gift_r2_40k.pth")
+    r = run_follow(follow_box, FF_STOPS="40", FF_SETTLE="1")
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    assert "abc_gift_r2_40k.pth" in r.stdout
+    assert re.search(r"cut: \S*abc_gift_r3_40k\.pth", r.stdout)
+    copy = base / "ckpt" / "abc_gift" / "abc_gift_40k.pth"
+    assert torch.equal(torch.load(copy, weights_only=True)["w"],
+                       torch.ones(5))
+
+
+def test_the_follower_waits_for_a_checkpoint_that_its_trainer_writes(
+        follow_box):
+    """The trainer writes a checkpoint, then its optimizer file. After a new
+    start (`_r2`), the follower must not take the file of the older start
+    in that time: the new file is the checkpoint of the run."""
+    tmp_path, base, ckpt, _ = follow_box
+    save_checkpoint(ckpt, "abc_gift_40k")
+    torch.save({"w": torch.ones(5)}, ckpt / "abc_gift_r2_40k.pth")
+
+    def later():
+        time.sleep(2)
+        torch.save({"step": 1}, ckpt / "abc_gift_r2_40k_optimizer.pth")
+
+    thread = threading.Thread(target=later)
+    thread.start()
     r = run_follow(follow_box, FF_STOPS="40")
+    thread.join()
     assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
     assert "abc_gift_r2_40k.pth" in r.stdout
     copy = base / "ckpt" / "abc_gift" / "abc_gift_40k.pth"
     assert torch.equal(torch.load(copy, weights_only=True)["w"],
                        torch.ones(5))
+
+
+def test_one_load_that_fails_does_not_give_the_file_of_an_older_start(
+        follow_box):
+    """A load can fail one time on a machine with a high load. The follower
+    looks again: it does not take the file of an older start at once."""
+    tmp_path, base, ckpt, _ = follow_box
+    save_checkpoint(ckpt, "abc_gift_40k")
+    save_checkpoint(ckpt, "abc_gift_r2_40k")
+    torch.save({"w": torch.ones(5)}, ckpt / "abc_gift_r2_40k.pth")
+    hour_ago = time.time() - 3600
+    for name in ("abc_gift_r2_40k.pth", "abc_gift_r2_40k_optimizer.pth"):
+        os.utime(ckpt / name, (hour_ago, hour_ago))
+    # A python3 that fails at its first call.
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "python3").write_text(
+        f"#!/bin/sh\n[ -e {tmp_path}/called ] || {{ touch {tmp_path}/called; "
+        f"exit 1; }}\nexec {sys.executable} \"$@\"\n")
+    (bin_dir / "python3").chmod(0o755)
+    r = run_follow(follow_box, FF_STOPS="40",
+                   PATH=f"{bin_dir}:{os.environ['PATH']}")
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    assert (tmp_path / "called").exists()
+    copy = base / "ckpt" / "abc_gift" / "abc_gift_40k.pth"
+    assert torch.equal(torch.load(copy, weights_only=True)["w"],
+                       torch.ones(5))
+
+
+def test_two_followers_at_the_same_time_make_one_good_copy(follow_box):
+    """A second follower can run beside the first, with other arms. Each
+    one copies the checkpoint through a file of its own."""
+    tmp_path, base, ckpt, env = follow_box
+    save_checkpoint(ckpt, "abc_gift_40k")
+    followers = [subprocess.Popen(
+        ["bash", str(SCRIPTS / "follow_abc_gift.sh"), arm],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        env=dict(env, FF_STOPS="40")) for arm in ("control", "heads_draw")]
+    assert [f.wait(timeout=120) for f in followers] == [0, 0]
+    copies = sorted(f.name for f in (base / "ckpt" / "abc_gift").iterdir())
+    assert copies == ["abc_gift_40k.pth"]
+    assert (base / "ckpt" / "abc_gift" / "abc_gift_40k.pth").read_bytes() == (
+        ckpt / "abc_gift_40k.pth").read_bytes()
+    trains = [c for c in calls(base) if c[1] == "train=1"]
+    assert sorted(c[6] for c in trains) == ["control", "heads_draw"]
 
 
 def test_a_wave_that_fails_does_not_stop_the_next_stop(follow_box):
@@ -1451,9 +2031,12 @@ def config_names():
 
 
 def write_eval(base, run, stop, arm, score, names, mase, members=True,
-               wrong=None):
+               wrong=None, device="cpu", expect=None, protocol_file=True):
     """The files of one scored arm: its line of the arm table, its score,
-    the table of the eval and the member lines of its shard logs."""
+    the table of the eval, the member lines of its shard logs and the
+    protocol file of the wave. With no protocol file, the files are those
+    of the code of ad1984a6: the log of the runner names each device in
+    ``device`` (`cpu`, or `cpu+cuda` for two eval starts)."""
     res, tag = base / "results", tag_of(arm, run, str(stop))
     res.mkdir(parents=True, exist_ok=True)
     table = res / "arms.tsv"
@@ -1468,6 +2051,13 @@ def write_eval(base, run, stop, arm, score, names, mase, members=True,
         f.write("dataset,model,eval_metrics/MSE[mean],eval_metrics/MASE[0.5]\n")
         for name in names:
             f.write(f"{name},contrastive_tiny,1.0,{mase}\n")
+    if protocol_file:
+        (gift / "protocol.txt").write_text(
+            f"device={device} configs={expect or len(names)} filter=\n")
+    else:
+        (gift.parent / "stop.log").write_text("".join(
+            f"[10-10 14:10:00] [{tag}] eval start (97 configs, B4, "
+            f"forecast-len 16, {d})\n" for d in device.split("+")))
     if arm != "control" and members:
         with open(gift / "shard_0" / "shard.log", "w") as f:
             for name in names:
@@ -1542,6 +2132,103 @@ def test_collect_reads_a_score_of_a_few_configs(tmp_path):
     assert row["configs"] == "4" and row["ratio_to_control"] == ""
 
 
+def test_collect_names_the_device_and_the_config_count_of_each_row(tmp_path):
+    """The device comes from the protocol file of the eval. The code of
+    ad1984a6 wrote none: there the log of the runner names the device."""
+    names = config_names()
+    base = tmp_path / "base"
+    write_eval(base, "blk", 200, "control", "1.1300", names, 2.0,
+               device="cuda", protocol_file=False)
+    write_eval(base, "blk", 200, "shared_strict", "1.1074", names, 1.5,
+               device="cuda", protocol_file=False)
+    write_eval(base, "abc_gift", 40, "control", "1.2000", names, 3.0,
+               device="cuda")
+    collect = load_collect()
+    assert collect.main(["--base", str(base)]) == 0
+    rows = read_tsv(base / "results" / "scores.tsv")
+    assert list(rows[0]) == ["run", "stop_k", "arm", "gm_rel_mase",
+                             "ratio_to_control", "configs", "device",
+                             "members", "head_steps", "tag"]
+    assert [(r["run"], r["arm"], r["device"], r["configs"]) for r in rows] == [
+        ("abc_gift", "control", "cuda", "97"),
+        ("blk", "control", "cuda", "97"),
+        ("blk", "shared_strict", "cuda", "97")]
+    assert rows[2]["ratio_to_control"] == f"{1.1074 / 1.13:.4f}"
+
+
+@pytest.mark.parametrize("control,family", [
+    # A GPU score against a CPU score.
+    (dict(device="cuda"), dict()),
+    # 6 configs against 97.
+    (dict(few=slice(0, 6)), dict()),
+    # 6 configs against 6 other configs.
+    (dict(few=slice(0, 6)), dict(few=slice(6, 12))),
+    # A control whose eval ran on two devices.
+    (dict(device="cpu+cuda", protocol_file=False),
+     dict(device="cpu+cuda", protocol_file=False)),
+    # A control whose files name no device.
+    (dict(device="", protocol_file=False),
+     dict(device="", protocol_file=False))])
+def test_collect_compares_an_arm_with_a_control_of_the_same_configs_and_device(
+        tmp_path, capsys, control, family):
+    """The ratio of two scores with other configs or another device is not
+    the effect of the family. Such an arm gets no ratio, and the script
+    names it."""
+    names = config_names()
+    base = tmp_path / "base"
+    write_eval(base, "blk", 200, "control", "1.1300",
+               names[control.pop("few", slice(None))], 2.0, **control)
+    write_eval(base, "blk", 200, "shared_strict", "1.1074",
+               names[family.pop("few", slice(None))], 1.5, **family)
+    collect = load_collect()
+    assert collect.main(["--base", str(base)]) == 0
+    rows = {r["arm"]: r for r in read_tsv(base / "results" / "scores.tsv")}
+    assert rows["shared_strict"]["ratio_to_control"] == ""
+    assert rows["shared_strict"]["gm_rel_mase"] == "1.1074"
+    known = control.get("device", "cpu") in ("cpu", "cuda")
+    assert rows["control"]["ratio_to_control"] == ("1.0000" if known else "")
+    out = capsys.readouterr().out
+    assert f"NOTE {tag_of('shared_strict')}" in out and "no ratio" in out
+
+
+def test_collect_refuses_a_table_with_another_count_than_its_protocol(
+        tmp_path, capsys):
+    """The wave writes the config count of a score before its eval: 97, or
+    the count of a test filter. A table with another count is not that
+    score, so its arm gets no row."""
+    names = config_names()
+    base = tmp_path / "base"
+    write_eval(base, "blk", 200, "control", "1.1300", names[:96], 2.0,
+               expect=97)
+    collect = load_collect()
+    assert collect.main(["--base", str(base)]) != 0
+    out = capsys.readouterr().out
+    assert "ERROR" in out and "96" in out and "97" in out
+    assert read_tsv(base / "results" / "scores.tsv") == []
+
+
+@pytest.mark.parametrize("state", ["no eval table", "empty protocol file"])
+def test_collect_gives_no_row_to_an_arm_with_files_that_it_cannot_read(
+        tmp_path, capsys, state):
+    """A stop can leave a score with no eval table, or a protocol file with
+    no text. That arm gets no row and the script ends with code 1. Each
+    other arm keeps its row."""
+    names = config_names()
+    base = tmp_path / "base"
+    write_eval(base, "blk", 200, "control", "1.1300", names, 2.0)
+    write_eval(base, "blk", 200, "shared_strict", "1.1074", names, 1.5)
+    gift = base / "heads" / "eval" / tag_of("shared_strict") / "gift"
+    if state == "no eval table":
+        os.remove(gift / "all_results.csv")
+    else:
+        (gift / "protocol.txt").write_text("")
+    collect = load_collect()
+    assert collect.main(["--base", str(base)]) != 0
+    assert f"ERROR {tag_of('shared_strict')}" in capsys.readouterr().out
+    rows = read_tsv(base / "results" / "scores.tsv")
+    assert [r["arm"] for r in rows] == ["control"]
+
+
 # The parity script of the test wave.
 
 def load_compare():
@@ -1600,11 +2287,12 @@ def test_the_parity_script_compares_two_eval_tables(tmp_path):
 
 # The code folder of the waves.
 
-def deploy(tmp_path):
+def deploy(tmp_path, **extra):
     token = tmp_path / "token.txt"
     token.write_text("hf_test\n")
-    env = dict(os.environ, FF_BASE=str(tmp_path / "base"),
-               FF_HF_TOKEN_FILE=str(token))
+    env = {k: v for k, v in os.environ.items() if k != "FF_CODE"}
+    env.update(FF_BASE=str(tmp_path / "base"), FF_HF_TOKEN_FILE=str(token),
+               **extra)
     return subprocess.run(["bash", str(SCRIPTS / "deploy.sh")],
                           capture_output=True, text=True, env=env, timeout=120)
 
@@ -1651,3 +2339,104 @@ def test_the_deploy_changes_no_code_under_a_process_that_runs_it(tmp_path):
         wave.wait()
     assert r.returncode != 0 and "ABORT" in r.stdout + r.stderr
     assert (code / "mark.txt").exists()
+
+
+def test_the_deploy_takes_another_code_folder(tmp_path):
+    """A fix goes to a second code folder while a wave reads the first.
+    FF_CODE names the folder, as it does for run_wave.sh. The first folder
+    does not change, and a process that runs it does not stop the deploy."""
+    assert deploy(tmp_path).returncode == 0
+    code, code_v2 = tmp_path / "base" / "code", tmp_path / "base" / "code_v2"
+    (code / "mark.txt").write_text("the code of a wave")
+    (code / "wave.py").write_text("import time\ntime.sleep(60)\n")
+    wave = subprocess.Popen([sys.executable, str(code / "wave.py")])
+    try:
+        r = deploy(tmp_path, FF_CODE=str(code_v2))
+    finally:
+        wave.kill()
+        wave.wait()
+    assert r.returncode == 0, r.stdout + r.stderr
+    head = subprocess.run(["git", "-C", str(REPO_ROOT), "rev-parse",
+                           "--short=8", "HEAD"], capture_output=True,
+                          text=True).stdout.strip()
+    assert (code_v2 / "DEPLOYED_COMMIT").read_text().strip() == head
+    token = code_v2 / "experiments" / "hf_token.txt"
+    assert token.read_text() == "hf_test\n"
+    assert (code_v2 / SCRIPTS.relative_to(REPO_ROOT) / "run_wave.sh").is_file()
+    assert (code / "mark.txt").exists()
+    assert not (code_v2 / "mark.txt").exists()
+
+
+def test_the_deploy_replaces_a_code_folder_only(tmp_path):
+    """The deploy replaces its target. So it refuses a folder that it did
+    not make: a wrong FF_CODE must not delete the heads and the results."""
+    base = tmp_path / "base"
+    (base / "heads").mkdir(parents=True)
+    (base / "heads" / "head.pth").write_text("a head")
+    r = deploy(tmp_path, FF_CODE=str(base))
+    assert r.returncode != 0 and "ABORT" in r.stdout + r.stderr
+    assert (base / "heads" / "head.pth").read_text() == "a head"
+    # A folder with no file is a new code folder.
+    (base / "code_v3").mkdir()
+    r = deploy(tmp_path, FF_CODE=str(base / "code_v3"))
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert (base / "code_v3" / "DEPLOYED_COMMIT").exists()
+    assert (base / "heads" / "head.pth").exists()
+
+
+# The B4 score on a GPU.
+
+EVAL_LOCAL_STUB = r'''#!/bin/bash
+# eval_local.sh <cell> <stop k> <encoder> <backbone> <head> <out> <score>:
+# a score with no eval.
+mkdir -p "$6/gift"
+printf 'dataset,model,eval_metrics/MASE[0.5]\nc1,m,1.0\n' \
+  >"$6/gift/all_results.csv"
+echo 1.1263 >"$7"
+'''
+
+
+def test_the_gpu_check_times_one_score_in_a_folder(tmp_path):
+    """b4_gpu_check.sh times one B4 score. eval_local.sh skips a score that
+    exists, so a second start in the same folder would time the skip. The
+    script refuses it, and keeps the times of the first start."""
+    code = tmp_path / "code_v2"
+    scripts = code / "reports" / "2026-08-08_rollout_depth" / "scripts"
+    scripts.mkdir(parents=True)
+    (scripts / "eval_local.sh").write_text(EVAL_LOCAL_STUB)
+    # A deployed copy of the script reads the code folder that holds it.
+    (code / "DEPLOYED_COMMIT").write_text("22222222\n")
+    own = code / SCRIPTS.relative_to(REPO_ROOT)
+    own.mkdir(parents=True)
+    for name in ("b4_gpu_check.sh", "code_folder.sh", "compare_parity.py"):
+        (own / name).write_text((SCRIPTS / name).read_text())
+    cpu = (tmp_path / "home" / "checkpoints_backup" / "cf-412" / "vast_lr100x"
+           / "cf-419c" / "cos200k" / "eval" / "cf419cos_bb200k_h30k_student"
+           / "gift")
+    cpu.mkdir(parents=True)
+    (cpu / "all_results.csv").write_text(
+        "dataset,model,eval_metrics/MASE[0.5]\nc1,m,1.0\n")
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "nvidia-smi").write_text("#!/bin/sh\necho '2703, 97'\n")
+    (bin_dir / "nvidia-smi").chmod(0o755)
+    env = {k: v for k, v in os.environ.items() if k != "FF_CODE"}
+    env.update(FF_BASE=str(tmp_path / "base"), HOME=str(tmp_path / "home"),
+               PATH=f"{bin_dir}:{os.environ['PATH']}")
+
+    def check():
+        with open(tmp_path / "check.out", "w") as out:
+            rc = subprocess.run(["bash", str(own / "b4_gpu_check.sh")],
+                                stdout=out, stderr=subprocess.STDOUT, env=env,
+                                timeout=120).returncode
+        return rc, (tmp_path / "check.out").read_text()
+
+    rc, out = check()
+    assert rc == 0, out
+    times = tmp_path / "base" / "timing" / "times.txt"
+    first = times.read_text()
+    assert [line.split()[-1] for line in first.splitlines()] == [
+        "start", "rc=0", "end"]
+    rc, out = check()
+    assert rc != 0 and "ABORT" in out
+    assert times.read_text() == first

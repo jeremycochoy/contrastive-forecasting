@@ -14,7 +14,7 @@ set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE="${FF_BASE:-/home/jupyter/cf_runs/freq_family}"
-CODE="${FF_CODE:-$BASE/code}"
+. "$HERE/code_folder.sh"
 T="$BASE/timing"
 BLK="$HOME/checkpoints_backup/cf-412/vast_lr100x/cf-419c/cos200k"
 EVAL="$CODE/experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py"

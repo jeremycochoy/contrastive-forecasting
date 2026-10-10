@@ -1,6 +1,7 @@
 #!/bin/bash
 # freq_family — put the code of the last commit in the code folder of the
-# waves, /home/jupyter/cf_runs/freq_family/code.
+# waves, /home/jupyter/cf_runs/freq_family/code. FF_CODE names another
+# folder: a fix goes to a second folder while a wave reads the first.
 #
 # run_wave.sh and follow_abc_gift.sh read their code there, not in a
 # checkout: a checkout in /tmp goes away at a restart of elisa, and a
@@ -12,13 +13,21 @@
 # bash reads a script while it runs it. So the deploy refuses when a process
 # runs a file of the code folder: a wave, a score or the follower.
 #
-# Usage, on elisa, in a checkout of the branch:  bash deploy.sh
+# The deploy replaces its target. So it also refuses a folder with files
+# that no deploy made (no DEPLOYED_COMMIT): a wrong FF_CODE must not delete
+# the heads and the results.
+#
+# Usage, on elisa, in a checkout of the branch:
+#   bash deploy.sh
+#   FF_CODE=/home/jupyter/cf_runs/freq_family/code_v2 bash deploy.sh
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(git -C "$HERE" rev-parse --show-toplevel)"
 BASE="${FF_BASE:-/home/jupyter/cf_runs/freq_family}"
-CODE="$BASE/code"
+# The full path, with no `/` at its end: the check below looks for it in the
+# command lines of the processes.
+CODE="$(realpath -ms "${FF_CODE:-$BASE/code}")"
 TOKEN="${FF_HF_TOKEN_FILE:-$REPO/experiments/hf_token.txt}"
 PATHS=(experiments/2026-04-13_gift-eval/scripts
        reports/2026-08-08_rollout_depth/scripts
@@ -27,6 +36,10 @@ PATHS=(experiments/2026-04-13_gift-eval/scripts
        scripts src)
 
 [ -s "$TOKEN" ] || { echo "ABORT: no Hugging Face token at $TOKEN" >&2; exit 2; }
+if [ -e "$CODE" ] && [ ! -f "$CODE/DEPLOYED_COMMIT" ] && [ -n "$(ls -A "$CODE" 2>/dev/null)" ]; then
+  echo "ABORT: $CODE holds files and no DEPLOYED_COMMIT: no deploy made it. The deploy replaces its target." >&2
+  exit 4
+fi
 if pgrep -f "$CODE/" >/dev/null; then
   echo "ABORT: a process runs a file of $CODE (a wave, a score or the follower). Wait for its end." >&2
   exit 3

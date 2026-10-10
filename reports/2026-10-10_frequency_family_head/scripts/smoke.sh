@@ -19,7 +19,7 @@ set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STEPS="${1:-500}"
 BASE="${FF_BASE:-/home/jupyter/cf_runs/freq_family}"
-CODE="${FF_CODE:-$BASE/code}"
+. "$HERE/code_folder.sh"
 SMOKE="$BASE/smoke"
 mkdir -p "$BASE/locks"
 BB="${FF_SMOKE_BB:-$HOME/checkpoints_backup/cf-412/vast_lr100x/cf-419c/cos200k/leg_665k/cf419_cos200k_r2_200k.pth}"

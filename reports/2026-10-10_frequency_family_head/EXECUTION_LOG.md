@@ -7,6 +7,7 @@ All times are UTC, on 2026-10-10. The log files of elisa show British Summer Tim
 
 - elisa: `/home/jupyter/cf_runs/freq_family`. A restart of elisa keeps it.
   - `code/`: the code that the waves read, from `scripts/deploy.sh`. `code/DEPLOYED_COMMIT` names the commit.
+  - `code_v2/`: the code of fix round 1 (see below). `code/` holds ad1984a6 for the wave of BLK 200k that runs.
   - `heads/eval/<tag>/`: the head of an arm, its loss CSV and the files of its eval.
   - `results/`: `scores.tsv`, `config_mase.tsv`, `arms.tsv`, the scores and the logs.
   - `smoke/`: the test wave of 500 steps. No wave reads it.
@@ -90,6 +91,8 @@ One GPU process alone ran the 4 probe configs 9% faster than a shard beside 3 ot
 
 **Decision.** The GPU does not give the same score as the CPU. So `run_wave.sh` scores on the CPU, as the standard score does. `FF_EVAL_DEVICE=cuda` scores on the GPU: 37 minutes for one score, with a GM that is 0.004% higher for this head. Score each arm of one wave on one device.
 
+**Decision of the Orchestrator, 10:33.** Each wave of this work scores on the GPU (`FF_EVAL_DEVICE=cuda`). The CPU stays the default of the script. `scores.tsv` names the device of each row.
+
 ## Tests
 
 `CUDA_VISIBLE_DEVICES= python3 -m pytest tests`, one process for each file, 8 at a time:
@@ -105,22 +108,60 @@ The failed test is `test_390_launcher_shape.py::test_monitor_does_not_quit_befor
 
 The tests of #412, #417, #421 and #425: 666 passed with 6a27ba82, and 666 passed on the base commit 88f967ca.
 
+## Fix round 1: the scripts
+
+The review and the audit of ad1984a6 found no bug in the family training or in the B4 path. They found gaps in the scripts. This round changes the scripts of this folder and `tests/test_freq_family.py`. It does not change the head trainer, the eval, `head_eval_bb.sh`, `eval_local.sh` or `src/`. So the heads and the scores of the code of ad1984a6 stay valid.
+
+| Gap | Fix |
+|---|---|
+| Two starts of one wave trained the same arms two times. | A start makes its list of arms again after its wait for the stream. |
+| Two starts scored one tag at the same time. | One start scores a tag at a time (`locks/score_<tag>.lock`). The wait ends after `FF_SCORE_WAIT` (one day). |
+| A start kept a score of another config filter or of another device. It also went on from the shard tables of another device. | `run_wave.sh` writes the protocol of a score to `heads/eval/<tag>/gift/protocol.txt` before the eval: the device, the config count and the filter. A start with another protocol refuses the arm. `FF_RESCORE=1` moves the score and the eval folder to `old_eval_<time>/` and scores again. |
+| The ratio compared two scores with other configs or another device. | `scores.tsv` has the column `device`. An arm gets a ratio only when its control has the same configs and the same device. The collect script names each arm with no ratio. |
+| The collect script did not check the config count. | An eval table with another count than its protocol file gets no row, and the script ends with code 1. |
+| The wait for the table lock had no end. | It ends after `FF_TABLES_WAIT` (600 s). |
+| A wave with no GPU memory kept the stream lock during its scores. | Each way out of the training frees the stream. |
+| The follower took the checkpoint of an older start while the trainer wrote the file of a new start (`_r2_`), or after one load that failed. | The follower looks again when a newer file does not load. A file that did not load at each look of `FF_SETTLE` (300 s) is cut. The follower then names it in its log and takes the older start. |
+| A second start of `b4_gpu_check.sh` timed a skip. | The script refuses a second start in a folder. |
+| `family_row_members` gets no vocabulary, and no guard refused a v1 backbone. | A test shows that each v1 id gives the member of its name. `run_wave.sh` refuses a family arm on a backbone that is not v2. |
+| No test had more than 1 channel. | A test with 2 channels shows that each channel of a sample trains the member of the sample. No code change. |
+
+The wait for an eval slot (`eval_slot.sh`) has an end: `CF393_EVAL_SLOT_TIMEOUT`, one day unless the caller sets it. The score then fails with no score file, and a later start scores the arm. A test shows it.
+
+A score of the code of ad1984a6 has no protocol file. For such a score, `run_wave.sh` and `collect_scores.py` read the device in the `eval start` lines of `heads/eval/<tag>/stop.log`, and the config count in the eval table. These files name no filter. So a start with a filter refuses such a score.
+
+**Two code folders.** `FF_CODE=<folder> bash deploy.sh` puts the code in another folder. The deploy replaces its target, so it refuses a folder with files that no deploy made. A deployed script reads the code folder that holds it (`code_folder.sh`). So `follow_abc_gift.sh` of `code_v2` starts waves with the code of `code_v2`.
+
+An independent review of this round found 6 more gaps in the new code. Each one has a fix and a test:
+
+- The deploy target above.
+- A test score of ad1984a6 with another filter of the same count.
+- The order of the two moves of `FF_RESCORE=1`: the score goes first.
+- A protocol file with no text.
+- One load that fails in the follower.
+- The code folder of `b4_gpu_check.sh`, `b4_probes.sh` and `smoke.sh`.
+
+**Caution.** The wave of BLK 200k runs with the code of ad1984a6, which holds no score lock. Do not start `blk 200` again before the line `WAVE_END` in `results/wave_blk200.log`.
+
 ## How to start the waves
 
-On elisa, after `bash scripts/deploy.sh` in a checkout of the branch:
+On elisa, after `FF_CODE=/home/jupyter/cf_runs/freq_family/code_v2 bash scripts/deploy.sh` in a checkout of the branch. Each start gets the score device of this work:
 
 ```bash
-S=/home/jupyter/cf_runs/freq_family/code/reports/2026-10-10_frequency_family_head/scripts
+S=/home/jupyter/cf_runs/freq_family/code_v2/reports/2026-10-10_frequency_family_head/scripts
 R=/home/jupyter/cf_runs/freq_family/results
 mkdir -p $R
+export FF_EVAL_DEVICE=cuda
 # BLK at 200k: the control and the 4 family arms.
 nohup setsid bash $S/run_wave.sh blk 200 \
   ~/checkpoints_backup/cf-412/vast_lr100x/cf-419c/cos200k/leg_665k/cf419_cos200k_r2_200k.pth \
   >>$R/wave_blk200.log 2>&1 </dev/null &
 # abc_gift: one wave for each stop, when its checkpoint exists.
-nohup setsid bash $S/follow_abc_gift.sh >>$R/follow.log 2>&1 </dev/null &
+nohup setsid bash $S/follow_abc_gift.sh control shared_strict >>$R/follow.log 2>&1 </dev/null &
+# The tables again, from the scores on disk.
+PYTHONPATH=${S%/reports/*} python3 $S/collect_scores.py
 ```
 
-One wave trains at a time: the second waits for the stream lock. The 5 CPU scores of a wave use 20 cores. The follower starts the scores of a stop and then trains the next stop.
+One wave trains at a time: the second waits for the stream lock. On the CPU, the 5 scores of a wave use 20 cores. The follower starts the scores of a stop and then trains the next stop. A second follower with other arms can run at the same time.
 
 `bash $S/smoke.sh` runs the test wave again, and `bash $S/b4_gpu_check.sh` the B4 score on the GPU.
