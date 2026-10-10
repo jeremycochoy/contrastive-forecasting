@@ -141,7 +141,33 @@ An independent review of this round found 6 more gaps in the new code. Each one 
 - One load that fails in the follower.
 - The code folder of `b4_gpu_check.sh`, `b4_probes.sh` and `smoke.sh`.
 
-**Caution.** The wave of BLK 200k runs with the code of ad1984a6, which holds no score lock. Do not start `blk 200` again before the line `WAVE_END` in `results/wave_blk200.log`.
+**Caution.** The wave of BLK 200k runs with the code of ad1984a6, which holds no score lock. Do not start `blk 200` again before the line `WAVE_END` in `results/wave_blk200.log`. The collect script of that code writes `scores.tsv` with no `device` column: run the collect script of `code_v2` after that line.
+
+### The check of `code_v2`
+
+`code_v2` holds f4d9f5d2. `code/` did not change: the SHA-256 of its files is the same before and after the two deploys. The two folders differ in the scripts of this folder only. The head trainer, the eval, `head_eval_bb.sh`, `eval_local.sh` and `src/` are identical.
+
+`bash scripts/check_code_folder.sh /home/jupyter/cf_runs/freq_family/code_v2` ran at 11:56. Its output is [`results/code_v2_check/check.out`](results/code_v2_check/check.out). The script uses a scratch base folder, a stand-in trainer and a stand-in runner: no GPU, no data stream, no wave.
+
+| Check | Result |
+|---|---|
+| `collect_scores.py` on the test wave of the old code | The 4 scores and the 4 ratios of the old table, with the device `cpu`. |
+| `run_wave.sh` with a filter, on these test scores | It refuses each arm: the old files name no filter. |
+| `run_wave.sh` with `FF_EVAL_DEVICE=cuda`, on a GPU score of 97 configs with no protocol file | The score is the work that is done. The table gives 97 configs and the device `cuda`. |
+| The same start with the CPU default | It refuses the arm. |
+| `follow_abc_gift.sh` with `FF_CODE`, stop 40 | It copies the checkpoint of `abc_gift` at 40k. The wave reads the code of `code_v2`. |
+| A second start with no `FF_CODE` | It skips the copy, the heads and the scores. |
+| A start on another device | It refuses each arm. |
+
+The backbones of BLK at 200k and of `abc_gift` at 40k have the vocabulary v2.
+
+### Tests of fix round 1
+
+`CUDA_VISIBLE_DEVICES=`, one process for each file, with f4d9f5d2:
+
+- `tests/test_freq_family.py`: 188 passed. 151 are the tests of ad1984a6, and 37 are new.
+- The tests of #412, #417, #421 and #425: 666 passed.
+- The other test files read no file that this round changes. They did not run again.
 
 ## How to start the waves
 
