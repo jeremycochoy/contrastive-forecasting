@@ -1,0 +1,5 @@
+run	stop_k	arm	gm_rel_mase	ratio_to_control	configs	members	head_steps	tag
+blk	200	control	1.2653	1.0000	6		500	blk_bb200k_h500_control
+blk	200	shared_draw	1.2697	1.0035	6	16:3 32:1 64:1 128:1	500	blk_bb200k_h500_ff_shared_draw
+blk	200	heads_strict_m16	1.2653	1.0000	6	16:6	500	blk_bb200k_h500_ff_heads_strict_m16
+blk	200	shared_strict_m16	1.2653	1.0000	6	16:6	500	blk_bb200k_h500_ff_shared_strict_m16
