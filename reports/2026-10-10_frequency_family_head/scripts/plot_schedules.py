@@ -66,7 +66,7 @@ def draw_lr(ax, ema):
         ax.plot(steps, lr_of(steps), color=colour_hex, ls=style, lw=2.6,
                 label=f"Learning rate. {label}")
     ax.set_yscale("log")
-    ax.set_ylim(5e-7, 3e-4)
+    ax.set_ylim(2e-7, 2e-4)
     ax.set_ylabel("Learning rate (log scale, solid and dashed lines)")
 
 
@@ -79,9 +79,9 @@ def draw_ema(ax, ema):
         ax.plot([first, last], [tau, tau], color=colour_hex, ls=(offset * 3, (2, 7)), lw=3.0)
         handles.append(Line2D([], [], color=colour_hex, ls=":", lw=3.0,
                               label=f"EMA momentum of the teacher. {label}"))
-    ax.text(340_000, 0.915, "EMA momentum of the teacher: 0.9 at each logged step of the 3 runs",
+    ax.text(340_000, 0.906, "EMA momentum of the teacher: 0.9 at each logged step of the 3 runs",
             ha="center", va="bottom", fontsize=10)
-    ax.set_ylim(0.0, 1.0)
+    ax.set_ylim(0.7, 1.0)
     ax.set_ylabel("EMA momentum of the teacher (dotted lines)")
     return handles
 
