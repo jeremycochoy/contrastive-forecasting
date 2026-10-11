@@ -51,9 +51,9 @@ RUNS = [
 PANELS = [
     ("Forecast (B4)", (1.10, 1.25),
      [MOIRAI / "results" / "gm_trajectories.tsv", RECON / "forecast_425.tsv"], None),
-    ("Reconstruction of the encoder latent (R), transformer head", (0.02, 0.06),
+    ("Reconstruction of the encoder latent (R), transformer head", (0.02, 0.08),
      [RECON / "recon_trajectories.tsv"], STUDY / "results" / "recon_green_trajectories.tsv"),
-    ("Reconstruction of the encoder latent (R), linear head", (0.12, 0.24),
+    ("Reconstruction of the encoder latent (R), linear head", (0.12, 0.40),
      [RECON / "recon_lin_trajectories.tsv"], STUDY / "results" / "recon_green_lin_trajectories.tsv"),
 ]
 TICKS_K = [40, 100, 200, 400, 665, 1000, 1330]
