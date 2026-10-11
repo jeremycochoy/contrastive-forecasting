@@ -1,0 +1,26 @@
+run	stop_k	arm	gm_rel_mase	ratio_to_control	configs	device	members	head_steps	tag
+abc_gift	40	control	1.2025	1.0000	97	cuda		30000	abc_gift_bb40k_h30k_control
+abc_gift	40	shared_strict	1.1918	0.9911	97	cuda	16:30 32:31 64:30 128:6	30000	abc_gift_bb40k_h30k_ff_shared_strict
+abc_gift	100	control	1.1334	1.0000	97	cuda		30000	abc_gift_bb100k_h30k_control
+abc_gift	100	shared_strict	1.1348	1.0012	97	cuda	16:30 32:31 64:30 128:6	30000	abc_gift_bb100k_h30k_ff_shared_strict
+abc_gift	140	control	1.1245	1.0000	97	cuda		30000	abc_gift_bb140k_h30k_control
+abc_gift	140	shared_strict	1.1290	1.0040	97	cuda	16:30 32:31 64:30 128:6	30000	abc_gift_bb140k_h30k_ff_shared_strict
+abc_gift	180	control	1.1203	1.0000	97	cuda		30000	abc_gift_bb180k_h30k_control
+abc_gift	180	shared_strict	1.1322	1.0106	97	cuda	16:30 32:31 64:30 128:6	30000	abc_gift_bb180k_h30k_ff_shared_strict
+abc_gift	200	control	1.1466	1.0000	97	cuda		30000	abc_gift_bb200k_h30k_control
+abc_gift	200	shared_strict	1.1558	1.0080	97	cuda	16:30 32:31 64:30 128:6	30000	abc_gift_bb200k_h30k_ff_shared_strict
+abc_gift	240	control	1.1749	1.0000	97	cuda		30000	abc_gift_bb240k_h30k_control
+abc_gift	240	shared_strict	1.1856	1.0091	97	cuda	16:30 32:31 64:30 128:6	30000	abc_gift_bb240k_h30k_ff_shared_strict
+abc_gift	300	control	1.1931	1.0000	97	cuda		30000	abc_gift_bb300k_h30k_control
+abc_gift	300	shared_strict	1.1936	1.0004	97	cuda	16:30 32:31 64:30 128:6	30000	abc_gift_bb300k_h30k_ff_shared_strict
+abc_gift	360	control	1.1992	1.0000	97	cuda		30000	abc_gift_bb360k_h30k_control
+abc_gift	360	shared_strict	1.1939	0.9956	97	cuda	16:30 32:31 64:30 128:6	30000	abc_gift_bb360k_h30k_ff_shared_strict
+abc_gift	400	control	1.2179	1.0000	97	cuda		30000	abc_gift_bb400k_h30k_control
+abc_gift	400	shared_strict	1.2263	1.0069	97	cuda	16:30 32:31 64:30 128:6	30000	abc_gift_bb400k_h30k_ff_shared_strict
+abc_gift	460	control	1.4256	1.0000	97	cuda		30000	abc_gift_bb460k_h30k_control
+abc_gift	460	shared_strict	1.4358	1.0072	97	cuda	16:30 32:31 64:30 128:6	30000	abc_gift_bb460k_h30k_ff_shared_strict
+blk	200	control	1.1244	1.0000	97	cuda		30000	blk_bb200k_h30k_control
+blk	200	shared_strict	1.1315	1.0063	97	cuda	16:30 32:31 64:30 128:6	30000	blk_bb200k_h30k_ff_shared_strict
+blk	200	shared_draw	1.1280	1.0032	97	cuda	16:30 32:31 64:30 128:6	30000	blk_bb200k_h30k_ff_shared_draw
+blk	200	heads_strict	1.1549	1.0271	97	cuda	16:30 32:31 64:30 128:6	30000	blk_bb200k_h30k_ff_heads_strict
+blk	200	heads_draw	1.1297	1.0047	97	cuda	16:30 32:31 64:30 128:6	30000	blk_bb200k_h30k_ff_heads_draw
