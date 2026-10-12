@@ -12,9 +12,9 @@ A dashed vertical line joins the scores of one checkpoint in the panels.
 Reads the scores of ABC, CYN and BLK of #412 and #425
 (reports/2026-09-06_moirai_small_size/results/gm_trajectories.tsv,
 reports/2026-10-06_encoder_reconstruction/results/*.tsv), and the scores of
-the new run: results/scores.tsv (B4, arm `control`),
-results/recon_green_trajectories.tsv and
-results/recon_green_lin_trajectories.tsv (R, with the columns arm, stop in thousands of
+the runs of this report (GRN: arm abc_gift, BLK+EMA: arm blk_ema):
+results/scores.tsv (B4, arm `control`), and results/recon_green_*.tsv and
+results/recon_blk_ema_*.tsv (R, with the columns arm, stop in thousands of
 steps, GM-Relative MASE).
 
 Usage: python3 plot_green_scores.py
@@ -37,24 +37,34 @@ from run_style import P, colour, tagged  # noqa: E402
 
 GREEN = "abc_gift"
 GREEN_COLOUR = "#2ca02c"  # the colour of the new run in plot_scores.py
+BLK_EMA = "blk_ema"
+BLK_EMA_COLOUR = "#ff7f0e"  # no other run of this figure has this colour
+# The runs of this report: their forecast comes from results/scores.tsv.
+NEW_RUNS = [GREEN, BLK_EMA]
 OUT = STUDY / "plots" / "forecast_and_reconstruction.png"
 # (arm, legend label, colour, marker): the runs of the figure.
 RUNS = [
     (GREEN, r"$\mathbf{GRN}$  the new run: lr 5.6e-5, new data", GREEN_COLOUR, "D"),
+    (BLK_EMA, r"$\mathbf{BLK+EMA}$  as BLK, EMA of the teacher 0.9 to 1.0 over 665k",
+     BLK_EMA_COLOUR, "P"),
     (P + "_lr10x", tagged(P + "_lr10x", "lr 5.6e-5, old data"), colour(P + "_lr10x"), "o"),
     (P + "_cos200k", tagged(P + "_cos200k", "lr cosine to 1e-6 by 200k, old data"),
      colour(P + "_cos200k"), "v"),
     ("cf419_cos200k", tagged("cf419_cos200k", "lr cosine to 1e-6 by 200k, new data"),
      colour("cf419_cos200k"), "*"),
 ]
-# panel title, y range, the tables of ABC, CYN and BLK, the table of the new run
+OURS = STUDY / "results"
+# panel title, y range, the score tables, and whether the forecast of the
+# runs of this report comes from results/scores.tsv
 PANELS = [
     ("Forecast (B4)", (1.10, 1.25),
-     [MOIRAI / "results" / "gm_trajectories.tsv", RECON / "forecast_425.tsv"], None),
+     [MOIRAI / "results" / "gm_trajectories.tsv", RECON / "forecast_425.tsv"], True),
     ("Reconstruction of the encoder latent (R), transformer head", (0.02, 0.08),
-     [RECON / "recon_trajectories.tsv"], STUDY / "results" / "recon_green_trajectories.tsv"),
+     [RECON / "recon_trajectories.tsv", OURS / "recon_green_trajectories.tsv",
+      OURS / "recon_blk_ema_trajectories.tsv"], False),
     ("Reconstruction of the encoder latent (R), linear head", (0.12, 0.40),
-     [RECON / "recon_lin_trajectories.tsv"], STUDY / "results" / "recon_green_lin_trajectories.tsv"),
+     [RECON / "recon_lin_trajectories.tsv", OURS / "recon_green_lin_trajectories.tsv",
+      OURS / "recon_blk_ema_lin_trajectories.tsv"], False),
 ]
 TICKS_K = [40, 100, 200, 400, 665, 1000, 1330]
 
@@ -70,17 +80,20 @@ def read_table(paths):
     return points
 
 
-def green_forecast():
-    """``{stop k: score}``: the B4 score of the control head of each wave."""
+def new_run_forecast(run):
+    """``{stop k: score}``: the B4 score of the control head of each wave of
+    ``run``."""
     with open(STUDY / "results" / "scores.tsv") as fh:
         return {int(r["stop_k"]): float(r["gm_rel_mase"])
                 for r in csv.DictReader(fh, delimiter="\t")
-                if r["run"] == GREEN and r["arm"] == "control"}
+                if r["run"] == run and r["arm"] == "control"}
 
 
-def panel_points(base_tables, green_table):
-    points = read_table(base_tables)
-    points[GREEN] = green_forecast() if green_table is None else read_table([green_table]).get(GREEN, {})
+def panel_points(tables, forecast):
+    points = read_table(tables)
+    if forecast:
+        for run in NEW_RUNS:
+            points[run] = new_run_forecast(run)
     return points
 
 
@@ -135,8 +148,8 @@ def draw_links(fig, axes, all_points):
 def main():
     fig, axes = plt.subplots(3, 1, sharex=True, figsize=(11, 12))
     all_points = []
-    for ax, (title, y_range, base_tables, green_table) in zip(axes, PANELS):
-        all_points.append(panel_points(base_tables, green_table))
+    for ax, (title, y_range, tables, forecast) in zip(axes, PANELS):
+        all_points.append(panel_points(tables, forecast))
         draw_panel(ax, title, y_range, all_points[-1])
     style_x(axes[-1])
     axes[0].legend(fontsize=10, loc="upper center", bbox_to_anchor=(0.5, 1.42), ncol=2)
