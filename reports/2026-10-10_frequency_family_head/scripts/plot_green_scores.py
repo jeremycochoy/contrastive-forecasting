@@ -43,8 +43,10 @@ BLK_EMA = "blk_ema"
 BLK_EMA_COLOUR = "#ff7f0e"  # no other run of this figure has this colour
 GRN_EMA = "grn_ema098"
 GRN_EMA_COLOUR = "#6a3d9a"  # its colour in plot_ema_plan.py
+BLK_EMACOS = "blk_emacos"
+BLK_EMACOS_COLOUR = "#d62728"  # its colour in plot_ema_plan.py
 # The runs of this report: their forecast comes from results/scores.tsv.
-NEW_RUNS = [GREEN, BLK_EMA, GRN_EMA]
+NEW_RUNS = [GREEN, BLK_EMA, GRN_EMA, BLK_EMACOS]
 # Older runs with a forecast at 1k steps in results/scores.tsv: arm -> run.
 FIRST_STEPS = {"cf419_cos200k": "blk", P + "_lr10x": "abc"}
 OUT = STUDY / "plots" / "forecast_and_reconstruction.png"
@@ -55,6 +57,8 @@ RUNS = [
      GRN_EMA_COLOUR, "X"),
     (BLK_EMA, r"$\mathbf{BLK+EMA}$  as BLK, EMA of the teacher 0.9 to 1.0 over 665k",
      BLK_EMA_COLOUR, "P"),
+    (BLK_EMACOS, r"$\mathbf{BLK+EMA\ cosine}$  as BLK, EMA of the teacher 0.9 to 1.0 on a cosine "
+     "by 200k, then 1.0", BLK_EMACOS_COLOUR, "s"),
     (P + "_lr10x", tagged(P + "_lr10x", "lr 5.6e-5, old data"), colour(P + "_lr10x"), "o"),
     (P + "_cos200k", tagged(P + "_cos200k", "lr cosine to 1e-6 by 200k, old data"),
      colour(P + "_cos200k"), "v"),
