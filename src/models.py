@@ -558,10 +558,43 @@ def linear_schedule_at_step(step: int, total_steps: int, value_start: float,
     return float(value_start) + frac * (float(value_end) - float(value_start))
 
 
+def cosine_schedule_at_step(step: int, total_steps: int, value_start: float,
+                            value_end: float | None,
+                            ramp_steps: int | None = None) -> float:
+    """Half-cosine ramp from `value_start` to `value_end`, clamped at both ends.
+
+    ``end − (end − start)·½·(1 + cos(π·t/span))``, with `t` the step clamped
+    into ``[0, span]``. This is the shape of the cosine rate anneal of the
+    training script (``--lr-final``): the value changes slowly near the two
+    ends and quickly in the middle. The value at the span and after it is
+    `value_end` exactly.
+
+    The span, the clamp and ``value_end=None`` follow
+    :func:`linear_schedule_at_step`.
+    """
+    if value_end is None:
+        return float(value_start)
+    span = ramp_steps if ramp_steps else total_steps
+    if span <= 0:
+        return float(value_end)
+    t = min(max(step, 0), span)
+    return float(value_end) - (float(value_end) - float(value_start)) * 0.5 * (
+        1.0 + math.cos(math.pi * t / span))
+
+
+# The shapes of a ramp, by the name the training flag takes
+# (``--ema-tau-shape``).
+SCHEDULE_SHAPES = {
+    "linear": linear_schedule_at_step,
+    "cosine": cosine_schedule_at_step,
+}
+
+
 def ema_tau_at_step(step: int, total_steps: int, tau_start: float,
                     tau_end: float | None,
-                    ramp_steps: int | None = None) -> float:
-    """EMA momentum α for `step`, linear from `tau_start` to `tau_end`.
+                    ramp_steps: int | None = None,
+                    shape: str = "linear") -> float:
+    """EMA momentum α for `step`, from `tau_start` to `tau_end` along `shape`.
 
     α is the weight the teacher keeps on its own previous value in
     ``θ_T ← α·θ_T + (1−α)·θ_S``, so a larger α is a slower teacher and
@@ -580,8 +613,15 @@ def ema_tau_at_step(step: int, total_steps: int, tau_start: float,
     The training loop is 1-indexed, so the start value is never applied
     exactly: a 0.9 → 1.0 schedule over 100k steps first updates the teacher
     at α(1) = 0.900001 and last at α(100000) = 1.0, a no-op update.
+
+    `shape` is a key of :data:`SCHEDULE_SHAPES`. ``"linear"`` (default) is
+    the ramp above. ``"cosine"`` keeps the same ends and span and follows
+    :func:`cosine_schedule_at_step`. An unknown shape raises ValueError.
     """
-    return linear_schedule_at_step(step, total_steps, tau_start, tau_end,
+    if shape not in SCHEDULE_SHAPES:
+        raise ValueError(f"shape must be one of {tuple(SCHEDULE_SHAPES)}; "
+                         f"got {shape!r}")
+    return SCHEDULE_SHAPES[shape](step, total_steps, tau_start, tau_end,
                                   ramp_steps)
 
 

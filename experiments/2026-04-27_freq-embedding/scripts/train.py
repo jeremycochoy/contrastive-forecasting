@@ -35,9 +35,9 @@ import torch
 import torch.optim as optim
 from types import SimpleNamespace
 
-from src.models import (ConfigurableModel, compute_metrics, count_parameters,
-                        ema_tau_at_step, generate_random_batch,
-                        linear_schedule_at_step)
+from src.models import (SCHEDULE_SHAPES, ConfigurableModel, compute_metrics,
+                        count_parameters, ema_tau_at_step,
+                        generate_random_batch, linear_schedule_at_step)
 from src.blocks import ATTN_AMP_DIAG
 from src.dataloader import (
     create_mixed_periodic_dataloader,
@@ -706,6 +706,16 @@ def build_parser():
                         "which a budget-relative ramp cannot give them. Omit "
                         "(default) ⇒ the #388 behaviour, ramp over "
                         "--total-steps.")
+    p.add_argument("--ema-tau-shape", choices=tuple(SCHEDULE_SHAPES),
+                   default="linear",
+                   help="Shape of the --ema-tau-end ramp. 'linear' (default) "
+                        "is the straight line of #388, so earlier runs are "
+                        "unchanged. 'cosine' has the same ends and span and "
+                        "the shape of the --lr-final anneal: α = end − (end "
+                        "− start)·½·(1 + cos(π·t/span)), span = "
+                        "--ema-tau-ramp-steps, else --total-steps. α holds "
+                        "at --ema-tau-end after the span. Needs "
+                        "--ema-tau-end.")
     p.add_argument("--moco-negatives", action="store_true",
                    help="MoCo-style negatives (#374 arms 3+4): route the "
                         "cross-batch f↔h negatives through the EMA teacher "
@@ -1752,6 +1762,10 @@ def main():
         if args.ema_tau_end is None:
             raise SystemExit("--ema-tau-ramp-steps anchors the α ramp but no "
                              "ramp is configured; pass --ema-tau-end.")
+    # The cosine shape bends the α ramp, so the ramp must have an end value.
+    if args.ema_tau_shape == "cosine" and args.ema_tau_end is None:
+        raise SystemExit("--ema-tau-shape cosine bends the α ramp but no "
+                         "ramp is configured; pass --ema-tau-end.")
     # #409: the L_rep weight schedule. Every refusal below stops a run whose
     # command line states a decay the objective would not carry.
     if args.rep_loss_weight_end is not None:
@@ -2511,15 +2525,16 @@ def main():
                 model.clamp_log_inv_tau()
         # EMA-teacher update (#353): pull teacher params one fraction of the way
         # toward the just-stepped student, θ_T = α·θ_T + (1−α)·θ_S. α is
-        # constant unless --ema-tau-end sets a linear schedule (#388), which
+        # constant unless --ema-tau-end sets a schedule (#388), which
         # spans --total-steps unless --ema-tau-ramp-steps anchors it to a
-        # fixed step (#393). The value used here is the one logged to the
+        # fixed step (#393). --ema-tau-shape gives its shape: linear
+        # (default) or cosine. The value used here is the one logged to the
         # losses CSV below.
         ema_tau_now = None
         if use_ema:
             ema_tau_now = ema_tau_at_step(
                 step, args.total_steps, args.ema_tau, args.ema_tau_end,
-                args.ema_tau_ramp_steps)
+                args.ema_tau_ramp_steps, args.ema_tau_shape)
             model.update_teacher(ema_tau_now)
         t_bwd_end = time.perf_counter()
         t_step_end = time.perf_counter()
