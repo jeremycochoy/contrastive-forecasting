@@ -1,6 +1,6 @@
 """The forecast and the reconstruction of the encoder latent through training,
-for the new run (GRN, green) next to ABC, CYN and BLK. Writes
-plots/forecast_and_reconstruction.png: three panels on one x axis.
+for the runs of this report (GRN, BLK+EMA, GRN+EMA) next to ABC, CYN and BLK.
+Writes plots/forecast_and_reconstruction.png: three panels on one x axis.
 
   1. Forecast (B4): the forecaster rolls the latents forward, and the
      standard reconstruction head decodes each rolled latent.
@@ -12,10 +12,12 @@ A dashed vertical line joins the scores of one checkpoint in the panels.
 Reads the scores of ABC, CYN and BLK of #412 and #425
 (reports/2026-09-06_moirai_small_size/results/gm_trajectories.tsv,
 reports/2026-10-06_encoder_reconstruction/results/*.tsv), and the scores of
-the runs of this report (GRN: arm abc_gift, BLK+EMA: arm blk_ema):
-results/scores.tsv (B4, arm `control`), and results/recon_green_*.tsv and
-results/recon_blk_ema_*.tsv (R, with the columns arm, stop in thousands of
-steps, GM-Relative MASE).
+the runs of this report (GRN: arm abc_gift, BLK+EMA: arm blk_ema, GRN+EMA: arm
+grn_ema098): results/scores.tsv (B4, arm `control`), and results/recon_*.tsv
+(R, with the columns arm, stop in thousands of steps, GM-Relative MASE).
+The point at 1k steps of GRN, BLK and ABC comes from results/scores.tsv
+(runs abc_gift, blk and abc at stop_k 1): the first 1,000 steps of each run
+again, with its flags and its seed.
 
 Usage: python3 plot_green_scores.py
 """
@@ -39,12 +41,18 @@ GREEN = "abc_gift"
 GREEN_COLOUR = "#2ca02c"  # the colour of the new run in plot_scores.py
 BLK_EMA = "blk_ema"
 BLK_EMA_COLOUR = "#ff7f0e"  # no other run of this figure has this colour
+GRN_EMA = "grn_ema098"
+GRN_EMA_COLOUR = "#6a3d9a"  # its colour in plot_ema_plan.py
 # The runs of this report: their forecast comes from results/scores.tsv.
-NEW_RUNS = [GREEN, BLK_EMA]
+NEW_RUNS = [GREEN, BLK_EMA, GRN_EMA]
+# Older runs with a forecast at 1k steps in results/scores.tsv: arm -> run.
+FIRST_STEPS = {"cf419_cos200k": "blk", P + "_lr10x": "abc"}
 OUT = STUDY / "plots" / "forecast_and_reconstruction.png"
 # (arm, legend label, colour, marker): the runs of the figure.
 RUNS = [
-    (GREEN, r"$\mathbf{GRN}$  the new run: lr 5.6e-5, new data", GREEN_COLOUR, "D"),
+    (GREEN, r"$\mathbf{GRN}$  lr 5.6e-5, new data", GREEN_COLOUR, "D"),
+    (GRN_EMA, r"$\mathbf{GRN+EMA}$  as GRN, EMA of the teacher 0.98 to 1.0 over 665k",
+     GRN_EMA_COLOUR, "X"),
     (BLK_EMA, r"$\mathbf{BLK+EMA}$  as BLK, EMA of the teacher 0.9 to 1.0 over 665k",
      BLK_EMA_COLOUR, "P"),
     (P + "_lr10x", tagged(P + "_lr10x", "lr 5.6e-5, old data"), colour(P + "_lr10x"), "o"),
@@ -57,16 +65,18 @@ OURS = STUDY / "results"
 # panel title, y range, the score tables, and whether the forecast of the
 # runs of this report comes from results/scores.tsv
 PANELS = [
-    ("Forecast (B4)", (1.10, 1.25),
+    ("Forecast (B4)", (1.10, 1.27),
      [MOIRAI / "results" / "gm_trajectories.tsv", RECON / "forecast_425.tsv"], True),
     ("Reconstruction of the encoder latent (R), transformer head", (0.02, 0.08),
      [RECON / "recon_trajectories.tsv", OURS / "recon_green_trajectories.tsv",
-      OURS / "recon_blk_ema_trajectories.tsv"], False),
+      OURS / "recon_blk_ema_trajectories.tsv", OURS / "recon_grn_ema098_trajectories.tsv"],
+     False),
     ("Reconstruction of the encoder latent (R), linear head", (0.12, 0.40),
      [RECON / "recon_lin_trajectories.tsv", OURS / "recon_green_lin_trajectories.tsv",
-      OURS / "recon_blk_ema_lin_trajectories.tsv"], False),
+      OURS / "recon_blk_ema_lin_trajectories.tsv",
+      OURS / "recon_grn_ema098_lin_trajectories.tsv"], False),
 ]
-TICKS_K = [40, 100, 200, 400, 665, 1000, 1330]
+TICKS_K = [1, 10, 40, 100, 200, 400, 665, 1330]
 
 
 def read_table(paths):
@@ -80,13 +90,14 @@ def read_table(paths):
     return points
 
 
-def new_run_forecast(run):
+def new_run_forecast(run, stops=None):
     """``{stop k: score}``: the B4 score of the control head of each wave of
-    ``run``."""
+    ``run`` (only the stops in ``stops`` when given)."""
     with open(STUDY / "results" / "scores.tsv") as fh:
         return {int(r["stop_k"]): float(r["gm_rel_mase"])
                 for r in csv.DictReader(fh, delimiter="\t")
-                if r["run"] == run and r["arm"] == "control"}
+                if r["run"] == run and r["arm"] == "control"
+                and (stops is None or int(r["stop_k"]) in stops)}
 
 
 def panel_points(tables, forecast):
@@ -94,6 +105,8 @@ def panel_points(tables, forecast):
     if forecast:
         for run in NEW_RUNS:
             points[run] = new_run_forecast(run)
+        for arm, run in FIRST_STEPS.items():
+            points.setdefault(arm, {}).update(new_run_forecast(run, stops={1}))
     return points
 
 
