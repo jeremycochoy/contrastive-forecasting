@@ -1,6 +1,7 @@
 """The forecast and the reconstruction of the encoder latent through training,
-for the runs of this report (GRN, BLK+EMA, GRN+EMA) next to ABC, CYN and BLK.
-Writes plots/forecast_and_reconstruction.png: three panels on one x axis.
+for the runs of this report (GRN, BLK+EMA, GRN+EMA, BLK+EMA cosine) next to
+ABC, CYN and BLK. Writes plots/forecast_and_reconstruction.png: three panels
+on one x axis.
 
   1. Forecast (B4): the forecaster rolls the latents forward, and the
      standard reconstruction head decodes each rolled latent.
@@ -13,11 +14,13 @@ Reads the scores of ABC, CYN and BLK of #412 and #425
 (reports/2026-09-06_moirai_small_size/results/gm_trajectories.tsv,
 reports/2026-10-06_encoder_reconstruction/results/*.tsv), and the scores of
 the runs of this report (GRN: arm abc_gift, BLK+EMA: arm blk_ema, GRN+EMA: arm
-grn_ema098): results/scores.tsv (B4, arm `control`), and results/recon_*.tsv
-(R, with the columns arm, stop in thousands of steps, GM-Relative MASE).
-The point at 1k steps of GRN, BLK and ABC comes from results/scores.tsv
-(runs abc_gift, blk and abc at stop_k 1): the first 1,000 steps of each run
-again, with its flags and its seed.
+grn_ema098, BLK+EMA cosine: arm blk_emacos): results/scores.tsv (B4, arm
+`control`), and results/recon_*.tsv (R, with the columns arm, stop in
+thousands of steps, GM-Relative MASE; collect_recon.py writes them).
+The point at 1k steps of GRN, BLK and ABC is a run of the first 1,000 steps
+again, with the flags and the seed of the run: B4 in results/scores.tsv (runs
+abc_gift, blk and abc at stop_k 1), R in results/recon_green*.tsv and
+results/recon_first_steps*.tsv.
 
 Usage: python3 plot_green_scores.py
 """
@@ -66,19 +69,19 @@ RUNS = [
      colour("cf419_cos200k"), "*"),
 ]
 OURS = STUDY / "results"
+# The R tables of collect_recon.py (first_steps: the 1k point of BLK and ABC).
+OUR_R_TABLES = ["green", "blk_ema", "grn_ema098", "blk_emacos", "first_steps"]
 # panel title, y range, the score tables, and whether the forecast of the
 # runs of this report comes from results/scores.tsv
 PANELS = [
     ("Forecast (B4)", (1.10, 1.27),
      [MOIRAI / "results" / "gm_trajectories.tsv", RECON / "forecast_425.tsv"], True),
     ("Reconstruction of the encoder latent (R), transformer head", (0.02, 0.08),
-     [RECON / "recon_trajectories.tsv", OURS / "recon_green_trajectories.tsv",
-      OURS / "recon_blk_ema_trajectories.tsv", OURS / "recon_grn_ema098_trajectories.tsv"],
-     False),
+     [RECON / "recon_trajectories.tsv"]
+     + [OURS / f"recon_{table}_trajectories.tsv" for table in OUR_R_TABLES], False),
     ("Reconstruction of the encoder latent (R), linear head", (0.12, 0.40),
-     [RECON / "recon_lin_trajectories.tsv", OURS / "recon_green_lin_trajectories.tsv",
-      OURS / "recon_blk_ema_lin_trajectories.tsv",
-      OURS / "recon_grn_ema098_lin_trajectories.tsv"], False),
+     [RECON / "recon_lin_trajectories.tsv"]
+     + [OURS / f"recon_{table}_lin_trajectories.tsv" for table in OUR_R_TABLES], False),
 ]
 TICKS_K = [1, 10, 40, 100, 200, 400, 665, 1330]
 
