@@ -6,7 +6,10 @@ file for each head: score_<arm>_bb<stop>k_h30k_recon.txt for the transformer
 head and score_<arm>_bb<stop>k_h30k_recon_lin.txt for the linear head. Give
 the result folders of the queues:
 
-    python3 collect_recon.py /home/jupyter/cf_runs/recon_*/results*
+    python3 collect_recon.py /home/jupyter/cf_runs/recon_*/results* \
+        /home/jupyter/cf_runs/box_heads/recon_results*
+
+(the last folders: the R results of the vast box, from 10-14).
 
 For each table of TABLES, it writes results/recon_<table>_trajectories.tsv
 (transformer head) and results/recon_<table>_lin_trajectories.tsv (linear
@@ -18,8 +21,9 @@ from pathlib import Path
 
 RESULTS = Path(__file__).resolve().parent.parent / "results"
 # arm -> table
-TABLES = {"abc_gift": "green", "blk_ema": "blk_ema", "grn_ema098": "grn_ema098",
-          "grn_ema099": "grn_ema099", "blk_emacos": "blk_emacos", "cf419_cos200k": "first_steps",
+TABLES = {"abc_gift": "green", "blk_ema": "blk_ema", "grn_ema095": "grn_ema095",
+          "grn_ema098": "grn_ema098", "grn_ema099": "grn_ema099", "blk_emacos": "blk_emacos",
+          "cf419_cos200k": "first_steps",
           "k3_r100_09_lr56_fix09_dec10k_lr10x": "first_steps"}
 SCORE_FILE = re.compile(r"score_(.+)_bb(\d+)k_h30k_recon(_lin)?\.txt$")
 

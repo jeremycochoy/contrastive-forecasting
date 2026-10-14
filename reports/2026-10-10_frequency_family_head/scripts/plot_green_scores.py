@@ -1,6 +1,6 @@
 """The forecast and the reconstruction of the encoder latent through training,
-for the runs of this report (GRN, BLK+EMA, GRN+EMA 0.98, GRN+EMA 0.99, BLK+EMA
-cosine) next to ABC, CYN and BLK. Writes plots/forecast_and_reconstruction.png: three panels
+for the runs of this report (GRN, BLK+EMA, GRN+EMA 0.95, GRN+EMA 0.98, GRN+EMA
+0.99, BLK+EMA cosine) next to ABC, CYN and BLK. Writes plots/forecast_and_reconstruction.png: three panels
 on one x axis.
 
   1. Forecast (B4): the forecaster rolls the latents forward, and the
@@ -13,9 +13,9 @@ A dashed vertical line joins the scores of one checkpoint in the panels.
 Reads the scores of ABC, CYN and BLK of #412 and #425
 (reports/2026-09-06_moirai_small_size/results/gm_trajectories.tsv,
 reports/2026-10-06_encoder_reconstruction/results/*.tsv), and the scores of
-the runs of this report (GRN: arm abc_gift, BLK+EMA: arm blk_ema, GRN+EMA 0.98:
-arm grn_ema098, GRN+EMA 0.99: arm grn_ema099, BLK+EMA cosine: arm blk_emacos):
-results/scores.tsv (B4, arm
+the runs of this report (GRN: arm abc_gift, BLK+EMA: arm blk_ema, GRN+EMA 0.95:
+arm grn_ema095, GRN+EMA 0.98: arm grn_ema098, GRN+EMA 0.99: arm grn_ema099,
+BLK+EMA cosine: arm blk_emacos): results/scores.tsv (B4, arm
 `control`), and results/recon_*.tsv (R, with the columns arm, stop in
 thousands of steps, GM-Relative MASE; collect_recon.py writes them).
 The point at 1k steps of GRN, BLK and ABC is a run of the first 1,000 steps
@@ -50,16 +50,20 @@ GRN_EMA = "grn_ema098"
 GRN_EMA_COLOUR = "#6a3d9a"  # its colour in plot_ema_plan.py
 GRN_EMA099 = "grn_ema099"
 GRN_EMA099_COLOUR = "#e377c2"  # its colour in plot_ema_plan.py
+GRN_EMA095 = "grn_ema095"
+GRN_EMA095_COLOUR = "#8c564b"  # its colour in plot_ema_plan.py
 BLK_EMACOS = "blk_emacos"
 BLK_EMACOS_COLOUR = "#d62728"  # its colour in plot_ema_plan.py
 # The runs of this report: their forecast comes from results/scores.tsv.
-NEW_RUNS = [GREEN, BLK_EMA, GRN_EMA, GRN_EMA099, BLK_EMACOS]
+NEW_RUNS = [GREEN, BLK_EMA, GRN_EMA095, GRN_EMA, GRN_EMA099, BLK_EMACOS]
 # Older runs with a forecast at 1k steps in results/scores.tsv: arm -> run.
 FIRST_STEPS = {"cf419_cos200k": "blk", P + "_lr10x": "abc"}
 OUT = STUDY / "plots" / "forecast_and_reconstruction.png"
 # (arm, legend label, colour, marker): the runs of the figure.
 RUNS = [
     (GREEN, r"$\mathbf{GRN}$  lr 5.6e-5, new data", GREEN_COLOUR, "D"),
+    (GRN_EMA095, r"$\mathbf{GRN+EMA\ 0.95}$  as GRN, EMA of the teacher 0.95 to 1.0 over 665k",
+     GRN_EMA095_COLOUR, "p"),
     (GRN_EMA, r"$\mathbf{GRN+EMA\ 0.98}$  as GRN, EMA of the teacher 0.98 to 1.0 over 665k",
      GRN_EMA_COLOUR, "X"),
     (GRN_EMA099, r"$\mathbf{GRN+EMA\ 0.99}$  as GRN, EMA of the teacher 0.99 to 1.0 over 665k",
@@ -76,7 +80,8 @@ RUNS = [
 ]
 OURS = STUDY / "results"
 # The R tables of collect_recon.py (first_steps: the 1k point of BLK and ABC).
-OUR_R_TABLES = ["green", "blk_ema", "grn_ema098", "grn_ema099", "blk_emacos", "first_steps"]
+OUR_R_TABLES = ["green", "blk_ema", "grn_ema095", "grn_ema098", "grn_ema099", "blk_emacos",
+                "first_steps"]
 # panel title, y range, the score tables, and whether the forecast of the
 # runs of this report comes from results/scores.tsv
 PANELS = [
