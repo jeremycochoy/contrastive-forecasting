@@ -1,6 +1,6 @@
 """The forecast and the reconstruction of the encoder latent through training,
-for the runs of this report (GRN, BLK+EMA, GRN+EMA, BLK+EMA cosine) next to
-ABC, CYN and BLK. Writes plots/forecast_and_reconstruction.png: three panels
+for the runs of this report (GRN, BLK+EMA, GRN+EMA 0.98, GRN+EMA 0.99, BLK+EMA
+cosine) next to ABC, CYN and BLK. Writes plots/forecast_and_reconstruction.png: three panels
 on one x axis.
 
   1. Forecast (B4): the forecaster rolls the latents forward, and the
@@ -13,8 +13,9 @@ A dashed vertical line joins the scores of one checkpoint in the panels.
 Reads the scores of ABC, CYN and BLK of #412 and #425
 (reports/2026-09-06_moirai_small_size/results/gm_trajectories.tsv,
 reports/2026-10-06_encoder_reconstruction/results/*.tsv), and the scores of
-the runs of this report (GRN: arm abc_gift, BLK+EMA: arm blk_ema, GRN+EMA: arm
-grn_ema098, BLK+EMA cosine: arm blk_emacos): results/scores.tsv (B4, arm
+the runs of this report (GRN: arm abc_gift, BLK+EMA: arm blk_ema, GRN+EMA 0.98:
+arm grn_ema098, GRN+EMA 0.99: arm grn_ema099, BLK+EMA cosine: arm blk_emacos):
+results/scores.tsv (B4, arm
 `control`), and results/recon_*.tsv (R, with the columns arm, stop in
 thousands of steps, GM-Relative MASE; collect_recon.py writes them).
 The point at 1k steps of GRN, BLK and ABC is a run of the first 1,000 steps
@@ -31,6 +32,7 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 from matplotlib.patches import ConnectionPatch
 from matplotlib.ticker import FixedLocator, NullLocator
 
@@ -46,18 +48,22 @@ BLK_EMA = "blk_ema"
 BLK_EMA_COLOUR = "#ff7f0e"  # no other run of this figure has this colour
 GRN_EMA = "grn_ema098"
 GRN_EMA_COLOUR = "#6a3d9a"  # its colour in plot_ema_plan.py
+GRN_EMA099 = "grn_ema099"
+GRN_EMA099_COLOUR = "#e377c2"  # its colour in plot_ema_plan.py
 BLK_EMACOS = "blk_emacos"
 BLK_EMACOS_COLOUR = "#d62728"  # its colour in plot_ema_plan.py
 # The runs of this report: their forecast comes from results/scores.tsv.
-NEW_RUNS = [GREEN, BLK_EMA, GRN_EMA, BLK_EMACOS]
+NEW_RUNS = [GREEN, BLK_EMA, GRN_EMA, GRN_EMA099, BLK_EMACOS]
 # Older runs with a forecast at 1k steps in results/scores.tsv: arm -> run.
 FIRST_STEPS = {"cf419_cos200k": "blk", P + "_lr10x": "abc"}
 OUT = STUDY / "plots" / "forecast_and_reconstruction.png"
 # (arm, legend label, colour, marker): the runs of the figure.
 RUNS = [
     (GREEN, r"$\mathbf{GRN}$  lr 5.6e-5, new data", GREEN_COLOUR, "D"),
-    (GRN_EMA, r"$\mathbf{GRN+EMA}$  as GRN, EMA of the teacher 0.98 to 1.0 over 665k",
+    (GRN_EMA, r"$\mathbf{GRN+EMA\ 0.98}$  as GRN, EMA of the teacher 0.98 to 1.0 over 665k",
      GRN_EMA_COLOUR, "X"),
+    (GRN_EMA099, r"$\mathbf{GRN+EMA\ 0.99}$  as GRN, EMA of the teacher 0.99 to 1.0 over 665k",
+     GRN_EMA099_COLOUR, "h"),
     (BLK_EMA, r"$\mathbf{BLK+EMA}$  as BLK, EMA of the teacher 0.9 to 1.0 over 665k",
      BLK_EMA_COLOUR, "P"),
     (BLK_EMACOS, r"$\mathbf{BLK+EMA\ cosine}$  as BLK, EMA of the teacher 0.9 to 1.0 on a cosine "
@@ -70,7 +76,7 @@ RUNS = [
 ]
 OURS = STUDY / "results"
 # The R tables of collect_recon.py (first_steps: the 1k point of BLK and ABC).
-OUR_R_TABLES = ["green", "blk_ema", "grn_ema098", "blk_emacos", "first_steps"]
+OUR_R_TABLES = ["green", "blk_ema", "grn_ema098", "grn_ema099", "blk_emacos", "first_steps"]
 # panel title, y range, the score tables, and whether the forecast of the
 # runs of this report comes from results/scores.tsv
 PANELS = [
@@ -122,6 +128,8 @@ def draw_panel(ax, title, y_range, points):
     above the y range."""
     for arm, label, colour_hex, marker in RUNS:
         stops = sorted(points.get(arm, {}))
+        if not stops:
+            continue
         values = [points[arm][s] for s in stops]
         ax.plot([s * 1000 for s in stops], values, color=colour_hex, marker=marker,
                 lw=2.2, ms=7, label=label)
@@ -172,7 +180,12 @@ def main():
         all_points.append(panel_points(tables, forecast))
         draw_panel(ax, title, y_range, all_points[-1])
     style_x(axes[-1])
-    axes[0].legend(fontsize=10, loc="upper center", bbox_to_anchor=(0.5, 1.42), ncol=2)
+    # Blank rows after the older runs: the runs of this report fill the left column.
+    handles, labels = axes[0].get_legend_handles_labels()
+    new_labels = {label for arm, label, _, _ in RUNS if arm in NEW_RUNS}
+    blanks = max(0, 2 * sum(label in new_labels for label in labels) - len(handles))
+    axes[0].legend(handles + [Line2D([], [], alpha=0)] * blanks, labels + [""] * blanks,
+                   fontsize=10, loc="lower center", bbox_to_anchor=(0.5, 1.07), ncol=2)
     fig.suptitle("Forecast and reconstruction through training (lower is better)", y=0.995)
     fig.tight_layout()
     # The links lie under the panels, so the panels have no background.
