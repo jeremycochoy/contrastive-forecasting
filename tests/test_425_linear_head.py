@@ -1204,12 +1204,19 @@ def test_the_probe_can_take_more_waves_of_each_stream(queue_box):
     """CF425_PROBE_WAVES=2: the first two waves of each stream, for a probe
     of a queue with two lanes on one stream."""
     tmp_path, _, env = queue_box
+    # The GPU tool of the test of wave 1. With the real tool, a wave waits
+    # for free memory on the GPU of the host, which other jobs can hold.
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "nvidia-smi").write_text(FAKE_NVIDIA_SMI)
+    (bin_dir / "nvidia-smi").chmod(0o755)
     res = tmp_path / "probe_res"
     env = dict(env, CF425_PROBE_RES=str(res), CF425_HEAD_ARCH="linear",
                CF425_PROBE_ROOT=str(tmp_path / "probe_root"),
                CF425_TEST_RES=str(res / "queue"), CF425_TRIES="1",
                CF425_PROBE_SAMPLE="0.5", CF425_PROBE_WAVES="2",
-               CF425_LANES="gift_pretrain:0 gift_pretrain:0 old:0")
+               CF425_LANES="gift_pretrain:0 gift_pretrain:0 old:0",
+               PATH=f"{bin_dir}:{os.environ['PATH']}")
     r = subprocess.run(["bash", str(SCRIPTS / "probe.sh"), "7"],
                        capture_output=True, text=True, env=env, timeout=120)
     assert r.returncode == 0, r.stdout + r.stderr
