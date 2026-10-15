@@ -31,8 +31,9 @@ at the anchor SCORE, over the rank of the parent checkpoint it re-scores, so
 its legend reads `k = 0 anchor` and not `k = 0 parent`. The report's `Terms`
 list gives the parent's name to the checkpoints and never to a score.
 
-Usage:  python3 plot_collapse_vs_score.py
+Usage:  python3 plot_collapse_vs_score.py [--out-dir DIR]
 """
+import argparse
 import csv
 import sys
 from pathlib import Path
@@ -154,7 +155,11 @@ def draw(ax, rows, xk, xlabel):
     ax.tick_params(labelsize=8)
 
 
-def main():
+def main(argv=None):
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--out-dir", default=str(PLOTS))
+    out_dir = Path(ap.parse_args(argv).out_dir)
+
     rows = load()
     scored = [r for r in rows if r["score"] and int(r["k"]) > 0]
     # the parent at bb40k is the checkpoint control c2 scored
@@ -163,7 +168,7 @@ def main():
     readable = [r for r in scored
                 if float(r["top_dir_share"]) >= TOP_SHARE_FLOOR]
 
-    PLOTS.mkdir(exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
     fig, ax = plt.subplots(1, 2, figsize=(11.5, 4.4))
 
     for a in ax:
@@ -216,7 +221,7 @@ def main():
     # placement made first would be checked against a panel of another size.
     fig.tight_layout()
     place()
-    out = PLOTS / "collapse_vs_score.png"
+    out = out_dir / "collapse_vs_score.png"
     fig.savefig(out, dpi=150)
     # The Spearman goes to stdout, not into a panel title: the report states
     # it once, in the body of the reduction section.
