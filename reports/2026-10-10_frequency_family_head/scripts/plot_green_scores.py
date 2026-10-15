@@ -134,12 +134,14 @@ def panel_points(tables, forecast):
 
 def draw_panel(ax, title, y_range, points):
     """One line for each run, and an arrow with the value for each point
-    above the y range."""
+    above the y range. The y range goes down to the lowest point."""
+    low = y_range[0]
     for arm, label, colour_hex, marker in RUNS:
         stops = sorted(points.get(arm, {}))
         if not stops:
             continue
         values = [points[arm][s] for s in stops]
+        low = min(low, min(values) - 0.02 * (y_range[1] - y_range[0]))
         ax.plot([s * 1000 for s in stops], values, color=colour_hex, marker=marker,
                 lw=2.2, ms=7, label=label)
         for stop, value in zip(stops, values):
@@ -147,7 +149,7 @@ def draw_panel(ax, title, y_range, points):
                 ax.plot(stop * 1000, y_range[1], "^", ms=11, color=colour_hex, clip_on=False)
                 ax.annotate(f"{value:.4f}", (stop * 1000, y_range[1]), xytext=(-6, -14),
                             textcoords="offset points", ha="right", fontsize=9, color=colour_hex)
-    ax.set_ylim(*y_range)
+    ax.set_ylim(low, y_range[1])
     ax.set_title(title, fontsize=11, loc="left")
     ax.set_ylabel("GM-Relative MASE")
     ax.grid(alpha=0.3)
