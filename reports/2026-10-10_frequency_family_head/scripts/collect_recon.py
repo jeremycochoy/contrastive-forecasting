@@ -22,7 +22,8 @@ from pathlib import Path
 RESULTS = Path(__file__).resolve().parent.parent / "results"
 # arm -> table
 TABLES = {"abc_gift": "green", "blk_ema": "blk_ema", "grn_ema095": "grn_ema095",
-          "grn_ema098": "grn_ema098", "grn_ema099": "grn_ema099", "blk_emacos": "blk_emacos",
+          "grn_ema098": "grn_ema098", "grn_ema099": "grn_ema099", "grn_ema0999": "grn_ema0999",
+          "blk_emacos": "blk_emacos",
           "cf419_cos200k": "first_steps",
           "k3_r100_09_lr56_fix09_dec10k_lr10x": "first_steps"}
 SCORE_FILE = re.compile(r"score_(.+)_bb(\d+)k_h30k_recon(_lin)?\.txt$")
