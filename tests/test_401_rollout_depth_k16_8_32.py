@@ -38,6 +38,7 @@ stay reproducible from its own commands.
 from __future__ import annotations
 
 import csv
+import hashlib
 import importlib.util
 import math
 import os
@@ -1217,9 +1218,25 @@ PLOT_RADAR = EXP / "scripts" / "plot_domain_radar.py"
 MAKE_PLOTS = EXP / "scripts" / "make_plots.sh"
 DEPTH_COLOURS = EXP / "scripts" / "depth_colours.py"
 PLOTS_DIR = EXP / "plots"
+# The three diagnosis figures. They draw the two reductions, so they have
+# their own folder, `CF401_DIAG_PLOTS`. Its default is the tracked `plots/`.
+DIAG_FIGURES = ("latent_rank.png", "collapse_onset.png",
+                "collapse_vs_score.png")
 
 DOMAINS = ["Econ/Fin", "Energy", "Healthcare", "Nature", "Sales",
            "Transport", "Web/CloudOps"]
+
+
+def tracked_state(folder: Path) -> dict:
+    """The write time and the digest of each tracked file of a folder."""
+    listed = subprocess.run(
+        ["git", "ls-files", "-z", str(folder.relative_to(REPO_ROOT))],
+        capture_output=True, text=True, cwd=str(REPO_ROOT), check=True).stdout
+    paths = [REPO_ROOT / name for name in listed.split("\0") if name]
+    return {str(p.relative_to(folder)): (
+                p.stat().st_mtime_ns,
+                hashlib.sha256(p.read_bytes()).hexdigest())
+            for p in paths if p.is_file()}
 
 
 def weighted_gm(pairs):
@@ -1375,6 +1392,14 @@ class TestDeliverables:
         for k in DEPTHS:
             assert f"k{k}@bb" in r.stdout, r.stdout
 
+    def make_plots(self, tmp_path):
+        """Run `make_plots.sh` with each output folder in `tmp_path`."""
+        return run_sh(MAKE_PLOTS, env={
+            **SUM, "CF401_RESULTS": str(tmp_path / "results"),
+            "CF401_ROOT": str(tmp_path / "runs"),
+            "CF401_PLOTS": str(tmp_path / "plots"),
+            "CF401_DIAG_PLOTS": str(tmp_path / "plots")})
+
     def test_make_plots_draws_what_it_can_and_skips_the_rest(self, tmp_path):
         """It runs at any point in the study, including before phase 2."""
         res = tmp_path / "results"
@@ -1384,13 +1409,35 @@ class TestDeliverables:
                 (res / f"score_k{k}_bb{stop // 1000}k_h30k_student.txt"
                  ).write_text("1.0700\n")
         plots = tmp_path / "plots"
-        out = run_sh(MAKE_PLOTS, env={**SUM, "CF401_RESULTS": str(res),
-                                      "CF401_ROOT": str(tmp_path / "runs"),
-                                      "CF401_PLOTS": str(plots)})
+        out = self.make_plots(tmp_path)
         assert out.returncode == 0, out.stderr
         assert (plots / "depth_ladder.png").is_file(), out.stdout
         # No eval CSV, so no per-domain table and no radar. It says so.
         assert "SKIP domain_radar_phase1" in out.stdout, out.stdout
+
+    def test_make_plots_writes_no_tracked_file(self, tmp_path):
+        """A run of the tests must not redraw a figure that the report embeds.
+
+        A checkout holds one of the six curves of `collapse_onset.png`. A
+        redraw into `plots/` replaces the committed figure with a damaged
+        one, and the next `git add -A` commits it.
+        """
+        before = tracked_state(EXP)
+        out = self.make_plots(tmp_path)
+        assert out.returncode == 0, out.stderr
+        after = tracked_state(EXP)
+        written = sorted(p for p in before.keys() | after.keys()
+                         if before.get(p) != after.get(p))
+        assert not written, f"make_plots.sh wrote tracked files: {written}"
+        # The script drew the three figures in the folder that the test set.
+        for name in DIAG_FIGURES:
+            assert (tmp_path / "plots" / name).is_file(), out.stdout
+
+    def test_the_diagnosis_figures_go_to_plots_by_default(self):
+        """`make_plots.sh` is the one command that the report names. With no
+        override, it must redraw the figures that the report embeds."""
+        code = strip_comments(MAKE_PLOTS.read_text())
+        assert 'DIAG_PLOTS="${CF401_DIAG_PLOTS:-$CF401_STUDY/plots}"' in code
 
 
 class TestRadarPanelPick:
@@ -2090,6 +2137,10 @@ class TestTheLayoutIsWrittenIn:
     What it can be: elisa's root is where the sync loop LANDS the box's tree,
     and elisa refuses to score one root while a backbone arm of the same
     reduction climbs under another one.
+
+    A dry run of the head watcher runs `collect.sh`, which writes the scores
+    table again. Each test that starts one gives it a temporary results
+    folder, so that the tracked table of the mean arm keeps its bytes.
     """
 
     def test_the_box_runs_root_is_a_remote_path(self):
@@ -2106,12 +2157,13 @@ class TestTheLayoutIsWrittenIn:
         root = re.search(r"root=(\S+)", out.stdout).group(1)
         assert root == study_value("CF401_BOX_RUNS"), out.stdout
 
-    def test_elisa_reads_the_boxs_tree_and_not_a_local_root(self):
+    def test_elisa_reads_the_boxs_tree_and_not_a_local_root(self, tmp_path):
         """The sync loop keeps the relative tree under `<LOCAL_DIR>/sync`, so
         that directory IS the root on elisa's side."""
         sync_root = study_value("CF401_SYNC_ROOT")
         assert sync_root.endswith("/sync"), sync_root
-        out = run_sh(LAUNCH_ELISA, env={"CF401_DRY_RUN": "1"})
+        out = run_sh(LAUNCH_ELISA, env={"CF401_DRY_RUN": "1",
+                                       "CF401_RESULTS": str(tmp_path / "res")})
         assert out.returncode == 0, out.stderr
         root = re.search(r"root=(\S+)", out.stdout).group(1)
         assert root == sync_root, out.stdout
@@ -2120,16 +2172,18 @@ class TestTheLayoutIsWrittenIn:
 
     def test_a_root_given_on_the_command_line_still_wins(self, tmp_path):
         out = run_sh(LAUNCH_ELISA, env={"CF401_DRY_RUN": "1",
-                                       "CF401_ROOT": str(tmp_path / "given")})
+                                       "CF401_ROOT": str(tmp_path / "given"),
+                                       "CF401_RESULTS": str(tmp_path / "res")})
         assert out.returncode == 0, out.stderr
         assert f"root={tmp_path / 'given'}" in out.stdout, out.stdout
 
-    def test_the_watcher_reads_the_boxs_tree_too(self):
+    def test_the_watcher_reads_the_boxs_tree_too(self, tmp_path):
         """`heads_watch.sh` run on its own has to land on the same root as
         `launch_elisa.sh`, or a session that starts the watcher directly
         scores a different tree."""
         out = run_sh(HEADS_WATCH, env={"CF401_DRY_RUN": "1",
-                                      "CF401_ALLOW_LOCAL_ARMS": "1"})
+                                      "CF401_ALLOW_LOCAL_ARMS": "1",
+                                      "CF401_RESULTS": str(tmp_path / "res")})
         assert out.returncode == 0, out.stderr
         root = re.search(r"root=(\S+)", out.stdout).group(1)
         assert root == study_value("CF401_SYNC_ROOT"), out.stdout
@@ -2282,7 +2336,7 @@ class TestTheHeadWatcherRefusesASecondRoot:
 
 class TestTheLegProvesItsReduction:
     """A mean leg that trained the sum writes the same file names, the same
-    columns and the same log lines. The depth has `cf401_depth_cols`; this is
+    columns and the same log lines. The depth has `cf401_depth_cols`. This is
     the reduction's proof, read off the trainer's own command line."""
 
     def test_the_trainer_writes_its_command_line(self, tmp_path):
