@@ -1,0 +1,20 @@
+[10-07 16:09:13] [cf412om_bb75k_h30k_recon] head argv -> /workspace/results/cf-425/waves/gift_pretrain_1007_160913_B9ZF/jobs.jsonl reconstruction=encoder
+[10-07 19:55:08] [cf412om_bb75k_h30k_recon] head-train SKIP (final exists)
+[10-07 19:55:08] [cf412om_bb75k_h30k_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-07 19:55:08] [eval-slot] all 2 slots busy, 0s so far
+[10-07 20:00:08] [eval-slot] all 2 slots busy, 300s so far
+[10-07 20:05:08] [eval-slot] all 2 slots busy, 600s so far
+[10-07 20:10:08] [eval-slot] all 2 slots busy, 900s so far
+[10-07 20:15:08] [eval-slot] all 2 slots busy, 1200s so far
+[10-07 20:20:08] [eval-slot] all 2 slots busy, 1500s so far
+[10-07 20:25:08] [eval-slot] all 2 slots busy, 1800s so far
+[10-07 20:30:08] [eval-slot] all 2 slots busy, 2100s so far
+[10-07 20:35:08] [eval-slot] all 2 slots busy, 2400s so far
+[10-07 20:40:08] [eval-slot] all 2 slots busy, 2700s so far
+[10-07 20:45:09] [eval-slot] all 2 slots busy, 3000s so far
+[10-07 20:46:29] [eval-slot] slot 0 after 3080s
+[10-07 20:46:29] START cf412om_bb75k_h30k_recon bb75k enc=student shards=2 slot=0
+[10-07 20:58:53] merged 97 configs -> /workspace/ckpt/cf-425/recon/eval/cf412om_bb75k_h30k_recon/gift_r/all_results.csv
+[10-07 20:58:56] DONE cf412om_bb75k_h30k_recon bb75k student — Aggregate GM-Relative MASE (97 configs): 0.8329 -> 0.8329
+[10-07 20:58:56] [cf412om_bb75k_h30k_recon] eval rc=0
+[10-07 20:58:56] [cf412om_bb75k_h30k_recon] DONE — GM-Relative MASE 0.8329

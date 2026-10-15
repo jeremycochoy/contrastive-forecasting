@@ -1,0 +1,220 @@
+"""#425: one check line for each job of jobs.tsv, from the raw artefacts
+that collect.py copies and from elisa's mirror of the box.
+
+A job passes when each of these holds:
+
+* its score file holds a number.
+* its per-config table holds 97 configs, each with a finite MASE.
+* the geometric mean of its relative MASE gives the score. The MASE comes
+  from the per-config table, and the seasonal-naive MASE from the eval
+  summary.
+* its eval ran strategy R on 97 configs (the stop log).
+* the loss CSV of its head ends at step 30,000.
+* elisa holds its final head (CF425_MIRROR, default
+  ~/checkpoints_backup/cf-412/vast_lr100x).
+
+Writes ``results/checks.tsv``: the code of the run, the stop in thousands
+of steps, the score, the value of each check, and ``ok`` or the names of
+the checks that fail. Exits with 1 when a job does not pass.
+
+With CF425_HEAD_ARCH=linear, it checks the linear head of each job (the tag
+``..._recon_lin``) and writes ``results/checks_lin.tsv``. The heads are in
+CF425_LINEAR (default ~/checkpoints_backup/cf-425-lin): in ``ckpt`` for a
+score of the queue of elisa, and in ``box_ckpt`` for a score of the box
+fallback.
+
+It also checks each score of ``results/snapshots/scores.tsv`` (the scores
+of snapshot_score.sh), and writes ``results/snapshots/checks.tsv``. A
+snapshot score passes the first four checks: a snapshot is a head of a job,
+so the last two are the checks of that job.
+"""
+import csv
+import gzip
+import math
+import os
+import re
+import sys
+from pathlib import Path
+
+STUDY = Path(__file__).resolve().parent.parent
+RESULTS = STUDY / "results"
+JOBS = STUDY / "scripts" / "jobs.tsv"
+BACKUP = Path.home() / "checkpoints_backup"
+LINEAR = Path(os.environ.get("CF425_LINEAR", BACKUP / "cf-425-lin"))
+# For each head: the end of its tags, its table, and the folder of the heads
+# on elisa (CF425_MIRROR/<name> when CF425_MIRROR is set).
+SUFFIX, TABLE, NAME, HEADS = {
+    "transformer": ("recon", "checks.tsv", "cf-425",
+                    BACKUP / "cf-412" / "vast_lr100x" / "cf-425"),
+    "linear": ("recon_lin", "checks_lin.tsv", "cf-425-lin", LINEAR / "ckpt"),
+}[os.environ.get("CF425_HEAD_ARCH", "transformer")]
+MIRROR = (Path(os.environ["CF425_MIRROR"]) / NAME
+          if os.environ.get("CF425_MIRROR") else HEADS)
+# The linear queue has a fallback on the box. The scores of the queue of
+# elisa, and the scores and the heads of the fallback (sync_box.sh).
+ELISA_SCORES = LINEAR / "results"
+FALLBACK_SCORES, FALLBACK_HEADS = LINEAR / "box_results", LINEAR / "box_ckpt"
+CONFIGS, HEAD_STEPS = 97, 30000
+MASE = "eval_metrics/MASE[0.5]"
+# A row of the eval summary: the config, its MASE, its seasonal-naive MASE
+# and the ratio of the two.
+SUMMARY_ROW = re.compile(r"(\S+/\S+)\s+[\d.]+\s+([\d.]+)\s+[\d.]+\s*")
+EVAL_START = re.compile(r"eval start \((\d+) configs, (\w+),")
+COLUMNS = ["code", "stop_k", "score", "configs", "gm", "strategy",
+           "head_steps", "head_bytes", "result"]
+SNAPSHOT_COLUMNS = ["code", "stop_k", "snapshot", "machine", "score",
+                    "configs", "gm", "strategy", "result"]
+
+
+def jobs(path):
+    """``(code, arm, stop in thousands)`` of each row of jobs.tsv."""
+    for row in open(path):
+        if not row.startswith("#"):
+            code, arm, stop_k = row.split("\t")[:3]
+            yield code, arm, int(stop_k)
+
+
+def read_score(path):
+    """The score of a score file, or None."""
+    try:
+        return float(path.read_text())
+    except (OSError, ValueError):
+        return None
+
+
+def config_mase(path):
+    """``{config: MASE}`` of a per-config table. {} with no table."""
+    if not path.is_file():
+        return {}
+    return {row["dataset"]: float(row[MASE])
+            for row in csv.DictReader(open(path))}
+
+
+def naive_mase(path):
+    """``{config: seasonal-naive MASE}`` of an eval summary."""
+    if not path.is_file():
+        return {}
+    matches = (SUMMARY_ROW.fullmatch(row.rstrip("\n")) for row in open(path))
+    return {m.group(1): float(m.group(2)) for m in matches if m}
+
+
+def geometric_mean(mase, naive):
+    """The GM of MASE / seasonal-naive MASE, or None when a config has no
+    finite positive ratio."""
+    try:
+        logs = [math.log(mase[config] / naive[config]) for config in mase]
+        return math.exp(sum(logs) / len(logs))
+    except (KeyError, ValueError, ZeroDivisionError):
+        return None
+
+
+def eval_start(path):
+    """``(configs, strategy)`` of the last eval of a stop log."""
+    found = EVAL_START.findall(path.read_text()) if path.is_file() else []
+    return (int(found[-1][0]), found[-1][1]) if found else (0, "")
+
+
+def last_step(path):
+    """The last step of a head loss CSV, or 0."""
+    if not path.is_file():
+        return 0
+    with gzip.open(path, "rt") as rows:
+        step = rows.read().strip().rsplit("\n", 1)[-1].split(",")[0]
+    return int(step) if step.isdigit() else 0
+
+
+def head_bytes(folder):
+    """The size of the final head of a job in elisa's mirror, or 0."""
+    return sum(path.stat().st_size for path in folder.glob("*_final.pth"))
+
+
+def head_tree(tag):
+    """The folder of the heads that holds the head of a job. collect.py
+    takes the score of a linear job from the box fallback only when the
+    queue of elisa has none: the head of that score is in the folder of the
+    fallback."""
+    name = f"score_{tag}.txt"
+    if (SUFFIX == "recon_lin" and read_score(ELISA_SCORES / name) is None
+            and read_score(FALLBACK_SCORES / name) is not None):
+        return FALLBACK_HEADS
+    return MIRROR
+
+
+def check(code, arm, stop_k):
+    """One row of checks.tsv."""
+    tag = f"{arm}_bb{stop_k}k_h30k_{SUFFIX}"
+    score = read_score(RESULTS / "scores" / f"score_{tag}.txt")
+    mase = config_mase(RESULTS / "per_config" / f"{tag}.csv")
+    logs = RESULTS / "logs" / "jobs" / tag
+    gm = geometric_mean(mase, naive_mase(logs / "summary.txt"))
+    configs, strategy = eval_start(logs / "stop.log")
+    steps = last_step(RESULTS / "head_losses" / f"{tag}_losses.csv.gz")
+    size = head_bytes(head_tree(tag) / "recon" / "eval" / tag)
+    # A job with no score has no eval yet: the other checks say nothing more.
+    failed = ["score"] if score is None else [name for name, passed in [
+        ("configs", len(mase) == CONFIGS and configs == CONFIGS
+         and all(math.isfinite(v) for v in mase.values())),
+        ("gm", gm is not None and abs(gm - score) < 1e-4),
+        ("strategy", strategy == "R"),
+        ("head_steps", steps == HEAD_STEPS),
+        ("head_bytes", size > 0),
+    ] if not passed]
+    return {"code": code, "stop_k": stop_k,
+            "score": "" if score is None else f"{score:.4f}",
+            "configs": len(mase), "gm": "" if gm is None else f"{gm:.4f}",
+            "strategy": strategy, "head_steps": steps, "head_bytes": size,
+            "result": "ok" if not failed else "FAIL " + ",".join(failed)}
+
+
+def check_snapshot(row):
+    """One row of snapshots/checks.tsv, for one row of snapshots/scores.tsv."""
+    tag = f"{row['arm']}_bb{row['stop_k']}k_h30k_{row['snapshot']}_recon"
+    folder = RESULTS / "snapshots"
+    score = float(row["r_snapshot"])
+    mase = config_mase(folder / "per_config" / f"{tag}.csv")
+    gm = geometric_mean(mase, naive_mase(folder / "logs" / tag / "summary.txt"))
+    configs, strategy = eval_start(folder / "logs" / tag / "stop.log")
+    failed = [name for name, passed in [
+        ("configs", len(mase) == CONFIGS and configs == CONFIGS
+         and all(math.isfinite(v) for v in mase.values())),
+        ("gm", gm is not None and abs(gm - score) < 1e-4),
+        ("strategy", strategy == "R"),
+    ] if not passed]
+    return {"code": row["run"], "stop_k": row["stop_k"],
+            "snapshot": row["snapshot"], "machine": row["machine"],
+            "score": f"{score:.4f}", "configs": len(mase),
+            "gm": "" if gm is None else f"{gm:.4f}", "strategy": strategy,
+            "result": "ok" if not failed else "FAIL " + ",".join(failed)}
+
+
+def write_checks(rows, columns, path, what):
+    """Write a table of checks, and print each row that fails. Returns the
+    number of rows that fail."""
+    with open(path, "w", newline="") as out:
+        writer = csv.DictWriter(out, columns, delimiter="\t",
+                                lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(rows)
+    bad = [row for row in rows if row["result"] != "ok"]
+    for row in bad:
+        snapshot = f" {row['snapshot']}" if "snapshot" in row else ""
+        print(f"{row['code']} {row['stop_k']}k{snapshot}: {row['result']}")
+    print(f"{len(rows) - len(bad)} of {len(rows)} {what} pass -> {path}")
+    return len(bad)
+
+
+def main():
+    bad = write_checks([check(*job) for job in jobs(JOBS)], COLUMNS,
+                       RESULTS / TABLE, "jobs")
+    snapshots = RESULTS / "snapshots" / "scores.tsv"
+    if SUFFIX == "recon" and snapshots.is_file():
+        rows = csv.DictReader(open(snapshots), delimiter="\t")
+        bad += write_checks([check_snapshot(row) for row in rows],
+                            SNAPSHOT_COLUMNS,
+                            RESULTS / "snapshots" / "checks.tsv",
+                            "snapshot scores")
+    return 1 if bad else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -152,14 +152,72 @@ from the backbone checkpoint. For such a backbone it trains a head bank:
   share of the rows.
 - The checkpoint names the scaling, so `--rev-norm-kind` is not read.
   `--forecast-len` is not read either. The script refuses
-  `--reconstruction`, `--mixed-rollout` and heads without quantiles.
+  `--reconstruction forecaster`, `--mixed-rollout` and heads without
+  quantiles.
+
+`--reconstruction encoder` (#425) trains the same heads on another target.
+Head P reads the encoder latent of each patch and decodes the P values of
+that patch. The loss counts the same values as above. A backbone with one
+patch size trains one quantile head on this target, and its zero padding
+counts in no term.
+
+A copy of Moirai (#415, `--value-space-objective`) has no loss on its encoder
+latent. Its value head reads the output of the whole transformer, so that
+output is its one latent. On a checkpoint with a value head, the head of
+`--reconstruction encoder` reads the transformer output of each patch and
+decodes the values of that patch. Strategy R reads the same latent. The two
+scripts read the kind off the checkpoint (`reconstruction_latent_of`), so
+they need no flag and they always agree. An older code folder trains and
+scores such a head on the encoder latent, with no error. So `queue.sh` and
+`snapshot_score.sh` of #425 refuse a job of a copy of Moirai (a checkpoint
+in a `value_space` folder) when their code folder has no
+`reconstruction_latent_of`.
 
 `eval_gift_eval_official.py` loads the bank, checks that its sizes are the
 backbone's, and gives each config the head of its frequency's inference
 size. Strategy B4 reads the context at that size and rolls out one latent per
 patch of P values. The forecast is unscaled with the loc and the scale of the
-whole context. The script refuses a bank under another strategy: those read
-the context at the base size.
+whole context. The script refuses a bank under a strategy other than B4 and
+R: those read the context at the base size.
 
-`head_eval_bb.sh` and `eval_local.sh` need no new argument. `CF_BB_SHAPE`
-gives the backbone shape, as before.
+Strategy R (#425) is not a forecast. The encoder reads the B4 context and
+the true horizon, and a reconstruction head decodes the latents of the
+horizon patches. Each value is unscaled with the statistics that normalised
+it. Under the mean/std scaling, these are the loc and the scale of the
+context. Under the EWMA, they are the EWMA at that value. So the score
+measures how much of each patch the encoder latent keeps.
+
+`--zero-head` (R only) scores the floor of R. A head with no weights gives
+the normalised value 0. So each value is the mean that normalised it. The
+EWMA at a horizon value reads the true horizon until that value. Thus an
+EWMA run has a lower floor than a mean/std run. Compare an R score with the
+floor of its own scaling.
+
+`head_eval_bb.sh` and `eval_local.sh` need no new argument for B4.
+`CF_BB_SHAPE` gives the backbone shape, as before. For #425:
+
+- `CF_RECONSTRUCTION=encoder` trains a reconstruction head and scores it
+  under R.
+- `HEAD_SAVE_EVERY` sets the head snapshot interval.
+- `CF_SKIP_EVAL=1` stops after the head.
+- `EVAL_DEVICE=cuda` runs the eval shards on the GPU.
+- `EVAL_STRATEGY=R0` runs R with `--zero-head`.
+- `CF_HEAD_ARGV_TO=<file>` writes the flags of the head trainer to the file
+  and trains nothing.
+- `CF_HEAD_ARCH=linear` gives the reconstruction head one linear map from
+  each encoder latent to the quantiles of the values of its patch
+  (`--head-arch linear`), in place of the transformer head. Each other
+  setting stays. The tag must end in `_recon_lin`, so the two heads of one
+  checkpoint share no file. The eval reads the kind of a head from its file.
+- `HEAD_LOG_EVERY` sets the steps between two log lines of the head trainer.
+
+`train_forecasting_heads_shared.py --jobs <file>` (#425) trains the heads of
+some runs on one data stream. Each line of the file holds the flags of one
+run of `train_forecasting_head.py`, as a JSON list. Each job keeps its
+backbone, head, optimizer, seed and files. Each batch goes to each job in
+turn. Each job uses its own random state for its step. So each job gets the
+losses and the weights of its solo run, bit for bit. The script refuses jobs
+that read a different data stream: source, seed, vocabulary, batch size,
+start or step count. Each report gives the step rate and the share of time
+that the process waited for a batch. A process that waits is as fast as its
+stream. A process that does not wait is as fast as its frozen backbones.

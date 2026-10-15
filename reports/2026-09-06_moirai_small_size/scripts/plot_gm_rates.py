@@ -215,4 +215,6 @@ def main():
         draw_figure([group], out)
 
 
-main()
+# #425 imports the groups and the styles of this script, and draws nothing.
+if __name__ == "__main__":
+    main()

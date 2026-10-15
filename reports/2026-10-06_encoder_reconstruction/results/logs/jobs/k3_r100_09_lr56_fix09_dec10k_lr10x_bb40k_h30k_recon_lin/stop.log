@@ -1,0 +1,10 @@
+[10-08 10:01:49] [k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_lin] head argv -> /home/jupyter/checkpoints_backup/cf-425-lin/results/waves/old_1008_100149_PVUl/jobs.jsonl reconstruction=encoder head-arch=linear
+[10-08 10:10:47] [k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_lin] head argv -> /home/jupyter/checkpoints_backup/cf-425-lin/results/waves/old_1008_101047_w47p/jobs.jsonl reconstruction=encoder head-arch=linear
+[10-08 10:25:32] [k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_lin] head argv -> /home/jupyter/checkpoints_backup/cf-425-lin/results/waves/old_1008_102532_99I0/jobs.jsonl reconstruction=encoder head-arch=linear
+[10-08 14:56:53] [k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_lin] head-train SKIP (final exists)
+[10-08 14:56:53] [k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_lin] eval start (97 configs, R, forecast-len 16, cuda)
+[10-08 14:56:53] START k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_lin bb40k enc=student shards=2 slot=0
+[10-08 15:10:02] merged 97 configs -> /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_lin/gift_r/all_results.csv
+[10-08 15:10:05] DONE k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_lin bb40k student — Aggregate GM-Relative MASE (97 configs): 0.1995 -> 0.1995
+[10-08 15:10:05] [k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_lin] eval rc=0
+[10-08 15:10:05] [k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_lin] DONE — GM-Relative MASE 0.1995

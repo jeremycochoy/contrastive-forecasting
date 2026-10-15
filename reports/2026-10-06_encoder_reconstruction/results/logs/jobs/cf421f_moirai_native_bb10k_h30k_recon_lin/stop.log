@@ -1,0 +1,8 @@
+[10-08 16:05:02] [cf421f_moirai_native_bb10k_h30k_recon_lin] head argv -> /home/jupyter/checkpoints_backup/cf-425-lin/results/waves/gift_pretrain_1008_160502_UC07/jobs.jsonl reconstruction=encoder head-arch=linear
+[10-08 19:09:49] [cf421f_moirai_native_bb10k_h30k_recon_lin] head-train SKIP (final exists)
+[10-08 19:09:49] [cf421f_moirai_native_bb10k_h30k_recon_lin] eval start (97 configs, R, forecast-len 16, cuda)
+[10-08 19:09:49] START cf421f_moirai_native_bb10k_h30k_recon_lin bb10k enc=student shards=2 slot=1
+[10-08 19:22:55] merged 97 configs -> /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf421f_moirai_native_bb10k_h30k_recon_lin/gift_r/all_results.csv
+[10-08 19:22:57] DONE cf421f_moirai_native_bb10k_h30k_recon_lin bb10k student — Aggregate GM-Relative MASE (97 configs): 0.2809 -> 0.2809
+[10-08 19:22:57] [cf421f_moirai_native_bb10k_h30k_recon_lin] eval rc=0
+[10-08 19:22:57] [cf421f_moirai_native_bb10k_h30k_recon_lin] DONE — GM-Relative MASE 0.2809

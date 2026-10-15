@@ -1,0 +1,11 @@
+[10-07 13:39:22] [cf412oe2_bb40k_h30k_best_recon] head-train SKIP (final exists)
+[10-07 13:39:22] [cf412oe2_bb40k_h30k_best_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-07 13:39:22] [eval-slot] all 2 slots busy, 0s so far
+[10-07 13:44:22] [eval-slot] all 2 slots busy, 300s so far
+[10-07 13:49:22] [eval-slot] all 2 slots busy, 600s so far
+[10-07 13:51:22] [eval-slot] slot 1 after 720s
+[10-07 13:51:22] START cf412oe2_bb40k_h30k_best_recon bb40k enc=student shards=2 slot=1
+[10-07 14:03:57] merged 97 configs -> /workspace/ckpt/cf-425/snapshots/eval/cf412oe2_bb40k_h30k_best_recon/gift_r/all_results.csv
+[10-07 14:04:01] DONE cf412oe2_bb40k_h30k_best_recon bb40k student — Aggregate GM-Relative MASE (97 configs): 0.0836 -> 0.0836
+[10-07 14:04:01] [cf412oe2_bb40k_h30k_best_recon] eval rc=0
+[10-07 14:04:01] [cf412oe2_bb40k_h30k_best_recon] DONE — GM-Relative MASE 0.0836

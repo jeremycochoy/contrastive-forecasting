@@ -1,0 +1,8 @@
+[10-07 16:09:13] [cf412om_bb25k_h30k_recon] head argv -> /workspace/results/cf-425/waves/gift_pretrain_1007_160913_B9ZF/jobs.jsonl reconstruction=encoder
+[10-07 19:55:08] [cf412om_bb25k_h30k_recon] head-train SKIP (final exists)
+[10-07 19:55:08] [cf412om_bb25k_h30k_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-07 19:55:08] START cf412om_bb25k_h30k_recon bb25k enc=student shards=2 slot=0
+[10-07 20:07:50] merged 97 configs -> /workspace/ckpt/cf-425/recon/eval/cf412om_bb25k_h30k_recon/gift_r/all_results.csv
+[10-07 20:07:53] DONE cf412om_bb25k_h30k_recon bb25k student — Aggregate GM-Relative MASE (97 configs): 0.5238 -> 0.5238
+[10-07 20:07:53] [cf412om_bb25k_h30k_recon] eval rc=0
+[10-07 20:07:53] [cf412om_bb25k_h30k_recon] DONE — GM-Relative MASE 0.5238

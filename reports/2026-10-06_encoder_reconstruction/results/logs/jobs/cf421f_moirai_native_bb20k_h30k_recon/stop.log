@@ -1,0 +1,19 @@
+[10-08 13:54:16] [cf421f_moirai_native_bb20k_h30k_recon] head argv -> /workspace/results/cf-425/waves/gift_pretrain_1008_135416_R4vG/jobs.jsonl reconstruction=encoder
+[10-08 17:24:37] [cf421f_moirai_native_bb20k_h30k_recon] head-train SKIP (final exists)
+[10-08 17:24:37] [cf421f_moirai_native_bb20k_h30k_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-08 17:24:37] [eval-slot] all 2 slots busy, 0s so far
+[10-08 17:29:37] [eval-slot] all 2 slots busy, 300s so far
+[10-08 17:34:37] [eval-slot] all 2 slots busy, 600s so far
+[10-08 17:39:37] [eval-slot] all 2 slots busy, 900s so far
+[10-08 17:44:37] [eval-slot] all 2 slots busy, 1200s so far
+[10-08 17:49:37] [eval-slot] all 2 slots busy, 1500s so far
+[10-08 17:54:37] [eval-slot] all 2 slots busy, 1800s so far
+[10-08 17:59:37] [eval-slot] all 2 slots busy, 2100s so far
+[10-08 18:04:37] [eval-slot] all 2 slots busy, 2400s so far
+[10-08 18:09:38] [eval-slot] all 2 slots busy, 2700s so far
+[10-08 18:14:38] [eval-slot] slot 0 after 3000s
+[10-08 18:14:38] START cf421f_moirai_native_bb20k_h30k_recon bb20k enc=student shards=2 slot=0
+[10-08 18:27:04] merged 97 configs -> /workspace/ckpt/cf-425/recon/eval/cf421f_moirai_native_bb20k_h30k_recon/gift_r/all_results.csv
+[10-08 18:27:08] DONE cf421f_moirai_native_bb20k_h30k_recon bb20k student — Aggregate GM-Relative MASE (97 configs): 0.3449 -> 0.3449
+[10-08 18:27:08] [cf421f_moirai_native_bb20k_h30k_recon] eval rc=0
+[10-08 18:27:08] [cf421f_moirai_native_bb20k_h30k_recon] DONE — GM-Relative MASE 0.3449

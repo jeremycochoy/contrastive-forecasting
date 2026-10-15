@@ -64,6 +64,7 @@ from src.checkpoint import (
     load_encoder_source,
     multi_patch_sizes_of,
     prepare_backbone_state_dict,
+    reconstruction_latent_of,
 )
 from src.forecasting_head import (
     ForecastingHead,
@@ -73,6 +74,8 @@ from src.forecasting_head import (
     forecast_with_strategy,
     head_bank_sizes,
     native_value_head,
+    reconstruct_windows,
+    ZeroReconstructionHead,
 )
 
 
@@ -261,13 +264,17 @@ class ContrastiveForecasterPredictor(RepresentablePredictor):
             return target
         first_valid = np.where(~mask)[0][0]
         if self.context_pad == 'zeros':
-            target = target[first_valid:]
+            target, mask = target[first_valid:], mask[first_valid:]
         else:
             target[:first_valid] = target[first_valid]
-        for i in range(1, len(target)):
-            if np.isnan(target[i]):
-                target[i] = target[i - 1]
-        return target
+            mask[:first_valid] = False
+        # Forward fill: each missing value takes the last observed value
+        # before it, in one numpy pass. The Python loop it replaces gave the
+        # same values and took 9 ms on each window of a 26,000-value history,
+        # 70 of the 116 seconds of an R score of electricity/H/short (#425).
+        last = np.where(mask, 0, np.arange(len(target)))
+        np.maximum.accumulate(last, out=last)
+        return target[last]
 
     def predict_item(self, item) -> QuantileForecast:
         target = self._fill_missing(
@@ -283,7 +290,11 @@ class ContrastiveForecasterPredictor(RepresentablePredictor):
                 self.strategy, self.backbone, self.head, context,
                 horizon=self.prediction_length, device=self.device,
             )
+        return self.to_forecast(forecast_raw, item)
 
+    def to_forecast(self, forecast_raw, item) -> QuantileForecast:
+        """The gluonts forecast of one window, from the raw output of a
+        strategy."""
         # forecast_raw is either:
         #   (prediction_length, C)              — MSE head (point forecast)
         #   (num_quantiles, prediction_length, C) — quantile head
@@ -344,6 +355,71 @@ class ContrastiveForecasterPredictor(RepresentablePredictor):
         return context_t
 
 
+def fill_horizon(values: np.ndarray, last: float) -> np.ndarray:
+    """The true horizon with each missing value replaced by the value before
+    it. The first value before the horizon is ``last``, the end of the
+    filled context. The metrics skip a missing label, so the filled values
+    only keep the encoder input finite."""
+    values = np.concatenate([[last], np.asarray(values, dtype=np.float32)])
+    values = values.astype(np.float32)
+    known = np.where(np.isnan(values), 0, np.arange(len(values)))
+    np.maximum.accumulate(known, out=known)
+    return values[known][1:]
+
+
+class ReconstructionPredictor(ContrastiveForecasterPredictor):
+    """Strategy R (#425): the reconstruction of the true horizon.
+
+    The predictor reads the label of each window in the order of
+    ``dataset.test_data``: the encoder reads the B4 context and the true
+    horizon, and the reconstruction head decodes the horizon patches
+    (:func:`reconstruct_windows`). The model sees the future, so the MASE of
+    the result measures the encoder, not a forecast. The windows of one
+    config share their lengths, so ``batch_size`` windows run in one pass.
+    ``latent`` names the latent that the head reads: the encoder latent, or
+    ``'output'`` for the head of a copy of Moirai.
+    """
+
+    def __init__(self, *args, labels, batch_size=64, latent="encoder",
+                 **kwargs):
+        super().__init__(*args, **kwargs)
+        self.labels = labels
+        self.batch_size = batch_size
+        self.latent = latent
+
+    def predict(self, dataset: GluonTSDataset, **kwargs) -> Iterator[Forecast]:
+        pairs = []
+        for pair in zip(dataset, self.labels, strict=True):
+            pairs.append(pair)
+            if len(pairs) == self.batch_size:
+                yield from self.reconstruct_batch(pairs)
+                pairs = []
+        if pairs:
+            yield from self.reconstruct_batch(pairs)
+
+    def reconstruct_batch(self, pairs) -> Iterator[QuantileForecast]:
+        contexts, futures = [], []
+        for item, label in pairs:
+            if label["start"] != forecast_start(item):
+                raise ValueError(f"the label starts at {label['start']} and "
+                                 f"does not start where the window ends, at "
+                                 f"{forecast_start(item)}")
+            target = self._fill_missing(
+                np.asarray(item["target"], dtype=np.float32))
+            context = self._prepare_context(target)[0]       # (t_raw, 1)
+            future = fill_horizon(label["target"], last=float(context[-1, 0]))
+            if len(future) != self.prediction_length:
+                raise ValueError(f"the label holds {len(future)} values, not "
+                                 f"{self.prediction_length}")
+            contexts.append(context)
+            futures.append(torch.from_numpy(future)[:, None])
+        raw = reconstruct_windows(self.backbone, self.head,
+                                  torch.stack(contexts), torch.stack(futures),
+                                  self.device, latent=self.latent)
+        for (item, _), out in zip(pairs, raw):
+            yield self.to_forecast(out, item)
+
+
 # ============================================================================
 # Dataset iteration helpers
 # ============================================================================
@@ -387,7 +463,7 @@ def parse_args():
     p.add_argument("--backbone-path", required=True)
     p.add_argument("--head-path", default=None,
                    help="The forecasting head. Required, except under "
-                        "--native-value-head.")
+                        "--native-value-head and --zero-head.")
     p.add_argument("--native-value-head", action="store_true",
                    help="Forecast with the backbone's own value head (#415, "
                         "--value-space-objective): strategy A2 rolls the "
@@ -399,8 +475,19 @@ def parse_args():
     p.add_argument("--resume", action="store_true",
                    help="Resume from existing partial all_results.csv")
     p.add_argument("--strategy", default="A1",
-                   choices=["A1", "A2", "B1", "B2", "B3", "B3R", "B4"],
-                   help="Forecast rollout strategy (default: A1)")
+                   choices=["A1", "A2", "B1", "B2", "B3", "B3R", "B4", "R"],
+                   help="Forecast rollout strategy (default: A1). R (#425) "
+                        "is not a forecast: the encoder reads the context "
+                        "and the true horizon, and a reconstruction head "
+                        "decodes the horizon patches. The head reads the "
+                        "encoder latent. On a checkpoint with a value head "
+                        "(#415, a copy of Moirai), it reads the output of "
+                        "the whole transformer, as the head trainer does.")
+    p.add_argument("--zero-head", action="store_true",
+                   help="R only (#425): score the floor of R. A head with no "
+                        "weights gives the normalised value 0, so each value "
+                        "is the mean that normalised it. One head per patch "
+                        "size of the backbone. No head file is read.")
     p.add_argument("--forecast-len", type=int, default=128,
                    help="Head forecast length: 128 (default) or 16 for W-heads")
     p.add_argument("--encoder-type", default=None,
@@ -480,8 +567,12 @@ def parse_args():
     args = p.parse_args()
     if args.native_value_head and args.strategy != "A2":
         p.error("--native-value-head forecasts in value space: use --strategy A2")
-    if not args.native_value_head and args.head_path is None:
-        p.error("--head-path is required unless --native-value-head")
+    if args.zero_head and args.strategy != "R":
+        p.error("--zero-head is the floor of strategy R: use --strategy R")
+    if (not args.native_value_head and not args.zero_head
+            and args.head_path is None):
+        p.error("--head-path is required unless --native-value-head or "
+                "--zero-head")
     return args
 
 
@@ -500,11 +591,12 @@ def build_head_bank(head_sd, bank_sizes, backbone_sizes, args):
     if bank_sizes != tuple(backbone_sizes):
         raise SystemExit(f"the head bank holds the sizes {bank_sizes}, and "
                          f"the backbone reads {tuple(backbone_sizes)}")
-    if args.strategy != "B4":
+    if args.strategy not in ("B4", "R"):
         # The other rollouts read the context at the backbone's base size,
-        # and head P decodes the latents of size P.
-        raise SystemExit(f"a head bank (#412) scores under --strategy B4, "
-                         f"not {args.strategy}")
+        # and head P decodes the latents of size P. R (#425) reads the
+        # window at size P, as B4 does.
+        raise SystemExit(f"a head bank (#412) scores under --strategy B4 "
+                         f"or R, not {args.strategy}")
     heads = {}
     for size in bank_sizes:
         prefix = f"heads.{size}."
@@ -588,6 +680,15 @@ def build_eval_head(head_sd, forecast_len, args):
     return head
 
 
+def zero_heads(sizes):
+    """The floor of R (#425): one :class:`ZeroReconstructionHead` per patch
+    size, in a bank when the backbone reads several sizes."""
+    print(f"  [eval] zero head (the floor of R): patch sizes {tuple(sizes)}")
+    if len(sizes) == 1:
+        return ZeroReconstructionHead(sizes[0])
+    return ForecastingHeadBank({p: ZeroReconstructionHead(p) for p in sizes})
+
+
 def load_models(args, device):
     """Load backbone and forecasting head."""
     # Backbone architecture overrides (CLI > defaults). HEAD_CONFIG['H']
@@ -614,14 +715,20 @@ def load_models(args, device):
     # Auto-detect freq_emb_dim and seasonality_emb_dim so backbones
     # trained with either / both axes load cleanly without CLI flags.
     sd = torch.load(args.backbone_path, map_location=device, weights_only=True)
+    # #425: the latent that a reconstruction head of this checkpoint reads.
+    # The head trainer reads it off the same checkpoint.
+    args.reconstruction_latent = reconstruction_latent_of(sd)
+    if args.strategy == "R":
+        print(f"  [eval] reconstruction latent: {args.reconstruction_latent}")
     # A multi-patch backbone (#417) holds one patch encoder per patch size.
     # Its own value heads score it (A2V), or a head bank with one head per
     # size, trained on the frozen backbone (#412).
     patch_sizes = multi_patch_sizes_of(sd)
-    head_sd = (None if args.native_value_head
+    no_head_file = args.native_value_head or args.zero_head
+    head_sd = (None if no_head_file
                else load_head_state(args.head_path, device))
     bank_sizes = head_bank_sizes(head_sd) if head_sd is not None else ()
-    if patch_sizes and not args.native_value_head and not bank_sizes:
+    if patch_sizes and not no_head_file and not bank_sizes:
         raise SystemExit(f"{args.backbone_path} has one patch encoder per "
                          f"patch size {patch_sizes}; score it with its head "
                          f"bank (#412) or --native-value-head (A2V).")
@@ -785,6 +892,8 @@ def load_models(args, device):
             print(f"  [eval] each config reads its frequency's patch size "
                   f"from {patch_sizes}, with that size's value head")
         return backbone, head
+    if args.zero_head:
+        return backbone, zero_heads(patch_sizes or (BACKBONE_CONFIG["W"],))
 
     # A head decodes the latents of one encoder. Running a teacher head on
     # the student gives a number that looks fine and means nothing, so the
@@ -914,8 +1023,10 @@ def main():
                 elif bank is not None:
                     head = bank.for_frequency(backbone, dataset.freq)
 
-                # Create predictor for this dataset
-                predictor = ContrastiveForecasterPredictor(
+                # Create predictor for this dataset. R (#425) reads the
+                # labels of the same test data the metrics read.
+                test_data = dataset.test_data
+                predictor_kwargs = dict(
                     backbone=backbone,
                     head=head,
                     prediction_length=dataset.prediction_length,
@@ -924,11 +1035,18 @@ def main():
                     strategy=args.strategy,
                     context_pad=args.context_pad,
                 )
+                if args.strategy == "R":
+                    predictor = ReconstructionPredictor(
+                        labels=test_data.label,
+                        latent=args.reconstruction_latent, **predictor_kwargs)
+                else:
+                    predictor = ContrastiveForecasterPredictor(
+                        **predictor_kwargs)
 
                 # Evaluate using gluonts official function
                 res = evaluate_model(
                     predictor,
-                    test_data=dataset.test_data,
+                    test_data=test_data,
                     metrics=METRICS,
                     batch_size=512,
                     axis=None,

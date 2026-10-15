@@ -12,6 +12,31 @@
 # point of gap 1 is that only the BACKBONE differs from a run of this study.
 #
 # Usage: head_eval_bb.sh <tag> <backbone .pth> <student|teacher> [head steps]
+#
+# #425 adds these knobs. Unset, each one keeps the B4 forecast as it was.
+#   CF_RECONSTRUCTION=encoder  the head decodes each encoder latent into the
+#                              values of its own patch, and the eval scores
+#                              that reconstruction of the true horizon
+#                              (strategy R). The tag must end in `_recon`.
+#                              For a copy of Moirai (a checkpoint with a
+#                              value head), the head trainer and the eval
+#                              read the output of the transformer: the
+#                              latent that the value head reads.
+#   HEAD_SAVE_EVERY            the head snapshot interval (default 5000).
+#   HEAD_LOG_EVERY             the steps between two log lines of the head
+#                              trainer (default 500). A short probe of a
+#                              wave sets it lower, to read a step rate.
+#   CF_SKIP_EVAL=1             train the head, then stop before the eval.
+#   CF_HEAD_ARGV_TO=<file>     add the flags of the head trainer to <file>, as
+#                              one JSON line, and stop. A shared trainer
+#                              (`train_forecasting_heads_shared.py`) then
+#                              trains this head with others on one data
+#                              stream. A head that exists adds no line.
+#   CF_HEAD_ARCH=linear        the head is one linear map from each encoder
+#                              latent to the quantiles of the values of its
+#                              patch, in place of the transformer head. Each
+#                              other setting stays. A reconstruction head
+#                              only, and the tag must end in `_recon_lin`.
 set -uo pipefail
 
 TAG="${1:?usage: head_eval_bb.sh <tag> <backbone> <student|teacher> [steps]}"
@@ -20,6 +45,38 @@ ENC="${3:?student|teacher}"
 HEAD_STEPS="${4:-15000}"
 case "$ENC" in student|teacher) ;; *) echo "ABORT: bad encoder '$ENC'" >&2; exit 2;; esac
 [ -f "$BB" ] || { echo "ABORT: no backbone at $BB" >&2; exit 3; }
+
+# A forecast head and a reconstruction head of one checkpoint must never
+# share a head file or a score file, so the tag names the mode. The two
+# reconstruction heads of one checkpoint must not share one either, so the
+# tag also names a linear head.
+RECON="${CF_RECONSTRUCTION:-}"
+HEAD_ARCH="${CF_HEAD_ARCH:-transformer}"
+RECON_ARGS=(); EVAL_MODE="${EVAL_STRATEGY:-B4}"
+case "$HEAD_ARCH" in
+  transformer)
+    RECON_SUFFIX=_recon
+    ARCH_ARGS=(--head-arch transformer --head-num-layers 2 --head-nhead 8
+               --head-ffn-mult 4.0 --head-causal true --head-train-input e_then_f
+               --head-dropout 0.1) ;;
+  linear)
+    RECON_SUFFIX=_recon_lin
+    ARCH_ARGS=(--head-arch linear)
+    [ "$RECON" = encoder ] || {
+      echo "ABORT: CF_HEAD_ARCH=linear needs CF_RECONSTRUCTION=encoder" >&2; exit 2; } ;;
+  *) echo "ABORT: CF_HEAD_ARCH=$HEAD_ARCH. Use transformer or linear." >&2; exit 2 ;;
+esac
+case "$RECON" in
+  "") ;;
+  encoder)
+    case "$TAG" in *"$RECON_SUFFIX") ;; *)
+      echo "ABORT: CF_RECONSTRUCTION=encoder with the $HEAD_ARCH head needs a tag that ends in $RECON_SUFFIX, not $TAG" >&2
+      exit 2 ;; esac
+    RECON_ARGS=(--reconstruction encoder); EVAL_MODE=R ;;
+  *) echo "ABORT: CF_RECONSTRUCTION=$RECON. The one mode is encoder." >&2; exit 2 ;;
+esac
+# The head in the log lines: nothing for the B4 head, as before.
+ARCH_NOTE=""; [ "$HEAD_ARCH" = transformer ] || ARCH_NOTE=" head-arch=$HEAD_ARCH"
 
 HEAD_SEED="${HEAD_SEED:-20260722}"
 
@@ -110,24 +167,35 @@ head_vram_gate(){ # <gpu index>
   return 0
 }
 
+HEAD_ARGS=(--backbone-path "$BB"
+           --encoder-source "$ENC"
+           --device cuda
+           --quantile-head --grad-clip 1.0
+           --forecast-len 16 --batch-size 256 --lr 1e-3
+           --total-steps "$HEAD_STEPS" --save-every "${HEAD_SAVE_EVERY:-5000}"
+           --log-every "${HEAD_LOG_EVERY:-500}"
+           --save-dir "$OUT" --run-name "$HEAD_NAME" --seed "$HEAD_SEED"
+           --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1
+           "${ARCH_ARGS[@]}" "${RECON_ARGS[@]}"
+           "${ARCH_HEAD[@]}")
+
+if [ -n "${CF_HEAD_ARGV_TO:-}" ]; then
+  if [ -f "$HEAD_CKPT" ]; then
+    log "head argv SKIP (final exists)"; exit 0
+  fi
+  python3 -c 'import json, sys; print(json.dumps(sys.argv[1:]))' \
+    "${HEAD_ARGS[@]}" >>"$CF_HEAD_ARGV_TO" || exit 1
+  log "head argv -> $CF_HEAD_ARGV_TO${RECON:+ reconstruction=$RECON}$ARCH_NOTE"
+  exit 0
+fi
+
 if [ ! -f "$HEAD_CKPT" ]; then
   BB_GPU="${BB_GPU:-0}"
   gpu_gate "$BB_GPU" || { log "ABORT: GPU $BB_GPU never came free"; exit 1; }
   head_vram_gate "$BB_GPU" || { log "ABORT: not enough VRAM on GPU $BB_GPU"; exit 1; }
-  log "head-train start enc=$ENC steps=$HEAD_STEPS seed=$HEAD_SEED gpu=$BB_GPU bb=$(basename "$BB")"
-  CUDA_VISIBLE_DEVICES="$BB_GPU" python3 -u "$HEAD_TRAIN" \
-    --backbone-path "$BB" \
-    --encoder-source "$ENC" \
-    --device cuda \
-    --quantile-head --grad-clip 1.0 \
-    --forecast-len 16 --batch-size 256 --lr 1e-3 \
-    --total-steps "$HEAD_STEPS" --save-every 5000 --log-every 500 \
-    --save-dir "$OUT" --run-name "$HEAD_NAME" --seed "$HEAD_SEED" \
-    --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1 \
-    --head-arch transformer --head-num-layers 2 --head-nhead 8 \
-    --head-ffn-mult 4.0 --head-causal true --head-train-input e_then_f \
-    --head-dropout 0.1 \
-    "${ARCH_HEAD[@]}" >>"$LOG" 2>&1
+  log "head-train start enc=$ENC steps=$HEAD_STEPS seed=$HEAD_SEED gpu=$BB_GPU bb=$(basename "$BB")${RECON:+ reconstruction=$RECON}$ARCH_NOTE"
+  CUDA_VISIBLE_DEVICES="$BB_GPU" python3 -u "$HEAD_TRAIN" "${HEAD_ARGS[@]}" \
+    >>"$LOG" 2>&1
   rc=$?
   log "head-train rc=$rc"
   [ $rc -eq 0 ] || exit $rc
@@ -138,7 +206,12 @@ else
   log "head-train SKIP (final exists)"
 fi
 
-log "eval start (97 configs, B4, forecast-len 16, elisa CPUs)"
+if [ -n "${CF_SKIP_EVAL:-}" ]; then
+  log "eval SKIP (CF_SKIP_EVAL): the head is at $HEAD_CKPT"; exit 0
+fi
+
+log "eval start (97 configs, $EVAL_MODE, forecast-len 16, ${EVAL_DEVICE:-cpu})"
+EVAL_STRATEGY="$EVAL_MODE" \
 bash "$HERE/eval_local.sh" "$TAG" "$CF_STOP_K" "$ENC" "$BB" "$HEAD_CKPT" \
   "$OUT" "$SCORE_OUT" >>"$LOG" 2>&1
 rc=$?

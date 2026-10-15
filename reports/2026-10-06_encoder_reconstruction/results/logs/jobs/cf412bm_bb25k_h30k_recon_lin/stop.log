@@ -1,0 +1,15 @@
+[10-08 03:43:49] [cf412bm_bb25k_h30k_recon_lin] head argv -> /home/jupyter/checkpoints_backup/cf-425-lin/results/waves/gift_pretrain_1008_034349_C5vh/jobs.jsonl reconstruction=encoder head-arch=linear
+[10-08 05:26:23] [cf412bm_bb25k_h30k_recon_lin] head-train SKIP (final exists)
+[10-08 05:26:23] [cf412bm_bb25k_h30k_recon_lin] eval start (97 configs, R, forecast-len 16, cuda)
+[10-08 05:26:23] [eval-slot] all 2 slots busy, 0s so far
+[10-08 05:31:23] [eval-slot] all 2 slots busy, 300s so far
+[10-08 05:36:23] [eval-slot] all 2 slots busy, 600s so far
+[10-08 05:41:23] [eval-slot] all 2 slots busy, 900s so far
+[10-08 05:46:23] [eval-slot] all 2 slots busy, 1200s so far
+[10-08 05:51:23] [eval-slot] all 2 slots busy, 1500s so far
+[10-08 05:53:43] [eval-slot] slot 0 after 1640s
+[10-08 05:53:43] START cf412bm_bb25k_h30k_recon_lin bb25k enc=student shards=2 slot=0
+[10-08 06:06:46] merged 97 configs -> /home/jupyter/checkpoints_backup/cf-425-lin/ckpt/recon/eval/cf412bm_bb25k_h30k_recon_lin/gift_r/all_results.csv
+[10-08 06:06:48] DONE cf412bm_bb25k_h30k_recon_lin bb25k student — Aggregate GM-Relative MASE (97 configs): 0.8694 -> 0.8694
+[10-08 06:06:48] [cf412bm_bb25k_h30k_recon_lin] eval rc=0
+[10-08 06:06:48] [cf412bm_bb25k_h30k_recon_lin] DONE — GM-Relative MASE 0.8694

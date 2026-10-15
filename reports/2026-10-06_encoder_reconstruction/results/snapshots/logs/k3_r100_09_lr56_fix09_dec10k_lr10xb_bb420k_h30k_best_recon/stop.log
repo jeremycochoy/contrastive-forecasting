@@ -1,0 +1,7 @@
+[10-08 07:08:55] [k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_best_recon] head-train SKIP (final exists)
+[10-08 07:08:55] [k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_best_recon] eval start (97 configs, R, forecast-len 16, cuda)
+[10-08 07:08:55] START k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_best_recon bb420k enc=student shards=2 slot=0
+[10-08 07:22:27] merged 97 configs -> /home/jupyter/checkpoints_backup/cf-425-snap/ckpt/eval/k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_best_recon/gift_r/all_results.csv
+[10-08 07:22:30] DONE k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_best_recon bb420k student — Aggregate GM-Relative MASE (97 configs): 0.0543 -> 0.0543
+[10-08 07:22:30] [k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_best_recon] eval rc=0
+[10-08 07:22:30] [k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_best_recon] DONE — GM-Relative MASE 0.0543

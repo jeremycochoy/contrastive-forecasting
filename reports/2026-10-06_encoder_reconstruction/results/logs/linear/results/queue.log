@@ -1,0 +1,132 @@
+[10-07 21:54:21] [#425 linear queue] start: 56 jobs, linear heads, lanes: gift_pretrain:0 gift_pretrain:0 gift_pretrain:1 old,gift_pretrain:1, code /home/jupyter/checkpoints_backup/cf-425-lin/code (557cb48e)
+[10-07 21:54:22] [#425 linear queue] lane 1 (gift_pretrain, GPU 0): wave /home/jupyter/checkpoints_backup/cf-425-lin/results/waves/gift_pretrain_1007_215422_z8Fb: 6 jobs: cf419_cos200k_bb100k_h30k_recon_lin cf419_cos200k_bb400k_h30k_recon_lin cf412om_bb10k_h30k_recon_lin cf412om_bb166k_h30k_recon_lin cf412oc_bb40k_h30k_recon_lin cf412oc2_bb40k_h30k_recon_lin 
+[10-07 21:54:52] [#425 linear queue] lane 2 (gift_pretrain, GPU 0): wave /home/jupyter/checkpoints_backup/cf-425-lin/results/waves/gift_pretrain_1007_215452_3hTt: 6 jobs: cf412oc2_bb400k_h30k_recon_lin cf412oe2_bb40k_h30k_recon_lin cf412oe2_bb200k_h30k_recon_lin cf412om2_bb10k_h30k_recon_lin cf412om2_bb125k_h30k_recon_lin cf412oa2_bb40k_h30k_recon_lin 
+[10-07 21:55:22] [#425 linear queue] lane 3 (gift_pretrain, GPU 1): wave /home/jupyter/checkpoints_backup/cf-425-lin/results/waves/gift_pretrain_1007_215522_uVu2: 6 jobs: cf412oa2_bb200k_h30k_recon_lin cf412ow2_bb40k_h30k_recon_lin cf412or2_bb40k_h30k_recon_lin cf412or2_bb200k_h30k_recon_lin cf412ol2_bb40k_h30k_recon_lin cf412bm_bb10k_h30k_recon_lin 
+[10-07 21:55:52] [#425 linear queue] lane 4 (old,gift_pretrain, GPU 1): wave /home/jupyter/checkpoints_backup/cf-425-lin/results/waves/old_1007_215551_dzI5: 9 jobs: k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_lin 
+[10-08 00:27:35] [#425 linear queue] lane 1 (gift_pretrain, GPU 0): wave rc=0
+[10-08 00:27:35] [#425 linear queue] lane 1 (gift_pretrain, GPU 0): wave /home/jupyter/checkpoints_backup/cf-425-lin/results/waves/gift_pretrain_1008_002735_Ztmx: 6 jobs: cf412bm_bb50k_h30k_recon_lin cf412bw_bb10k_h30k_recon_lin cf412bw_bb50k_h30k_recon_lin cf412al_bb10k_h30k_recon_lin cf412al_bb50k_h30k_recon_lin cf419ms_bb40k_h30k_recon_lin 
+[10-08 00:41:30] [#425 linear queue] score cf412om_bb10k_h30k_recon_lin rc=0
+[10-08 00:41:43] [#425 linear queue] score cf419_cos200k_bb100k_h30k_recon_lin rc=0
+[10-08 00:55:53] [#425 linear queue] score cf419_cos200k_bb400k_h30k_recon_lin rc=0
+[10-08 00:56:06] [#425 linear queue] score cf412om_bb166k_h30k_recon_lin rc=0
+[10-08 00:56:25] [#425 linear queue] lane 2 (gift_pretrain, GPU 0): wave rc=0
+[10-08 00:56:25] [#425 linear queue] lane 2 (gift_pretrain, GPU 0): wave /home/jupyter/checkpoints_backup/cf-425-lin/results/waves/gift_pretrain_1008_005625_J1wD: 6 jobs: cf419ms_bb140k_h30k_recon_lin cf419_cos200k_bb200k_h30k_recon_lin cf419_cos200k_bb300k_h30k_recon_lin cf412om_bb25k_h30k_recon_lin cf412om_bb50k_h30k_recon_lin cf412om_bb75k_h30k_recon_lin 
+[10-08 01:09:55] [#425 linear queue] score cf412oc2_bb40k_h30k_recon_lin rc=0
+[10-08 01:10:14] [#425 linear queue] score cf412oc_bb40k_h30k_recon_lin rc=0
+[10-08 01:23:55] [#425 linear queue] score cf412oc2_bb400k_h30k_recon_lin rc=0
+[10-08 01:24:42] [#425 linear queue] score cf412oe2_bb40k_h30k_recon_lin rc=0
+[10-08 01:28:02] [#425 linear queue] lane 3 (gift_pretrain, GPU 1): wave rc=0
+[10-08 01:28:02] [#425 linear queue] lane 3 (gift_pretrain, GPU 1): wave /home/jupyter/checkpoints_backup/cf-425-lin/results/waves/gift_pretrain_1008_012802_Zfmx: 6 jobs: cf412om_bb100k_h30k_recon_lin cf412om_bb125k_h30k_recon_lin cf412om_bb150k_h30k_recon_lin cf412oc2_bb100k_h30k_recon_lin cf412oc2_bb200k_h30k_recon_lin cf412oc2_bb300k_h30k_recon_lin 
+[10-08 01:39:20] [#425 linear queue] score cf412oe2_bb200k_h30k_recon_lin rc=0
+[10-08 01:39:59] [#425 linear queue] score cf412om2_bb10k_h30k_recon_lin rc=0
+[10-08 01:43:14] [#425 linear queue] score cf412oa2_bb200k_h30k_recon_lin rc=0
+[10-08 01:43:18] [#425 linear queue] score cf412or2_bb40k_h30k_recon_lin rc=0
+[10-08 01:54:31] [#425 linear queue] score cf412oa2_bb40k_h30k_recon_lin rc=0
+[10-08 01:55:04] [#425 linear queue] score cf412om2_bb125k_h30k_recon_lin rc=0
+[10-08 01:58:03] [#425 linear queue] score cf412ol2_bb40k_h30k_recon_lin rc=0
+[10-08 01:59:08] [#425 linear queue] score cf412ow2_bb40k_h30k_recon_lin rc=0
+[10-08 02:12:34] [#425 linear queue] score cf412or2_bb200k_h30k_recon_lin rc=0
+[10-08 02:13:02] [#425 linear queue] score cf412bm_bb10k_h30k_recon_lin rc=0
+[10-08 02:16:35] [#425 linear queue] lane 4 (old,gift_pretrain, GPU 1): wave rc=0
+[10-08 02:16:35] [#425 linear queue] lane 4 (old,gift_pretrain, GPU 1): wave /home/jupyter/checkpoints_backup/cf-425-lin/results/waves/gift_pretrain_1008_021635_L3BA: 6 jobs: cf412oe2_bb100k_h30k_recon_lin cf412om2_bb25k_h30k_recon_lin cf412om2_bb50k_h30k_recon_lin cf412om2_bb75k_h30k_recon_lin cf412om2_bb100k_h30k_recon_lin cf412oa2_bb100k_h30k_recon_lin 
+[10-08 02:30:49] [#425 linear queue] score k3_r100_09_lr56_fix09_dec10k_cos200k_bb1330k_h30k_recon_lin rc=0
+[10-08 02:30:55] [#425 linear queue] score k3_r100_09_lr56_fix09_dec10k_cos200k_bb665k_h30k_recon_lin rc=0
+[10-08 02:45:25] [#425 linear queue] score k3_r100_09_lr56_fix09_dec10k_lr100x_bb1000k_h30k_recon_lin rc=0
+[10-08 02:45:56] [#425 linear queue] score k3_r100_09_lr56_fix09_dec10k_cos665k_bb665k_h30k_recon_lin rc=0
+[10-08 03:00:01] [#425 linear queue] score k3_r100_09_lr56_fix09_dec10k_lr100x_bb1080k_h30k_recon_lin rc=0
+[10-08 03:00:56] [#425 linear queue] score k3_r100_09_lr56_fix09_dec10k_lr10xb_bb420k_h30k_recon_lin rc=0
+[10-08 03:14:54] [#425 linear queue] score k3_r100_09_lr56_fix09_dec10k_lr10xb_bb100k_h30k_recon_lin rc=0
+[10-08 03:16:02] [#425 linear queue] score k3_r100_09_lr56_fix09_dec10k_cos200k_bb1140k_h30k_recon_lin rc=0
+[10-08 03:29:04] [#425 linear queue] score k3_r100_09_lr56_fix09_dec10k_lr30x_bb665k_h30k_recon_lin rc=0
+[10-08 03:43:49] [#425 linear queue] lane 2 (gift_pretrain, GPU 0): wave rc=0
+[10-08 03:43:49] [#425 linear queue] lane 2 (gift_pretrain, GPU 0): wave /home/jupyter/checkpoints_backup/cf-425-lin/results/waves/gift_pretrain_1008_034349_C5vh: 5 jobs: cf412or2_bb100k_h30k_recon_lin cf412bm_bb25k_h30k_recon_lin cf412bw_bb25k_h30k_recon_lin cf412al_bb25k_h30k_recon_lin cf419ms_bb100k_h30k_recon_lin 
+[10-08 03:47:15] [#425 linear queue] lane 1 (gift_pretrain, GPU 0): wave rc=0
+[10-08 03:58:08] [#425 linear queue] score cf419ms_bb140k_h30k_recon_lin rc=0
+[10-08 03:58:18] [#425 linear queue] score cf419_cos200k_bb200k_h30k_recon_lin rc=0
+[10-08 04:12:12] [#425 linear queue] score cf412om_bb25k_h30k_recon_lin rc=0
+[10-08 04:12:27] [#425 linear queue] score cf412om_bb75k_h30k_recon_lin rc=0
+[10-08 04:26:07] [#425 linear queue] score cf412bw_bb10k_h30k_recon_lin rc=0
+[10-08 04:26:16] [#425 linear queue] score cf412om_bb50k_h30k_recon_lin rc=0
+[10-08 04:31:35] [#425 linear queue] lane 3 (gift_pretrain, GPU 1): wave rc=0
+[10-08 04:40:54] [#425 linear queue] score cf412al_bb50k_h30k_recon_lin rc=0
+[10-08 04:41:12] [#425 linear queue] score cf419_cos200k_bb300k_h30k_recon_lin rc=0
+[10-08 04:46:02] [#425 linear queue] score cf412oc2_bb100k_h30k_recon_lin rc=0
+[10-08 04:46:08] [#425 linear queue] score cf412om_bb125k_h30k_recon_lin rc=0
+[10-08 04:54:25] [#425 linear queue] lane 4 (old,gift_pretrain, GPU 1): wave rc=0
+[10-08 04:55:08] [#425 linear queue] score cf412bw_bb50k_h30k_recon_lin rc=0
+[10-08 04:57:30] [#425 linear queue] score cf412al_bb10k_h30k_recon_lin rc=0
+[10-08 05:00:20] [#425 linear queue] score cf412om_bb150k_h30k_recon_lin rc=0
+[10-08 05:00:26] [#425 linear queue] score cf412om_bb100k_h30k_recon_lin rc=0
+[10-08 05:09:13] [#425 linear queue] score cf419ms_bb40k_h30k_recon_lin rc=0
+[10-08 05:11:22] [#425 linear queue] score cf412bm_bb50k_h30k_recon_lin rc=0
+[10-08 05:11:22] [#425 linear queue] lane 1 (gift_pretrain, GPU 0): done
+[10-08 05:13:35] [#425 linear queue] score cf412oc2_bb200k_h30k_recon_lin rc=0
+[10-08 05:13:50] [#425 linear queue] score cf412oa2_bb100k_h30k_recon_lin rc=0
+[10-08 05:26:23] [#425 linear queue] lane 2 (gift_pretrain, GPU 0): wave rc=0
+[10-08 05:26:55] [#425 linear queue] score cf412oc2_bb300k_h30k_recon_lin rc=0
+[10-08 05:26:55] [#425 linear queue] lane 3 (gift_pretrain, GPU 1): done
+[10-08 05:27:09] [#425 linear queue] score cf412om2_bb25k_h30k_recon_lin rc=0
+[10-08 05:39:38] [#425 linear queue] score cf412al_bb25k_h30k_recon_lin rc=0
+[10-08 05:39:49] [#425 linear queue] score cf419ms_bb100k_h30k_recon_lin rc=0
+[10-08 05:40:28] [#425 linear queue] score cf412om2_bb50k_h30k_recon_lin rc=0
+[10-08 05:40:39] [#425 linear queue] score cf412om2_bb75k_h30k_recon_lin rc=0
+[10-08 05:53:23] [#425 linear queue] score cf412or2_bb100k_h30k_recon_lin rc=0
+[10-08 05:53:33] [#425 linear queue] score cf412bw_bb25k_h30k_recon_lin rc=0
+[10-08 05:54:00] [#425 linear queue] score cf412oe2_bb100k_h30k_recon_lin rc=0
+[10-08 05:54:37] [#425 linear queue] score cf412om2_bb100k_h30k_recon_lin rc=0
+[10-08 05:54:37] [#425 linear queue] lane 4 (old,gift_pretrain, GPU 1): done
+[10-08 06:06:48] [#425 linear queue] score cf412bm_bb25k_h30k_recon_lin rc=0
+[10-08 06:06:48] [#425 linear queue] lane 2 (gift_pretrain, GPU 0): done
+[10-08 06:06:48] [#425 linear queue] QUEUE_END: 56 scores
+[10-08 10:01:49] [#425 linear queue] start: 66 jobs, linear heads, lanes: old:0, code /home/jupyter/checkpoints_backup/cf-425-lin/code (2758c699)
+[10-08 10:01:49] [#425 linear queue] lane 1 (old, GPU 0): wave /home/jupyter/checkpoints_backup/cf-425-lin/results/waves/old_1008_100149_PVUl: 10 jobs: k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10x_bb460k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10x_bb100k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10x_bb140k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10x_bb180k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10x_bb200k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10x_bb300k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10x_bb360k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10x_bb400k_h30k_recon_lin 
+[10-08 10:01:49] [#425 linear queue] lane 1 (old, GPU 0): 12946 MiB free on the GPU, a wave needs 6500, and 9600 stay free for the scores
+[10-08 10:10:47] [#425 linear queue] lane 1 (old, GPU 0): wave rc=1
+[10-08 10:10:47] [#425 linear queue] lane 1 (old, GPU 0): wave /home/jupyter/checkpoints_backup/cf-425-lin/results/waves/old_1008_101047_w47p: 10 jobs: k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10x_bb460k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10x_bb100k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10x_bb140k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10x_bb180k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10x_bb200k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10x_bb300k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10x_bb360k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10x_bb400k_h30k_recon_lin 
+[10-08 10:10:57] [#425 linear queue] lane 1 (old, GPU 0): wave rc=1
+[10-08 10:10:57] [#425 linear queue] lane 1 (old, GPU 0): done
+[10-08 10:10:57] [#425 linear queue] QUEUE_END: 56 scores
+[10-08 10:25:32] [#425 linear queue] start: 66 jobs, linear heads, lanes: old:1, code /home/jupyter/checkpoints_backup/cf-425-lin/code (2758c699)
+[10-08 10:25:32] [#425 linear queue] lane 1 (old, GPU 1): wave /home/jupyter/checkpoints_backup/cf-425-lin/results/waves/old_1008_102532_99I0: 10 jobs: k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10x_bb460k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10x_bb100k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10x_bb140k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10x_bb180k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10x_bb200k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10x_bb300k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10x_bb360k_h30k_recon_lin k3_r100_09_lr56_fix09_dec10k_lr10x_bb400k_h30k_recon_lin 
+[10-08 14:56:53] [#425 linear queue] lane 1 (old, GPU 1): wave rc=0
+[10-08 15:10:04] [#425 linear queue] score k3_r100_09_lr56_fix09_dec10k_lr10x_bb140k_h30k_recon_lin rc=0
+[10-08 15:10:05] [#425 linear queue] score k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon_lin rc=0
+[10-08 15:23:30] [#425 linear queue] score k3_r100_09_lr56_fix09_dec10k_lr10x_bb360k_h30k_recon_lin rc=0
+[10-08 15:23:34] [#425 linear queue] score k3_r100_09_lr56_fix09_dec10k_lr10x_bb460k_h30k_recon_lin rc=0
+[10-08 15:37:03] [#425 linear queue] score k3_r100_09_lr56_fix09_dec10k_lr10x_bb300k_h30k_recon_lin rc=0
+[10-08 15:37:29] [#425 linear queue] score k3_r100_09_lr56_fix09_dec10k_lr10x_bb200k_h30k_recon_lin rc=0
+[10-08 15:50:24] [#425 linear queue] score k3_r100_09_lr56_fix09_dec10k_lr10x_bb400k_h30k_recon_lin rc=0
+[10-08 15:50:39] [#425 linear queue] score k3_r100_09_lr56_fix09_dec10k_lr10x_bb100k_h30k_recon_lin rc=0
+[10-08 16:03:40] [#425 linear queue] score k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon_lin rc=0
+[10-08 16:04:07] [#425 linear queue] score k3_r100_09_lr56_fix09_dec10k_lr10x_bb180k_h30k_recon_lin rc=0
+[10-08 16:04:07] [#425 linear queue] lane 1 (old, GPU 1): done
+[10-08 16:04:07] [#425 linear queue] QUEUE_END: 66 scores
+[10-08 16:05:02] [#425 linear queue] start: 83 jobs, linear heads, lanes: gift_pretrain:0 gift_pretrain:0 gift_pretrain:1 old,gift_pretrain:1, code /home/jupyter/checkpoints_backup/cf-425-moirai/code (3a23c579)
+[10-08 16:05:02] [#425 linear queue] lane 1 (gift_pretrain, GPU 0): wave /home/jupyter/checkpoints_backup/cf-425-lin/results/waves/gift_pretrain_1008_160502_UC07: 6 jobs: cf421f_moirai_native_bb10k_h30k_recon_lin cf421f_moirai_native_bb166k_h30k_recon_lin cf421ew_moirai_native_bb10k_h30k_recon_lin cf421ew_moirai_native_bb166k_h30k_recon_lin cf421f_moirai_native_bb20k_h30k_recon_lin cf421f_moirai_native_bb25k_h30k_recon_lin 
+[10-08 16:10:02] [#425 linear queue] lane 2 (gift_pretrain, GPU 0): wave /home/jupyter/checkpoints_backup/cf-425-lin/results/waves/gift_pretrain_1008_161002_7XLo: 6 jobs: cf421f_moirai_native_bb50k_h30k_recon_lin cf421f_moirai_native_bb75k_h30k_recon_lin cf421f_moirai_native_bb100k_h30k_recon_lin cf421f_moirai_native_bb125k_h30k_recon_lin cf421f_moirai_native_bb150k_h30k_recon_lin cf421ew_moirai_native_bb25k_h30k_recon_lin 
+[10-08 16:15:02] [#425 linear queue] lane 3 (gift_pretrain, GPU 1): wave /home/jupyter/checkpoints_backup/cf-425-lin/results/waves/gift_pretrain_1008_161502_WI1U: 5 jobs: cf421ew_moirai_native_bb50k_h30k_recon_lin cf421ew_moirai_native_bb75k_h30k_recon_lin cf421ew_moirai_native_bb100k_h30k_recon_lin cf421ew_moirai_native_bb125k_h30k_recon_lin cf421ew_moirai_native_bb150k_h30k_recon_lin 
+[10-08 16:20:02] [#425 linear queue] lane 4 (old,gift_pretrain, GPU 1): done
+[10-08 18:18:34] [#425 linear queue] lane 3 (gift_pretrain, GPU 1): wave rc=0
+[10-08 18:31:59] [#425 linear queue] score cf421ew_moirai_native_bb75k_h30k_recon_lin rc=0
+[10-08 18:32:05] [#425 linear queue] score cf421ew_moirai_native_bb50k_h30k_recon_lin rc=0
+[10-08 18:45:31] [#425 linear queue] score cf421ew_moirai_native_bb125k_h30k_recon_lin rc=0
+[10-08 18:45:32] [#425 linear queue] score cf421ew_moirai_native_bb100k_h30k_recon_lin rc=0
+[10-08 18:58:52] [#425 linear queue] score cf421ew_moirai_native_bb150k_h30k_recon_lin rc=0
+[10-08 18:58:52] [#425 linear queue] lane 3 (gift_pretrain, GPU 1): done
+[10-08 19:09:49] [#425 linear queue] lane 1 (gift_pretrain, GPU 0): wave rc=0
+[10-08 19:13:01] [#425 linear queue] lane 2 (gift_pretrain, GPU 0): wave rc=0
+[10-08 19:22:57] [#425 linear queue] score cf421f_moirai_native_bb10k_h30k_recon_lin rc=0
+[10-08 19:23:10] [#425 linear queue] score cf421ew_moirai_native_bb10k_h30k_recon_lin rc=0
+[10-08 19:36:13] [#425 linear queue] score cf421ew_moirai_native_bb25k_h30k_recon_lin rc=0
+[10-08 19:36:25] [#425 linear queue] score cf421f_moirai_native_bb50k_h30k_recon_lin rc=0
+[10-08 19:49:29] [#425 linear queue] score cf421f_moirai_native_bb75k_h30k_recon_lin rc=0
+[10-08 19:49:33] [#425 linear queue] score cf421f_moirai_native_bb166k_h30k_recon_lin rc=0
+[10-08 20:02:28] [#425 linear queue] score cf421ew_moirai_native_bb166k_h30k_recon_lin rc=0
+[10-08 20:02:44] [#425 linear queue] score cf421f_moirai_native_bb100k_h30k_recon_lin rc=0
+[10-08 20:15:28] [#425 linear queue] score cf421f_moirai_native_bb25k_h30k_recon_lin rc=0
+[10-08 20:16:00] [#425 linear queue] score cf421f_moirai_native_bb20k_h30k_recon_lin rc=0
+[10-08 20:16:00] [#425 linear queue] lane 1 (gift_pretrain, GPU 0): done
+[10-08 20:28:52] [#425 linear queue] score cf421f_moirai_native_bb125k_h30k_recon_lin rc=0
+[10-08 20:28:58] [#425 linear queue] score cf421f_moirai_native_bb150k_h30k_recon_lin rc=0
+[10-08 20:28:58] [#425 linear queue] lane 2 (gift_pretrain, GPU 0): done
+[10-08 20:28:58] [#425 linear queue] QUEUE_END: 83 scores

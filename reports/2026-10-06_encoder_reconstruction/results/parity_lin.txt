@@ -1,0 +1,19 @@
+# Box (RTX 5090), commit b44da4db, /workspace/cf-425-lin, 10-07 19:00 UTC. parity_lin.sh, 1,000 steps.
+[10-07 19:00:21] [#425 linear parity] solo OMB:25: 1000 steps, code b44da4db
+[10-07 19:00:21] [#425 linear parity] solo LOW:665: 1000 steps, code b44da4db
+[10-07 19:05:35] [#425 linear parity] waves: 6 jobs, 1000 steps
+[10-07 19:12:22] [#425 linear parity] waves rc=0
+[10-07 19:12:22] [#425 linear parity] solo OMB 25k: [   1000] loss=1.566483  ema_loss=1.379063  3.3 sps  ETA 0.0h
+[10-07 19:12:22] [#425 linear parity] solo LOW 665k: [   1000] loss=0.034229  ema_loss=0.034279  10.4 sps  ETA 0.0h
+OMB 25k: 1000 steps, 1000 identical rows, first difference at step None, max |loss diff| 0, loss at step 1000: 1.566483 (wave) 1.566483 (solo)
+LOW 665k: 1000 steps, 1000 identical rows, first difference at step None, max |loss diff| 0, loss at step 1000: 0.034229 (wave) 0.034229 (solo)
+OMB 25k: 10 tensors in the wave head, 10 in the solo head, 10 identical
+LOW 665k: 2 tensors in the wave head, 2 in the solo head, 2 identical
+[10-07 19:13:35] [#425 linear parity] R, 4 configs, linear head of OMB 25k: 1.2023
+[10-07 19:14:21] [#425 linear parity] R, 4 configs, linear head of LOW 665k: 0.2780
+gift_pretrain_1007_190605_QT1y:
+[shared] 500 steps: 2.12 steps/s since the start, 3.24 steps/s over the last 499, 13.0 job steps/s, the stream took 27% of that time, peak 5.01 GiB allocated, 5.06 GiB reserved
+[shared] 1000 steps: 2.73 steps/s since the start, 3.84 steps/s over the last 500, 15.4 job steps/s, the stream took 20% of that time, peak 5.01 GiB allocated, 5.06 GiB reserved
+old_1007_190535_2h4g:
+[shared] 500 steps: 6.56 steps/s since the start, 7.59 steps/s over the last 499, 15.2 job steps/s, the stream took 31% of that time, peak 4.88 GiB allocated, 4.92 GiB reserved
+[shared] 1000 steps: 6.80 steps/s since the start, 7.06 steps/s over the last 500, 14.1 job steps/s, the stream took 27% of that time, peak 4.88 GiB allocated, 4.92 GiB reserved

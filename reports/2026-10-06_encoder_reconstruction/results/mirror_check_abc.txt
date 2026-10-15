@@ -1,0 +1,26 @@
+[10-08 14:29:03 UTC] the files of the 10 ABC jobs on the box against elisa, by byte size
+/workspace/results/cf-425, the score files of ABC: 10 equal, 0 not equal
+/workspace/ckpt/cf-425, the folders of the 10 ABC jobs: 130 equal, 0 not equal
+/workspace/ckpt/cf-425: 0 .pth of ABC on the box
+The prune deletes a box .pth only when elisa holds it at the same byte size. Its lines for the final heads of ABC, from the sync log:
+[10-08 13:06:15] [#425 prune] deleted ABC bb140k _final.pth (14430799 bytes)
+[10-08 13:06:15] [#425 prune] deleted ABC bb460k _final.pth (14430799 bytes)
+[10-08 13:21:42] [#425 prune] deleted ABC bb300k _final.pth (14430799 bytes)
+[10-08 13:21:42] [#425 prune] deleted ABC bb240k _final.pth (14430799 bytes)
+[10-08 13:37:09] [#425 prune] deleted ABC bb200k _final.pth (14430799 bytes)
+[10-08 13:37:09] [#425 prune] deleted ABC bb400k _final.pth (14430799 bytes)
+[10-08 13:52:37] [#425 prune] deleted ABC bb40k _final.pth (14430799 bytes)
+[10-08 13:52:37] [#425 prune] deleted ABC bb180k _final.pth (14430799 bytes)
+[10-08 13:52:37] [#425 prune] deleted ABC bb100k _final.pth (14430799 bytes)
+[10-08 13:52:37] [#425 prune] deleted ABC bb360k _final.pth (14430799 bytes)
+The final heads of ABC on elisa (bytes, folder):
+14430799 k3_r100_09_lr56_fix09_dec10k_lr10x_bb100k_h30k_recon
+14430799 k3_r100_09_lr56_fix09_dec10k_lr10x_bb140k_h30k_recon
+14430799 k3_r100_09_lr56_fix09_dec10k_lr10x_bb180k_h30k_recon
+14430799 k3_r100_09_lr56_fix09_dec10k_lr10x_bb200k_h30k_recon
+14430799 k3_r100_09_lr56_fix09_dec10k_lr10x_bb240k_h30k_recon
+14430799 k3_r100_09_lr56_fix09_dec10k_lr10x_bb300k_h30k_recon
+14430799 k3_r100_09_lr56_fix09_dec10k_lr10x_bb360k_h30k_recon
+14430799 k3_r100_09_lr56_fix09_dec10k_lr10x_bb400k_h30k_recon
+14430799 k3_r100_09_lr56_fix09_dec10k_lr10x_bb40k_h30k_recon
+14430799 k3_r100_09_lr56_fix09_dec10k_lr10x_bb460k_h30k_recon
