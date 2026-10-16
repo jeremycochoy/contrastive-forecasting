@@ -67,6 +67,8 @@ NEW_RUNS = [GREEN, BLK_EMA, GRN_EMA095, GRN_EMA, GRN_EMA099, GRN_EMA0999, GRN_EM
             BLK_EMACOS]
 # Older runs with a forecast at 1k steps in results/scores.tsv: arm -> run.
 FIRST_STEPS = {"cf419_cos200k": "blk", P + "_lr10x": "abc"}
+# The run in progress: drawn above the others, so that its first points show.
+ON_TOP = {GRN_EMA09998}
 MPE = "cf421ew_moirai_native"
 # Its R (transformer head 0.12 to 0.21) lies far above the R panels.
 FORECAST_ONLY = {MPE}
@@ -160,7 +162,8 @@ def draw_panel(ax, title, y_range, points):
         values = [points[arm][s] for s in stops]
         low = min(low, min(values) - 0.02 * (y_range[1] - y_range[0]))
         ax.plot([s * 1000 for s in stops], values, color=colour_hex, marker=marker,
-                ls=line(arm) if arm in STYLE else "-", lw=2.2, ms=7, label=label)
+                ls=line(arm) if arm in STYLE else "-", lw=2.2, ms=7, label=label,
+                zorder=3 if arm in ON_TOP else 2)
         for stop, value in zip(stops, values):
             if value > y_range[1]:
                 ax.plot(stop * 1000, y_range[1], "^", ms=11, color=colour_hex, clip_on=False)
