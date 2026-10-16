@@ -1,7 +1,8 @@
 """The forecast and the reconstruction of the encoder latent through training,
 for the runs of this report (GRN, BLK+EMA, GRN+EMA 0.95, GRN+EMA 0.98, GRN+EMA
-0.99, GRN+EMA 0.999, BLK+EMA cosine) next to ABC, CYN and BLK. Writes
-plots/forecast_and_reconstruction.png: three panels on one x axis.
+0.99, GRN+EMA 0.999, BLK+EMA cosine) next to ABC, CYN and BLK, and the forecast
+of MPE (Moirai, patch heads, EWMA, new data, batch 256: x 4 for the data
+seen). Writes plots/forecast_and_reconstruction.png: three panels on one x axis.
 
   1. Forecast (B4): the forecaster rolls the latents forward, and the
      standard reconstruction head decodes each rolled latent.
@@ -40,7 +41,8 @@ STUDY = Path(__file__).resolve().parent.parent
 MOIRAI = STUDY.parent / "2026-09-06_moirai_small_size"
 RECON = STUDY.parent / "2026-10-06_encoder_reconstruction" / "results"
 sys.path.insert(0, str(MOIRAI / "scripts"))
-from run_style import P, colour, tagged  # noqa: E402
+from run_style import STYLE, P, colour, line, tagged  # noqa: E402
+from plot_gm_rates import XSCALE  # noqa: E402  (batch-256 runs: 4)
 
 GREEN = "abc_gift"
 GREEN_COLOUR = "#2ca02c"  # the colour of the new run in plot_scores.py
@@ -60,6 +62,9 @@ BLK_EMACOS_COLOUR = "#d62728"  # its colour in plot_ema_plan.py
 NEW_RUNS = [GREEN, BLK_EMA, GRN_EMA095, GRN_EMA, GRN_EMA099, GRN_EMA0999, BLK_EMACOS]
 # Older runs with a forecast at 1k steps in results/scores.tsv: arm -> run.
 FIRST_STEPS = {"cf419_cos200k": "blk", P + "_lr10x": "abc"}
+MPE = "cf421ew_moirai_native"
+# Its R (transformer head 0.12 to 0.21) lies far above the R panels.
+FORECAST_ONLY = {MPE}
 OUT = STUDY / "plots" / "forecast_and_reconstruction.png"
 # (arm, legend label, colour, marker): the runs of the figure.
 RUNS = [
@@ -81,6 +86,7 @@ RUNS = [
      colour(P + "_cos200k"), "v"),
     ("cf419_cos200k", tagged("cf419_cos200k", "lr cosine to 1e-6 by 200k, new data"),
      colour("cf419_cos200k"), "*"),
+    (MPE, tagged(MPE, "Moirai, patch heads, EWMA, new data"), colour(MPE), "d"),
 ]
 OURS = STUDY / "results"
 # The R tables of collect_recon.py (first_steps: the 1k point of BLK and ABC).
@@ -102,13 +108,14 @@ TICKS_K = [1, 10, 40, 100, 200, 400, 665, 1330]
 
 
 def read_table(paths):
-    """``{arm: {stop k: score}}`` from tables of arm, stop k and score."""
+    """``{arm: {data seen in thousands of batch-64 steps: score}}`` from
+    tables of arm, stop k and score."""
     points = {}
     for path in paths:
         if Path(path).is_file():
-            for line in open(path):
-                arm, stop_k, score = line.split()
-                points.setdefault(arm, {})[int(stop_k)] = float(score)
+            for row in open(path):
+                arm, stop_k, score = row.split()
+                points.setdefault(arm, {})[int(stop_k) * XSCALE.get(arm, 1)] = float(score)
     return points
 
 
@@ -129,6 +136,9 @@ def panel_points(tables, forecast):
             points[run] = new_run_forecast(run)
         for arm, run in FIRST_STEPS.items():
             points.setdefault(arm, {}).update(new_run_forecast(run, stops={1}))
+    else:
+        for arm in FORECAST_ONLY:
+            points.pop(arm, None)
     return points
 
 
@@ -143,7 +153,7 @@ def draw_panel(ax, title, y_range, points):
         values = [points[arm][s] for s in stops]
         low = min(low, min(values) - 0.02 * (y_range[1] - y_range[0]))
         ax.plot([s * 1000 for s in stops], values, color=colour_hex, marker=marker,
-                lw=2.2, ms=7, label=label)
+                ls=line(arm) if arm in STYLE else "-", lw=2.2, ms=7, label=label)
         for stop, value in zip(stops, values):
             if value > y_range[1]:
                 ax.plot(stop * 1000, y_range[1], "^", ms=11, color=colour_hex, clip_on=False)
@@ -160,7 +170,8 @@ def style_x(ax):
     ax.xaxis.set_major_locator(FixedLocator([k * 1000 for k in TICKS_K]))
     ax.xaxis.set_minor_locator(NullLocator())
     ax.set_xticklabels([f"{k}k" for k in TICKS_K])
-    ax.set_xlabel("Data seen, in batch-64 steps (log scale)")
+    ax.set_xlabel("Data seen, in batch-64 steps (log scale). One step at batch 256 (MPE) "
+                  "is equal to 4 steps at batch 64.")
 
 
 def clipped(ax, value):
