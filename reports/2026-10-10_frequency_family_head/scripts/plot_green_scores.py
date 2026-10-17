@@ -1,6 +1,7 @@
 """The forecast and the reconstruction of the encoder latent through training,
 for the runs of this report (GRN, BLK+EMA, GRN+EMA 0.95, GRN+EMA 0.98, GRN+EMA
-0.99, GRN+EMA 0.999, GRN+EMA 0.9998, BLK+EMA cosine) next to ABC, CYN and BLK,
+0.99, GRN+EMA 0.999, GRN+EMA 0.9998, GRN+EMA 0.99995, BLK+EMA cosine) next to
+ABC, CYN and BLK,
 and the forecast of MPE (Moirai, patch heads, EWMA, new data, batch 256: x 4
 for the data seen). Writes plots/forecast_and_reconstruction.png: three panels
 on one x axis.
@@ -17,9 +18,9 @@ Reads the scores of ABC, CYN and BLK of #412 and #425
 reports/2026-10-06_encoder_reconstruction/results/*.tsv), and the scores of
 the runs of this report (GRN: arm abc_gift, BLK+EMA: arm blk_ema, GRN+EMA 0.95:
 arm grn_ema095, GRN+EMA 0.98: arm grn_ema098, GRN+EMA 0.99: arm grn_ema099,
-GRN+EMA 0.999: arm grn_ema0999, GRN+EMA 0.9998: arm grn_ema09998, BLK+EMA cosine:
-arm blk_emacos): results/scores.tsv (B4, arm
-`control`), and results/recon_*.tsv (R, with the columns arm, stop in
+GRN+EMA 0.999: arm grn_ema0999, GRN+EMA 0.9998: arm grn_ema09998, GRN+EMA
+0.99995: arm grn_ema099995, BLK+EMA cosine: arm blk_emacos): results/scores.tsv
+(B4, arm `control`), and results/recon_*.tsv (R, with the columns arm, stop in
 thousands of steps, GM-Relative MASE; collect_recon.py writes them).
 The point at 1k steps of GRN, BLK and ABC is a run of the first 1,000 steps
 again, with the flags and the seed of the run: B4 in results/scores.tsv (runs
@@ -58,17 +59,19 @@ GRN_EMA0999 = "grn_ema0999"
 GRN_EMA0999_COLOUR = "#bcbd22"  # its colour in plot_ema_plan.py
 GRN_EMA09998 = "grn_ema09998"
 GRN_EMA09998_COLOUR = "#008080"  # its colour in plot_ema_plan.py
+GRN_EMA099995 = "grn_ema099995"
+GRN_EMA099995_COLOUR = "#ff00ff"  # its colour in plot_ema_plan.py
 GRN_EMA095 = "grn_ema095"
 GRN_EMA095_COLOUR = "#8c564b"  # its colour in plot_ema_plan.py
 BLK_EMACOS = "blk_emacos"
 BLK_EMACOS_COLOUR = "#d62728"  # its colour in plot_ema_plan.py
 # The runs of this report: their forecast comes from results/scores.tsv.
 NEW_RUNS = [GREEN, BLK_EMA, GRN_EMA095, GRN_EMA, GRN_EMA099, GRN_EMA0999, GRN_EMA09998,
-            BLK_EMACOS]
+            GRN_EMA099995, BLK_EMACOS]
 # Older runs with a forecast at 1k steps in results/scores.tsv: arm -> run.
 FIRST_STEPS = {"cf419_cos200k": "blk", P + "_lr10x": "abc"}
-# The run in progress: drawn above the others, so that its first points show.
-ON_TOP = {GRN_EMA09998}
+# The newest runs: drawn above the others, so that their first points show.
+ON_TOP = {GRN_EMA09998, GRN_EMA099995}
 MPE = "cf421ew_moirai_native"
 # Its R (transformer head 0.12 to 0.21) lies far above the R panels.
 FORECAST_ONLY = {MPE}
@@ -86,6 +89,8 @@ RUNS = [
      GRN_EMA0999_COLOUR, ">"),
     (GRN_EMA09998, r"$\mathbf{GRN+EMA\ 0.9998}$  as GRN, EMA of the teacher 0.9998 to 1.0 over 665k",
      GRN_EMA09998_COLOUR, "<"),
+    (GRN_EMA099995, r"$\mathbf{GRN+EMA\ 0.99995}$  as GRN, EMA of the teacher 0.99995 to 1.0 "
+     "over 665k", GRN_EMA099995_COLOUR, "8"),
     (BLK_EMA, r"$\mathbf{BLK+EMA}$  as BLK, EMA of the teacher 0.9 to 1.0 over 665k",
      BLK_EMA_COLOUR, "P"),
     (BLK_EMACOS, r"$\mathbf{BLK+EMA\ cosine}$  as BLK, EMA of the teacher 0.9 to 1.0 on a cosine "
