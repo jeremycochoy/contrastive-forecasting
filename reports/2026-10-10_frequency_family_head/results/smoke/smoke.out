@@ -1,0 +1,39 @@
+== 1. the wave of 500 steps
+[10-10 10:53:14] [freq_family blk 200k] train: 7 arms, 500 steps, GPU 1, code 56780425: control shared_strict shared_draw heads_strict heads_draw shared_strict_m16 heads_strict_m16 -> /home/jupyter/cf_runs/freq_family/smoke/results/waves/blk_bb200k_1010_105313_Dfx0/train.log
+[10-10 10:58:14] [freq_family blk 200k] train rc=0
+[10-10 10:58:14] [freq_family blk 200k] WAVE_END rc=0
+== 2. a family of one member against the control
+shared_strict_m16: 500 and 500 loss rows, 500 identical, max |loss difference| 0
+shared_strict_m16: 28 tensors in the control head, 28 identical in the member 16, max |weight difference| 0
+heads_strict_m16: 500 and 500 loss rows, 500 identical, max |loss difference| 0
+heads_strict_m16: 28 tensors in the control head, 28 identical in the member 16, max |weight difference| 0
+== 3. the rows of each member, the step rate and the GPU memory (/home/jupyter/cf_runs/freq_family/smoke/results/waves/blk_bb200k_1010_105313_Dfx0/train.log)
+[qhead_blk_bb200k_h500_ff_shared_strict_s20260722] Frequency family: rule strict, steps 1 to 500, rows of each member: 16: 26335 (20.6%), 32: 18233 (14.2%), 64: 81590 (63.7%), 128: 1842 (1.4%)
+[qhead_blk_bb200k_h500_ff_shared_draw_s20260722] Frequency family: rule draw, steps 1 to 500, rows of each member: 16: 13136 (10.3%), 32: 49525 (38.7%), 64: 37254 (29.1%), 128: 28085 (21.9%)
+[qhead_blk_bb200k_h500_ff_heads_strict_s20260722] Frequency family: rule strict, steps 1 to 500, rows of each member: 16: 26335 (20.6%), 32: 18233 (14.2%), 64: 81590 (63.7%), 128: 1842 (1.4%)
+[qhead_blk_bb200k_h500_ff_heads_draw_s20260722] Frequency family: rule draw, steps 1 to 500, rows of each member: 16: 13193 (10.3%), 32: 49173 (38.4%), 64: 37132 (29.0%), 128: 28502 (22.3%)
+[qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722] Frequency family: rule strict, steps 1 to 500, rows of each member: 16: 128000 (100.0%)
+[qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722] Frequency family: rule strict, steps 1 to 500, rows of each member: 16: 128000 (100.0%)
+[shared] 500 steps: 1.70 steps/s since the start, 2.23 steps/s over the last 100, 15.6 job steps/s, the stream took 1% of that time, peak 5.75 GiB allocated, 6.74 GiB reserved
+[shared] done
+== 4. the B4 score of 4 heads on 6 configs
+[10-10 10:58:17] [freq_family blk 200k] score: control shared_draw shared_strict_m16 heads_strict_m16 (cpu, 4 shards, 4 at a time)
+[10-10 11:17:40] [freq_family blk 200k] score control: 1.2653
+[10-10 11:17:46] [freq_family blk 200k] score shared_draw: 1.2697
+[10-10 11:17:46] [freq_family blk 200k] score shared_strict_m16: 1.2653
+[10-10 11:17:46] [freq_family blk 200k] score heads_strict_m16: 1.2653
+4 scored arms -> /home/jupyter/cf_runs/freq_family/smoke/results/scores.tsv, 24 config rows -> /home/jupyter/cf_runs/freq_family/smoke/results/config_mase.tsv
+[10-10 11:17:47] [freq_family blk 200k] WAVE_END rc=0
+  [eval] bizitobs_service/10S/short: frequency 10S, family member 128
+  [eval] ett1/15T/short: frequency 15T, family member 64
+  [eval] ett1/H/short: frequency H, family member 32
+  [eval] m4_weekly/W/short: frequency W-SUN, family member 16
+  [eval] m4_yearly/A/short: frequency A-DEC, family member 16
+  [eval] us_births/D/short: frequency D, family member 16
+run  stop_k  arm                gm_rel_mase  ratio_to_control  configs  members               head_steps  tag
+blk  200     control            1.2653       1.0000            6                              500         blk_bb200k_h500_control
+blk  200     shared_draw        1.2697       1.0035            6        16:3 32:1 64:1 128:1  500         blk_bb200k_h500_ff_shared_draw
+blk  200     heads_strict_m16   1.2653       1.0000            6        16:6                  500         blk_bb200k_h500_ff_heads_strict_m16
+blk  200     shared_strict_m16  1.2653       1.0000            6        16:6                  500         blk_bb200k_h500_ff_shared_strict_m16
+shared_strict_m16: 6 and 6 configs, 6 with the same MASE, max relative difference 0, ratio of the two GM-Relative MASE 1.000000
+heads_strict_m16: 6 and 6 configs, 6 with the same MASE, max relative difference 0, ratio of the two GM-Relative MASE 1.000000

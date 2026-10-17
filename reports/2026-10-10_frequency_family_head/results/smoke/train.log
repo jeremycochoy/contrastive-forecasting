@@ -1,0 +1,194 @@
+[qhead_blk_bb200k_h500_control_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_blk_bb200k_h500_control_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_blk_bb200k_h500_control_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_blk_bb200k_h500_control_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_blk_bb200k_h500_control_s20260722] Backbone loaded from /home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-419c/cos200k/leg_665k/cf419_cos200k_r2_200k.pth (0 params, frozen, encoder=student)
+/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(
+[qhead_blk_bb200k_h500_control_s20260722] Forecasting head [transformer-q (2L H384 nhead8 causal)]: 3,605,136 trainable params
+[qhead_blk_bb200k_h500_control_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_blk_bb200k_h500_control_s20260722] Schedule: constant warmup=0 decay_start=400 final_ratio=0.1
+[qhead_blk_bb200k_h500_ff_shared_strict_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_blk_bb200k_h500_ff_shared_strict_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_blk_bb200k_h500_ff_shared_strict_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_blk_bb200k_h500_ff_shared_strict_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_blk_bb200k_h500_ff_shared_strict_s20260722] Backbone loaded from /home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-419c/cos200k/leg_665k/cf419_cos200k_r2_200k.pth (0 params, frozen, encoder=student)
+/home/jupyter/.local/lib/python3.10/site-packages/torch/nn/modules/transformer.py:392: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
+  warnings.warn(
+[qhead_blk_bb200k_h500_ff_shared_strict_s20260722] Forecasting head [frequency family, body shared, members (16, 32, 64, 128), each a transformer quantile head decoding the 16 values of the next patch]: 3,771,456 trainable params
+[qhead_blk_bb200k_h500_ff_shared_strict_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_blk_bb200k_h500_ff_shared_strict_s20260722] Schedule: constant warmup=0 decay_start=400 final_ratio=0.1
+[qhead_blk_bb200k_h500_ff_shared_draw_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_blk_bb200k_h500_ff_shared_draw_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_blk_bb200k_h500_ff_shared_draw_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_blk_bb200k_h500_ff_shared_draw_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_blk_bb200k_h500_ff_shared_draw_s20260722] Backbone loaded from /home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-419c/cos200k/leg_665k/cf419_cos200k_r2_200k.pth (0 params, frozen, encoder=student)
+[qhead_blk_bb200k_h500_ff_shared_draw_s20260722] Forecasting head [frequency family, body shared, members (16, 32, 64, 128), each a transformer quantile head decoding the 16 values of the next patch]: 3,771,456 trainable params
+[qhead_blk_bb200k_h500_ff_shared_draw_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_blk_bb200k_h500_ff_shared_draw_s20260722] Schedule: constant warmup=0 decay_start=400 final_ratio=0.1
+[qhead_blk_bb200k_h500_ff_heads_strict_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_blk_bb200k_h500_ff_heads_strict_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_blk_bb200k_h500_ff_heads_strict_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_blk_bb200k_h500_ff_heads_strict_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_blk_bb200k_h500_ff_heads_strict_s20260722] Backbone loaded from /home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-419c/cos200k/leg_665k/cf419_cos200k_r2_200k.pth (0 params, frozen, encoder=student)
+[qhead_blk_bb200k_h500_ff_heads_strict_s20260722] Forecasting head [frequency family, body heads, members (16, 32, 64, 128), each a transformer quantile head decoding the 16 values of the next patch]: 14,420,544 trainable params
+[qhead_blk_bb200k_h500_ff_heads_strict_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_blk_bb200k_h500_ff_heads_strict_s20260722] Schedule: constant warmup=0 decay_start=400 final_ratio=0.1
+[qhead_blk_bb200k_h500_ff_heads_draw_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_blk_bb200k_h500_ff_heads_draw_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_blk_bb200k_h500_ff_heads_draw_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_blk_bb200k_h500_ff_heads_draw_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_blk_bb200k_h500_ff_heads_draw_s20260722] Backbone loaded from /home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-419c/cos200k/leg_665k/cf419_cos200k_r2_200k.pth (0 params, frozen, encoder=student)
+[qhead_blk_bb200k_h500_ff_heads_draw_s20260722] Forecasting head [frequency family, body heads, members (16, 32, 64, 128), each a transformer quantile head decoding the 16 values of the next patch]: 14,420,544 trainable params
+[qhead_blk_bb200k_h500_ff_heads_draw_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_blk_bb200k_h500_ff_heads_draw_s20260722] Schedule: constant warmup=0 decay_start=400 final_ratio=0.1
+[qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722] Backbone loaded from /home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-419c/cos200k/leg_665k/cf419_cos200k_r2_200k.pth (0 params, frozen, encoder=student)
+[qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722] Forecasting head [frequency family, body shared, members (16,), each a transformer quantile head decoding the 16 values of the next patch]: 3,605,136 trainable params
+[qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722] Schedule: constant warmup=0 decay_start=400 final_ratio=0.1
+[qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722]   [head-train] auto-detected num_encoder_layers=3 from backbone checkpoint
+[qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722]   [head-train] auto-detected qk_norm=True from backbone checkpoint
+[qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722]   [head-train] auto-detected attn_out_norm=True from backbone checkpoint
+[qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722]   [head-train] auto-detected patch_stats=none
+[qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722] Backbone loaded from /home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-419c/cos200k/leg_665k/cf419_cos200k_r2_200k.pth (0 params, frozen, encoder=student)
+[qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722] Forecasting head [frequency family, body heads, members (16,), each a transformer quantile head decoding the 16 values of the next patch]: 3,605,136 trainable params
+[qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722] Optimizer: AdamW lr=0.001 betas=(0.9,0.999) wd=0.01 eps=1e-08
+[qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722] Schedule: constant warmup=0 decay_start=400 final_ratio=0.1
+[qhead_blk_bb200k_h500_control_s20260722] Data: the backbone trained on GiftEvalPretrain with zero padding (#419): the head trains on the same stream, vocabulary v2, padded targets skipped. --hf-repo/--hf-path are not read.
+[qhead_blk_bb200k_h500_control_s20260722] Data: MIX 100% HF + 0% synth, hf_bs=256, synth_bs=0, synth_seed=20280722, emit_labels=True
+[shared] 7 jobs on one stream: qhead_blk_bb200k_h500_control_s20260722, qhead_blk_bb200k_h500_ff_shared_strict_s20260722, qhead_blk_bb200k_h500_ff_shared_draw_s20260722, qhead_blk_bb200k_h500_ff_heads_strict_s20260722, qhead_blk_bb200k_h500_ff_heads_draw_s20260722, qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722, qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722
+[qhead_blk_bb200k_h500_control_s20260722] Loss CSV: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_control/qhead_blk_bb200k_h500_control_s20260722_losses.csv
+[qhead_blk_bb200k_h500_control_s20260722] 
+[qhead_blk_bb200k_h500_control_s20260722] Training for 500 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_blk_bb200k_h500_control_s20260722] Checkpoints: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_control/qhead_blk_bb200k_h500_control_s20260722_*.pth
+[qhead_blk_bb200k_h500_ff_shared_strict_s20260722] Loss CSV: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_shared_strict/qhead_blk_bb200k_h500_ff_shared_strict_s20260722_losses.csv
+[qhead_blk_bb200k_h500_ff_shared_strict_s20260722] 
+[qhead_blk_bb200k_h500_ff_shared_strict_s20260722] Training for 500 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_blk_bb200k_h500_ff_shared_strict_s20260722] Frequency family: body shared, rule strict, members (16, 32, 64, 128). The frequency of each row selects the decoder that it trains. Each decoder reads the latents at patch size 16 and decodes the next 16 values.
+[qhead_blk_bb200k_h500_ff_shared_strict_s20260722] Checkpoints: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_shared_strict/qhead_blk_bb200k_h500_ff_shared_strict_s20260722_*.pth
+[qhead_blk_bb200k_h500_ff_shared_draw_s20260722] Loss CSV: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_shared_draw/qhead_blk_bb200k_h500_ff_shared_draw_s20260722_losses.csv
+[qhead_blk_bb200k_h500_ff_shared_draw_s20260722] 
+[qhead_blk_bb200k_h500_ff_shared_draw_s20260722] Training for 500 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_blk_bb200k_h500_ff_shared_draw_s20260722] Frequency family: body shared, rule draw, members (16, 32, 64, 128). The frequency of each row selects the decoder that it trains. Each decoder reads the latents at patch size 16 and decodes the next 16 values.
+[qhead_blk_bb200k_h500_ff_shared_draw_s20260722] Checkpoints: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_shared_draw/qhead_blk_bb200k_h500_ff_shared_draw_s20260722_*.pth
+[qhead_blk_bb200k_h500_ff_heads_strict_s20260722] Loss CSV: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_heads_strict/qhead_blk_bb200k_h500_ff_heads_strict_s20260722_losses.csv
+[qhead_blk_bb200k_h500_ff_heads_strict_s20260722] 
+[qhead_blk_bb200k_h500_ff_heads_strict_s20260722] Training for 500 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_blk_bb200k_h500_ff_heads_strict_s20260722] Frequency family: body heads, rule strict, members (16, 32, 64, 128). The frequency of each row selects the decoder that it trains. Each decoder reads the latents at patch size 16 and decodes the next 16 values.
+[qhead_blk_bb200k_h500_ff_heads_strict_s20260722] Checkpoints: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_heads_strict/qhead_blk_bb200k_h500_ff_heads_strict_s20260722_*.pth
+[qhead_blk_bb200k_h500_ff_heads_draw_s20260722] Loss CSV: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_heads_draw/qhead_blk_bb200k_h500_ff_heads_draw_s20260722_losses.csv
+[qhead_blk_bb200k_h500_ff_heads_draw_s20260722] 
+[qhead_blk_bb200k_h500_ff_heads_draw_s20260722] Training for 500 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_blk_bb200k_h500_ff_heads_draw_s20260722] Frequency family: body heads, rule draw, members (16, 32, 64, 128). The frequency of each row selects the decoder that it trains. Each decoder reads the latents at patch size 16 and decodes the next 16 values.
+[qhead_blk_bb200k_h500_ff_heads_draw_s20260722] Checkpoints: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_heads_draw/qhead_blk_bb200k_h500_ff_heads_draw_s20260722_*.pth
+[qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722] Loss CSV: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_shared_strict_m16/qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722_losses.csv
+[qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722] 
+[qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722] Training for 500 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722] Frequency family: body shared, rule strict, members (16,). The frequency of each row selects the decoder that it trains. Each decoder reads the latents at patch size 16 and decodes the next 16 values.
+[qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722] Checkpoints: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_shared_strict_m16/qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722_*.pth
+[qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722] Loss CSV: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_heads_strict_m16/qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722_losses.csv
+[qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722] 
+[qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722] Training for 500 steps, bs=256, lr=0.001, forecast_len=16
+[qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722] Frequency family: body heads, rule strict, members (16,). The frequency of each row selects the decoder that it trains. Each decoder reads the latents at patch size 16 and decodes the next 16 values.
+[qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722] Checkpoints: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_heads_strict_m16/qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722_*.pth
+[shared] 1 steps: 0.02 steps/s since the start, 0.02 steps/s over the last 1, 0.1 job steps/s, the stream took 99% of that time, peak 5.72 GiB allocated, 6.48 GiB reserved
+[qhead_blk_bb200k_h500_control_s20260722] [    100] loss=0.205161  ema_loss=0.292963  1.0 sps  ETA 0.1h
+[qhead_blk_bb200k_h500_control_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_control/qhead_blk_bb200k_h500_control_s20260722_best.pth (ema_loss=0.292963)
+[qhead_blk_bb200k_h500_ff_shared_strict_s20260722] [    100] loss=0.206254  ema_loss=0.297832  1.0 sps  ETA 0.1h
+[qhead_blk_bb200k_h500_ff_shared_strict_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_shared_strict/qhead_blk_bb200k_h500_ff_shared_strict_s20260722_best.pth (ema_loss=0.297832)
+[qhead_blk_bb200k_h500_ff_shared_draw_s20260722] [    100] loss=0.207223  ema_loss=0.300408  1.0 sps  ETA 0.1h
+[qhead_blk_bb200k_h500_ff_shared_draw_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_shared_draw/qhead_blk_bb200k_h500_ff_shared_draw_s20260722_best.pth (ema_loss=0.300408)
+[qhead_blk_bb200k_h500_ff_heads_strict_s20260722] [    100] loss=0.206129  ema_loss=0.293437  1.0 sps  ETA 0.1h
+[qhead_blk_bb200k_h500_ff_heads_strict_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_heads_strict/qhead_blk_bb200k_h500_ff_heads_strict_s20260722_best.pth (ema_loss=0.293437)
+[qhead_blk_bb200k_h500_ff_heads_draw_s20260722] [    100] loss=0.207842  ema_loss=0.295726  1.0 sps  ETA 0.1h
+[qhead_blk_bb200k_h500_ff_heads_draw_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_heads_draw/qhead_blk_bb200k_h500_ff_heads_draw_s20260722_best.pth (ema_loss=0.295726)
+[qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722] [    100] loss=0.205161  ema_loss=0.292963  1.0 sps  ETA 0.1h
+[qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_shared_strict_m16/qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722_best.pth (ema_loss=0.292963)
+[qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722] [    100] loss=0.205161  ema_loss=0.292963  1.0 sps  ETA 0.1h
+[qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_heads_strict_m16/qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722_best.pth (ema_loss=0.292963)
+[shared] 100 steps: 1.00 steps/s since the start, 2.27 steps/s over the last 99, 15.9 job steps/s, the stream took 0% of that time, peak 5.75 GiB allocated, 6.73 GiB reserved
+[qhead_blk_bb200k_h500_control_s20260722] [    200] loss=0.204313  ema_loss=0.235463  1.4 sps  ETA 0.1h
+[qhead_blk_bb200k_h500_control_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_control/qhead_blk_bb200k_h500_control_s20260722_best.pth (ema_loss=0.235463)
+[qhead_blk_bb200k_h500_ff_shared_strict_s20260722] [    200] loss=0.204432  ema_loss=0.237394  1.4 sps  ETA 0.1h
+[qhead_blk_bb200k_h500_ff_shared_strict_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_shared_strict/qhead_blk_bb200k_h500_ff_shared_strict_s20260722_best.pth (ema_loss=0.237394)
+[qhead_blk_bb200k_h500_ff_shared_draw_s20260722] [    200] loss=0.205865  ema_loss=0.238996  1.4 sps  ETA 0.1h
+[qhead_blk_bb200k_h500_ff_shared_draw_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_shared_draw/qhead_blk_bb200k_h500_ff_shared_draw_s20260722_best.pth (ema_loss=0.238996)
+[qhead_blk_bb200k_h500_ff_heads_strict_s20260722] [    200] loss=0.204163  ema_loss=0.235732  1.4 sps  ETA 0.1h
+[qhead_blk_bb200k_h500_ff_heads_strict_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_heads_strict/qhead_blk_bb200k_h500_ff_heads_strict_s20260722_best.pth (ema_loss=0.235732)
+[qhead_blk_bb200k_h500_ff_heads_draw_s20260722] [    200] loss=0.206120  ema_loss=0.237485  1.4 sps  ETA 0.1h
+[qhead_blk_bb200k_h500_ff_heads_draw_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_heads_draw/qhead_blk_bb200k_h500_ff_heads_draw_s20260722_best.pth (ema_loss=0.237485)
+[qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722] [    200] loss=0.204313  ema_loss=0.235463  1.4 sps  ETA 0.1h
+[qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_shared_strict_m16/qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722_best.pth (ema_loss=0.235463)
+[qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722] [    200] loss=0.204313  ema_loss=0.235463  1.4 sps  ETA 0.1h
+[qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_heads_strict_m16/qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722_best.pth (ema_loss=0.235463)
+[shared] 200 steps: 1.37 steps/s since the start, 2.17 steps/s over the last 100, 15.2 job steps/s, the stream took 0% of that time, peak 5.75 GiB allocated, 6.74 GiB reserved
+[qhead_blk_bb200k_h500_control_s20260722] [    300] loss=0.186850  ema_loss=0.208531  1.6 sps  ETA 0.0h
+[qhead_blk_bb200k_h500_control_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_control/qhead_blk_bb200k_h500_control_s20260722_best.pth (ema_loss=0.208531)
+[qhead_blk_bb200k_h500_ff_shared_strict_s20260722] [    300] loss=0.188744  ema_loss=0.209595  1.6 sps  ETA 0.0h
+[qhead_blk_bb200k_h500_ff_shared_strict_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_shared_strict/qhead_blk_bb200k_h500_ff_shared_strict_s20260722_best.pth (ema_loss=0.209595)
+[qhead_blk_bb200k_h500_ff_shared_draw_s20260722] [    300] loss=0.189968  ema_loss=0.210822  1.6 sps  ETA 0.0h
+[qhead_blk_bb200k_h500_ff_shared_draw_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_shared_draw/qhead_blk_bb200k_h500_ff_shared_draw_s20260722_best.pth (ema_loss=0.210822)
+[qhead_blk_bb200k_h500_ff_heads_strict_s20260722] [    300] loss=0.189395  ema_loss=0.209038  1.6 sps  ETA 0.0h
+[qhead_blk_bb200k_h500_ff_heads_strict_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_heads_strict/qhead_blk_bb200k_h500_ff_heads_strict_s20260722_best.pth (ema_loss=0.209038)
+[qhead_blk_bb200k_h500_ff_heads_draw_s20260722] [    300] loss=0.190207  ema_loss=0.210707  1.6 sps  ETA 0.0h
+[qhead_blk_bb200k_h500_ff_heads_draw_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_heads_draw/qhead_blk_bb200k_h500_ff_heads_draw_s20260722_best.pth (ema_loss=0.210707)
+[qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722] [    300] loss=0.186850  ema_loss=0.208531  1.5 sps  ETA 0.0h
+[qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_shared_strict_m16/qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722_best.pth (ema_loss=0.208531)
+[qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722] [    300] loss=0.186850  ema_loss=0.208531  1.5 sps  ETA 0.0h
+[qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_heads_strict_m16/qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722_best.pth (ema_loss=0.208531)
+[shared] 300 steps: 1.54 steps/s since the start, 2.07 steps/s over the last 100, 14.5 job steps/s, the stream took 4% of that time, peak 5.75 GiB allocated, 6.74 GiB reserved
+[qhead_blk_bb200k_h500_control_s20260722] [    400] loss=0.190043  ema_loss=0.199213  1.6 sps  ETA 0.0h
+[qhead_blk_bb200k_h500_control_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_control/qhead_blk_bb200k_h500_control_s20260722_best.pth (ema_loss=0.199213)
+[qhead_blk_bb200k_h500_ff_shared_strict_s20260722] [    400] loss=0.189953  ema_loss=0.199606  1.6 sps  ETA 0.0h
+[qhead_blk_bb200k_h500_ff_shared_strict_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_shared_strict/qhead_blk_bb200k_h500_ff_shared_strict_s20260722_best.pth (ema_loss=0.199606)
+[qhead_blk_bb200k_h500_ff_shared_draw_s20260722] [    400] loss=0.190630  ema_loss=0.200585  1.6 sps  ETA 0.0h
+[qhead_blk_bb200k_h500_ff_shared_draw_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_shared_draw/qhead_blk_bb200k_h500_ff_shared_draw_s20260722_best.pth (ema_loss=0.200585)
+[qhead_blk_bb200k_h500_ff_heads_strict_s20260722] [    400] loss=0.189755  ema_loss=0.199132  1.6 sps  ETA 0.0h
+[qhead_blk_bb200k_h500_ff_heads_strict_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_heads_strict/qhead_blk_bb200k_h500_ff_heads_strict_s20260722_best.pth (ema_loss=0.199132)
+[qhead_blk_bb200k_h500_ff_heads_draw_s20260722] [    400] loss=0.191541  ema_loss=0.201171  1.6 sps  ETA 0.0h
+[qhead_blk_bb200k_h500_ff_heads_draw_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_heads_draw/qhead_blk_bb200k_h500_ff_heads_draw_s20260722_best.pth (ema_loss=0.201171)
+[qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722] [    400] loss=0.190043  ema_loss=0.199213  1.6 sps  ETA 0.0h
+[qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_shared_strict_m16/qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722_best.pth (ema_loss=0.199213)
+[qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722] [    400] loss=0.190043  ema_loss=0.199213  1.6 sps  ETA 0.0h
+[qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_heads_strict_m16/qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722_best.pth (ema_loss=0.199213)
+[shared] 400 steps: 1.60 steps/s since the start, 1.82 steps/s over the last 100, 12.7 job steps/s, the stream took 18% of that time, peak 5.75 GiB allocated, 6.74 GiB reserved
+[qhead_blk_bb200k_h500_control_s20260722] [    500] loss=0.193867  ema_loss=0.193137  1.7 sps  ETA 0.0h
+[qhead_blk_bb200k_h500_control_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_control/qhead_blk_bb200k_h500_control_s20260722_best.pth (ema_loss=0.193137)
+[qhead_blk_bb200k_h500_ff_shared_strict_s20260722] [    500] loss=0.193849  ema_loss=0.193325  1.7 sps  ETA 0.0h
+[qhead_blk_bb200k_h500_ff_shared_strict_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_shared_strict/qhead_blk_bb200k_h500_ff_shared_strict_s20260722_best.pth (ema_loss=0.193325)
+[qhead_blk_bb200k_h500_ff_shared_draw_s20260722] [    500] loss=0.193921  ema_loss=0.194143  1.7 sps  ETA 0.0h
+[qhead_blk_bb200k_h500_ff_shared_draw_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_shared_draw/qhead_blk_bb200k_h500_ff_shared_draw_s20260722_best.pth (ema_loss=0.194143)
+[qhead_blk_bb200k_h500_ff_heads_strict_s20260722] [    500] loss=0.193263  ema_loss=0.192826  1.7 sps  ETA 0.0h
+[qhead_blk_bb200k_h500_ff_heads_strict_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_heads_strict/qhead_blk_bb200k_h500_ff_heads_strict_s20260722_best.pth (ema_loss=0.192826)
+[qhead_blk_bb200k_h500_ff_heads_draw_s20260722] [    500] loss=0.195476  ema_loss=0.194973  1.7 sps  ETA 0.0h
+[qhead_blk_bb200k_h500_ff_heads_draw_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_heads_draw/qhead_blk_bb200k_h500_ff_heads_draw_s20260722_best.pth (ema_loss=0.194973)
+[qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722] [    500] loss=0.193867  ema_loss=0.193137  1.7 sps  ETA 0.0h
+[qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_shared_strict_m16/qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722_best.pth (ema_loss=0.193137)
+[qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722] [    500] loss=0.193867  ema_loss=0.193137  1.7 sps  ETA 0.0h
+[qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722]   -> New best: /home/jupyter/cf_runs/freq_family/smoke/heads/eval/blk_bb200k_h500_ff_heads_strict_m16/qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722_best.pth (ema_loss=0.193137)
+[shared] 500 steps: 1.70 steps/s since the start, 2.23 steps/s over the last 100, 15.6 job steps/s, the stream took 1% of that time, peak 5.75 GiB allocated, 6.74 GiB reserved
+[qhead_blk_bb200k_h500_control_s20260722] 
+[qhead_blk_bb200k_h500_control_s20260722] Done in 0.1h. Best loss=0.193137 at step 500
+[qhead_blk_bb200k_h500_ff_shared_strict_s20260722] Frequency family: rule strict, steps 1 to 500, rows of each member: 16: 26335 (20.6%), 32: 18233 (14.2%), 64: 81590 (63.7%), 128: 1842 (1.4%)
+[qhead_blk_bb200k_h500_ff_shared_strict_s20260722] 
+[qhead_blk_bb200k_h500_ff_shared_strict_s20260722] Done in 0.1h. Best loss=0.193325 at step 500
+[qhead_blk_bb200k_h500_ff_shared_draw_s20260722] Frequency family: rule draw, steps 1 to 500, rows of each member: 16: 13136 (10.3%), 32: 49525 (38.7%), 64: 37254 (29.1%), 128: 28085 (21.9%)
+[qhead_blk_bb200k_h500_ff_shared_draw_s20260722] 
+[qhead_blk_bb200k_h500_ff_shared_draw_s20260722] Done in 0.1h. Best loss=0.194143 at step 500
+[qhead_blk_bb200k_h500_ff_heads_strict_s20260722] Frequency family: rule strict, steps 1 to 500, rows of each member: 16: 26335 (20.6%), 32: 18233 (14.2%), 64: 81590 (63.7%), 128: 1842 (1.4%)
+[qhead_blk_bb200k_h500_ff_heads_strict_s20260722] 
+[qhead_blk_bb200k_h500_ff_heads_strict_s20260722] Done in 0.1h. Best loss=0.192826 at step 500
+[qhead_blk_bb200k_h500_ff_heads_draw_s20260722] Frequency family: rule draw, steps 1 to 500, rows of each member: 16: 13193 (10.3%), 32: 49173 (38.4%), 64: 37132 (29.0%), 128: 28502 (22.3%)
+[qhead_blk_bb200k_h500_ff_heads_draw_s20260722] 
+[qhead_blk_bb200k_h500_ff_heads_draw_s20260722] Done in 0.1h. Best loss=0.194973 at step 500
+[qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722] Frequency family: rule strict, steps 1 to 500, rows of each member: 16: 128000 (100.0%)
+[qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722] 
+[qhead_blk_bb200k_h500_ff_shared_strict_m16_s20260722] Done in 0.1h. Best loss=0.193137 at step 500
+[qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722] Frequency family: rule strict, steps 1 to 500, rows of each member: 16: 128000 (100.0%)
+[qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722] 
+[qhead_blk_bb200k_h500_ff_heads_strict_m16_s20260722] Done in 0.1h. Best loss=0.193137 at step 500
+[shared] done

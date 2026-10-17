@@ -1,0 +1,4 @@
+run	first_step	last_step	ema_tau_values	source
+abc_gift	1	625600	0.9	/home/jupyter/cf_runs/abc_gift/ckpt/abc_gift_losses.csv (elisa, the run trains on to 665,000)
+k3_r100_09_lr56_fix09_dec10k_lr10x	1	596700	0.9	6 loss files of the legs, /media/jupyter/KINGSTON/checkpoints_backup/cf-412/vast_all/k3_r100_09_lr56_fix09_dec10k_lr10x (elisa)
+cf419_cos200k	1	480200	0.9	cf419_cos200k_losses.csv and cf419_cos200k_r2_losses.csv, ~/checkpoints_backup/cf-412/vast_lr100x/cf-419c/cos200k/leg_665k (elisa)
