@@ -62,19 +62,19 @@ GRN_EMA09998 = "grn_ema09998"
 GRN_EMA09998_COLOUR = "#008080"  # its colour in plot_ema_plan.py
 GRN_EMA099995 = "grn_ema099995"
 GRN_EMA099995_COLOUR = "#ff00ff"  # its colour in plot_ema_plan.py
-GRN_EMA099_F6 = "grn_ema099_f6"
-GRN_EMA099_F6_COLOUR = "#7f7f7f"  # no other run of this figure has this colour
+GRN_EMA099995_F6 = "grn_ema099995_f6"
+GRN_EMA099995_F6_COLOUR = "#7f7f7f"  # no other run of this figure has this colour
 GRN_EMA095 = "grn_ema095"
 GRN_EMA095_COLOUR = "#8c564b"  # its colour in plot_ema_plan.py
 BLK_EMACOS = "blk_emacos"
 BLK_EMACOS_COLOUR = "#d62728"  # its colour in plot_ema_plan.py
 # The runs of this report: their forecast comes from results/scores.tsv.
 NEW_RUNS = [GREEN, BLK_EMA, GRN_EMA095, GRN_EMA, GRN_EMA099, GRN_EMA0999, GRN_EMA09998,
-            GRN_EMA099995, GRN_EMA099_F6, BLK_EMACOS]
+            GRN_EMA099995, GRN_EMA099995_F6, BLK_EMACOS]
 # Older runs with a forecast at 1k steps in results/scores.tsv: arm -> run.
 FIRST_STEPS = {"cf419_cos200k": "blk", P + "_lr10x": "abc"}
 # The newest runs: drawn above the others, so that their first points show.
-ON_TOP = {GRN_EMA09998, GRN_EMA099995, GRN_EMA099_F6}
+ON_TOP = {GRN_EMA09998, GRN_EMA099995, GRN_EMA099995_F6}
 MPE = "cf421ew_moirai_native"
 # Its R (transformer head 0.12 to 0.21) lies far above the R panels.
 FORECAST_ONLY = {MPE}
@@ -94,8 +94,8 @@ RUNS = [
      GRN_EMA09998_COLOUR, "<"),
     (GRN_EMA099995, r"$\mathbf{GRN+EMA\ 0.99995}$  as GRN, EMA of the teacher 0.99995 to 1.0 "
      "over 665k", GRN_EMA099995_COLOUR, "8"),
-    (GRN_EMA099_F6, r"$\mathbf{GRN+EMA\ 0.99,\ 6\ forecaster\ layers}$  the forecaster size of MPE",
-     GRN_EMA099_F6_COLOUR, "H"),
+    (GRN_EMA099995_F6, r"$\mathbf{GRN+EMA\ 0.99995,\ 6\ forecaster\ layers}$  the forecaster "
+     "size of MPE", GRN_EMA099995_F6_COLOUR, "H"),
     (BLK_EMA, r"$\mathbf{BLK+EMA}$  as BLK, EMA of the teacher 0.9 to 1.0 over 665k",
      BLK_EMA_COLOUR, "P"),
     (BLK_EMACOS, r"$\mathbf{BLK+EMA\ cosine}$  as BLK, EMA of the teacher 0.9 to 1.0 on a cosine "
@@ -110,7 +110,7 @@ RUNS = [
 OURS = STUDY / "results"
 # The R tables of collect_recon.py (first_steps: the 1k point of BLK and ABC).
 OUR_R_TABLES = ["green", "blk_ema", "grn_ema095", "grn_ema098", "grn_ema099", "grn_ema0999",
-                "grn_ema09998", "grn_ema099995", "grn_ema099_f6", "blk_emacos", "first_steps"]
+                "grn_ema09998", "grn_ema099995", "grn_ema099995_f6", "blk_emacos", "first_steps"]
 # panel title, y range, the score tables, and whether the forecast of the
 # runs of this report comes from results/scores.tsv
 PANELS = [
