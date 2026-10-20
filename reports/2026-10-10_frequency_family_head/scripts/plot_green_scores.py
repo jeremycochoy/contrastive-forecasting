@@ -94,8 +94,8 @@ RUNS = [
      GRN_EMA09998_COLOUR, "<"),
     (GRN_EMA099995, r"$\mathbf{GRN+EMA\ 0.99995}$  as GRN, EMA of the teacher 0.99995 to 1.0 "
      "over 665k", GRN_EMA099995_COLOUR, "8"),
-    (GRN_EMA099_F6, r"$\mathbf{GRN+EMA\ 0.99,\ 6\ forecaster\ layers}$  as GRN+EMA 0.99, "
-     "a forecaster of 6 layers (the size of our Moirai copy)", GRN_EMA099_F6_COLOUR, "H"),
+    (GRN_EMA099_F6, r"$\mathbf{GRN+EMA\ 0.99,\ 6\ forecaster\ layers}$  the forecaster size of MPE",
+     GRN_EMA099_F6_COLOUR, "H"),
     (BLK_EMA, r"$\mathbf{BLK+EMA}$  as BLK, EMA of the teacher 0.9 to 1.0 over 665k",
      BLK_EMA_COLOUR, "P"),
     (BLK_EMACOS, r"$\mathbf{BLK+EMA\ cosine}$  as BLK, EMA of the teacher 0.9 to 1.0 on a cosine "
