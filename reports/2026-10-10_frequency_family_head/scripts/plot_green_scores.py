@@ -1,6 +1,7 @@
 """The forecast and the reconstruction of the encoder latent through training,
 for the runs of this report (GRN, BLK+EMA, GRN+EMA 0.95, GRN+EMA 0.98, GRN+EMA
-0.99, GRN+EMA 0.999, GRN+EMA 0.9998, GRN+EMA 0.99995, BLK+EMA cosine) next to
+0.99, GRN+EMA 0.999, GRN+EMA 0.9998, GRN+EMA 0.99995, GRN+EMA 0.99 with a
+forecaster of 6 layers, BLK+EMA cosine) next to
 ABC, CYN and BLK,
 and the forecast of MPE (Moirai, patch heads, EWMA, new data, batch 256: x 4
 for the data seen). Writes plots/forecast_and_reconstruction.png: three panels
@@ -61,17 +62,19 @@ GRN_EMA09998 = "grn_ema09998"
 GRN_EMA09998_COLOUR = "#008080"  # its colour in plot_ema_plan.py
 GRN_EMA099995 = "grn_ema099995"
 GRN_EMA099995_COLOUR = "#ff00ff"  # its colour in plot_ema_plan.py
+GRN_EMA099_F6 = "grn_ema099_f6"
+GRN_EMA099_F6_COLOUR = "#7f7f7f"  # no other run of this figure has this colour
 GRN_EMA095 = "grn_ema095"
 GRN_EMA095_COLOUR = "#8c564b"  # its colour in plot_ema_plan.py
 BLK_EMACOS = "blk_emacos"
 BLK_EMACOS_COLOUR = "#d62728"  # its colour in plot_ema_plan.py
 # The runs of this report: their forecast comes from results/scores.tsv.
 NEW_RUNS = [GREEN, BLK_EMA, GRN_EMA095, GRN_EMA, GRN_EMA099, GRN_EMA0999, GRN_EMA09998,
-            GRN_EMA099995, BLK_EMACOS]
+            GRN_EMA099995, GRN_EMA099_F6, BLK_EMACOS]
 # Older runs with a forecast at 1k steps in results/scores.tsv: arm -> run.
 FIRST_STEPS = {"cf419_cos200k": "blk", P + "_lr10x": "abc"}
 # The newest runs: drawn above the others, so that their first points show.
-ON_TOP = {GRN_EMA09998, GRN_EMA099995}
+ON_TOP = {GRN_EMA09998, GRN_EMA099995, GRN_EMA099_F6}
 MPE = "cf421ew_moirai_native"
 # Its R (transformer head 0.12 to 0.21) lies far above the R panels.
 FORECAST_ONLY = {MPE}
@@ -91,6 +94,8 @@ RUNS = [
      GRN_EMA09998_COLOUR, "<"),
     (GRN_EMA099995, r"$\mathbf{GRN+EMA\ 0.99995}$  as GRN, EMA of the teacher 0.99995 to 1.0 "
      "over 665k", GRN_EMA099995_COLOUR, "8"),
+    (GRN_EMA099_F6, r"$\mathbf{GRN+EMA\ 0.99,\ 6\ forecaster\ layers}$  as GRN+EMA 0.99, "
+     "a forecaster of 6 layers (the size of our Moirai copy)", GRN_EMA099_F6_COLOUR, "H"),
     (BLK_EMA, r"$\mathbf{BLK+EMA}$  as BLK, EMA of the teacher 0.9 to 1.0 over 665k",
      BLK_EMA_COLOUR, "P"),
     (BLK_EMACOS, r"$\mathbf{BLK+EMA\ cosine}$  as BLK, EMA of the teacher 0.9 to 1.0 on a cosine "
@@ -105,16 +110,16 @@ RUNS = [
 OURS = STUDY / "results"
 # The R tables of collect_recon.py (first_steps: the 1k point of BLK and ABC).
 OUR_R_TABLES = ["green", "blk_ema", "grn_ema095", "grn_ema098", "grn_ema099", "grn_ema0999",
-                "grn_ema09998", "blk_emacos", "first_steps"]
+                "grn_ema09998", "grn_ema099995", "grn_ema099_f6", "blk_emacos", "first_steps"]
 # panel title, y range, the score tables, and whether the forecast of the
 # runs of this report comes from results/scores.tsv
 PANELS = [
     ("Forecast (B4)", (1.10, 1.27),
      [MOIRAI / "results" / "gm_trajectories.tsv", RECON / "forecast_425.tsv"], True),
-    ("Reconstruction of the encoder latent (R), transformer head", (0.02, 0.08),
+    ("Reconstruction of the encoder latent (R), transformer head", (0.02, 0.11),
      [RECON / "recon_trajectories.tsv"]
      + [OURS / f"recon_{table}_trajectories.tsv" for table in OUR_R_TABLES], False),
-    ("Reconstruction of the encoder latent (R), linear head", (0.12, 0.40),
+    ("Reconstruction of the encoder latent (R), linear head", (0.12, 0.50),
      [RECON / "recon_lin_trajectories.tsv"]
      + [OURS / f"recon_{table}_lin_trajectories.tsv" for table in OUR_R_TABLES], False),
 ]

@@ -92,6 +92,8 @@
 #   FF_RESCORE=1                        set a score of another protocol
 #                                       aside, and score again
 #   FF_CODE=<folder>                    another code folder
+#   FF_BB_SHAPE="--d-model 384 --n-heads 8 --num-layers 6"
+#                                       another backbone shape
 set -uo pipefail
 
 RUN="${1:?usage: run_wave.sh <run> <stop k> <backbone .pth> [arm ...]}"
@@ -139,8 +141,9 @@ GIFT_EVAL="${GIFT_EVAL:-$HOME/workspaces/gift-eval-data}"
 # eval_gift_eval_official.py reads. Git does not hold it.
 SN_REF="${FF_SN_REF:-$HOME/workspaces/gift-eval/results/seasonal_naive/all_results.csv}"
 SN_BYTES=24831
-# The backbone shape of BLK and of abc_gift.
-SHAPE="--d-model 384 --n-heads 8 --num-layers 3"
+# The backbone shape of BLK and of abc_gift. FF_BB_SHAPE replaces it:
+# grn_ema099_f6 has a forecaster of 6 layers.
+SHAPE="${FF_BB_SHAPE:---d-model 384 --n-heads 8 --num-layers 3}"
 # The knobs of head_eval_bb.sh that this script sets for each arm. A value
 # of the caller must not reach an arm: a control with CF_FREQ_FAMILY would
 # be a family.
