@@ -114,7 +114,7 @@ OUR_R_TABLES = ["green", "blk_ema", "grn_ema095", "grn_ema098", "grn_ema099", "g
 # panel title, y range, the score tables, and whether the forecast of the
 # runs of this report comes from results/scores.tsv
 PANELS = [
-    ("Forecast (B4)", (1.10, 1.27),
+    ("Forecast (B4)", (1.10, 1.29),
      [MOIRAI / "results" / "gm_trajectories.tsv", RECON / "forecast_425.tsv"], True),
     ("Reconstruction of the encoder latent (R), transformer head", (0.02, 0.11),
      [RECON / "recon_trajectories.tsv"]
