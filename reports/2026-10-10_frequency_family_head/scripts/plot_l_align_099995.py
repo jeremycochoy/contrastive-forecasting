@@ -28,12 +28,12 @@ TICKS_K = [1, 10, 40, 100, 200, 400, 665]
 RUNS = {
     "grn_ema099995": ([(RUNS_DIR / "grn_ema099995/ckpt/grn_ema099995_losses.csv", 180_000),
                        (RUNS_DIR / "grn_ema099995/ckpt_r2/grn_ema099995_r2_losses.csv", None)],
-                      "#ff00ff", 2.5, "GRN+EMA 0.99995 (stopped at 391k)"),
+                      "#ff00ff", 2.5, "GRN+EMA 0.99995, 3 forecaster layers (stopped at 391k)"),
     "grn_ema099995_f6": ([(RUNS_DIR / "grn_ema099995_f6/ckpt/grn_ema099995_f6_losses.csv", None)],
                          "#7f7f7f", 2.5, "GRN+EMA 0.99995, 6 forecaster layers (in training)"),
     "cf419_cos200k": ([(BLK_DIR / "cf419_cos200k_losses.csv", 140_000),
                        (BLK_DIR / "cf419_cos200k_r2_losses.csv", None)],
-                      "#1a1a1a", 2.5, "BLK"),
+                      "#1a1a1a", 2.5, "BLK, 3 forecaster layers"),
 }
 
 

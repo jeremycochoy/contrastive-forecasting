@@ -50,12 +50,12 @@ DEPTH_COLOURS = ["#7f2704", "#d94801", "#f16913", "#fdae6b"]  # depth 0 darkest
 RUNS = {
     "grn_ema099995": ([(RUNS_DIR / "grn_ema099995/ckpt/grn_ema099995_losses.csv", 180_000),
                        (RUNS_DIR / "grn_ema099995/ckpt_r2/grn_ema099995_r2_losses.csv", None)],
-                      "#ff00ff", "GRN+EMA 0.99995 (stopped at 391k)"),
+                      "#ff00ff", "GRN+EMA 0.99995, 3 forecaster layers (stopped at 391k)"),
     "grn_ema099995_f6": ([(RUNS_DIR / "grn_ema099995_f6/ckpt/grn_ema099995_f6_losses.csv", None)],
                          "#7f7f7f", "GRN+EMA 0.99995, 6 forecaster layers (in training)"),
     "cf419_cos200k": ([(BLK_DIR / "cf419_cos200k_losses.csv", 140_000),
                        (BLK_DIR / "cf419_cos200k_r2_losses.csv", None)],
-                      "#1a1a1a", "BLK"),
+                      "#1a1a1a", "BLK, 3 forecaster layers"),
 }
 PARTS = ["align_d0", "align_rest", "sigreg", "rep"]
 # part -> (colour, label) of the stacked areas, from the bottom up
