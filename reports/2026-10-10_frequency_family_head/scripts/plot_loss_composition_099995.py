@@ -19,7 +19,8 @@ stacked parts of each run) and plots/loss_terms_099995.png. The top row of
 loss_terms has the total and SIGReg of the three runs on a log scale. Its
 bottom row has, for each run, the forecast error of each rollout depth
 j = 0..3 against the student latent, 2 x cos_err_dj = 2 - 2 cos(f^(j)_t,
-h_{t+1+j}) (columns cos_err_dj, `rollout_cos_error` in src/metrics.py), and
+h_{t+1+j}) (columns cos_err_dj, `rollout_cos_error` in src/metrics.py; a
+logged diagnostic that has no part in the loss), and
 L_align against the teacher latent: depth 0 (column l_align) and the mean of
 depths 1-3 (the rest / 3). The log has no column for L_align at each of the
 depths 1-3.
@@ -177,15 +178,16 @@ def draw_run_terms(axes, table):
 
 def draw_depths(ax, run, cols):
     """Bottom row: the error of each rollout depth against the student latent
-    (solid), and L_align against the teacher latent (dashed)."""
+    (solid, a logged diagnostic outside the loss), and L_align against the
+    teacher latent (dashed, the trained term)."""
     steps = cols["bin_centre_step"]
     for j in DEPTHS:
         ax.plot(steps, cols[f"err_d{j}"], color=DEPTH_COLOURS[j], lw=2.0,
-                label=f"Depth {j}: 2 - 2 cos(f, student h)")
+                label=f"Diagnostic only, depth {j}: 2 - 2 cos(f, student h)")
     ax.plot(steps, cols["align_d0"], color="#08519c", lw=2.0, ls="--",
-            label="L_align depth 0: 2 - 2 cos(f, teacher h)")
+            label="Trained: L_align depth 0, 2 - 2 cos(f, teacher h)")
     ax.plot(steps, cols["align_rest"] / 3, color="#6baed6", lw=2.0, ls="--",
-            label="L_align, mean of depths 1-3 (teacher h)")
+            label="Trained: L_align, mean of depths 1-3 (teacher h)")
     ax.set_title(RUNS[run][2], fontsize=10, loc="left")
     log_steps(ax)
 
