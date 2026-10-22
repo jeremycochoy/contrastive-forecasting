@@ -9,8 +9,8 @@ of BLK, and the Moirai recipe of MPE with its peak at the rate of the grey run.
                  steps are batch-64 steps (4 for one step at batch 256): the
                  warmup ends at 40,000 and the cosine at 664,000.
 The formulas are those of `scheduled_lr` in
-experiments/2026-04-27_freq-embedding/scripts/train.py. Writes
-plots/lr_schedule_099995.png.
+experiments/2026-04-27_freq-embedding/scripts/train.py. The steps are on a
+log scale from 1k, the first stop of the runs. Writes plots/lr_schedule_099995.png.
 
 Usage: python3 plot_lr_099995.py
 """
@@ -20,13 +20,15 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.ticker import FuncFormatter
+from matplotlib.ticker import FixedLocator, FuncFormatter, NullLocator
 
 STUDY = Path(__file__).resolve().parent.parent
 OUT = STUDY / "plots" / "lr_schedule_099995.png"
 TOTAL = 665_000
 LR = 5.6e-5
 STEPS_PER_256 = 4  # batch-64 steps for one step at batch 256
+FIRST = 1000  # the first step on the log axis: the first stop of the runs
+TICKS_K = [1, 10, 40, 100, 200, 400, 665]
 
 
 def cosine_lr(step, lr_start, lr_final, total):
@@ -56,19 +58,21 @@ LINES = [
 
 
 def style_axes(ax):
-    ax.set_xlim(0, TOTAL * 1.02)
-    ax.set_xticks([0, 40_000, 100_000, 200_000, 300_000, 400_000, 500_000, 600_000, TOTAL])
-    ax.set_xticklabels(["0", "40k", "100k", "200k", "300k", "400k", "500k", "600k", "665k"])
+    ax.set_xscale("log")
+    ax.set_xlim(FIRST * 0.9, TOTAL * 1.1)
+    ax.xaxis.set_major_locator(FixedLocator([k * 1000 for k in TICKS_K]))
+    ax.xaxis.set_minor_locator(NullLocator())
+    ax.set_xticklabels([f"{k}k" for k in TICKS_K])
     ax.set_ylim(0, 8.5e-5)  # room for the legend above the lines
     ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: "0" if y == 0 else f"{y * 1e5:g}e-5"))
-    ax.set(xlabel="Training step (batch 64); Moirai: 4 steps for one step at batch 256",
+    ax.set(xlabel="Training step (batch 64, log scale); Moirai: 4 steps for one step at batch 256",
            ylabel="Learning rate", title="Learning rate through training")
     ax.grid(alpha=0.3)
     ax.legend(loc="upper right", fontsize=9.5)
 
 
 def main():
-    steps = np.linspace(0, TOTAL, 2001)
+    steps = np.geomspace(FIRST, TOTAL, 2001)
     fig, ax = plt.subplots(figsize=(11, 5.5))
     for label, colour_hex, width, style, lr_of in LINES:
         ax.plot(steps, lr_of(steps), color=colour_hex, lw=width, ls=style, label=label)
