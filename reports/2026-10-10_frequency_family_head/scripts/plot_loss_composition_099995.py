@@ -15,8 +15,14 @@ column cpc_aux is blank). So the column `loss` is the sum of:
 Each value is the mean over log-spaced bins of steps (BINS bins from 1k to
 665k), drawn only when the run logged all the steps of the bin. Writes
 results/loss_parts_099995_binned.tsv, plots/loss_composition_099995.png (the
-stacked parts of each run) and plots/loss_terms_099995.png (the total and
-SIGReg of the three runs on a log scale).
+stacked parts of each run) and plots/loss_terms_099995.png. The top row of
+loss_terms has the total and SIGReg of the three runs on a log scale. Its
+bottom row has, for each run, the forecast error of each rollout depth
+j = 0..3 against the student latent, 2 x cos_err_dj = 2 - 2 cos(f^(j)_t,
+h_{t+1+j}) (columns cos_err_dj, `rollout_cos_error` in src/metrics.py), and
+L_align against the teacher latent: depth 0 (column l_align) and the mean of
+depths 1-3 (the rest / 3). The log has no column for L_align at each of the
+depths 1-3.
 
 Usage: python3 plot_loss_composition_099995.py
 """
@@ -38,6 +44,8 @@ OUT_TERMS = STUDY / "plots" / "loss_terms_099995.png"
 FIRST, TOTAL, BINS = 1000, 665_000, 60
 TICKS_K = [1, 10, 40, 100, 200, 400, 665]
 STACK_TOP = 2.5
+DEPTHS = range(4)  # the rollout depths 0-3 (--train-rollout-depth 3)
+DEPTH_COLOURS = ["#7f2704", "#d94801", "#f16913", "#fdae6b"]  # depth 0 darkest
 # run -> ([(loss file, last step taken from it)], colour, label)
 RUNS = {
     "grn_ema099995": ([(RUNS_DIR / "grn_ema099995/ckpt/grn_ema099995_losses.csv", 180_000),
@@ -60,11 +68,13 @@ PART_STYLE = {
 
 
 def row_parts(row):
-    """The parts of one loss row: total, rep, align_d0, sigreg_e, sigreg_h, rest."""
+    """The parts of one loss row: total, rep, align_d0, sigreg_e, sigreg_h,
+    rest, then 2 x cos_err_dj of the depths 0-3."""
     rep = float(row["rep_w"]) * float(row["l_rep"]) if row["l_rep"] else 0.0
     total, align = float(row["loss"]), float(row["l_align"])
     sig_e, sig_h = float(row["sigreg_e"]), float(row["sigreg_h"])
-    return total, rep, align, sig_e, sig_h, total - rep - align - sig_e - sig_h
+    errors = [2.0 * float(row[f"cos_err_d{j}"]) for j in DEPTHS]
+    return (total, rep, align, sig_e, sig_h, total - rep - align - sig_e - sig_h, *errors)
 
 
 def logged_parts(files):
@@ -95,7 +105,8 @@ def binned(steps, parts):
 
 def write_table():
     with open(TABLE, "w") as f:
-        f.write("run\tbin_centre_step\ttotal\trep\talign_d0\tsigreg_e\tsigreg_h\talign_rest\n")
+        f.write("run\tbin_centre_step\ttotal\trep\talign_d0\tsigreg_e\tsigreg_h\talign_rest\t"
+                + "\t".join(f"err_d{j}" for j in DEPTHS) + "\n")
         for run, (files, _, _) in RUNS.items():
             for row in binned(*logged_parts(files)):
                 f.write(f"{run}\t{row[0]:.0f}\t" + "\t".join(f"{v:.6f}" for v in row[1:]) + "\n")
@@ -150,9 +161,8 @@ def plot_stack(table):
     fig.savefig(OUT_STACK, dpi=130)
 
 
-def plot_terms(table):
-    """The total and SIGReg of the three runs, one colour per run."""
-    fig, axes = plt.subplots(1, 3, figsize=(17, 5.0))
+def draw_run_terms(axes, table):
+    """Top row: the total and SIGReg of the three runs, one colour per run."""
     titles = {"total": "Total loss", "sigreg_h": "SIGReg on h", "sigreg_e": "SIGReg on e"}
     for ax, (column, title) in zip(axes, titles.items()):
         for run, (_, colour_hex, label) in RUNS.items():
@@ -160,9 +170,35 @@ def plot_terms(table):
             ax.plot(cols["bin_centre_step"], cols[column], color=colour_hex, lw=2.2, label=label)
         ax.set_yscale("log")
         ax.set_title(title, fontsize=11, loc="left")
-        log_steps(ax)
-    axes[0].set_ylabel("Mean over log-spaced bins of steps (log scale)")
+        log_steps(ax, label=False)
+    axes[0].set_ylabel("Mean over log-spaced bins (log scale)")
     axes[0].legend(loc="upper right", fontsize=9)
+
+
+def draw_depths(ax, run, cols):
+    """Bottom row: the error of each rollout depth against the student latent
+    (solid), and L_align against the teacher latent (dashed)."""
+    steps = cols["bin_centre_step"]
+    for j in DEPTHS:
+        ax.plot(steps, cols[f"err_d{j}"], color=DEPTH_COLOURS[j], lw=2.0,
+                label=f"Depth {j}: 2 - 2 cos(f, student h)")
+    ax.plot(steps, cols["align_d0"], color="#08519c", lw=2.0, ls="--",
+            label="L_align depth 0: 2 - 2 cos(f, teacher h)")
+    ax.plot(steps, cols["align_rest"] / 3, color="#6baed6", lw=2.0, ls="--",
+            label="L_align, mean of depths 1-3 (teacher h)")
+    ax.set_title(RUNS[run][2], fontsize=10, loc="left")
+    log_steps(ax)
+
+
+def plot_terms(table):
+    fig, axes = plt.subplots(2, 3, figsize=(17, 10))
+    draw_run_terms(axes[0], table)
+    for ax, run in zip(axes[1], RUNS):
+        draw_depths(ax, run, table[run])
+        ax.sharey(axes[1][0])
+    axes[1][0].set_ylim(0.1, 1.15)  # all three runs: BLK goes down to 0.145
+    axes[1][0].set_ylabel("Mean over log-spaced bins of steps")
+    axes[1][0].legend(loc="upper right", fontsize=8.5)
     fig.tight_layout()
     fig.savefig(OUT_TERMS, dpi=130)
 
