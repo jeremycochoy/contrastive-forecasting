@@ -52,9 +52,9 @@ weight against the h-side terms. Watch `u_batchtime` on `h_t` and the loss
 curve. `--train-rollout-reduce mean` removes that weight change — see the
 next section.
 
-## `--train-rollout-reduce {sum,mean}`
+## `--train-rollout-reduce {sum,mean,halving}`
 
-Flag: `--train-rollout-reduce sum|mean`. Config key: `train_rollout_reduce`.
+Flag: `--train-rollout-reduce sum|mean|halving`. Config key: `train_rollout_reduce`.
 Default: `sum`. Issue:
 [#401](https://github.com/jeremycochoy/contrastive-forecasting/issues/401).
 
@@ -62,15 +62,21 @@ Default: `sum`. Issue:
 |---|---|---|
 | `sum` (default) | `H + Σ_{j=0..k} F_j` | `k + 1` times its `k = 0` weight |
 | `mean` | `H + (Σ_{j=0..k} F_j) / (k + 1)` | its `k = 0` weight, at every `k` |
+| `halving` | `H + Σ_{j=0..k} F_j / 2^j` | `2 − 1/2^k` times its `k = 0` weight |
 
 `F_j` is the depth-`j` copy of the terms that tie `f` to `h`. `H` is every
 term that carries no `f`. The mean covers the copies only, so `H` enters
 once at its configured weight under both reductions. The depth then changes
 what the model trains on, and not how much the f-side outweighs the rest.
 
-At `k = 0` there is one copy, so the two reductions return the same number.
-Every published `k = 0` run reproduces under either word, and #373's `k > 0`
-numbers reproduce under `sum`.
+At `k = 0` there is one copy, so the three reductions return the same
+number. Every published `k = 0` run reproduces under each word, and #373's
+`k > 0` numbers reproduce under `sum`.
+
+`halving` gives the depths 0 to 3 the weights 1, 1/2, 1/4 and 1/8, so the
+nearest depths weigh the most. Depth 0 keeps the weight 1 of both sides, so
+the halving needs no f-side pass: the copies of depths 1 to `k` are added to
+the depth-0 total at their weights.
 
 The mean costs one more pass over the f-bearing terms at depth 0. The
 depth-0 call returns `H + F_0` added together, and the two sides must be
@@ -85,8 +91,10 @@ Two limits:
 - `contrastive_latent_noise` with `mean` raises. The f-side pass would draw
   its own noise, so `loss − F_0` would not be the h-side. No trainer sets
   that key.
-- A word that is not `sum` or `mean` raises and names itself, at the CLI and
-  in `resolve_rollout_reduce`.
+- A word that is not `sum`, `mean` or `halving` raises and names itself, at
+  the CLI and in `resolve_rollout_reduce`.
+- `--value-space-objective` takes `sum` and `mean` only. `halving` raises at
+  its first step and names itself.
 
 ## Where it applies
 
@@ -147,7 +155,8 @@ one all-gather on the gathered path.
 `align_loss` and the CPC auxiliary instead of the main term. Those three
 functions take the reduction as the `depth_reduce` argument, because they
 read no training config. They carry no h-only half, so their mean is the
-plain mean of the `k + 1` copies. The trainer passes
+plain mean of the `k + 1` copies, and their halving adds copy `j` at
+`1 / 2^j`. The trainer passes
 `--train-rollout-reduce` to each of them.
 
 `--align-loss-weight` on the main arm is a third path, and the one 12 of the

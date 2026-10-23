@@ -416,7 +416,7 @@ class TestTrainerWiring:
         assert '--train-rollout-reduce' in defaults
         assert ast.literal_eval(defaults['--train-rollout-reduce']) == 'sum'
         assert ast.literal_eval(
-            choices['--train-rollout-reduce']) == ['sum', 'mean']
+            choices['--train-rollout-reduce']) == ['sum', 'mean', 'halving']
 
     def test_the_config_key_carries_the_flag(self):
         src = TRAIN_PY.read_text()
