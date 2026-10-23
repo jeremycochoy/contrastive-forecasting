@@ -77,6 +77,12 @@ from src.forecasting_head import (
     reconstruct_windows,
     ZeroReconstructionHead,
 )
+from src.freq_family import (
+    FrequencyFamilyHead,
+    family_layout_of,
+    family_member,
+    family_member_state,
+)
 
 
 # ============================================================================
@@ -607,6 +613,29 @@ def build_head_bank(head_sd, bank_sizes, backbone_sizes, args):
     return ForecastingHeadBank(heads)
 
 
+def build_family_head(head_sd, layout, args):
+    """The frequency family of a checkpoint with ``freq_*`` keys
+    (:mod:`src.freq_family`): the body and the members that its keys name.
+    Each member is a head of the kind of the first member, and decodes
+    ``--forecast-len`` values at the backbone's one patch size."""
+    body, members = layout
+    if args.strategy != "B4":
+        raise SystemExit(f"a frequency family scores under --strategy B4, "
+                         f"not {args.strategy}")
+    part = family_member_state(head_sd, members[0])
+    print(f"  [eval] frequency family: body {body}, members {members}")
+    return FrequencyFamilyHead(
+        lambda: build_eval_head(part, args.forecast_len, args), members, body)
+
+
+def family_config_head(family, config_name, freq):
+    """The decoder of one eval config: the member of its frequency. The
+    log names the member of each config."""
+    key = family_member(freq, family.members)
+    print(f"  [eval] {config_name}: frequency {freq}, family member {key}")
+    return family.member(key)
+
+
 def build_eval_head(head_sd, forecast_len, args):
     """An empty head of the kind ``head_sd`` holds, decoding
     ``forecast_len`` values: GRU, linear probe or transformer, point,
@@ -728,6 +757,8 @@ def load_models(args, device):
     head_sd = (None if no_head_file
                else load_head_state(args.head_path, device))
     bank_sizes = head_bank_sizes(head_sd) if head_sd is not None else ()
+    # A frequency family names its body and its members with its own keys.
+    family = family_layout_of(head_sd) if head_sd is not None else None
     if patch_sizes and not no_head_file and not bank_sizes:
         raise SystemExit(f"{args.backbone_path} has one patch encoder per "
                          f"patch size {patch_sizes}; score it with its head "
@@ -913,6 +944,8 @@ def load_models(args, device):
     if bank_sizes:
         head = build_head_bank(head_sd, bank_sizes,
                                patch_sizes or (BACKBONE_CONFIG["W"],), args)
+    elif family is not None:
+        head = build_family_head(head_sd, family, args)
     else:
         head = build_eval_head(head_sd, args.forecast_len, args)
     head.load_state_dict(head_sd)
@@ -931,6 +964,8 @@ def main():
     backbone, head = load_models(args, device)
     # #412: a head bank hands each config the head of its patch size.
     bank = head if isinstance(head, ForecastingHeadBank) else None
+    # A frequency family hands each config the decoder of its frequency.
+    family = head if isinstance(head, FrequencyFamilyHead) else None
     print(f"  Backbone: {args.backbone_path}")
     print(f"  Head: {args.head_path}")
     print(f"  Strategy: {args.strategy} (forecast_len={args.forecast_len})")
@@ -1022,6 +1057,9 @@ def main():
                         backbone, dataset.freq).to(device).eval()
                 elif bank is not None:
                     head = bank.for_frequency(backbone, dataset.freq)
+                elif family is not None:
+                    head = family_config_head(family, config_name,
+                                              dataset.freq)
 
                 # Create predictor for this dataset. R (#425) reads the
                 # labels of the same test data the metrics read.

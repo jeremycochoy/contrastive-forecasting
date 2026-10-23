@@ -1,0 +1,8 @@
+run	stop_k	arm	tag	head_steps	backbone
+blk	200	control	blk_bb200k_h500_control	500	/home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-419c/cos200k/leg_665k/cf419_cos200k_r2_200k.pth
+blk	200	shared_strict	blk_bb200k_h500_ff_shared_strict	500	/home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-419c/cos200k/leg_665k/cf419_cos200k_r2_200k.pth
+blk	200	shared_draw	blk_bb200k_h500_ff_shared_draw	500	/home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-419c/cos200k/leg_665k/cf419_cos200k_r2_200k.pth
+blk	200	heads_strict	blk_bb200k_h500_ff_heads_strict	500	/home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-419c/cos200k/leg_665k/cf419_cos200k_r2_200k.pth
+blk	200	heads_draw	blk_bb200k_h500_ff_heads_draw	500	/home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-419c/cos200k/leg_665k/cf419_cos200k_r2_200k.pth
+blk	200	shared_strict_m16	blk_bb200k_h500_ff_shared_strict_m16	500	/home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-419c/cos200k/leg_665k/cf419_cos200k_r2_200k.pth
+blk	200	heads_strict_m16	blk_bb200k_h500_ff_heads_strict_m16	500	/home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-419c/cos200k/leg_665k/cf419_cos200k_r2_200k.pth

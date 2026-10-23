@@ -76,6 +76,8 @@
 #   CF425_SCORE=0 ...                 # train the heads, and score nothing
 #   CF425_GPU=1 ...                   # the GPU of the waves and the scores
 #   CF425_TRAIN_THREADS=4 ...         # the CPU threads of each trainer
+#   CF425_BB_SHAPE="--d-model 384 --n-heads 8 --num-layers 6" ...
+#                                     # another backbone shape (all jobs)
 #   CF425_HEAD_ARCH=linear nohup setsid bash queue.sh \
 #     >>/workspace/results/cf-425-lin/queue.log 2>&1 &     # the linear queue
 # The linear queue on elisa, on two GPUs: queue_elisa.sh.
@@ -130,7 +132,9 @@ SN_REF="${CF425_SN_REF:-$HOME/workspaces/gift-eval/results/seasonal_naive/all_re
 SN_BYTES=24831
 STREAMS="old gift_pretrain"
 # The backbone shape of every run of this card. One word for `env`.
-SHAPE="--d-model 384 --n-heads 8 --num-layers 3"
+# CF425_BB_SHAPE replaces it for every job of the table: grn_ema099_f6 of
+# 2026-10-10_frequency_family_head has a forecaster of 6 layers.
+SHAPE="${CF425_BB_SHAPE:---d-model 384 --n-heads 8 --num-layers 3}"
 LOCKS="$RES/locks"
 FAILED="$RES/failed"
 

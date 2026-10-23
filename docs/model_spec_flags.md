@@ -221,3 +221,74 @@ that read a different data stream: source, seed, vocabulary, batch size,
 start or step count. Each report gives the step rate and the share of time
 that the process waited for a batch. A process that waits is as fast as its
 stream. A process that does not wait is as fast as its frozen backbones.
+
+## The frequency family
+
+A backbone with one patch size reads each series in patches of 16 values.
+`--freq-family` gives the forecast head of such a backbone a family of
+decoders (`src/freq_family.py`). The frequency of a series selects its
+decoder, a member. Each member decodes the 9 quantiles of the 16 values of
+the next patch, as the standard head does. The key of a member is the
+inference patch size of its Moirai frequency class. The key selects the
+decoder only: the backbone reads patches of 16 for each member.
+
+| Member | Frequency classes |
+|---|---|
+| 128 | S |
+| 64 | T |
+| 32 | H |
+| 16 | D, B, W, M, Q, Y, and a series with no label |
+
+Q and Y are 0.02% of the GiftEvalPretrain stream. A member of their own
+cannot train, so they use the member 16.
+
+Flags of `train_forecasting_head.py`:
+
+- `--freq-family shared|heads`. Default: none, the standard head. `shared`
+  is one transformer body with one output layer for each member. `heads` is
+  one complete standard head for each member.
+- `--freq-family-rule strict|draw`. Default: `strict`. Under `strict`, a row
+  trains the member that scores its frequency. Under `draw`, a row draws one
+  member from the Moirai training range of its frequency, at each step. S
+  draws from 64 and 128, T from 32 to 128, H from 32 and 64. D, B, W and M
+  draw from 16 and 32. Q and Y train 16. A row with no label draws from each
+  member. The score always uses the fixed member.
+- `--freq-family-members K1,K2,...`. Default: `16,32,64,128`. A class whose
+  key is not in the list uses the member 16. The list `16` gives a family of
+  one member: it writes the loss rows of the standard head, bit for bit.
+
+Each other flag stays. The loss is the loss of the standard head, with each
+row decoded by its member. The members are built in increasing order of
+their key. So with one seed, the 16 member starts from the weights of the
+standard head. The trainer prints the count of rows of each member at its
+end.
+
+The trainer refuses a family in these cases:
+
+- A backbone that trains a head bank: patch sizes, or the mean/std scaling.
+- `--reconstruction` or `--mixed-rollout`.
+- No `--quantile-head`, or `--head-arch transformer-gaussian`.
+- A `--forecast-len` other than 16.
+- A stream with no frequency labels.
+- `--freq-family shared` with a head other than the transformer head.
+
+It also refuses a rule or a member list with no `--freq-family`.
+
+The head file names the body and the members with its keys:
+`freq_heads.<key>.*`, or `freq_body.*` and `freq_out.<key>.*`. No key starts
+with `heads.`, so the code of a head bank does not read a family.
+`eval_gift_eval_official.py` reads the family off these keys and needs no
+flag. It gives each config the member of its frequency, and its log names
+that member: `[eval] ett1/15T/short: frequency 15T, family member 64`. On
+the 97 configs, 64 gets 30, 32 gets 31, 16 gets 30 and 128 gets 6. The
+script scores a family under B4 only.
+
+`head_eval_bb.sh`:
+
+- `CF_FREQ_FAMILY=shared|heads` trains a family and scores it under B4.
+- `CF_FREQ_FAMILY_RULE=strict|draw` sets the rule (default `strict`).
+- `CF_FREQ_FAMILY_MEMBERS=<list>` sets the member keys.
+
+The tag must end in `_ff_<body>_<rule>`. For a member list, `_m` and the
+keys follow, with `-` between the keys: `_ff_shared_strict_m16`. So a family
+head and a standard head of one checkpoint share no file.
