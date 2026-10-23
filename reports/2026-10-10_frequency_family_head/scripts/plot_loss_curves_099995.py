@@ -2,7 +2,7 @@
 grn_ema099995_f6_rep01 (yellow in the score figure: 6 forecaster layers, the
 L_rep weight 0.1 at each step), grn_ema099995 (magenta, 3 forecaster layers)
 and grn_ema099995_f6 (grey, 6 forecaster layers). Magenta and grey have the
-L_rep weight 1 to 0 over the first 10,000 steps; the log has no L_rep after
+L_rep weight 1 to 0 over the first 10,000 steps. The log has no L_rep after
 that. The other loss flags are the same (see plot_loss_composition_099995.py).
 
 Each panel has four curves, each term as it enters the total loss:
@@ -80,7 +80,7 @@ def read_table():
 
 
 def draw_run(ax, cols, title):
-    """The four terms of one run; a zero (L_rep after 10k) is not drawn. A
+    """The four terms of one run. A zero (L_rep after 10k) is not drawn. A
     note gives the first L_rep value when it lies above the panel."""
     for term, (_, colour_hex, label) in TERMS.items():
         values = np.where(cols[term] > 0, cols[term], np.nan)

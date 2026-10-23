@@ -10,8 +10,8 @@ the result folders of the queues:
         /home/jupyter/cf_runs/box_heads/recon_results* \
         /home/jupyter/cf_runs/box_heads3/recon_results*
 
-(box_heads: the R results of the vast box from 10-14; box_heads3: the
-missing R scores, computed on another vast box from 10-20).
+(box_heads holds the R results of the vast box from 10-14. box_heads3
+holds the missing R scores, computed on another vast box from 10-20.)
 
 For each table of TABLES, it writes results/recon_<table>_trajectories.tsv
 (transformer head) and results/recon_<table>_lin_trajectories.tsv (linear
