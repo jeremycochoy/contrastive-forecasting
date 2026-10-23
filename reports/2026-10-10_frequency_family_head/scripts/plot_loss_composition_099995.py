@@ -14,16 +14,8 @@ column cpc_aux is blank). So the column `loss` is the sum of:
 
 Each value is the mean over log-spaced bins of steps (BINS bins from 1k to
 665k), drawn only when the run logged all the steps of the bin. Writes
-results/loss_parts_099995_binned.tsv, plots/loss_composition_099995.png (the
-stacked parts of each run) and plots/loss_terms_099995.png. The top row of
-loss_terms has the total and SIGReg of the three runs on a log scale. Its
-bottom row has, for each run, the forecast error of each rollout depth
-j = 0..3 against the student latent, 2 x cos_err_dj = 2 - 2 cos(f^(j)_t,
-h_{t+1+j}) (columns cos_err_dj, `rollout_cos_error` in src/metrics.py; a
-logged diagnostic that has no part in the loss), and
-L_align against the teacher latent: depth 0 (column l_align) and the mean of
-depths 1-3 (the rest / 3). The log has no column for L_align at each of the
-depths 1-3.
+results/loss_parts_099995_binned.tsv and plots/loss_composition_099995.png
+(the stacked parts of each run).
 
 Usage: python3 plot_loss_composition_099995.py
 """
@@ -41,12 +33,9 @@ RUNS_DIR = Path("/home/jupyter/cf_runs")
 BLK_DIR = Path("/home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-419c/cos200k/leg_665k")
 TABLE = STUDY / "results" / "loss_parts_099995_binned.tsv"
 OUT_STACK = STUDY / "plots" / "loss_composition_099995.png"
-OUT_TERMS = STUDY / "plots" / "loss_terms_099995.png"
 FIRST, TOTAL, BINS = 1000, 665_000, 60
 TICKS_K = [1, 10, 40, 100, 200, 400, 665]
 STACK_TOP = 2.5
-DEPTHS = range(4)  # the rollout depths 0-3 (--train-rollout-depth 3)
-DEPTH_COLOURS = ["#7f2704", "#d94801", "#f16913", "#fdae6b"]  # depth 0 darkest
 # run -> ([(loss file, last step taken from it)], colour, label)
 RUNS = {
     "grn_ema099995": ([(RUNS_DIR / "grn_ema099995/ckpt/grn_ema099995_losses.csv", 180_000),
@@ -69,17 +58,16 @@ PART_STYLE = {
 
 
 def row_parts(row):
-    """The parts of one loss row: total, rep, align_d0, sigreg_e, sigreg_h,
-    rest, then 2 x cos_err_dj of the depths 0-3."""
+    """The parts of one loss row: total, rep, align_d0, sigreg_e, sigreg_h
+    and rest."""
     rep = float(row["rep_w"]) * float(row["l_rep"]) if row["l_rep"] else 0.0
     total, align = float(row["loss"]), float(row["l_align"])
     sig_e, sig_h = float(row["sigreg_e"]), float(row["sigreg_h"])
-    errors = [2.0 * float(row[f"cos_err_d{j}"]) for j in DEPTHS]
-    return (total, rep, align, sig_e, sig_h, total - rep - align - sig_e - sig_h, *errors)
+    return total, rep, align, sig_e, sig_h, total - rep - align - sig_e - sig_h
 
 
 def logged_parts(files):
-    """(steps, parts array [n, 6]) of the loss ``files``; each file gives the
+    """(steps, parts array [n, 6]) of the loss ``files``. Each file gives the
     steps after the last step of the file before it, up to its own limit."""
     steps, parts, after = [], [], 0
     for path, last in files:
@@ -106,8 +94,7 @@ def binned(steps, parts):
 
 def write_table():
     with open(TABLE, "w") as f:
-        f.write("run\tbin_centre_step\ttotal\trep\talign_d0\tsigreg_e\tsigreg_h\talign_rest\t"
-                + "\t".join(f"err_d{j}" for j in DEPTHS) + "\n")
+        f.write("run\tbin_centre_step\ttotal\trep\talign_d0\tsigreg_e\tsigreg_h\talign_rest\n")
         for run, (files, _, _) in RUNS.items():
             for row in binned(*logged_parts(files)):
                 f.write(f"{run}\t{row[0]:.0f}\t" + "\t".join(f"{v:.6f}" for v in row[1:]) + "\n")
@@ -126,19 +113,18 @@ def read_table():
     return table
 
 
-def log_steps(ax, label=True):
+def log_steps(ax):
     ax.set_xscale("log")
     ax.set_xlim(FIRST * 0.9, TOTAL * 1.1)
     ax.xaxis.set_major_locator(FixedLocator([k * 1000 for k in TICKS_K]))
     ax.xaxis.set_minor_locator(NullLocator())
     ax.set_xticklabels([f"{k}k" for k in TICKS_K])
-    if label:
-        ax.set_xlabel("Training step (batch 64, log scale)")
+    ax.set_xlabel("Training step (batch 64, log scale)")
     ax.grid(alpha=0.3)
 
 
 def draw_stack(ax, run, cols):
-    """The stacked parts of one run; L_rep goes above the panel before 10k."""
+    """The stacked parts of one run. L_rep goes above the panel before 10k."""
     ax.stackplot(cols["bin_centre_step"], *[cols[p] for p in PARTS],
                  colors=[PART_STYLE[p][0] for p in PARTS],
                  labels=[PART_STYLE[p][1] for p in PARTS])
@@ -162,54 +148,9 @@ def plot_stack(table):
     fig.savefig(OUT_STACK, dpi=130)
 
 
-def draw_run_terms(axes, table):
-    """Top row: the total and SIGReg of the three runs, one colour per run."""
-    titles = {"total": "Total loss", "sigreg_h": "SIGReg on h", "sigreg_e": "SIGReg on e"}
-    for ax, (column, title) in zip(axes, titles.items()):
-        for run, (_, colour_hex, label) in RUNS.items():
-            cols = table[run]
-            ax.plot(cols["bin_centre_step"], cols[column], color=colour_hex, lw=2.2, label=label)
-        ax.set_yscale("log")
-        ax.set_title(title, fontsize=11, loc="left")
-        log_steps(ax, label=False)
-    axes[0].set_ylabel("Mean over log-spaced bins (log scale)")
-    axes[0].legend(loc="upper right", fontsize=9)
-
-
-def draw_depths(ax, run, cols):
-    """Bottom row: the error of each rollout depth against the student latent
-    (solid, a logged diagnostic outside the loss), and L_align against the
-    teacher latent (dashed, the trained term)."""
-    steps = cols["bin_centre_step"]
-    for j in DEPTHS:
-        ax.plot(steps, cols[f"err_d{j}"], color=DEPTH_COLOURS[j], lw=2.0,
-                label=f"Diagnostic only, depth {j}: 2 - 2 cos(f, student h)")
-    ax.plot(steps, cols["align_d0"], color="#08519c", lw=2.0, ls="--",
-            label="Trained: L_align depth 0, 2 - 2 cos(f, teacher h)")
-    ax.plot(steps, cols["align_rest"] / 3, color="#6baed6", lw=2.0, ls="--",
-            label="Trained: L_align, mean of depths 1-3 (teacher h)")
-    ax.set_title(RUNS[run][2], fontsize=10, loc="left")
-    log_steps(ax)
-
-
-def plot_terms(table):
-    fig, axes = plt.subplots(2, 3, figsize=(17, 10))
-    draw_run_terms(axes[0], table)
-    for ax, run in zip(axes[1], RUNS):
-        draw_depths(ax, run, table[run])
-        ax.sharey(axes[1][0])
-    axes[1][0].set_ylim(0.1, 1.15)  # all three runs: BLK goes down to 0.145
-    axes[1][0].set_ylabel("Mean over log-spaced bins of steps")
-    axes[1][0].legend(loc="upper right", fontsize=8.5)
-    fig.tight_layout()
-    fig.savefig(OUT_TERMS, dpi=130)
-
-
 def main():
     write_table()
-    table = read_table()
-    plot_stack(table)
-    plot_terms(table)
+    plot_stack(read_table())
 
 
 if __name__ == "__main__":

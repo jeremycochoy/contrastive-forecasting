@@ -21,7 +21,7 @@ GRN+EMA 0.9998: arm grn_ema09998, GRN+EMA 0.99995: arm grn_ema099995, with 6
 forecaster layers: arm grn_ema099995_f6, and with the L_rep weight 0.1:
 arm grn_ema099995_f6_rep01): results/scores.tsv
 (B4, arm `control`), and results/recon_*.tsv (R, with the columns arm, stop in
-thousands of steps, GM-Relative MASE; collect_recon.py writes them).
+thousands of steps, GM-Relative MASE, from collect_recon.py).
 The point at 1k steps of GRN and BLK is a run of the first 1,000 steps
 again, with the flags and the seed of the run: B4 in results/scores.tsv (runs
 abc_gift and blk at stop_k 1), R in results/recon_green*.tsv and
@@ -48,13 +48,13 @@ from run_style import STYLE, P, colour, line, tagged  # noqa: E402
 from plot_gm_rates import XSCALE  # noqa: E402  (batch-256 runs: 4)
 
 GREEN = "abc_gift"
-GREEN_COLOUR = "#2ca02c"  # the colour of the new run in plot_scores.py
+GREEN_COLOUR = "#2ca02c"
 GRN_EMA0999 = "grn_ema0999"
-GRN_EMA0999_COLOUR = "#bcbd22"  # its colour in plot_ema_plan.py
+GRN_EMA0999_COLOUR = "#bcbd22"
 GRN_EMA09998 = "grn_ema09998"
-GRN_EMA09998_COLOUR = "#008080"  # its colour in plot_ema_plan.py
+GRN_EMA09998_COLOUR = "#008080"
 GRN_EMA099995 = "grn_ema099995"
-GRN_EMA099995_COLOUR = "#ff00ff"  # its colour in plot_ema_plan.py
+GRN_EMA099995_COLOUR = "#ff00ff"
 GRN_EMA099995_F6 = "grn_ema099995_f6"
 GRN_EMA099995_F6_COLOUR = "#7f7f7f"  # no other run of this figure has this colour
 GRN_EMA099995_F6_REP01 = "grn_ema099995_f6_rep01"
