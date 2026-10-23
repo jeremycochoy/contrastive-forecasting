@@ -46,9 +46,12 @@ _NORMALIZED_FORM_SHAPES = (
 #   'mean' divides them by k + 1, so the f-side holds its k = 0 weight at
 #          every depth. The depth then changes what the model trains on, and
 #          not how much the f-side outweighs the rest.
-# At k = 0 there is one copy and the two reductions agree exactly. The mean
-# runs over the f-bearing copies ONLY: the terms that carry no f enter once,
-# at their configured weight, under both reductions.
+#   'halving' adds copy j at the weight 1 / 2^j: 1, 1/2, 1/4, 1/8 at k = 3.
+#          Depth 0 keeps its weight, so the f-side carries 2 - 1/2^k times
+#          its k = 0 weight, and the nearest depths weigh the most.
+# At k = 0 there is one copy and the three reductions agree exactly. The mean
+# and the halving weigh the f-bearing copies ONLY: the terms that carry no f
+# enter once, at their configured weight, under every reduction.
 #
 # Every copy runs the SAME code path as depth 0, on views where every h index
 # has shifted by j — so f^(j) lands wherever f^(0) lands, in the same role,
@@ -129,14 +132,15 @@ def resolve_rollout_depth(depth_override, config_depth, rollout_latents,
     return depth
 
 
-ROLLOUT_REDUCTIONS = ('sum', 'mean')
+ROLLOUT_REDUCTIONS = ('sum', 'mean', 'halving')
 
 
 def resolve_rollout_reduce(reduce_override, config_reduce):
     """How the k + 1 rollout-depth copies combine (#401).
 
     `'sum'` (default) is #373's objective. `'mean'` divides the copies by
-    k + 1, so the f-side holds its k = 0 weight at every depth. The function
+    k + 1, so the f-side holds its k = 0 weight at every depth. `'halving'`
+    weighs copy j by 1 / 2^j, depth 0 included at 1. The function
     argument wins over the training-config key `train_rollout_reduce`, the
     precedence every other run-level knob here uses.
 
@@ -157,12 +161,12 @@ def reduce_depth_terms(terms, reduce):
     """Combine the k + 1 copies of an f-bearing term (#401).
 
     `terms[0]` is the depth-0 copy. One copy returns itself, so k = 0 is
-    unchanged under either reduction.
+    unchanged under every reduction. `'halving'` adds copy j at 1 / 2^j.
     """
     total = terms[0]
-    for term in terms[1:]:
-        total = total + term
-    if reduce == 'sum' or len(terms) == 1:
+    for depth, term in enumerate(terms[1:], start=1):
+        total = total + (term * 0.5 ** depth if reduce == 'halving' else term)
+    if reduce in ('sum', 'halving') or len(terms) == 1:
         return total
     return total / len(terms)
 
@@ -3218,10 +3222,11 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             pad_patches=(None if pad_patches is None
                          else pad_patches[:, :f_view.shape[1]])))
 
-    if depth_copies and reduce == 'sum':
+    if depth_copies and reduce in ('sum', 'halving'):
         # #373's objective, byte for byte: the copies are added to a `loss`
-        # that already holds both sides.
-        loss = reduce_depth_terms([loss] + depth_copies, 'sum')
+        # that already holds both sides. The halving adds them at 1 / 2^j,
+        # and depth 0 keeps the weight 1 of both sides, so it needs no probe.
+        loss = reduce_depth_terms([loss] + depth_copies, reduce)
     elif depth_copies:
         # #401 `mean`. The division covers the f-bearing copies only, so the
         # f-side of depth 0 has to be told apart from the h-side it is added

@@ -654,7 +654,7 @@ def build_parser():
                         "every depth would then add exactly zero. Adds "
                         "cos_err_d0..dk to the losses CSV. Full reference: "
                         "docs/train_rollout_depth.md.")
-    p.add_argument("--train-rollout-reduce", choices=["sum", "mean"],
+    p.add_argument("--train-rollout-reduce", choices=["sum", "mean", "halving"],
                    default="sum",
                    help="How the k + 1 copies of every f-bearing term combine "
                         "(#401). 'sum' (default) is #373's objective: the "
@@ -664,9 +664,12 @@ def build_parser():
                         "f-side holds its k = 0 weight at every depth, and "
                         "the depth changes what the model trains on rather "
                         "than how much the f-side outweighs the rest. The "
-                        "mean covers the f-bearing copies only. At k = 0 "
-                        "there is one copy and the two agree exactly, so "
-                        "every published run reproduces under either. "
+                        "mean covers the f-bearing copies only. 'halving' "
+                        "adds copy j at the weight 1 / 2^j (1, 1/2, 1/4, 1/8 "
+                        "at k = 3), depth 0 included at 1, so the nearest "
+                        "depths weigh the most. At k = 0 "
+                        "there is one copy and the three agree exactly, so "
+                        "every published run reproduces under each. "
                         "docs/train_rollout_depth.md.")
     p.add_argument("--ema-embedding", action="store_true",
                    help="BYOL/JEPA EMA-teacher copy of the patch-embedding "
