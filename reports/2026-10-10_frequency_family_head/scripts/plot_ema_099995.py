@@ -5,7 +5,7 @@ teacher to move half way to a fixed student, ln 0.5 / ln(momentum).
   our runs  the column `ema_tau` of their loss files every 1,000 steps. The
             plan of both runs: 0.99995 to 1.0 in a straight line over
             665,000 steps. grn_ema099995 stopped at step 391,000 (the owner,
-            10-21). The plan of grn_ema099995_f6 after its last logged step.
+            10-21), grn_ema099995_f6 at step 440,000 (10-23).
   I-JEPA    0.996 to 1.0 in a straight line over its training, batch 2048
   V-JEPA    0.998 to 1.0 in a straight line over 1.25 times its training,
             batch 3072
@@ -30,10 +30,8 @@ RUNS_DIR = Path("/home/jupyter/cf_runs")
 TABLE = STUDY / "results" / "ema_tau_099995_logged.tsv"
 OUT = STUDY / "plots" / "ema_schedule_099995.png"
 TOTAL = 665_000
-START, END = 0.99995, 1.0
 BATCH = 64
 EVERY = 1000
-F6 = "grn_ema099995_f6"
 # run -> (loss files in step order, colour, line width, label). grn_ema099995
 # went on from its 180k checkpoint in ckpt_r2: a later file wins on a step.
 RUNS = {
@@ -41,9 +39,9 @@ RUNS = {
         [RUNS_DIR / "grn_ema099995/ckpt/grn_ema099995_losses.csv",
          RUNS_DIR / "grn_ema099995/ckpt_r2/grn_ema099995_r2_losses.csv"],
         "#ff00ff", 7, "GRN+EMA 0.99995 (stopped)"),
-    F6: (
+    "grn_ema099995_f6": (
         [RUNS_DIR / "grn_ema099995_f6/ckpt/grn_ema099995_f6_losses.csv"],
-        "#7f7f7f", 2.5, "GRN+EMA 0.99995, 6 forecaster layers"),
+        "#7f7f7f", 2.5, "GRN+EMA 0.99995, 6 forecaster layers (stopped)"),
 }
 # name -> (start, end, ramp length in fractions of the training, batch size,
 # line style)
@@ -57,11 +55,6 @@ Y_TICKS = [5_000, 10_000, 20_000, 50_000, 100_000, 200_000, 500_000, 1_000_000]
 def half_life(tau):
     """Steps for the teacher to move half way to a fixed student."""
     return np.log(0.5) / np.log(tau)
-
-
-def plan_tau(steps):
-    """The momentum of the plan of our runs at ``steps``."""
-    return START + (END - START) * np.asarray(steps) / TOTAL
 
 
 def jepa_tau(fraction, start, end, span, batch):
@@ -102,7 +95,7 @@ def read_table():
 
 
 def draw_runs(ax, points):
-    """The logged half-life of our runs, and the plan of grn_ema099995_f6."""
+    """The logged half-life of our runs."""
     for run, (_, colour_hex, width, label) in RUNS.items():
         steps, taus = points[run]
         last = f"{steps[-1] // 1000}k"
@@ -111,9 +104,6 @@ def draw_runs(ax, points):
         ax.annotate(f"{half_life(taus[-1]) / 1000:.1f}k steps at {last}",
                     (steps[-1], half_life(taus[-1])), xytext=(8, -16),
                     textcoords="offset points", fontsize=10, color=colour_hex)
-    steps = np.linspace(points[F6][0][-1], TOTAL, 1000)[:-1]
-    ax.plot(steps, half_life(plan_tau(steps)), color=RUNS[F6][1], ls=":", lw=2.5,
-            label=f"{RUNS[F6][3]}: plan, {START} to 1 over 665k")
 
 
 def draw_jepa(ax):

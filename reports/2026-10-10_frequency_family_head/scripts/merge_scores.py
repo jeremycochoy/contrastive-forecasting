@@ -1,10 +1,10 @@
 """Merge the score tables of several result folders of the forecast waves
 into results/scores.tsv and results/config_mase.tsv of this report.
 
-The waves of this report ran in two places: on elisa
-(/home/jupyter/cf_runs/freq_family/results) and, from 10-14, on a vast box
-(its results pulled to /home/jupyter/cf_runs/box_heads/ff_results). Each
-folder holds a scores.tsv (one row for each run, stop and arm) and a
+The waves of this report ran on elisa
+(/home/jupyter/cf_runs/freq_family/results) and, from 10-14, on three vast
+boxes (their results pulled to /home/jupyter/cf_runs/box_heads/ff_results,
+box_heads2/ff_results and box_heads3/ff_results). Each folder holds a scores.tsv (one row for each run, stop and arm) and a
 config_mase.tsv (one row for each run, stop, arm and config).
 
     python3 merge_scores.py <result folder> [<result folder> ...]
