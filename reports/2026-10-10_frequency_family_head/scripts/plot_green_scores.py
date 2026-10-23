@@ -3,7 +3,7 @@ for the runs of this report (GRN, BLK+EMA, GRN+EMA 0.95, GRN+EMA 0.98, GRN+EMA
 0.99, GRN+EMA 0.999, GRN+EMA 0.9998, GRN+EMA 0.99995, GRN+EMA 0.99995 with a
 forecaster of 6 layers, the same with the L_rep weight 0.1 at each step,
 BLK+EMA cosine) next to
-ABC, CYN and BLK,
+CYN and BLK,
 and the forecast of MPE (Moirai, patch heads, EWMA, new data, batch 256: x 4
 for the data seen). Writes plots/forecast_and_reconstruction.png: three panels
 on one x axis.
@@ -15,7 +15,7 @@ on one x axis.
 
 A dashed vertical line joins the scores of one checkpoint in the panels.
 
-Reads the scores of ABC, CYN and BLK of #412 and #425
+Reads the scores of CYN and BLK of #412 and #425
 (reports/2026-09-06_moirai_small_size/results/gm_trajectories.tsv,
 reports/2026-10-06_encoder_reconstruction/results/*.tsv), and the scores of
 the runs of this report (GRN: arm abc_gift, BLK+EMA: arm blk_ema, GRN+EMA 0.95:
@@ -24,9 +24,9 @@ GRN+EMA 0.999: arm grn_ema0999, GRN+EMA 0.9998: arm grn_ema09998, GRN+EMA
 0.99995: arm grn_ema099995, BLK+EMA cosine: arm blk_emacos): results/scores.tsv
 (B4, arm `control`), and results/recon_*.tsv (R, with the columns arm, stop in
 thousands of steps, GM-Relative MASE; collect_recon.py writes them).
-The point at 1k steps of GRN, BLK and ABC is a run of the first 1,000 steps
+The point at 1k steps of GRN and BLK is a run of the first 1,000 steps
 again, with the flags and the seed of the run: B4 in results/scores.tsv (runs
-abc_gift, blk and abc at stop_k 1), R in results/recon_green*.tsv and
+abc_gift and blk at stop_k 1), R in results/recon_green*.tsv and
 results/recon_first_steps*.tsv.
 
 Usage: python3 plot_green_scores.py
@@ -75,7 +75,7 @@ BLK_EMACOS_COLOUR = "#d62728"  # its colour in plot_ema_plan.py
 NEW_RUNS = [GREEN, BLK_EMA, GRN_EMA095, GRN_EMA, GRN_EMA099, GRN_EMA0999, GRN_EMA09998,
             GRN_EMA099995, GRN_EMA099995_F6, GRN_EMA099995_F6_REP01, BLK_EMACOS]
 # Older runs with a forecast at 1k steps in results/scores.tsv: arm -> run.
-FIRST_STEPS = {"cf419_cos200k": "blk", P + "_lr10x": "abc"}
+FIRST_STEPS = {"cf419_cos200k": "blk"}
 # The newest runs: drawn above the others, so that their first points show.
 ON_TOP = {GRN_EMA09998, GRN_EMA099995, GRN_EMA099995_F6, GRN_EMA099995_F6_REP01}
 MPE = "cf421ew_moirai_native"
@@ -105,7 +105,6 @@ RUNS = [
      BLK_EMA_COLOUR, "P"),
     (BLK_EMACOS, r"$\mathbf{BLK+EMA\ cosine}$  as BLK, EMA of the teacher 0.9 to 1.0 on a cosine "
      "by 200k, then 1.0", BLK_EMACOS_COLOUR, "s"),
-    (P + "_lr10x", tagged(P + "_lr10x", "lr 5.6e-5, old data"), colour(P + "_lr10x"), "o"),
     (P + "_cos200k", tagged(P + "_cos200k", "lr cosine to 1e-6 by 200k, old data"),
      colour(P + "_cos200k"), "v"),
     ("cf419_cos200k", tagged("cf419_cos200k", "lr cosine to 1e-6 by 200k, new data"),
@@ -113,7 +112,7 @@ RUNS = [
     (MPE, tagged(MPE, "Moirai, patch heads, EWMA, new data"), colour(MPE), "d"),
 ]
 OURS = STUDY / "results"
-# The R tables of collect_recon.py (first_steps: the 1k point of BLK and ABC).
+# The R tables of collect_recon.py (first_steps: the 1k point of BLK).
 OUR_R_TABLES = ["green", "blk_ema", "grn_ema095", "grn_ema098", "grn_ema099", "grn_ema0999",
                 "grn_ema09998", "grn_ema099995", "grn_ema099995_f6", "grn_ema099995_f6_rep01",
                 "blk_emacos", "first_steps"]
