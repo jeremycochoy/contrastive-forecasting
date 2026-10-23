@@ -1,6 +1,6 @@
 """The forecast and the reconstruction of the encoder latent through training,
-for the runs of this report (GRN, BLK+EMA, GRN+EMA 0.95, GRN+EMA 0.98, GRN+EMA
-0.99, GRN+EMA 0.999, GRN+EMA 0.9998, GRN+EMA 0.99995, GRN+EMA 0.99995 with a
+for the runs of this report (GRN, BLK+EMA, GRN+EMA 0.999, GRN+EMA 0.9998,
+GRN+EMA 0.99995, GRN+EMA 0.99995 with a
 forecaster of 6 layers, the same with the L_rep weight 0.1 at each step,
 BLK+EMA cosine) next to
 CYN and BLK,
@@ -18,8 +18,7 @@ A dashed vertical line joins the scores of one checkpoint in the panels.
 Reads the scores of CYN and BLK of #412 and #425
 (reports/2026-09-06_moirai_small_size/results/gm_trajectories.tsv,
 reports/2026-10-06_encoder_reconstruction/results/*.tsv), and the scores of
-the runs of this report (GRN: arm abc_gift, BLK+EMA: arm blk_ema, GRN+EMA 0.95:
-arm grn_ema095, GRN+EMA 0.98: arm grn_ema098, GRN+EMA 0.99: arm grn_ema099,
+the runs of this report (GRN: arm abc_gift, BLK+EMA: arm blk_ema,
 GRN+EMA 0.999: arm grn_ema0999, GRN+EMA 0.9998: arm grn_ema09998, GRN+EMA
 0.99995: arm grn_ema099995, BLK+EMA cosine: arm blk_emacos): results/scores.tsv
 (B4, arm `control`), and results/recon_*.tsv (R, with the columns arm, stop in
@@ -53,10 +52,6 @@ GREEN = "abc_gift"
 GREEN_COLOUR = "#2ca02c"  # the colour of the new run in plot_scores.py
 BLK_EMA = "blk_ema"
 BLK_EMA_COLOUR = "#ff7f0e"  # no other run of this figure has this colour
-GRN_EMA = "grn_ema098"
-GRN_EMA_COLOUR = "#6a3d9a"  # its colour in plot_ema_plan.py
-GRN_EMA099 = "grn_ema099"
-GRN_EMA099_COLOUR = "#e377c2"  # its colour in plot_ema_plan.py
 GRN_EMA0999 = "grn_ema0999"
 GRN_EMA0999_COLOUR = "#bcbd22"  # its colour in plot_ema_plan.py
 GRN_EMA09998 = "grn_ema09998"
@@ -67,13 +62,10 @@ GRN_EMA099995_F6 = "grn_ema099995_f6"
 GRN_EMA099995_F6_COLOUR = "#7f7f7f"  # no other run of this figure has this colour
 GRN_EMA099995_F6_REP01 = "grn_ema099995_f6_rep01"
 GRN_EMA099995_F6_REP01_COLOUR = "#ffb000"  # no other run of this figure has this colour
-GRN_EMA095 = "grn_ema095"
-GRN_EMA095_COLOUR = "#8c564b"  # its colour in plot_ema_plan.py
 BLK_EMACOS = "blk_emacos"
 BLK_EMACOS_COLOUR = "#d62728"  # its colour in plot_ema_plan.py
 # The runs of this report: their forecast comes from results/scores.tsv.
-NEW_RUNS = [GREEN, BLK_EMA, GRN_EMA095, GRN_EMA, GRN_EMA099, GRN_EMA0999, GRN_EMA09998,
-            GRN_EMA099995, GRN_EMA099995_F6, GRN_EMA099995_F6_REP01, BLK_EMACOS]
+NEW_RUNS = [GREEN, BLK_EMA, GRN_EMA0999, GRN_EMA09998, GRN_EMA099995, GRN_EMA099995_F6, GRN_EMA099995_F6_REP01, BLK_EMACOS]
 # Older runs with a forecast at 1k steps in results/scores.tsv: arm -> run.
 FIRST_STEPS = {"cf419_cos200k": "blk"}
 # The newest runs: drawn above the others, so that their first points show.
@@ -85,12 +77,6 @@ OUT = STUDY / "plots" / "forecast_and_reconstruction.png"
 # (arm, legend label, colour, marker): the runs of the figure.
 RUNS = [
     (GREEN, r"$\mathbf{GRN}$  lr 5.6e-5, new data", GREEN_COLOUR, "D"),
-    (GRN_EMA095, r"$\mathbf{GRN+EMA\ 0.95}$  as GRN, EMA of the teacher 0.95 to 1.0 over 665k",
-     GRN_EMA095_COLOUR, "p"),
-    (GRN_EMA, r"$\mathbf{GRN+EMA\ 0.98}$  as GRN, EMA of the teacher 0.98 to 1.0 over 665k",
-     GRN_EMA_COLOUR, "X"),
-    (GRN_EMA099, r"$\mathbf{GRN+EMA\ 0.99}$  as GRN, EMA of the teacher 0.99 to 1.0 over 665k",
-     GRN_EMA099_COLOUR, "h"),
     (GRN_EMA0999, r"$\mathbf{GRN+EMA\ 0.999}$  as GRN, EMA of the teacher 0.999 to 1.0 over 665k",
      GRN_EMA0999_COLOUR, ">"),
     (GRN_EMA09998, r"$\mathbf{GRN+EMA\ 0.9998}$  as GRN, EMA of the teacher 0.9998 to 1.0 over 665k",
@@ -113,8 +99,7 @@ RUNS = [
 ]
 OURS = STUDY / "results"
 # The R tables of collect_recon.py (first_steps: the 1k point of BLK).
-OUR_R_TABLES = ["green", "blk_ema", "grn_ema095", "grn_ema098", "grn_ema099", "grn_ema0999",
-                "grn_ema09998", "grn_ema099995", "grn_ema099995_f6", "grn_ema099995_f6_rep01",
+OUR_R_TABLES = ["green", "blk_ema", "grn_ema0999", "grn_ema09998", "grn_ema099995", "grn_ema099995_f6", "grn_ema099995_f6_rep01",
                 "blk_emacos", "first_steps"]
 # panel title, y range, the score tables, and whether the forecast of the
 # runs of this report comes from results/scores.tsv
