@@ -28,6 +28,7 @@ TABLES = {"abc_gift": "green", "blk_ema": "blk_ema", "grn_ema095": "grn_ema095",
           "grn_ema09998": "grn_ema09998", "grn_ema099995": "grn_ema099995",
           "grn_ema099995_f6": "grn_ema099995_f6",
           "grn_ema099995_f6_rep01": "grn_ema099995_f6_rep01",
+          "grn_ema09998_rep003_halving": "grn_ema09998_rep003_halving",
           "blk_emacos": "blk_emacos",
           "cf419_cos200k": "first_steps",
           "k3_r100_09_lr56_fix09_dec10k_lr10x": "first_steps"}
