@@ -1,16 +1,20 @@
 """The parts of the total loss of grn_ema099995 (magenta), grn_ema099995_f6
-(grey, 6 forecaster layers) and BLK (cf419_cos200k), from their loss files.
+(grey, 6 forecaster layers), BLK (cf419_cos200k) and
+grn_ema09998_rep003_halving (red in the score figure), from their loss files.
 
-The three runs have the same loss flags: --loss-shape
+Magenta, grey and BLK have the same loss flags: --loss-shape
 cosine_similarity_batch_rep_only, L_rep with a weight from 1 to 0 over the
 first 10,000 steps, L_align on the teacher latent with rollout depth 3 and the
 sum of the 4 depths, SIGReg on e and on h with weight 1.0, CPC off (the
-column cpc_aux is blank). So the column `loss` is the sum of:
+column cpc_aux is blank). The red run has the same flags with the EMA 0.9998,
+the L_rep weight 0.03 at each step, and --train-rollout-reduce halving: the
+L_align of depth j at the weight 1 / 2^j. So the column `loss` is the sum of:
 
   rep_w x l_rep             L_rep with its weight (blank l_rep: 0)
   l_align                   L_align at depth 0, the only depth with a column
   sigreg_e, sigreg_h        SIGReg on e and on h
   the rest                  loss minus the terms above: L_align at depths 1-3
+                            (red: depth j at 1 / 2^j)
 
 Each value is the mean over log-spaced bins of steps (BINS bins from 1k to
 665k), drawn only when the run logged all the steps of the bin. Writes
@@ -46,6 +50,10 @@ RUNS = {
     "cf419_cos200k": ([(BLK_DIR / "cf419_cos200k_losses.csv", 140_000),
                        (BLK_DIR / "cf419_cos200k_r2_losses.csv", None)],
                       "#1a1a1a", "BLK, 3 forecaster layers"),
+    "grn_ema09998_rep003_halving": (
+        [(RUNS_DIR / "grn_ema09998_rep003_halving/ckpt/grn_ema09998_rep003_halving_losses.csv",
+          None)],
+        "#e41a1c", "GRN+EMA 0.9998, L_rep 0.03, depths 1/2^j (in training)"),
 }
 PARTS = ["align_d0", "align_rest", "sigreg", "rep"]
 # part -> (colour, label) of the stacked areas, from the bottom up
@@ -53,7 +61,7 @@ PART_STYLE = {
     "align_d0": ("#e6550d", "L_align, depth 0 (column l_align)"),
     "align_rest": ("#fdae6b", "L_align, depths 1 to 3 (the total minus the other parts)"),
     "sigreg": ("#31a354", "SIGReg on e and on h"),
-    "rep": ("#c6dbef", "L_rep x its weight (1 to 0 over the first 10k)"),
+    "rep": ("#c6dbef", "L_rep x its weight"),
 }
 
 
@@ -124,20 +132,22 @@ def log_steps(ax):
 
 
 def draw_stack(ax, run, cols):
-    """The stacked parts of one run. L_rep goes above the panel before 10k."""
+    """The stacked parts of one run. A note gives the first L_rep value when
+    it lies above the panel (the weight 1 to 0 over the first 10k)."""
     ax.stackplot(cols["bin_centre_step"], *[cols[p] for p in PARTS],
                  colors=[PART_STYLE[p][0] for p in PARTS],
                  labels=[PART_STYLE[p][1] for p in PARTS])
     ax.plot(cols["bin_centre_step"], cols["total"], color="black", lw=1.2, label="Total loss")
     ax.set_ylim(0, STACK_TOP)
     ax.set_title(RUNS[run][2], fontsize=10, loc="left")
-    ax.text(1100, STACK_TOP * 0.96, f"L_rep x weight: {cols['rep'][0]:.1f} at 1k, 0 from 10k",
-            fontsize=8.5, va="top")
+    if cols["rep"][0] > STACK_TOP:
+        ax.text(1100, STACK_TOP * 0.96, f"L_rep x weight: {cols['rep'][0]:.1f} at 1k, 0 from 10k",
+                fontsize=8.5, va="top")
     log_steps(ax)
 
 
 def plot_stack(table):
-    fig, axes = plt.subplots(1, 3, figsize=(17, 5.2), sharey=True)
+    fig, axes = plt.subplots(1, len(RUNS), figsize=(5.6 * len(RUNS), 5.2), sharey=True)
     for ax, run in zip(axes, RUNS):
         draw_stack(ax, run, table[run])
     axes[0].set_ylabel("Loss, mean over log-spaced bins of steps")
