@@ -6,7 +6,7 @@
 
 Grey (EMA 0.99995, 6 forecaster layers, stopped at 440k) has the lowest forecast MASE of the GRN runs: 1.0341 at 240k.
 Magenta (the same with 3 forecaster layers) has its lowest MASE, 1.0723, at 140k, and teal (EMA 0.9998) has 1.0568 at 100k.
-At 40k, yellow (grey with the L_rep weight 0.1 at each step, in training) has 1.1053, grey 1.0864 and magenta 1.0992.
+At 140k, yellow (grey with the L_rep weight 0.1 at each step) has 1.0600 and grey 1.0414.
 
 ## Learning rate
 
@@ -28,13 +28,13 @@ At batch 64, the half-life starts at 5.5k steps for I-JEPA and at 16.6k steps fo
 ![Parts of the total loss of magenta, grey, BLK and the run with L_rep 0.03 and the depth weights 1/2^j](plots/loss_composition_099995.png)
 
 From 11k, L_align at depths 1 to 3 is 77% to 80% of the total loss of magenta, grey and BLK.
-For the run with L_rep 0.03 and the depth weights 1/2^j, this part is 29% to 32% from 11k to 124k.
+For the run with L_rep 0.03 and the depth weights 1/2^j, this part is 29% to 32% from 11k to 154k.
 The total loss of magenta decreases from 1.24 at 11k to 1.05 at 366k, and grey has its maximum, 1.94, at 124k.
 
 ## Loss terms
 
 ![Each term of the loss of yellow, magenta and grey](plots/loss_curves_099995.png)
 
-Yellow keeps L_rep x its weight between 1.16 and 1.19 from step 100 to 40k.
-At 40k, L_align at depths 1 to 3 is 0.92 for yellow and for magenta, and 1.15 for grey.
-At 40k, L_align at depth 0 is 0.25 for yellow, 0.24 for magenta and 0.30 for grey.
+Yellow keeps L_rep x its weight between 1.15 and 1.19 from step 100 to 168k.
+L_align at depths 1 to 3 is 0.89 at 56k and 1.08 at 168k for yellow, 0.93 and 0.97 for magenta, and 1.25 and 1.52 for grey.
+At the same steps, L_align at depth 0 is 0.24 and 0.30 for yellow, 0.24 and 0.25 for magenta, and 0.32 and 0.39 for grey.
