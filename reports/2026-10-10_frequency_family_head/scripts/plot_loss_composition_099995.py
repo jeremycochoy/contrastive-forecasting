@@ -1,27 +1,30 @@
 """The parts of the total loss of grn_ema099995 (magenta), grn_ema099995_f6
-(grey, 6 forecaster layers), BLK (cf419_cos200k), grn_ema099995_f6_rep01
-(yellow) and grn_ema09998_rep003_halving (red), from their loss files. The
-colour names are the colours of the runs in the score figure.
+(grey, 6 forecaster layers), grn_ema099995_f6_rep01 (yellow),
+grn_ema09998_rep003_halving (red) and grn_ema099995_rep003_halving (brown),
+from their loss files. The colour names are the colours of the runs in the
+score figure.
 
-Magenta, grey and BLK have the same loss flags: --loss-shape
+Magenta and grey have the same loss flags: --loss-shape
 cosine_similarity_batch_rep_only, L_rep with a weight from 1 to 0 over the
 first 10,000 steps, L_align on the teacher latent with rollout depth 3 and the
 sum of the 4 depths, SIGReg on e and on h with weight 1.0, CPC off (the
 column cpc_aux is blank). Yellow has the flags of grey with the L_rep weight
 0.1 at each step. Red has the flags of magenta with the EMA 0.9998, the L_rep
 weight 0.03 at each step, and --train-rollout-reduce halving: the L_align of
-depth j at the weight 1 / 2^j. So the column `loss` is the sum of:
+depth j at the weight 1 / 2^j. Brown has the flags of red with the EMA
+0.99995 of magenta. So the column `loss` is the sum of:
 
   rep_w x l_rep             L_rep with its weight (blank l_rep: 0)
   l_align                   L_align at depth 0, the only depth with a column
   sigreg_e, sigreg_h        SIGReg on e and on h
   the rest                  loss minus the terms above: L_align at depths 1-3
-                            (red: depth j at 1 / 2^j)
+                            (red and brown: depth j at 1 / 2^j)
 
 Each value is the mean over log-spaced bins of steps (BINS bins from 1k to
 665k), drawn only when the run logged all the steps of the bin. Writes
 results/loss_parts_099995_binned.tsv and plots/loss_composition_099995.png
-(the stacked parts of each run, 3 panels in each row).
+(the stacked parts of each run: the runs with the L_rep weight 1 to 0 by 10k
+in the first row, the runs with an L_rep weight at each step in the second).
 
 Usage: python3 plot_loss_composition_099995.py
 """
@@ -36,13 +39,11 @@ from matplotlib.ticker import FixedLocator, NullLocator
 
 STUDY = Path(__file__).resolve().parent.parent
 RUNS_DIR = Path("/home/jupyter/cf_runs")
-BLK_DIR = Path("/home/jupyter/checkpoints_backup/cf-412/vast_lr100x/cf-419c/cos200k/leg_665k")
 TABLE = STUDY / "results" / "loss_parts_099995_binned.tsv"
 OUT_STACK = STUDY / "plots" / "loss_composition_099995.png"
 FIRST, TOTAL, BINS = 1000, 665_000, 60
 TICKS_K = [1, 10, 40, 100, 200, 400, 665]
 STACK_TOP = 2.7  # the total of yellow is 2.6 at 1k
-PANELS_PER_ROW = 3
 MINI_DIR = RUNS_DIR / "grn_ema099995_f6_rep01/ckpt"
 # run -> ([(loss file, last step taken from it)], colour, label)
 RUNS = {
@@ -51,9 +52,6 @@ RUNS = {
                       "#ff00ff", "Magenta: GRN+EMA 0.99995, 3 forecaster layers (stopped at 391k)"),
     "grn_ema099995_f6": ([(RUNS_DIR / "grn_ema099995_f6/ckpt/grn_ema099995_f6_losses.csv", None)],
                          "#7f7f7f", "Grey: GRN+EMA 0.99995, 6 forecaster layers (stopped at 440k)"),
-    "cf419_cos200k": ([(BLK_DIR / "cf419_cos200k_losses.csv", 140_000),
-                       (BLK_DIR / "cf419_cos200k_r2_losses.csv", None)],
-                      "#1a1a1a", "BLK, 3 forecaster layers"),
     "grn_ema099995_f6_rep01": ([(MINI_DIR / "grn_ema099995_f6_rep01_losses.csv", 40_000),
                                 (MINI_DIR / "grn_ema099995_f6_rep01_r2_losses.csv", 180_000),
                                 (MINI_DIR / "grn_ema099995_f6_rep01_r3_losses.csv", None)],
@@ -64,7 +62,15 @@ RUNS = {
          (RUNS_DIR / "grn_ema09998_rep003_halving/ckpt/grn_ema09998_rep003_halving_r2_losses.csv",
           None)],
         "#e41a1c", "Red: GRN+EMA 0.9998, L_rep 0.03, depths 1/2^j (stopped at 212k)"),
+    "grn_ema099995_rep003_halving": (
+        [(RUNS_DIR / "grn_ema099995_rep003_halving/ckpt/grn_ema099995_rep003_halving_losses.csv",
+          None)],
+        "#8c564b", "Brown: GRN+EMA 0.99995, L_rep 0.03, depths 1/2^j (in training)"),
 }
+# run -> (row, column) of its panel
+PANEL = {"grn_ema099995": (0, 0), "grn_ema099995_f6": (0, 1),
+         "grn_ema099995_f6_rep01": (1, 0), "grn_ema09998_rep003_halving": (1, 1),
+         "grn_ema099995_rep003_halving": (1, 2)}
 PARTS = ["align_d0", "align_rest", "sigreg", "rep"]
 # part -> (colour, label) of the stacked areas, from the bottom up
 PART_STYLE = {
@@ -119,12 +125,15 @@ def write_table():
 
 
 def read_table():
-    """{run: {column: array}} from TABLE, with sigreg = sigreg_e + sigreg_h."""
+    """{run: {column: array}} from TABLE, with sigreg = sigreg_e + sigreg_h.
+    A run with no complete bin yet has no entry."""
     with open(TABLE) as f:
         rows = list(csv.DictReader(f, delimiter="\t"))
     table = {}
     for run in RUNS:
         mine = [r for r in rows if r["run"] == run]
+        if not mine:
+            continue
         cols = {k: np.array([float(r[k]) for r in mine]) for k in mine[0] if k != "run"}
         cols["sigreg"] = cols["sigreg_e"] + cols["sigreg_h"]
         table[run] = cols
@@ -157,19 +166,21 @@ def draw_stack(ax, run, cols):
 
 
 def plot_stack(table):
-    rows = -(-len(RUNS) // PANELS_PER_ROW)
-    fig, axes = plt.subplots(rows, PANELS_PER_ROW, figsize=(5.6 * PANELS_PER_ROW, 5.0 * rows),
-                             sharey=True, squeeze=False)
-    for ax, run in zip(axes.flat, RUNS):
-        draw_stack(ax, run, table[run])
-    for ax in axes.flat[len(RUNS):]:
+    """Each run of the table in its PANEL slot; the other slots stay empty.
+    The grid has the columns up to the last column with a run."""
+    columns = 1 + max(PANEL[run][1] for run in table)
+    fig, axes = plt.subplots(2, columns, figsize=(5.6 * columns, 10.0), sharey=True, squeeze=False)
+    for ax in axes.flat:
         ax.set_visible(False)
+    for run, cols in table.items():
+        axes[PANEL[run]].set_visible(True)
+        draw_stack(axes[PANEL[run]], run, cols)
     for row in axes:
         row[0].set_ylabel("Loss, mean over log-spaced bins of steps")
     handles, labels = axes[0, 0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="lower center", ncol=5, fontsize=9.5, frameon=False)
+    fig.legend(handles, labels, loc="lower center", ncol=3, fontsize=9.5, frameon=False)
     fig.suptitle("Composition of the total loss", fontsize=12)
-    fig.tight_layout(rect=(0, 0.04, 1, 0.97))
+    fig.tight_layout(rect=(0, 0.06, 1, 0.97))
     fig.savefig(OUT_STACK, dpi=130)
 
 

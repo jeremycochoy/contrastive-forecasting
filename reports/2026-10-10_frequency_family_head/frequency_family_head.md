@@ -25,9 +25,9 @@ At batch 64, the half-life starts at 5.5k steps for I-JEPA and at 16.6k steps fo
 
 ## Parts of the total loss
 
-![Parts of the total loss of magenta, grey, BLK, yellow and red](plots/loss_composition_099995.png)
+![Parts of the total loss of magenta, grey, yellow and red](plots/loss_composition_099995.png)
 
-From 11k, L_align at depths 1 to 3 is 77% to 80% of the total loss of magenta, grey and BLK.
+From 11k, L_align at depths 1 to 3 is 78% to 80% of the total loss of magenta and grey.
 For yellow, this part is 39% to 43% from 11k to 213k, and for red 30% to 32% from 11k to 191k.
 The total loss of magenta decreases from 1.24 at 11k to 1.05 at 366k, and grey has its maximum, 1.94, at 124k.
 
