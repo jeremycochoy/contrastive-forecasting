@@ -35,7 +35,8 @@ MINI_DIR = RUNS_DIR / "grn_ema099995_f6_rep01/ckpt"
 # run -> ([(loss file, last step taken from it)], panel title)
 RUNS = {
     "grn_ema099995_f6_rep01": ([(MINI_DIR / "grn_ema099995_f6_rep01_losses.csv", 40_000),
-                                (MINI_DIR / "grn_ema099995_f6_rep01_r2_losses.csv", None)],
+                                (MINI_DIR / "grn_ema099995_f6_rep01_r2_losses.csv", 180_000),
+                                (MINI_DIR / "grn_ema099995_f6_rep01_r3_losses.csv", None)],
                                "Yellow: 6 forecaster layers, L_rep weight 0.1 at each step"),
     "grn_ema099995": (COMPOSITION_RUNS["grn_ema099995"][0],
                       "Magenta: 3 forecaster layers, L_rep weight 1 to 0 by 10k"),

@@ -52,6 +52,8 @@ RUNS = {
                       "#1a1a1a", "BLK, 3 forecaster layers"),
     "grn_ema09998_rep003_halving": (
         [(RUNS_DIR / "grn_ema09998_rep003_halving/ckpt/grn_ema09998_rep003_halving_losses.csv",
+          160_000),
+         (RUNS_DIR / "grn_ema09998_rep003_halving/ckpt/grn_ema09998_rep003_halving_r2_losses.csv",
           None)],
         "#e41a1c", "GRN+EMA 0.9998, L_rep 0.03, depths 1/2^j (in training)"),
 }
