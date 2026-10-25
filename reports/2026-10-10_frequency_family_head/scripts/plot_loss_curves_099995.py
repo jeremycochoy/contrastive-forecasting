@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.ticker import FixedLocator, NullLocator
 
-from plot_loss_composition_099995 import RUNS as COMPOSITION_RUNS, RUNS_DIR, logged_parts
+from plot_loss_composition_099995 import RUNS as COMPOSITION_RUNS, logged_parts
 
 STUDY = Path(__file__).resolve().parent.parent
 TABLE = STUDY / "results" / "loss_curves_099995_binned.tsv"
@@ -33,12 +33,9 @@ OUT = STUDY / "plots" / "loss_curves_099995.png"
 FIRST, TOTAL, BINS = 100, 665_000, 80
 TICKS_K = [0.1, 1, 10, 40, 100, 240, 665]
 Y_TOP = 1.7  # L_rep x its weight of magenta and grey goes above it before 9k
-MINI_DIR = RUNS_DIR / "grn_ema099995_f6_rep01/ckpt"
 # run -> ([(loss file, last step taken from it)], panel title)
 RUNS = {
-    "grn_ema099995_f6_rep01": ([(MINI_DIR / "grn_ema099995_f6_rep01_losses.csv", 40_000),
-                                (MINI_DIR / "grn_ema099995_f6_rep01_r2_losses.csv", 180_000),
-                                (MINI_DIR / "grn_ema099995_f6_rep01_r3_losses.csv", None)],
+    "grn_ema099995_f6_rep01": (COMPOSITION_RUNS["grn_ema099995_f6_rep01"][0],
                                "Yellow: 6 forecaster layers, EMA 0.99995\n"
                                "L_rep weight 0.1 at each step"),
     "grn_ema099995": (COMPOSITION_RUNS["grn_ema099995"][0],

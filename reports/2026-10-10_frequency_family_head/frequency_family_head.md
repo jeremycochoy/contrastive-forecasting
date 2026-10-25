@@ -25,16 +25,16 @@ At batch 64, the half-life starts at 5.5k steps for I-JEPA and at 16.6k steps fo
 
 ## Parts of the total loss
 
-![Parts of the total loss of magenta, grey, BLK and the run with L_rep 0.03 and the depth weights 1/2^j](plots/loss_composition_099995.png)
+![Parts of the total loss of magenta, grey, BLK, yellow and red](plots/loss_composition_099995.png)
 
 From 11k, L_align at depths 1 to 3 is 77% to 80% of the total loss of magenta, grey and BLK.
-For the run with L_rep 0.03 and the depth weights 1/2^j, this part is 30% to 32% from 11k to 191k.
+For yellow, this part is 39% to 43% from 11k to 213k, and for red 30% to 32% from 11k to 191k.
 The total loss of magenta decreases from 1.24 at 11k to 1.05 at 366k, and grey has its maximum, 1.94, at 124k.
 
 ## Loss terms
 
 ![Each term of the loss of yellow, magenta, grey and red](plots/loss_curves_099995.png)
 
-Yellow keeps L_rep x its weight between 1.15 and 1.19 from step 100 to 188k, and red between 0.35 and 0.36.
+From step 100, yellow keeps L_rep x its weight between 1.15 and 1.19 up to 209k, and red between 0.35 and 0.36 up to 188k.
 L_align at depths 1 to 3 is 0.89 at 56k and 1.10 at 188k for yellow, 0.93 and 0.96 for magenta, 1.25 and 1.49 for grey, and 0.28 and 0.28 for red (with its depth weights).
 At the same steps, L_align at depth 0 is 0.24 and 0.30 for yellow, 0.24 and 0.25 for magenta, 0.32 and 0.38 for grey, and 0.26 and 0.24 for red.
