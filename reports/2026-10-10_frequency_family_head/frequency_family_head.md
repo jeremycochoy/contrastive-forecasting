@@ -6,7 +6,7 @@
 
 Grey (EMA 0.99995, 6 forecaster layers, stopped at 440k) has the lowest forecast MASE of the GRN runs: 1.0341 at 240k.
 Magenta (the same with 3 forecaster layers) has its lowest MASE, 1.0723, at 140k, and teal (EMA 0.9998) has 1.0568 at 100k.
-At 200k, yellow (grey with the L_rep weight 0.1 at each step) has 1.0467 and grey 1.0351, and red (EMA 0.9998, the L_rep weight 0.03 at each step) has 1.0958 at 180k.
+At 200k, the forecast MASE is 1.0467 for yellow (grey with the L_rep weight 0.1 at each step), 1.0351 for grey and 1.0879 for red (EMA 0.9998, the L_rep weight 0.03 at each step).
 
 ## Learning rate
 
@@ -25,7 +25,7 @@ At batch 64, the half-life starts at 5.5k steps for I-JEPA and at 16.6k steps fo
 
 ## Parts of the total loss
 
-![Parts of the total loss of magenta, grey, yellow and red](plots/loss_composition_099995.png)
+![Parts of the total loss of magenta, grey, yellow, red and brown](plots/loss_composition_099995.png)
 
 From 11k, L_align at depths 1 to 3 is 78% to 80% of the total loss of magenta and grey.
 For yellow, this part is 39% to 43% from 11k to 213k, and for red 30% to 32% from 11k to 191k.

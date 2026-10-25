@@ -55,7 +55,7 @@ RUNS = {
     "grn_ema099995_f6_rep01": ([(MINI_DIR / "grn_ema099995_f6_rep01_losses.csv", 40_000),
                                 (MINI_DIR / "grn_ema099995_f6_rep01_r2_losses.csv", 180_000),
                                 (MINI_DIR / "grn_ema099995_f6_rep01_r3_losses.csv", None)],
-                               "#ffb000", "Yellow: GRN+EMA 0.99995, 6 layers, L_rep 0.1 (in training)"),
+                               "#ffb000", "Yellow: GRN+EMA 0.99995, 6 layers, L_rep 0.1 (ended at 240k)"),
     "grn_ema09998_rep003_halving": (
         [(RUNS_DIR / "grn_ema09998_rep003_halving/ckpt/grn_ema09998_rep003_halving_losses.csv",
           160_000),
