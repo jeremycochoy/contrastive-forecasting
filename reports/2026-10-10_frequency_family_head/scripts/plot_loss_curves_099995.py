@@ -1,14 +1,16 @@
 """The terms of the total loss as curves, one panel per run: the mini run
 grn_ema099995_f6_rep01 (yellow in the score figure: 6 forecaster layers, the
-L_rep weight 0.1 at each step), grn_ema099995 (magenta, 3 forecaster layers)
-and grn_ema099995_f6 (grey, 6 forecaster layers). Magenta and grey have the
-L_rep weight 1 to 0 over the first 10,000 steps. The log has no L_rep after
-that. The other loss flags are the same (see plot_loss_composition_099995.py).
+L_rep weight 0.1 at each step), grn_ema099995 (magenta, 3 forecaster layers),
+grn_ema099995_f6 (grey, 6 forecaster layers) and grn_ema09998_rep003_halving
+(red: 3 forecaster layers, EMA 0.9998, the L_rep weight 0.03 at each step, the
+L_align of depth j at the weight 1 / 2^j). Magenta and grey have the L_rep
+weight 1 to 0 over the first 10,000 steps. The log has no L_rep after that.
+The other loss flags are the same (see plot_loss_composition_099995.py).
 
 Each panel has four curves, each term as it enters the total loss:
-L_align at depth 0 (column l_align), L_align at depths 1 to 3 (their sum: the
-loss minus the other terms), L_rep x its weight, and SIGReg on e plus SIGReg on
-h. Each value is the mean over log-spaced bins of steps (BINS bins from 100 to
+L_align at depth 0 (column l_align), L_align at depths 1 to 3 (their sum with
+the depth weights: the loss minus the other terms), L_rep x its weight, and
+SIGReg on e plus SIGReg on h. Each value is the mean over log-spaced bins of steps (BINS bins from 100 to
 665k), drawn only when the run logged all the steps of the bin. Writes
 results/loss_curves_099995_binned.tsv and plots/loss_curves_099995.png.
 
@@ -37,15 +39,21 @@ RUNS = {
     "grn_ema099995_f6_rep01": ([(MINI_DIR / "grn_ema099995_f6_rep01_losses.csv", 40_000),
                                 (MINI_DIR / "grn_ema099995_f6_rep01_r2_losses.csv", 180_000),
                                 (MINI_DIR / "grn_ema099995_f6_rep01_r3_losses.csv", None)],
-                               "Yellow: 6 forecaster layers, L_rep weight 0.1 at each step"),
+                               "Yellow: 6 forecaster layers, EMA 0.99995\n"
+                               "L_rep weight 0.1 at each step"),
     "grn_ema099995": (COMPOSITION_RUNS["grn_ema099995"][0],
-                      "Magenta: 3 forecaster layers, L_rep weight 1 to 0 by 10k"),
+                      "Magenta: 3 forecaster layers, EMA 0.99995\n"
+                      "L_rep weight 1 to 0 by 10k"),
     "grn_ema099995_f6": (COMPOSITION_RUNS["grn_ema099995_f6"][0],
-                         "Grey: 6 forecaster layers, L_rep weight 1 to 0 by 10k"),
+                         "Grey: 6 forecaster layers, EMA 0.99995\n"
+                         "L_rep weight 1 to 0 by 10k"),
+    "grn_ema09998_rep003_halving": (COMPOSITION_RUNS["grn_ema09998_rep003_halving"][0],
+                                    "Red: 3 forecaster layers, EMA 0.9998\n"
+                                    "L_rep weight 0.03 at each step, L_align depth j x 1/2^j"),
 }
 # term -> (columns of logged_parts summed, colour, label)
 TERMS = {
-    "align_rest": ([5], "#fd8d3c", "L_align, depths 1 to 3 (sum)"),
+    "align_rest": ([5], "#fd8d3c", "L_align, depths 1 to 3 (sum with the depth weights)"),
     "align_d0": ([2], "#a63603", "L_align, depth 0"),
     "rep": ([1], "#3182bd", "L_rep x its weight"),
     "sigreg": ([3, 4], "#31a354", "SIGReg on e + SIGReg on h"),
@@ -103,13 +111,13 @@ def draw_run(ax, cols, title):
 def main():
     write_table()
     table = read_table()
-    fig, axes = plt.subplots(1, 3, figsize=(17, 5.6), sharey=True)
+    fig, axes = plt.subplots(1, len(RUNS), figsize=(22.4, 5.8), sharey=True)
     for ax, (run, (_, title)) in zip(axes, RUNS.items()):
         draw_run(ax, table[run], title)
     axes[0].set_ylabel("Term of the loss, mean over log-spaced bins of steps")
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="lower center", ncol=4, fontsize=10, frameon=False)
-    fig.suptitle("Terms of the loss of GRN+EMA 0.99995", fontsize=12)
+    fig.suptitle("Terms of the loss", fontsize=12)
     fig.tight_layout(rect=(0, 0.06, 1, 0.96))
     fig.savefig(OUT, dpi=130)
 
