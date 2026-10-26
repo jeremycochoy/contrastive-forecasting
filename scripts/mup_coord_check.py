@@ -54,8 +54,8 @@ def optimizer(model, d, base_d, mup, lr):
     if not mup:
         return torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=0.0)
     with torch.device("meta"):
-        base = Stack(base_d)
-    rules = parameter_rules(model, base)
+        base, delta = Stack(base_d), Stack(2 * base_d)
+    rules = parameter_rules(model, base, delta)
     mup_init_(model, rules)
     mup_attention_(model, base)
     return torch.optim.AdamW(mup_param_groups(model, rules, lr, 0.0))

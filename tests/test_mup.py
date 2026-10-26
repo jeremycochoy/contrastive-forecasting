@@ -42,13 +42,23 @@ def toy_rules(d, base_d=8):
     torch.manual_seed(0)
     model = Toy(d)
     with torch.device("meta"):
-        base = Toy(base_d)
-    return model, parameter_rules(model, base)
+        base, delta = Toy(base_d), Toy(2 * base_d)
+    return model, parameter_rules(model, base, delta)
+
+
+def kinds_of(rules):
+    return {name: kind for name, (kind, _, _) in rules.items()}
+
+
+def test_the_classes_are_the_same_at_the_base_width():
+    _, at_base = toy_rules(8)
+    _, wider = toy_rules(16)
+    assert kinds_of(at_base) == kinds_of(wider)
+    assert {m_in for _, m_in, _ in at_base.values()} == {1.0}
 
 
 def test_at_the_base_width_every_tensor_keeps_its_init_and_rate():
     model, rules = toy_rules(8)
-    assert {kind for kind, _, _ in rules.values()} == {FIXED}
     before = copy.deepcopy(model.state_dict())
     mup_init_(model, rules)
     for name, value in model.state_dict().items():
@@ -59,9 +69,20 @@ def test_at_the_base_width_every_tensor_keeps_its_init_and_rate():
     assert groups[0]["lr_mult"] == 1.0
 
 
+def test_the_init_factors_multiply_the_weights_of_their_class():
+    model, rules = toy_rules(8)
+    before = copy.deepcopy(model.state_dict())
+    mup_init_(model, rules, input_mult=0.5, hidden_mult=2.0, output_mult=3.0)
+    after = model.state_dict()
+    factor = {"emb.weight": 0.5, "inp.weight": 0.5, "hid.weight": 2.0, "mix": 2.0,
+              "out.weight": 3.0}
+    for name, value in after.items():
+        torch.testing.assert_close(value, before[name] * factor.get(name, 1.0))
+
+
 def test_at_twice_the_width_each_class_gets_its_rule():
     model, rules = toy_rules(16)
-    kinds = {name: kind for name, (kind, _, _) in rules.items()}
+    kinds = kinds_of(rules)
     assert kinds["emb.weight"] == INPUT
     assert kinds["inp.weight"] == INPUT and kinds["inp.bias"] == INPUT
     assert kinds["hid.weight"] == HIDDEN and kinds["hid.bias"] == INPUT
@@ -90,9 +111,9 @@ def test_at_twice_the_width_each_class_gets_its_rule():
 
 def test_a_recurrent_layer_that_scales_is_refused():
     with torch.device("meta"):
-        base = nn.GRU(4, 6)
+        base, delta = nn.GRU(4, 6), nn.GRU(4, 12)
     with pytest.raises(NotImplementedError, match="recurrent"):
-        parameter_rules(nn.GRU(4, 12), base)
+        parameter_rules(nn.GRU(4, 6), base, delta)
 
 
 def attention_layer(qk_norm=True):
@@ -126,7 +147,7 @@ def test_a_layer_without_qk_norm_refuses_a_scale():
         attention_layer(qk_norm=False).set_attn_logit_scale(0.25)
 
 
-def trainer(save_dir, run_name, d_model, mup_base=None):
+def trainer(save_dir, run_name, d_model, mup_base=None, extra=(), ok=True):
     cmd = [
         sys.executable, "-u", str(TRAIN_PY), "--device", "cpu",
         "--total-steps", "20", "--save-every", "20", "--traj-save-every", "20",
@@ -142,11 +163,12 @@ def trainer(save_dir, run_name, d_model, mup_base=None):
     ]
     if mup_base is not None:
         cmd += ["--mup-base-d-model", str(mup_base)]
+    cmd += list(extra)
     env = os.environ.copy()
     env["PYTHONPATH"] = str(REPO_ROOT) + os.pathsep + env.get("PYTHONPATH", "")
     run = subprocess.run(cmd, env=env, capture_output=True, text=True,
                          cwd=str(REPO_ROOT), timeout=600)
-    assert run.returncode == 0, run.stderr[-3000:]
+    assert (run.returncode == 0) == ok, run.stderr[-3000:]
     return run
 
 
@@ -173,3 +195,17 @@ def test_a_wider_run_scales_the_hidden_rates_and_the_logits(tmp_path):
     weights = weights.get("model_state_dict", weights)
     scales = {k: float(v) for k, v in weights.items() if k.endswith("attn_logit_scale")}
     assert scales and all(v == pytest.approx(math.sqrt(4) / 8) for v in scales.values())
+
+
+def test_an_init_factor_changes_the_run_at_the_base_width(tmp_path):
+    trainer(tmp_path, "plain", 8)
+    run = trainer(tmp_path, "half", 8, mup_base=8, extra=["--mup-init-hidden", "0.5"])
+    assert "init x input 1, hidden 0.5, output 1" in run.stdout
+    plain = (tmp_path / "plain_losses.csv").read_text().splitlines()
+    half = (tmp_path / "half_losses.csv").read_text().splitlines()
+    assert plain[0] == half[0] and plain[1] != half[1]
+
+
+def test_an_init_factor_needs_a_base_width(tmp_path):
+    run = trainer(tmp_path, "nobase", 8, extra=["--mup-init-hidden", "0.5"], ok=False)
+    assert "needs --mup-base-d-model" in run.stderr

@@ -6,9 +6,11 @@ rules for Adam, and its Appendix B.1 writes them with a base width n0. At the
 base width every factor is 1, so a model at the base width is the standard
 parametrization: the PyTorch default init and one learning rate.
 
-A dimension of a parameter scales when its size differs from its size in the
-base model (the same flags at the base width). m_in is the fan_in of the
-parameter divided by the fan_in of the base parameter.
+A dimension of a parameter scales when its size differs between the base
+model (the same flags at the base width) and the delta model (the same flags
+at twice the base width), or between the base model and the model. So the
+classes are the same at each width, also at the base width. m_in is the
+fan_in of the parameter divided by the fan_in of the base parameter.
 
 | class | dimensions that scale | init | lr | weight decay |
 |---|---|---|---|---|
@@ -20,11 +22,15 @@ parameter divided by the fan_in of the base parameter.
 The PyTorch default init of a weight has the variance c / fan_in, so the
 hidden and input rules need no change. A bias of a layer whose fan_in scales
 starts at U(-1/sqrt(fan_in), 1/sqrt(fan_in)) in PyTorch. Its init is
-multiplied by sqrt(m_in), so it keeps the bounds of the base layer. The weight
-decay factor keeps lr * weight_decay of each tensor, because torch.optim.AdamW
-decays a weight by lr * weight_decay at each step (as MuAdam(impl=AdamW) of
-the mup package). The attention logits read sqrt(d_head0) / d_head in place of
-1 / sqrt(d_head) (Appendix B.1, "Attention Logit Scaling").
+multiplied by sqrt(m_in), so it keeps the bounds of the base layer. Three
+factors, 1 by default, multiply the init of the input, hidden and output
+weights: the init multipliers of Appendix B.1.
+
+The weight decay factor keeps lr * weight_decay of each tensor, because
+torch.optim.AdamW decays a weight by lr * weight_decay at each step (as
+MuAdam(impl=AdamW) of the mup package). The attention logits read
+sqrt(d_head0) / d_head in place of 1 / sqrt(d_head) (Appendix B.1, "Attention
+Logit Scaling").
 """
 from __future__ import annotations
 
@@ -45,10 +51,16 @@ def fan_in_mult(shape, base_shape, in_dims) -> float:
     return math.prod(shape[d] for d in in_dims) / math.prod(base_shape[d] for d in in_dims)
 
 
-def tensor_class(shape, base_shape, out_dims, in_dims) -> str:
-    """HIDDEN, OUTPUT, INPUT or FIXED, from the dimensions that scale."""
-    out_scales = any(shape[d] != base_shape[d] for d in out_dims)
-    in_scales = any(shape[d] != base_shape[d] for d in in_dims)
+def tensor_class(shapes, out_dims, in_dims) -> str:
+    """HIDDEN, OUTPUT, INPUT or FIXED, from the dimensions that scale.
+    ``shapes`` is (shape in the model, in the base model, in the delta model)."""
+    shape, base_shape, delta_shape = shapes
+
+    def scales(d):
+        return shape[d] != base_shape[d] or delta_shape[d] != base_shape[d]
+
+    out_scales = any(scales(d) for d in out_dims)
+    in_scales = any(scales(d) for d in in_dims)
     if out_scales and in_scales:
         return HIDDEN
     return OUTPUT if in_scales else INPUT if out_scales else FIXED
@@ -74,24 +86,24 @@ def layer_weight_name(module, bias_name):
     return None
 
 
-def parameter_rules(model: nn.Module, base: nn.Module):
+def parameter_rules(model: nn.Module, base: nn.Module, delta: nn.Module):
     """{parameter name: (class, m_in, bias_of)} for each parameter of
-    ``model``. ``base`` has the same flags at the base width (a model on the
-    meta device costs no memory). ``bias_of`` names the weight whose fan_in a
-    bias follows, or is None."""
-    base_shapes = {n: tuple(p.shape) for n, p in base.named_parameters()}
+    ``model``. ``base`` has the same flags at the base width and ``delta`` at
+    twice the base width (models on the meta device cost no memory).
+    ``bias_of`` names the weight whose fan_in a bias follows, or is None."""
+    ref = [{n: tuple(p.shape) for n, p in m.named_parameters()} for m in (base, delta)]
     rules = OrderedDict()
     for mod_name, module in model.named_modules():
         for name, p in module.named_parameters(recurse=False):
             full = f"{mod_name}.{name}" if mod_name else name
-            rules[full] = one_rule(module, name, tuple(p.shape), base_shapes, mod_name)
+            rules[full] = one_rule(module, name, tuple(p.shape), ref, mod_name)
     return rules
 
 
-def one_rule(module, name, shape, base_shapes, mod_name):
+def one_rule(module, name, shape, ref, mod_name):
     full = f"{mod_name}.{name}" if mod_name else name
-    base_shape = base_shapes[full]
-    if isinstance(module, RECURRENT) and shape != base_shape:
+    shapes = (shape, ref[0][full], ref[1][full])
+    if isinstance(module, RECURRENT) and len(set(shapes)) > 1:
         raise NotImplementedError(
             f"muP: the recurrent layer {mod_name or 'model'} changes size with the width "
             "(its init depends on its hidden size). Keep its size fixed.")
@@ -100,25 +112,34 @@ def one_rule(module, name, shape, base_shapes, mod_name):
         w_shape = tuple(getattr(module, weight).shape)
         w_full = f"{mod_name}.{weight}" if mod_name else weight
         in_dims = tuple(range(1, len(w_shape)))
-        m_in = fan_in_mult(w_shape, base_shapes[w_full], in_dims)
-        return tensor_class(shape, base_shape, (0,), ()), m_in, w_full
+        m_in = fan_in_mult(w_shape, ref[0][w_full], in_dims)
+        return tensor_class(shapes, (0,), ()), m_in, w_full
     out_dims, in_dims = weight_dims(module, name, len(shape))
-    m_in = fan_in_mult(shape, base_shape, in_dims) if in_dims else 1.0
-    return tensor_class(shape, base_shape, out_dims, in_dims), m_in, None
+    m_in = fan_in_mult(shape, shapes[1], in_dims) if in_dims else 1.0
+    return tensor_class(shapes, out_dims, in_dims), m_in, None
 
 
 @torch.no_grad()
-def mup_init_(model: nn.Module, rules) -> None:
+def mup_init_(model: nn.Module, rules, input_mult: float = 1.0,
+              hidden_mult: float = 1.0, output_mult: float = 1.0) -> None:
     """Turns the PyTorch default init into the muP init: an output weight by
-    1 / sqrt(m_in), and a bias whose layer's fan_in scales by sqrt(m_in). Run
-    it one time, on a new model. An EMA copy of a module gets the same
-    factors, so a teacher stays equal to its student."""
+    1 / sqrt(m_in), and a bias whose layer's fan_in scales by sqrt(m_in). The
+    three factors multiply the init of each weight (two or more dimensions) of
+    their class. A bias, a norm and a fixed tensor take no factor. Run it one
+    time, on a new model. An EMA copy of a module gets the same factors, so a
+    teacher stays equal to its student."""
     params = dict(model.named_parameters())
+    mult = {INPUT: input_mult, HIDDEN: hidden_mult, OUTPUT: output_mult, FIXED: 1.0}
     for name, (kind, m_in, bias_of) in rules.items():
-        if kind == OUTPUT and bias_of is None:
-            params[name].mul_(1.0 / math.sqrt(m_in))
-        elif bias_of is not None and m_in != 1.0:
-            params[name].mul_(math.sqrt(m_in))
+        p = params[name]
+        if bias_of is not None:
+            scale = math.sqrt(m_in)
+        elif p.dim() >= 2:
+            scale = mult[kind] / (math.sqrt(m_in) if kind == OUTPUT else 1.0)
+        else:
+            scale = 1.0
+        if scale != 1.0:
+            p.mul_(scale)
 
 
 def lr_wd_mult(kind, m_in, bias_of):
@@ -171,7 +192,8 @@ def mup_attention_(model: nn.Module, base: nn.Module) -> int:
 
 
 def summary(rules) -> str:
-    """One line per class: the count of tensors and their lr factors."""
+    """The classes in one line: the count of tensors of each class and their
+    lr factors."""
     by_kind = OrderedDict()
     for kind, m_in, bias_of in rules.values():
         lr_m, _ = lr_wd_mult(kind, m_in, bias_of)

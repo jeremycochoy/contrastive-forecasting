@@ -20,9 +20,12 @@ line.
 
 ## A run at another width
 
-The code compares each parameter with the same parameter of the base model. A
-dimension scales when its size differs. `m` is the fan_in of the parameter
-divided by the fan_in of the base parameter.
+The code compares each parameter with the same parameter of the base model,
+and of the delta model: the same flags at twice the base width. A dimension
+scales when its size differs between these two models, or between the base
+model and the run. So each tensor has the same class at each width, also at
+the base width. `m` is the fan_in of the parameter divided by the fan_in of the
+base parameter.
 
 | class | parameters of the backbone | learning rate | weight decay |
 |---|---|---|---|
@@ -54,6 +57,22 @@ quantiles of a patch. It is an output weight, and it gets the two rules below:
 - A bias of a layer whose fan_in scales starts at the PyTorch init
   multiplied by `sqrt(m)`. So it keeps the bounds of the base layer.
 
+## The init factors
+
+Three flags multiply the init of the weights of one class. They are the init
+multipliers of Appendix B.1 of the paper. The default is 1: the muP init.
+
+| flag | the weights of the backbone |
+|---|---|
+| `--mup-init-input` | `encoder.proj`, `encoder.skip` and the depthwise convs: they map a fixed size into the width |
+| `--mup-init-hidden` | the attention in and out projections, the FFN, and the channel mixing `R` and `Q` |
+| `--mup-init-output` | none in the contrastive backbone: the value head of #415 |
+
+A bias, a norm, the GRU and the embeddings keep their init. The EMA teacher
+gets the same factors, so it starts equal to the student. Tune a factor at the
+base width with the learning rate, then keep it at the larger width. The run
+prints the factors and the count of tensors of each class.
+
 ## The checkpoint
 
 At a width other than the base, each attention layer keeps its scale in the
@@ -82,6 +101,11 @@ python3 experiments/2026-04-27_freq-embedding/scripts/train.py <flags> \
 # The same flags at 384 (d_head 48) with the tuned rate.
 python3 experiments/2026-04-27_freq-embedding/scripts/train.py <flags> \
   --d-model 384 --n-heads 8 --qk-norm --mup-base-d-model 64 --lr 1e-3
+
+# An init factor, tuned at the base width, then kept at 384.
+python3 experiments/2026-04-27_freq-embedding/scripts/train.py <flags> \
+  --d-model 384 --n-heads 8 --qk-norm --mup-base-d-model 64 --lr 1e-3 \
+  --mup-init-hidden 0.5
 ```
 
 ## Coordinate check
