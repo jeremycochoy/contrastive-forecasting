@@ -40,8 +40,8 @@ from src.models import (ConfigurableModel, compute_metrics, count_parameters,
                         ema_tau_at_step, generate_random_batch,
                         linear_schedule_at_step)
 from src.blocks import ATTN_AMP_DIAG
-from src.mup import (mup_attention_, mup_init_, mup_param_groups,
-                     parameter_rules, summary as mup_summary)
+from src.mup import (depth_lr_mults, mup_attention_, mup_depth_, mup_init_,
+                     mup_param_groups, parameter_rules, summary as mup_summary)
 from src.dataloader import (
     create_mixed_periodic_dataloader,
     create_mixed_composite_dataloader,
@@ -281,6 +281,20 @@ def build_parser():
                        help=f"muP: multiplies the init of each {group} weight: "
                             f"{which}. Default 1 (the muP init). Needs "
                             "--mup-base-d-model.")
+    p.add_argument("--mup-base-num-layers", type=int, default=None,
+                   help="muP depth rule: the base count of forecaster layers "
+                        "(--num-layers). Default: --num-layers (no depth change). "
+                        "With m_L = num_layers / base, each residual branch of a "
+                        "forecaster layer is multiplied by m_L^(-alpha). Needs "
+                        "--mup-base-d-model.")
+    p.add_argument("--mup-base-num-encoder-layers", type=int, default=None,
+                   help="muP depth rule: the base count of encoder layers, as "
+                        "--mup-base-num-layers for the encoder stack.")
+    p.add_argument("--mup-depth-alpha", type=float, default=1.0,
+                   help="muP depth rule: alpha in [0.5, 1]. 1 (default): "
+                        "CompleteP, the branches only. 0.5: the Depth-muP of "
+                        "Tensor Programs VI, also lr x m_L^-0.5 for the layers "
+                        "of a deeper stack.")
     p.add_argument("--num-layers", type=int, default=MODEL_CONFIG["num_layers"],
                    help="Number of encoder layers. Default 6.")
     p.add_argument("--forecaster-d-model", type=int, default=None,
@@ -1705,11 +1719,38 @@ def mup_setup(model, model_config, args):
     mup_init_(model, rules, args.mup_init_input, args.mup_init_hidden,
               args.mup_init_output)
     n_attn = mup_attention_(model, base)
+    stacks = mup_depth_stacks(model, args)
+    n_depth = mup_depth_([(layers, n, b) for layers, n, b in stacks.values()],
+                         args.mup_depth_alpha)
+    depth_lr = (depth_lr_mults(model, {k: (n, b) for k, (_, n, b) in stacks.items()},
+                               args.mup_depth_alpha)
+                if args.mup_depth_alpha != 1.0 else {})
+    depths = ", ".join(f"{k.rstrip('.')} {n} on base {b}" for k, (_, n, b) in stacks.items())
     print(f"muP: base d_model {base_config['H']} with {base_heads} heads; "
           f"{mup_summary(rules)}; init x input {args.mup_init_input:g}, hidden "
           f"{args.mup_init_hidden:g}, output {args.mup_init_output:g}; "
-          f"{n_attn} attention layers with the muP logit scale")
-    return mup_param_groups(model, rules, args.lr, args.weight_decay)
+          f"{n_attn} attention layers with the muP logit scale; depth alpha "
+          f"{args.mup_depth_alpha:g}: {depths}, {n_depth} layers with a branch scale")
+    return mup_param_groups(model, rules, args.lr, args.weight_decay, depth_lr)
+
+
+def mup_depth_stacks(model, args):
+    """{name prefix: (layers, count, base count)} of the encoder stack, its EMA
+    copy and the forecaster stack, for the stacks that the model has."""
+    base_enc = args.mup_base_num_encoder_layers or args.num_encoder_layers
+    base_fc = args.mup_base_num_layers or args.num_layers
+    wanted = {"transformer.encoder_layers": (args.num_encoder_layers, base_enc),
+              "teacher_encoder_layers": (args.num_encoder_layers, base_enc),
+              "transformer.layers": (args.num_layers, base_fc)}
+    stacks = {}
+    for name, (n, b) in wanted.items():
+        try:
+            layers = model.get_submodule(name)
+        except AttributeError:
+            continue
+        if len(layers):
+            stacks[name + "."] = (layers, n, b)
+    return stacks
 
 
 def resume_state(model, args):
@@ -1838,6 +1879,7 @@ VALUE_SPACE_FLAGS = frozenset((
     "batch_size", "lr", "lr_final", "lr_cosine_steps", "lr_warmup_steps",
     "lr_decay_shape", "mup_base_d_model", "mup_base_n_heads",
     "mup_init_input", "mup_init_hidden", "mup_init_output",
+    "mup_base_num_layers", "mup_base_num_encoder_layers", "mup_depth_alpha",
     "grad_clip", "weight_decay", "adam_beta1", "adam_beta2", "seed",
     # The data.
     "hf_repo", "hf_path", "split", "mix_ratio", "crossfade_ratio",
@@ -3017,10 +3059,15 @@ def main():
         ("--mup-base-n-heads", args.mup_base_n_heads is not None),
         ("--mup-init-input", args.mup_init_input != 1.0),
         ("--mup-init-hidden", args.mup_init_hidden != 1.0),
-        ("--mup-init-output", args.mup_init_output != 1.0)) if on]
+        ("--mup-init-output", args.mup_init_output != 1.0),
+        ("--mup-base-num-layers", args.mup_base_num_layers is not None),
+        ("--mup-base-num-encoder-layers", args.mup_base_num_encoder_layers is not None),
+        ("--mup-depth-alpha", args.mup_depth_alpha != 1.0)) if on]
     if mup_without_base and not args.mup_base_d_model:
         raise SystemExit(f"{', '.join(mup_without_base)} needs --mup-base-d-model "
                          "(muP, docs/mup.md).")
+    if not 0.5 <= args.mup_depth_alpha <= 1.0:
+        raise SystemExit(f"--mup-depth-alpha must be in [0.5, 1], not {args.mup_depth_alpha}.")
     model = ConfigurableModel(**model_config).to(device)
     optimizer = optim.AdamW(
         mup_setup(model, model_config, args) if args.mup_base_d_model

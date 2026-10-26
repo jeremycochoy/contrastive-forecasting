@@ -31,6 +31,13 @@ torch.optim.AdamW decays a weight by lr * weight_decay at each step (as
 MuAdam(impl=AdamW) of the mup package). The attention logits read
 sqrt(d_head0) / d_head in place of 1 / sqrt(d_head) (Appendix B.1, "Attention
 Logit Scaling").
+
+The depth rule (Table 1 of CompleteP, Dey and others 2025, arXiv 2505.01618,
+after Tensor Programs VI, arXiv 2310.02244): with m_L the count of layers of a
+stack over its base count, each residual branch of the stack (attention and
+FFN) is multiplied by m_L^(-alpha), and each parameter of its layers trains at
+lr * m_L^(alpha - 1). alpha 1 (CompleteP) changes the branches only. alpha 0.5
+is the Depth-muP of Tensor Programs VI. At the base depth every factor is 1.
 """
 from __future__ import annotations
 
@@ -149,13 +156,19 @@ def lr_wd_mult(kind, m_in, bias_of):
     return 1.0, 1.0
 
 
-def mup_param_groups(model: nn.Module, rules, lr: float, weight_decay: float):
+def mup_param_groups(model: nn.Module, rules, lr: float, weight_decay: float,
+                     depth_lr=None):
     """AdamW parameter groups: one per (lr factor, weight decay factor), in the
     order of the first parameter of each. A group keeps its lr factor in
-    ``lr_mult``, so a schedule sets lr = scheduled lr * lr_mult."""
+    ``lr_mult``, so a schedule sets lr = scheduled lr * lr_mult. ``depth_lr``
+    ({parameter name: factor}, from ``depth_lr_mults``) multiplies the lr of
+    the parameters of a deeper stack. The weight decay keeps its width factor
+    only (Table 1 of CompleteP)."""
+    depth_lr = depth_lr or {}
     groups = OrderedDict()
     for name, p in model.named_parameters():
         lr_m, wd_m = lr_wd_mult(*rules[name])
+        lr_m *= depth_lr.get(name, 1.0)
         group = groups.setdefault((lr_m, wd_m), {
             "params": [], "lr": lr * lr_m, "weight_decay": weight_decay * wd_m,
             "lr_mult": lr_m})
@@ -189,6 +202,35 @@ def mup_attention_(model: nn.Module, base: nn.Module) -> int:
                 module.set_attn_logit_scale(attn_logit_scale(d_head, base_d_head))
                 count += 1
     return count
+
+
+def depth_branch_scale(n_layers: int, base_layers: int, alpha: float) -> float:
+    """m_L^(-alpha) with m_L = n_layers / base_layers: 1 at the base depth."""
+    return (base_layers / n_layers) ** alpha
+
+
+def mup_depth_(stacks, alpha: float) -> int:
+    """Sets the residual branch scale of each layer of each stack that is
+    deeper or shallower than its base. ``stacks`` is a list of (layers,
+    count of layers, base count). Returns the count of layers."""
+    count = 0
+    for layers, n_layers, base_layers in stacks:
+        if n_layers != base_layers:
+            for layer in layers:
+                layer.set_residual_branch_scale(depth_branch_scale(n_layers, base_layers, alpha))
+                count += 1
+    return count
+
+
+def depth_lr_mults(model: nn.Module, prefixes, alpha: float):
+    """{parameter name: m_L^(alpha - 1)} for the parameters whose name starts
+    with a prefix of ``prefixes`` ({prefix: (count of layers, base count)})."""
+    out = {}
+    for name, _ in model.named_parameters():
+        for prefix, (n_layers, base_layers) in prefixes.items():
+            if name.startswith(prefix) and n_layers != base_layers:
+                out[name] = (n_layers / base_layers) ** (alpha - 1.0)
+    return out
 
 
 def summary(rules) -> str:

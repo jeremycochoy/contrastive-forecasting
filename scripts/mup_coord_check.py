@@ -12,8 +12,8 @@ the muP base. Under muP the change keeps its size as the width grows. Under SP
 it grows with the width.
 
 --vary depth: one width (default 128) at several depths, with the muP base
-width 64. muP sets the rules of the width only: the figure shows what the
-depth does in each parametrization.
+width 64, in three panels: SP, muP, and muP with the depth rule of src/mup.py
+(the smallest depth as the base depth, --depth-alpha 1 by default: CompleteP).
 
 Usage: python3 scripts/mup_coord_check.py --out coord_check.png [--vary depth]
 """
@@ -29,7 +29,8 @@ from torch import nn
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.blocks import DecoderOnlyTransformerLayer  # noqa: E402
-from src.mup import mup_attention_, mup_init_, mup_param_groups, parameter_rules  # noqa: E402
+from src.mup import (depth_lr_mults, mup_attention_, mup_depth_, mup_init_,  # noqa: E402
+                     mup_param_groups, parameter_rules)
 
 IN_DIM, OUT_DIM, T, BATCH, HEADS = 22, 16, 32, 16, 8
 
@@ -57,8 +58,9 @@ class Stack(nn.Module):
         return outs
 
 
-def optimizer(model, n_layers, base_d, lr):
-    """AdamW of SP (``base_d`` None), or of muP against the base width."""
+def optimizer(model, n_layers, base_d, lr, depth=None):
+    """AdamW of SP (``base_d`` None), or of muP against the base width, with
+    the depth rule when ``depth`` is (base depth, alpha)."""
     if base_d is None:
         return torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=0.0)
     with torch.device("meta"):
@@ -66,14 +68,19 @@ def optimizer(model, n_layers, base_d, lr):
     rules = parameter_rules(model, base, delta)
     mup_init_(model, rules)
     mup_attention_(model, base)
-    return torch.optim.AdamW(mup_param_groups(model, rules, lr, 0.0))
+    depth_lr = {}
+    if depth is not None:
+        base_layers, alpha = depth
+        mup_depth_([(model.layers, n_layers, base_layers)], alpha)
+        depth_lr = depth_lr_mults(model, {"layers.": (n_layers, base_layers)}, alpha)
+    return torch.optim.AdamW(mup_param_groups(model, rules, lr, 0.0, depth_lr))
 
 
-def changes(d, n_layers, base_d, lr, steps, seed):
+def changes(d, n_layers, base_d, lr, steps, seed, depth=None):
     """Mean |output after `steps` steps - output at init| of each layer."""
     torch.manual_seed(seed)
     model = Stack(d, n_layers)
-    opt = optimizer(model, n_layers, base_d, lr)
+    opt = optimizer(model, n_layers, base_d, lr, depth)
     gen = torch.Generator().manual_seed(1234)
     x = torch.randn(BATCH, T, IN_DIM, generator=gen)
     y = torch.randn(BATCH, T, OUT_DIM, generator=gen)
@@ -87,9 +94,10 @@ def changes(d, n_layers, base_d, lr, steps, seed):
         return [(a - b).abs().mean().item() for a, b in zip(model(x), start)]
 
 
-def mean_changes(d, n_layers, base_d, args):
+def mean_changes(d, n_layers, base_d, args, depth=None):
     """``changes`` averaged over the seeds."""
-    runs = [changes(d, n_layers, base_d, args.lr, args.steps, s) for s in range(args.seeds)]
+    runs = [changes(d, n_layers, base_d, args.lr, args.steps, s, depth)
+            for s in range(args.seeds)]
     return [sum(r[i] for r in runs) / len(runs) for i in range(len(runs[0]))]
 
 
@@ -115,14 +123,18 @@ def width_panel(ax, args, mup):
     return f"muP, base width {base}"
 
 
-def depth_panel(ax, args, mup):
+def depth_panel(ax, args, mup, depth_rule=False):
     depths = [int(n) for n in args.depths.split(",")]
     base = args.base_width or 64
-    rows = [mean_changes(args.width, n, base if mup else None, args) for n in depths]
+    rows = [mean_changes(args.width, n, base if mup else None, args,
+                         (depths[0], args.depth_alpha) if depth_rule else None)
+            for n in depths]
     for name, index in PICKS.items():
         ax.plot(depths, [r[index(n)] for r, n in zip(rows, depths)], marker="o", label=name)
     ax.set_xticks(depths, [str(n) for n in depths])
     ax.set_xlabel(f"number of transformer layers (width {args.width})")
+    if depth_rule:
+        return f"muP + depth rule (alpha {args.depth_alpha:g}), base depth {depths[0]}"
     return f"muP, base width {base}"
 
 
@@ -136,16 +148,22 @@ def main():
     p.add_argument("--width", type=int, default=128, help="--vary depth: the width")
     p.add_argument("--base-width", type=int, default=None,
                    help="the muP base. Default: the smallest width, or 64 with --vary depth")
+    p.add_argument("--depth-alpha", type=float, default=1.0,
+                   help="--vary depth: alpha of the depth rule (1: CompleteP, 0.5: Depth-muP)")
     p.add_argument("--lr", type=float, default=3e-3)
     p.add_argument("--steps", type=int, default=5)
     p.add_argument("--seeds", type=int, default=3)
     args = p.parse_args()
-    panel = width_panel if args.vary == "width" else depth_panel
-    fig, axes = plt.subplots(1, 2, figsize=(11, 4.5), sharey=True)
-    for ax, mup in zip(axes, (False, True)):
-        mup_title = panel(ax, args, mup)
+    if args.vary == "width":
+        panels = [lambda ax: width_panel(ax, args, False), lambda ax: width_panel(ax, args, True)]
+    else:
+        panels = [lambda ax: depth_panel(ax, args, False), lambda ax: depth_panel(ax, args, True),
+                  lambda ax: depth_panel(ax, args, True, depth_rule=True)]
+    fig, axes = plt.subplots(1, len(panels), figsize=(5.5 * len(panels), 4.5), sharey=True)
+    for i, (ax, panel) in enumerate(zip(axes, panels)):
+        title = panel(ax)
         ax.set_yscale("log")
-        ax.set_title(mup_title if mup else "SP (PyTorch default)")
+        ax.set_title(title if i else "SP (PyTorch default)")
         ax.grid(alpha=0.3)
     axes[0].set_ylabel(f"mean |change of the output| after {args.steps} AdamW steps")
     axes[1].legend(fontsize=9)

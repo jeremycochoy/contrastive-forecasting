@@ -179,6 +179,10 @@ class DecoderOnlyTransformerLayer(nn.Module):
         # The logit scale of the QK-norm path. None: SDPA's 1 / sqrt(head_dim).
         # muP (src/mup.py) sets it with set_attn_logit_scale.
         self._attn_scale = None
+        # The factor of the two residual branches (attention and FFN). None:
+        # no factor. The depth rule of muP (src/mup.py) sets it with
+        # set_residual_branch_scale.
+        self._branch_scale = None
         head_dim = d_model // nhead
         if self.qk_norm:
             self.q_norm = nn.RMSNorm(head_dim, **factory_kwargs)
@@ -248,13 +252,31 @@ class DecoderOnlyTransformerLayer(nn.Module):
         self.register_buffer("attn_logit_scale", torch.tensor(float(scale), device=device))
         self._attn_scale = float(scale)
 
+    def set_residual_branch_scale(self, scale: float) -> None:
+        """Multiplies the output of the attention branch and of the FFN branch
+        by ``scale`` before each residual add (the depth rule of muP,
+        src/mup.py). The scale is a buffer of the state_dict, as the logit
+        scale. Only the pre-norm layer with no deprecated conv takes it."""
+        if not self.norm_first or self.depthwise_conv_placement == "deprecated":
+            raise ValueError("a residual branch scale needs the pre-norm layer "
+                             "(norm_first) without --deprecated-depthwise-conv")
+        device = self.self_attn.in_proj_weight.device
+        self.register_buffer("residual_branch_scale", torch.tensor(float(scale), device=device))
+        self._branch_scale = float(scale)
+
     def _load_from_state_dict(self, state_dict, prefix, *args, **kwargs):
-        # A checkpoint with a muP logit scale gives it to a layer built
-        # without one, so the head trainer and the evaluation need no flag.
-        key = prefix + "attn_logit_scale"
-        if key in state_dict:
-            self.set_attn_logit_scale(float(state_dict[key]))
+        # A checkpoint with a muP logit scale or branch scale gives it to a
+        # layer built without one, so the head trainer and the evaluation
+        # need no flag.
+        if prefix + "attn_logit_scale" in state_dict:
+            self.set_attn_logit_scale(float(state_dict[prefix + "attn_logit_scale"]))
+        if prefix + "residual_branch_scale" in state_dict:
+            self.set_residual_branch_scale(float(state_dict[prefix + "residual_branch_scale"]))
         super()._load_from_state_dict(state_dict, prefix, *args, **kwargs)
+
+    def _branch(self, out: Tensor) -> Tensor:
+        """A residual branch output with its scale, when the layer has one."""
+        return out if self._branch_scale is None else out * self._branch_scale
 
     def forward(self, tgt: Tensor, tgt_mask: Optional[Tensor] = None,
                 tgt_key_padding_mask: Optional[Tensor] = None,
@@ -289,15 +311,15 @@ class DecoderOnlyTransformerLayer(nn.Module):
                 y = self._conv_block(x)
                 sa_out = self._sa_block(self.norm1(y), tgt_mask,
                                         tgt_key_padding_mask, tgt_is_causal)
-                x = x_res + sa_out
+                x = x_res + self._branch(sa_out)
             else:
-                x = x + self._sa_block(self.norm1(x), tgt_mask,
-                                       tgt_key_padding_mask, tgt_is_causal)
+                x = x + self._branch(self._sa_block(self.norm1(x), tgt_mask,
+                                                    tgt_key_padding_mask, tgt_is_causal))
             # Diagnostic-only (strict no-op unless flag+active): stash
             # residual max-abs post-SA-add, then record full row (incl.
             # end-of-layer residual) after the FFN add.
             self._stash_resid_post_sa(x)
-            x = x + self._ff_block(self.norm2(x))
+            x = x + self._branch(self._ff_block(self.norm2(x)))
             self._record_attn_amplitude(x)
         else:
             # norm-last path — preserve legacy semantics. Current runs use
