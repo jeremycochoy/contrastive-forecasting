@@ -16,8 +16,8 @@ import torch
 from torch import nn
 
 from src.blocks import DecoderOnlyTransformerLayer
-from src.mup import (FIXED, HIDDEN, INPUT, OUTPUT, depth_lr_mults, mup_init_,
-                     mup_param_groups, parameter_rules)
+from src.mup import (FIXED, HIDDEN, INPUT, OUTPUT, depth_lr_mults, init_groups,
+                     mup_init_, mup_param_groups, parameter_rules)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 TRAIN_PY = REPO_ROOT / "experiments" / "2026-04-27_freq-embedding" / "scripts" / "train.py"
@@ -116,6 +116,52 @@ def test_a_recurrent_layer_that_scales_is_refused():
         parameter_rules(nn.GRU(4, 6), base, delta)
 
 
+class Stacked(nn.Module):
+    """A first layer and a stack of two transformer layers (each with its
+    depthwise conv), at the width ``d``."""
+
+    def __init__(self, d):
+        super().__init__()
+        self.inp = nn.Linear(5, d)
+        self.layers = nn.ModuleList(
+            DecoderOnlyTransformerLayer(d, 2, dim_feedforward=2 * d, dropout=0.0,
+                                        batch_first=True, bias=False, qk_norm=True)
+            for _ in range(2))
+
+
+def stacked_rules(d, base_d=8):
+    torch.manual_seed(0)
+    model = Stacked(d)
+    with torch.device("meta"):
+        base, delta = Stacked(base_d), Stacked(2 * base_d)
+    rules = parameter_rules(model, base, delta)
+    return model, rules, init_groups(rules, {"layers.": 2})
+
+
+def test_the_init_groups_follow_the_position_of_the_layers():
+    _, _, groups = stacked_rules(8)
+    assert groups["inp.weight"] == INPUT and groups["inp.bias"] is None
+    for w in ("self_attn.out_proj.weight", "linear2.weight"):
+        assert groups[f"layers.1.{w}"] == OUTPUT
+        assert groups[f"layers.0.{w}"] == HIDDEN
+    for w in ("self_attn.in_proj_weight", "linear1.weight"):
+        assert groups[f"layers.1.{w}"] == HIDDEN
+    assert groups["layers.0.depthwise_conv.conv.weight"] is None
+
+
+def test_an_output_factor_0_sets_the_writes_of_the_last_layer_to_0():
+    model, rules, groups = stacked_rules(8)
+    before = copy.deepcopy(model.state_dict())
+    mup_init_(model, rules, input_mult=2.0, output_mult=0.0, groups=groups)
+    after = model.state_dict()
+    zeros = {"layers.1.self_attn.out_proj.weight", "layers.1.linear2.weight"}
+    for name in zeros:
+        assert not after[name].any(), name
+    torch.testing.assert_close(after["inp.weight"], before["inp.weight"] * 2.0)
+    for name in set(after) - zeros - {"inp.weight"}:
+        assert torch.equal(after[name], before[name]), name
+
+
 def attention_layer(qk_norm=True):
     return DecoderOnlyTransformerLayer(16, 2, dim_feedforward=32, dropout=0.0,
                                        batch_first=True, bias=False, qk_norm=qk_norm)
@@ -200,7 +246,7 @@ def test_a_wider_run_scales_the_hidden_rates_and_the_logits(tmp_path):
 def test_an_init_factor_changes_the_run_at_the_base_width(tmp_path):
     trainer(tmp_path, "plain", 8)
     run = trainer(tmp_path, "half", 8, mup_base=8, extra=["--mup-init-hidden", "0.5"])
-    assert "init x input 1, hidden 0.5, output 1" in run.stdout
+    assert "init x input 1 (" in run.stdout and "hidden 0.5 (" in run.stdout
     plain = (tmp_path / "plain_losses.csv").read_text().splitlines()
     half = (tmp_path / "half_losses.csv").read_text().splitlines()
     assert plain[0] == half[0] and plain[1] != half[1]
@@ -295,3 +341,13 @@ def test_the_attention_multiplier_scales_the_logits_at_the_base_width(tmp_path):
     weights = weights.get("model_state_dict", weights)
     scales = [float(v) for k, v in weights.items() if k.endswith("attn_logit_scale")]
     assert scales and all(v == pytest.approx(2 / math.sqrt(4)) for v in scales)
+
+
+def test_an_output_factor_0_trains_from_the_last_layers_at_0(tmp_path):
+    trainer(tmp_path, "plain", 8)
+    run = trainer(tmp_path, "out0", 8, mup_base=8, extra=["--mup-init-output", "0"])
+    assert "output 0 (4 weights)" in run.stdout
+    plain = (tmp_path / "plain_losses.csv").read_text().splitlines()
+    out0 = (tmp_path / "out0_losses.csv").read_text().splitlines()
+    assert plain[0] == out0[0] and plain[1] != out0[1]
+    assert math.isfinite(float(out0[-1].split(",")[1]))

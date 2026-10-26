@@ -59,14 +59,22 @@ quantiles of a patch. It is an output weight, and it gets the two rules below:
 
 ## The init factors
 
-Three flags multiply the init of the weights of one class. They are the init
-multipliers of Appendix B.1 of the paper. The default is 1: the muP init.
+Three flags multiply the init of the weights of one group. They are the init
+multipliers of Appendix B.1 of the paper. The default is 1: the muP init. The
+groups follow the position of a layer, as in the muP of rnd
+(`pytrade/mup.py`): the first layer, the output layers, and the layers between
+them. The encoder and the forecaster each have an output: the latent after
+their last layer.
 
 | flag | the weights of the backbone |
 |---|---|
-| `--mup-init-input` | `encoder.proj`, `encoder.skip` and the depthwise convs: they map a fixed size into the width |
-| `--mup-init-hidden` | the attention in and out projections, the FFN, and the channel mixing `R` and `Q` |
-| `--mup-init-output` | none in the contrastive backbone: the value head of #415 |
+| `--mup-init-input` | the first layer: `proj` and `skip` of each patch encoder, which map the patch encoding into the width |
+| `--mup-init-hidden` | the attention in and out projections, the FFN, and the channel mixing `R` and `Q`, except the output layers |
+| `--mup-init-output` | the output layers: `self_attn.out_proj` and `linear2` of the last layer of the encoder and of the forecaster (they write the latent), and the value head of #415 |
+
+Appendix D.2 of the paper initializes the output layers at 0: use
+`--mup-init-output 0`. The depthwise convs take no factor. The muP line of the
+log gives each factor with its count of weights.
 
 `--mup-attn-mult` (default 1) multiplies the attention logit scale: the
 multiplier `alpha_attn` of Appendix B.1. With QK-norm, it sets the temperature
