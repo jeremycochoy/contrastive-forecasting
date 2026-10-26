@@ -166,7 +166,7 @@ def draw_stack(ax, run, cols):
 
 
 def plot_stack(table):
-    """Each run of the table in its PANEL slot; the other slots stay empty.
+    """Each run of the table in its PANEL slot. The other slots stay empty.
     The grid has the columns up to the last column with a run."""
     columns = 1 + max(PANEL[run][1] for run in table)
     fig, axes = plt.subplots(2, columns, figsize=(5.6 * columns, 10.0), sharey=True, squeeze=False)

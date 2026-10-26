@@ -10,9 +10,10 @@ The other loss flags are the same (see plot_loss_composition_099995.py).
 Each panel has four curves, each term as it enters the total loss:
 L_align at depth 0 (column l_align), L_align at depths 1 to 3 (their sum with
 the depth weights: the loss minus the other terms), L_rep x its weight, and
-SIGReg on e plus SIGReg on h. Each value is the mean over log-spaced bins of steps (BINS bins from 100 to
-665k), drawn only when the run logged all the steps of the bin. Writes
-results/loss_curves_099995_binned.tsv and plots/loss_curves_099995.png.
+SIGReg on e plus SIGReg on h. Each value is the mean over log-spaced bins of
+steps (BINS bins from 100 to 665k), drawn only when the run logged all the
+steps of the bin. Writes results/loss_curves_099995_binned.tsv and
+plots/loss_curves_099995.png.
 
 Usage: python3 plot_loss_curves_099995.py
 """
