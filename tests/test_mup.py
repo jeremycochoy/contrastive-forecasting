@@ -286,3 +286,12 @@ def test_depth_mup_also_scales_the_rate_of_the_deeper_stack(tmp_path):
                        weights_only=False)
     mults = sorted(g["lr_mult"] for g in state["optimizer_state_dict"]["param_groups"])
     assert mults == pytest.approx([2 ** -0.5, 1.0])
+
+
+def test_the_attention_multiplier_scales_the_logits_at_the_base_width(tmp_path):
+    run = trainer(tmp_path, "attn2", 8, mup_base=8, extra=["--mup-attn-mult", "2"])
+    assert "attention x 2: 2 attention layers" in run.stdout
+    weights = torch.load(tmp_path / "attn2_step20.pth", map_location="cpu", weights_only=False)
+    weights = weights.get("model_state_dict", weights)
+    scales = [float(v) for k, v in weights.items() if k.endswith("attn_logit_scale")]
+    assert scales and all(v == pytest.approx(2 / math.sqrt(4)) for v in scales)

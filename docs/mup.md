@@ -68,6 +68,11 @@ multipliers of Appendix B.1 of the paper. The default is 1: the muP init.
 | `--mup-init-hidden` | the attention in and out projections, the FFN, and the channel mixing `R` and `Q` |
 | `--mup-init-output` | none in the contrastive backbone: the value head of #415 |
 
+`--mup-attn-mult` (default 1) multiplies the attention logit scale: the
+multiplier `alpha_attn` of Appendix B.1. With QK-norm, it sets the temperature
+of the attention at the start. Each attention layer keeps the scale in its
+buffer, also at the base width.
+
 A bias, a norm, the GRU and the embeddings keep their init. The EMA teacher
 gets the same factors, so it starts equal to the student. Tune a factor at the
 base width with the learning rate, then keep it at the larger width. The run

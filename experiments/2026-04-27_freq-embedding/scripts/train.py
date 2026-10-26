@@ -281,6 +281,10 @@ def build_parser():
                        help=f"muP: multiplies the init of each {group} weight: "
                             f"{which}. Default 1 (the muP init). Needs "
                             "--mup-base-d-model.")
+    p.add_argument("--mup-attn-mult", type=float, default=1.0,
+                   help="muP: multiplies the attention logit scale (alpha_attn of "
+                        "Tensor Programs V, Appendix B.1). Default 1. Needs "
+                        "--mup-base-d-model and --qk-norm.")
     p.add_argument("--mup-base-num-layers", type=int, default=None,
                    help="muP depth rule: the base count of forecaster layers "
                         "(--num-layers). Default: --num-layers (no depth change). "
@@ -1718,7 +1722,7 @@ def mup_setup(model, model_config, args):
     rules = parameter_rules(model, base, delta)
     mup_init_(model, rules, args.mup_init_input, args.mup_init_hidden,
               args.mup_init_output)
-    n_attn = mup_attention_(model, base)
+    n_attn = mup_attention_(model, base, args.mup_attn_mult)
     stacks = mup_depth_stacks(model, args)
     n_depth = mup_depth_([(layers, n, b) for layers, n, b in stacks.values()],
                          args.mup_depth_alpha)
@@ -1728,8 +1732,8 @@ def mup_setup(model, model_config, args):
     depths = ", ".join(f"{k.rstrip('.')} {n} on base {b}" for k, (_, n, b) in stacks.items())
     print(f"muP: base d_model {base_config['H']} with {base_heads} heads; "
           f"{mup_summary(rules)}; init x input {args.mup_init_input:g}, hidden "
-          f"{args.mup_init_hidden:g}, output {args.mup_init_output:g}; "
-          f"{n_attn} attention layers with the muP logit scale; depth alpha "
+          f"{args.mup_init_hidden:g}, output {args.mup_init_output:g}; attention x "
+          f"{args.mup_attn_mult:g}: {n_attn} attention layers with the muP logit scale; depth alpha "
           f"{args.mup_depth_alpha:g}: {depths}, {n_depth} layers with a branch scale")
     return mup_param_groups(model, rules, args.lr, args.weight_decay, depth_lr)
 
@@ -1878,7 +1882,7 @@ VALUE_SPACE_FLAGS = frozenset((
     # The optimizer and the rate schedule.
     "batch_size", "lr", "lr_final", "lr_cosine_steps", "lr_warmup_steps",
     "lr_decay_shape", "mup_base_d_model", "mup_base_n_heads",
-    "mup_init_input", "mup_init_hidden", "mup_init_output",
+    "mup_init_input", "mup_init_hidden", "mup_init_output", "mup_attn_mult",
     "mup_base_num_layers", "mup_base_num_encoder_layers", "mup_depth_alpha",
     "grad_clip", "weight_decay", "adam_beta1", "adam_beta2", "seed",
     # The data.
@@ -3060,6 +3064,7 @@ def main():
         ("--mup-init-input", args.mup_init_input != 1.0),
         ("--mup-init-hidden", args.mup_init_hidden != 1.0),
         ("--mup-init-output", args.mup_init_output != 1.0),
+        ("--mup-attn-mult", args.mup_attn_mult != 1.0),
         ("--mup-base-num-layers", args.mup_base_num_layers is not None),
         ("--mup-base-num-encoder-layers", args.mup_base_num_encoder_layers is not None),
         ("--mup-depth-alpha", args.mup_depth_alpha != 1.0)) if on]
