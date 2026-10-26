@@ -40,11 +40,11 @@ the default `--mup-base-n-heads`, `d_head` scales with the width.
 
 ## The init
 
-The init is the PyTorch default, except for the two rules below. A
-`Linear` weight starts at `U(-1/sqrt(fan_in), 1/sqrt(fan_in))`, and the
-attention input projection at the Xavier uniform init. For the contrastive backbone, that is the muP init at
-each width. No weight maps the width to a fixed size, because the losses read
-the latents by cosine. No bias follows a fan_in that scales.
+The init is the PyTorch default, except for the two rules below. A `Linear`
+weight starts at `U(-1/sqrt(fan_in), 1/sqrt(fan_in))`, and the attention input
+projection at the Xavier uniform init. For the contrastive backbone, that is
+the muP init at each width. No weight maps the width to a fixed size, because
+the losses read the latents by cosine. No bias follows a fan_in that scales.
 
 The value head of the value-space objective (#415) maps the width to the
 quantiles of a patch. It is an output weight, and it gets the two rules below:
