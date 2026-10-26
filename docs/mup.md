@@ -121,3 +121,14 @@ layer, train 5 AdamW steps on random data at widths 64 to 512, in the
 standard parametrization and in muP. The figure shows the mean change of the
 output of each layer. In the standard parametrization, the change of the
 transformer layers grows with the width. In muP it keeps its size.
+
+```bash
+python3 scripts/mup_coord_check.py --vary depth --out docs/mup_coord_check_depth.png
+```
+
+![Coordinate check in depth](mup_coord_check_depth.png)
+
+The same check at the width 128, from 3 to 9 transformer layers, with the
+muP base width 64. In both parametrizations, the change of the last layer
+grows by about 2.5 times from 3 to 9 layers, and the change of the first
+layer stays almost the same. The muP rules are for the width only.
