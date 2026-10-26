@@ -16,8 +16,8 @@ import torch
 from torch import nn
 
 from src.blocks import DecoderOnlyTransformerLayer
-from src.mup import (FIXED, HIDDEN, INPUT, OUTPUT, mup_init_, mup_param_groups,
-                     parameter_rules)
+from src.mup import (FIXED, HIDDEN, INPUT, OUTPUT, depth_lr_mults, mup_init_,
+                     mup_param_groups, parameter_rules)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 TRAIN_PY = REPO_ROOT / "experiments" / "2026-04-27_freq-embedding" / "scripts" / "train.py"
@@ -209,3 +209,80 @@ def test_an_init_factor_changes_the_run_at_the_base_width(tmp_path):
 def test_an_init_factor_needs_a_base_width(tmp_path):
     run = trainer(tmp_path, "nobase", 8, extra=["--mup-init-hidden", "0.5"], ok=False)
     assert "needs --mup-base-d-model" in run.stderr
+
+
+def test_a_branch_scale_of_zero_keeps_only_the_residual_stream():
+    torch.manual_seed(0)
+    layer = attention_layer().eval()
+    layer.set_residual_branch_scale(0.0)
+    x = torch.randn(2, 5, 16)
+    with torch.no_grad():
+        assert torch.equal(layer(x), x)
+
+
+def test_the_branch_scale_reaches_a_layer_through_its_state_dict():
+    torch.manual_seed(0)
+    layer = attention_layer().eval()
+    x = torch.randn(2, 5, 16)
+    with torch.no_grad():
+        default = layer(x)
+        one = copy.deepcopy(layer)
+        one.set_residual_branch_scale(1.0)
+        assert torch.equal(one(x), default)
+        half = copy.deepcopy(layer)
+        half.set_residual_branch_scale(0.5)
+        want = half(x)
+        fresh = attention_layer().eval()
+        fresh.load_state_dict(half.state_dict())
+        assert fresh._branch_scale == 0.5 and torch.equal(fresh(x), want)
+
+
+def test_a_post_norm_layer_refuses_a_branch_scale():
+    layer = DecoderOnlyTransformerLayer(16, 2, dim_feedforward=32, dropout=0.0,
+                                        batch_first=True, bias=False, qk_norm=True,
+                                        norm_first=False)
+    with pytest.raises(ValueError, match="pre-norm"):
+        layer.set_residual_branch_scale(0.5)
+
+
+def test_the_depth_lr_factor_follows_alpha():
+    model, rules = toy_rules(8)
+    mults = depth_lr_mults(model, {"hid.": (6, 3)}, alpha=0.5)
+    assert set(mults) == {"hid.weight", "hid.bias"}
+    assert all(v == pytest.approx(2 ** -0.5) for v in mults.values())
+    groups = mup_param_groups(model, rules, lr=1e-3, weight_decay=0.1, depth_lr=mults)
+    deep = next(g for g in groups if g["lr_mult"] != 1.0)
+    assert deep["lr"] == pytest.approx(1e-3 * 2 ** -0.5) and deep["weight_decay"] == 0.1
+    assert depth_lr_mults(model, {"hid.": (3, 3)}, alpha=0.5) == {}
+
+
+def branch_scales(tmp_path, run_name):
+    weights = torch.load(tmp_path / f"{run_name}_step20.pth", map_location="cpu",
+                         weights_only=False)
+    weights = weights.get("model_state_dict", weights)
+    return {k: float(v) for k, v in weights.items() if k.endswith("residual_branch_scale")}
+
+
+def test_a_deeper_forecaster_scales_its_branches(tmp_path):
+    run = trainer(tmp_path, "deep", 8, mup_base=8,
+                  extra=["--num-layers", "2", "--mup-base-num-layers", "1"])
+    assert "2 layers with a branch scale" in run.stdout
+    scales = branch_scales(tmp_path, "deep")
+    assert sorted(scales) == ["transformer.layers.0.residual_branch_scale",
+                              "transformer.layers.1.residual_branch_scale"]
+    assert all(v == pytest.approx(0.5) for v in scales.values())
+    state = torch.load(tmp_path / "deep_step20_optimizer.pth", map_location="cpu",
+                       weights_only=False)
+    assert [g["lr_mult"] for g in state["optimizer_state_dict"]["param_groups"]] == [1.0]
+
+
+def test_depth_mup_also_scales_the_rate_of_the_deeper_stack(tmp_path):
+    trainer(tmp_path, "dmup", 8, mup_base=8,
+            extra=["--num-layers", "2", "--mup-base-num-layers", "1",
+                   "--mup-depth-alpha", "0.5"])
+    scales = branch_scales(tmp_path, "dmup")
+    assert all(v == pytest.approx(2 ** -0.5) for v in scales.values()) and len(scales) == 2
+    state = torch.load(tmp_path / "dmup_step20_optimizer.pth", map_location="cpu",
+                       weights_only=False)
+    mults = sorted(g["lr_mult"] for g in state["optimizer_state_dict"]["param_groups"])
+    assert mults == pytest.approx([2 ** -0.5, 1.0])

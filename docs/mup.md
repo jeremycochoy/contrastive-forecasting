@@ -73,6 +73,42 @@ gets the same factors, so it starts equal to the student. Tune a factor at the
 base width with the learning rate, then keep it at the larger width. The run
 prints the factors and the count of tensors of each class.
 
+## The depth rule
+
+muP sets the rules of the width. The depth rule sets the rules of the count
+of layers of a stack: Table 1 of CompleteP (Dey and others 2025,
+[arXiv 2505.01618](https://arxiv.org/abs/2505.01618)), after the Depth-muP of
+Tensor Programs VI (Yang and others 2023,
+[arXiv 2310.02244](https://arxiv.org/abs/2310.02244)).
+
+| flag | default | effect |
+|---|---|---|
+| `--mup-base-num-layers` | `--num-layers` | the base count of forecaster layers |
+| `--mup-base-num-encoder-layers` | `--num-encoder-layers` | the base count of encoder layers, also for the EMA teacher |
+| `--mup-depth-alpha` | 1 | alpha in [0.5, 1] |
+
+With `m_L` the count of layers of a stack over its base count:
+
+- Each layer of the stack multiplies the output of its attention branch and
+  of its FFN branch by `m_L^(-alpha)` before the residual add. The layer keeps
+  the factor in the buffer `residual_branch_scale` of the checkpoint, as the
+  attention logit scale.
+- Each parameter of the layers of the stack trains at `lr * m_L^(alpha - 1)`.
+  The weight decay keeps its width factor only.
+
+`alpha 1` is CompleteP: the learning rates do not change, only the branches.
+`alpha 0.5` is the Depth-muP of Tensor Programs VI. CompleteP reports that
+only `alpha 1` keeps the best learning rate and init across depth for pre-norm
+transformers (their Finding 2). The layers of this trainer are pre-norm. At
+the base depth every factor is 1.
+
+AdamW `eps` stays at 1e-8. Table 1 of CompleteP also scales it, and its
+footnote 3 finds that a small enough `eps` keeps the transfer.
+
+The rollout of the forecaster (`--train-rollout-depth`) applies the same
+layers again. The depth rule counts the layers of the stack, not the rollout
+steps.
+
 ## The checkpoint
 
 At a width other than the base, each attention layer keeps its scale in the
@@ -129,9 +165,11 @@ python3 scripts/mup_coord_check.py --vary depth --out docs/mup_coord_check_depth
 ![Coordinate check in depth](mup_coord_check_depth.png)
 
 The same check at the width 128, from 3 to 9 transformer layers, with the
-muP base width 64. In both parametrizations, the change of the last layer
-grows by about 2.5 times from 3 to 9 layers, and the change of the first
-layer stays almost the same. The muP rules are for the width only.
+muP base width 64. In the standard parametrization and in muP, the change of
+the last layer grows by about 2.5 times from 3 to 9 layers. With the depth
+rule (`alpha 1`, base depth 3), the change of the last layer stays at 1.5,
+and the change of the first layer falls as `1 / L`: each layer adds `1 / L`
+of the change, and their sum keeps its size.
 
 ```bash
 python3 scripts/mup_coord_check.py --layers 9 --widths 64,96,128,192,256,384 \
