@@ -21,7 +21,8 @@ the runs of this report (GRN: arm abc_gift, GRN+EMA 0.999: arm grn_ema0999,
 GRN+EMA 0.9998: arm grn_ema09998, GRN+EMA 0.99995: arm grn_ema099995, with 6
 forecaster layers: arm grn_ema099995_f6, and with the L_rep weight 0.1:
 arm grn_ema099995_f6_rep01, GRN+EMA 0.9998 with the L_rep weight 0.03 and the
-depth weights 1 / 2^j: arm grn_ema09998_rep003_halving): results/scores.tsv
+depth weights 1 / 2^j: arm grn_ema09998_rep003_halving, and the same with the
+EMA 0.99995: arm grn_ema099995_rep003_halving): results/scores.tsv
 (B4, arm `control`), and results/recon_*.tsv (R, with the columns arm, stop in
 thousands of steps, GM-Relative MASE, from collect_recon.py).
 The point at 1k steps of GRN and BLK is a run of the first 1,000 steps
@@ -63,14 +64,16 @@ GRN_EMA099995_F6_REP01 = "grn_ema099995_f6_rep01"
 GRN_EMA099995_F6_REP01_COLOUR = "#ffb000"  # no other run of this figure has this colour
 GRN_EMA09998_REP003_HALVING = "grn_ema09998_rep003_halving"
 GRN_EMA09998_REP003_HALVING_COLOUR = "#e41a1c"  # no other run of this figure has this colour
+GRN_EMA099995_REP003_HALVING = "grn_ema099995_rep003_halving"
+GRN_EMA099995_REP003_HALVING_COLOUR = "#8c564b"  # no other run of this figure has this colour
 # The runs of this report: their forecast comes from results/scores.tsv.
 NEW_RUNS = [GREEN, GRN_EMA0999, GRN_EMA09998, GRN_EMA099995, GRN_EMA099995_F6,
-            GRN_EMA099995_F6_REP01, GRN_EMA09998_REP003_HALVING]
+            GRN_EMA099995_F6_REP01, GRN_EMA09998_REP003_HALVING, GRN_EMA099995_REP003_HALVING]
 # Older runs with a forecast at 1k steps in results/scores.tsv: arm -> run.
 FIRST_STEPS = {"cf419_cos200k": "blk"}
 # The newest runs: drawn above the others, so that their first points show.
 ON_TOP = {GRN_EMA09998, GRN_EMA099995, GRN_EMA099995_F6, GRN_EMA099995_F6_REP01,
-          GRN_EMA09998_REP003_HALVING}
+          GRN_EMA09998_REP003_HALVING, GRN_EMA099995_REP003_HALVING}
 MPE = "cf421ew_moirai_native"
 # Its R (transformer head 0.12 to 0.21) lies far above the R panels.
 FORECAST_ONLY = {MPE}
@@ -90,6 +93,8 @@ RUNS = [
      "weight 0.1 at each step", GRN_EMA099995_F6_REP01_COLOUR, "^"),
     (GRN_EMA09998_REP003_HALVING, r"$\mathbf{GRN+EMA\ 0.9998,\ L\_rep\ 0.03,\ depths\ 1/2^j}$  "
      "the L_align of depth j at the weight 1 / 2^j", GRN_EMA09998_REP003_HALVING_COLOUR, "X"),
+    (GRN_EMA099995_REP003_HALVING, r"$\mathbf{GRN+EMA\ 0.99995,\ L\_rep\ 0.03,\ depths\ 1/2^j}$  "
+     "the EMA of the teacher 0.99995 to 1.0", GRN_EMA099995_REP003_HALVING_COLOUR, "s"),
     (P + "_cos200k", tagged(P + "_cos200k", "lr cosine to 1e-6 by 200k, old data"),
      colour(P + "_cos200k"), "v"),
     ("cf419_cos200k", tagged("cf419_cos200k", "lr cosine to 1e-6 by 200k, new data"),
@@ -99,7 +104,8 @@ RUNS = [
 OURS = STUDY / "results"
 # The R tables of collect_recon.py (first_steps: the 1k point of BLK).
 OUR_R_TABLES = ["green", "grn_ema0999", "grn_ema09998", "grn_ema099995", "grn_ema099995_f6",
-                "grn_ema099995_f6_rep01", "grn_ema09998_rep003_halving", "first_steps"]
+                "grn_ema099995_f6_rep01", "grn_ema09998_rep003_halving",
+                "grn_ema099995_rep003_halving", "first_steps"]
 # panel title, y range, the score tables, and whether the forecast of the
 # runs of this report comes from results/scores.tsv
 PANELS = [
