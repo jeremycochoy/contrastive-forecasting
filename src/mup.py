@@ -181,10 +181,12 @@ def attn_logit_scale(d_head: int, base_d_head: int) -> float:
     return math.sqrt(base_d_head) / d_head
 
 
-def mup_attention_(model: nn.Module, base: nn.Module) -> int:
-    """Sets the muP logit scale on each attention layer of ``model`` whose
-    d_head differs from the same layer of ``base``. Returns the count of
-    layers. A layer at the base d_head keeps 1 / sqrt(d_head)."""
+def mup_attention_(model: nn.Module, base: nn.Module, mult: float = 1.0) -> int:
+    """Sets the muP logit scale, times ``mult`` (alpha_attn of Appendix B.1),
+    on each attention layer of ``model`` whose d_head differs from the same
+    layer of ``base``, or on each layer when ``mult`` is not 1. Returns the
+    count of layers. A layer at the base d_head with ``mult`` 1 keeps
+    1 / sqrt(d_head)."""
     from .blocks import AttentionChannelMixing, DecoderOnlyTransformerLayer
     base_modules = dict(base.named_modules())
     count = 0
@@ -198,8 +200,8 @@ def mup_attention_(model: nn.Module, base: nn.Module) -> int:
             d_head = module.self_attn.embed_dim // module.nhead
             b = base_modules[name]
             base_d_head = b.self_attn.embed_dim // b.nhead
-            if d_head != base_d_head:
-                module.set_attn_logit_scale(attn_logit_scale(d_head, base_d_head))
+            if d_head != base_d_head or mult != 1.0:
+                module.set_attn_logit_scale(mult * attn_logit_scale(d_head, base_d_head))
                 count += 1
     return count
 
