@@ -65,7 +65,7 @@ RUNS = {
     "grn_ema099995_rep003_halving": (
         [(RUNS_DIR / "grn_ema099995_rep003_halving/ckpt/grn_ema099995_rep003_halving_losses.csv",
           None)],
-        "#8c564b", "Brown: GRN+EMA 0.99995, L_rep 0.03, depths 1/2^j (in training)"),
+        "#8c564b", "Brown: GRN+EMA 0.99995, L_rep 0.03, depths 1/2^j (ended at 300k)"),
 }
 # run -> (row, column) of its panel
 PANEL = {"grn_ema099995": (0, 0), "grn_ema099995_f6": (0, 1),
