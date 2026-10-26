@@ -132,3 +132,15 @@ The same check at the width 128, from 3 to 9 transformer layers, with the
 muP base width 64. In both parametrizations, the change of the last layer
 grows by about 2.5 times from 3 to 9 layers, and the change of the first
 layer stays almost the same. The muP rules are for the width only.
+
+```bash
+python3 scripts/mup_coord_check.py --layers 9 --widths 64,96,128,192,256,384 \
+  --out docs/mup_coord_check_9layers.png
+```
+
+![Coordinate check at 9 layers](mup_coord_check_9layers.png)
+
+The width check at 9 transformer layers, from the width 64 to 384. In muP the
+change of the first, middle and last layer keeps its size. In the standard
+parametrization the change of the first layer at 192 to 384 is 1.6 to 1.9
+times its change at 64.

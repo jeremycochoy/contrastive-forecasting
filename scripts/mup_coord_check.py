@@ -93,13 +93,22 @@ def mean_changes(d, n_layers, base_d, args):
     return [sum(r[i] for r in runs) / len(runs) for i in range(len(runs[0]))]
 
 
+PICKS = {"input": lambda n: 0, "layer 1": lambda n: 1,
+         "middle layer": lambda n: (n + 1) // 2, "last layer": lambda n: n,
+         "output": lambda n: n + 1}
+
+
 def width_panel(ax, args, mup):
+    """Each layer up to 3 layers. Above 3 layers, the layers of PICKS."""
     widths = [int(w) for w in args.widths.split(",")]
     base = args.base_width or widths[0]
     rows = [mean_changes(d, args.layers, base if mup else None, args) for d in widths]
-    names = ["input"] + [f"layer {i + 1}" for i in range(args.layers)] + ["output"]
-    for i, name in enumerate(names):
-        ax.plot(widths, [r[i] for r in rows], marker="o", label=name)
+    n = args.layers
+    names = (dict(PICKS) if n > 3 else
+             {"input": lambda n: 0, **{f"layer {i}": (lambda n, i=i: i) for i in range(1, n + 1)},
+              "output": lambda n: n + 1})
+    for name, index in names.items():
+        ax.plot(widths, [r[index(n)] for r in rows], marker="o", label=name)
     ax.set_xscale("log", base=2)
     ax.set_xticks(widths, [str(w) for w in widths])
     ax.set_xlabel("width (d_model)")
@@ -110,10 +119,7 @@ def depth_panel(ax, args, mup):
     depths = [int(n) for n in args.depths.split(",")]
     base = args.base_width or 64
     rows = [mean_changes(args.width, n, base if mup else None, args) for n in depths]
-    picks = {"input": lambda n: 0, "layer 1": lambda n: 1,
-             "middle layer": lambda n: (n + 1) // 2, "last layer": lambda n: n,
-             "output": lambda n: n + 1}
-    for name, index in picks.items():
+    for name, index in PICKS.items():
         ax.plot(depths, [r[index(n)] for r, n in zip(rows, depths)], marker="o", label=name)
     ax.set_xticks(depths, [str(n) for n in depths])
     ax.set_xlabel(f"number of transformer layers (width {args.width})")
