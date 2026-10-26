@@ -114,6 +114,8 @@ python scripts/recover.py --device cuda --model-path model.pth --epochs 20000
 - [`docs/model_spec_flags.md`](docs/model_spec_flags.md) — the mean/std
   scaling, the patch sizes and the row drop of the Moirai copy on the
   contrastive objective (#412), and the head bank that scores it.
+- [`docs/mup.md`](docs/mup.md) — `--mup-base-d-model`, which tunes the
+  learning rate at a small width and keeps it at a larger width (muP).
 
 ### How large is the model?
 

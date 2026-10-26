@@ -176,6 +176,9 @@ class DecoderOnlyTransformerLayer(nn.Module):
         # measured). Add to the FFN later only if it does.
         self.attn_out_norm = bool(attn_out_norm)
         self._attn_dropout_p = float(dropout)
+        # The logit scale of the QK-norm path. None: SDPA's 1 / sqrt(head_dim).
+        # muP (src/mup.py) sets it with set_attn_logit_scale.
+        self._attn_scale = None
         head_dim = d_model // nhead
         if self.qk_norm:
             self.q_norm = nn.RMSNorm(head_dim, **factory_kwargs)
@@ -233,6 +236,25 @@ class DecoderOnlyTransformerLayer(nn.Module):
         if 'activation' not in state:
             state['activation'] = nn.functional.relu
         super().__setstate__(state)
+
+    def set_attn_logit_scale(self, scale: float) -> None:
+        """Multiplies the attention logits by ``scale`` in place of
+        1 / sqrt(head_dim) (muP, src/mup.py). The scale is a buffer of the
+        state_dict, so a loader of the checkpoint gets it back. Only the QK-norm
+        path takes a scale: nn.MultiheadAttention has no argument for it."""
+        if not self.qk_norm:
+            raise ValueError("an attention logit scale needs --qk-norm (the SDPA path)")
+        device = self.self_attn.in_proj_weight.device
+        self.register_buffer("attn_logit_scale", torch.tensor(float(scale), device=device))
+        self._attn_scale = float(scale)
+
+    def _load_from_state_dict(self, state_dict, prefix, *args, **kwargs):
+        # A checkpoint with a muP logit scale gives it to a layer built
+        # without one, so the head trainer and the evaluation need no flag.
+        key = prefix + "attn_logit_scale"
+        if key in state_dict:
+            self.set_attn_logit_scale(float(state_dict[key]))
+        super()._load_from_state_dict(state_dict, prefix, *args, **kwargs)
 
     def forward(self, tgt: Tensor, tgt_mask: Optional[Tensor] = None,
                 tgt_key_padding_mask: Optional[Tensor] = None,
@@ -388,7 +410,7 @@ class DecoderOnlyTransformerLayer(nn.Module):
             out = torch.nn.functional.scaled_dot_product_attention(
                 q, k, v, attn_mask=am,
                 dropout_p=(self._attn_dropout_p if self.training else 0.0),
-                is_causal=(is_causal and am is None))
+                is_causal=(is_causal and am is None), scale=self._attn_scale)
             PROBE.record(f"{tag} sdpa", out)
             out = out.transpose(1, 2).reshape(B, T, d)             # [B, T, d]
             out = torch.nn.functional.linear(out, mha.out_proj.weight, mha.out_proj.bias)
@@ -448,7 +470,9 @@ class DecoderOnlyTransformerLayer(nn.Module):
             if self.qk_norm:
                 qh = self.q_norm(qh)
                 kh = self.k_norm(kh)
-            logits = torch.matmul(qh, kh.transpose(-2, -1)) / math.sqrt(hd)
+            logits = torch.matmul(qh, kh.transpose(-2, -1))
+            logits = (logits * self._attn_scale if self._attn_scale is not None
+                      else logits / math.sqrt(hd))
             qk_logit_maxabs = float(logits.abs().max().item())
             sa_in_maxabs = float(xin.abs().max().item())
             sa_out_maxabs = float(sa_out.detach().abs().max().item())

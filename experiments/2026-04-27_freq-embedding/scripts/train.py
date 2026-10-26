@@ -40,6 +40,8 @@ from src.models import (ConfigurableModel, compute_metrics, count_parameters,
                         ema_tau_at_step, generate_random_batch,
                         linear_schedule_at_step)
 from src.blocks import ATTN_AMP_DIAG
+from src.mup import (mup_attention_, mup_init_, mup_param_groups,
+                     parameter_rules, summary as mup_summary)
 from src.dataloader import (
     create_mixed_periodic_dataloader,
     create_mixed_composite_dataloader,
@@ -256,6 +258,29 @@ def build_parser():
     p.add_argument("--n-heads", type=int, default=MODEL_CONFIG["nhead"],
                    help="Number of attention heads. Default 8 (Tiny). "
                         "Use 6 for the H=384 smaller-arch arms.")
+    p.add_argument("--mup-base-d-model", type=int, default=None,
+                   help="muP (src/mup.py, Tensor Programs V): the base width. "
+                        "Default: off. The base model has the flags of this run "
+                        "at this --d-model. At the base width the run is the run "
+                        "without muP (PyTorch default init, one learning rate). "
+                        "At another width, a weight whose fan_in and fan_out both "
+                        "scale trains at --lr x base / d_model and --weight-decay "
+                        "x d_model / base, and the attention logits read "
+                        "sqrt(base d_head) / d_head. Needs --qk-norm when d_head "
+                        "changes.")
+    p.add_argument("--mup-base-n-heads", type=int, default=None,
+                   help="muP: the number of heads of the base model. Default: "
+                        "--n-heads, so d_head scales with the width.")
+    for group, which in (("input", "a weight that maps a fixed size into the "
+                                   "width (encoder.proj, encoder.skip, the depthwise convs)"),
+                         ("hidden", "a weight whose fan_in and fan_out both scale "
+                                    "(attention, FFN, channel mixing)"),
+                         ("output", "a weight that maps the width to a fixed size "
+                                    "(the value head)")):
+        p.add_argument(f"--mup-init-{group}", type=float, default=1.0,
+                       help=f"muP: multiplies the init of each {group} weight: "
+                            f"{which}. Default 1 (the muP init). Needs "
+                            "--mup-base-d-model.")
     p.add_argument("--num-layers", type=int, default=MODEL_CONFIG["num_layers"],
                    help="Number of encoder layers. Default 6.")
     p.add_argument("--forecaster-d-model", type=int, default=None,
@@ -1662,6 +1687,31 @@ def should_snapshot(step, save_every, extra_steps):
     return (step % save_every == 0) or (step in extra_steps)
 
 
+def mup_setup(model, model_config, args):
+    """The muP init of ``model`` and its AdamW parameter groups (src/mup.py),
+    against the same flags at --mup-base-d-model (the base model) and at twice
+    that width (the delta model, which shows the dimensions that scale). Both
+    live on the meta device and draw no random number, so a run at the base
+    width with the init factors at 1 is the run without muP. Prints the
+    classes of the tensors."""
+    base_heads = args.mup_base_n_heads or args.n_heads
+    base_config = dict(model_config, H=args.mup_base_d_model, nhead=base_heads)
+    delta_heads = base_heads if base_heads == args.n_heads else 2 * base_heads
+    delta_config = dict(model_config, H=2 * args.mup_base_d_model, nhead=delta_heads)
+    with torch.random.fork_rng(devices=[]), torch.device("meta"):
+        base = ConfigurableModel(**base_config)
+        delta = ConfigurableModel(**delta_config)
+    rules = parameter_rules(model, base, delta)
+    mup_init_(model, rules, args.mup_init_input, args.mup_init_hidden,
+              args.mup_init_output)
+    n_attn = mup_attention_(model, base)
+    print(f"muP: base d_model {base_config['H']} with {base_heads} heads; "
+          f"{mup_summary(rules)}; init x input {args.mup_init_input:g}, hidden "
+          f"{args.mup_init_hidden:g}, output {args.mup_init_output:g}; "
+          f"{n_attn} attention layers with the muP logit scale")
+    return mup_param_groups(model, rules, args.lr, args.weight_decay)
+
+
 def resume_state(model, args):
     """The state dict of --resume, ready for a strict load (#421).
 
@@ -1786,7 +1836,8 @@ VALUE_SPACE_FLAGS = frozenset((
     "log_attn_amplitude", "log_attn_amplitude_every",
     # The optimizer and the rate schedule.
     "batch_size", "lr", "lr_final", "lr_cosine_steps", "lr_warmup_steps",
-    "lr_decay_shape",
+    "lr_decay_shape", "mup_base_d_model", "mup_base_n_heads",
+    "mup_init_input", "mup_init_hidden", "mup_init_output",
     "grad_clip", "weight_decay", "adam_beta1", "adam_beta2", "seed",
     # The data.
     "hf_repo", "hf_path", "split", "mix_ratio", "crossfade_ratio",
@@ -2962,9 +3013,18 @@ def main():
             "--cpc-infonce-weight, change the main term, or drop "
             "--train-rollout-depth (#373).")
     configure_loss_spec(args)
+    mup_without_base = [f for f, on in (
+        ("--mup-base-n-heads", args.mup_base_n_heads is not None),
+        ("--mup-init-input", args.mup_init_input != 1.0),
+        ("--mup-init-hidden", args.mup_init_hidden != 1.0),
+        ("--mup-init-output", args.mup_init_output != 1.0)) if on]
+    if mup_without_base and not args.mup_base_d_model:
+        raise SystemExit(f"{', '.join(mup_without_base)} needs --mup-base-d-model "
+                         "(muP, docs/mup.md).")
     model = ConfigurableModel(**model_config).to(device)
     optimizer = optim.AdamW(
-        model.parameters(),
+        mup_setup(model, model_config, args) if args.mup_base_d_model
+        else model.parameters(),
         lr=args.lr,
         weight_decay=args.weight_decay,
         betas=(args.adam_beta1, args.adam_beta2),
@@ -3310,7 +3370,7 @@ def main():
                                   cosine_steps, args.lr_warmup_steps,
                                   args.lr_decay_shape)
             for group in optimizer.param_groups:
-                group["lr"] = lr_now
+                group["lr"] = lr_now * group.get("lr_mult", 1.0)
         model.train()
         optimizer.zero_grad()
         if nan_debug is not None:
