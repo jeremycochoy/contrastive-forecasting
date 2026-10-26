@@ -24,7 +24,10 @@ hidden and input rules need no change. A bias of a layer whose fan_in scales
 starts at U(-1/sqrt(fan_in), 1/sqrt(fan_in)) in PyTorch. Its init is
 multiplied by sqrt(m_in), so it keeps the bounds of the base layer. Three
 factors, 1 by default, multiply the init of the input, hidden and output
-weights: the init multipliers of Appendix B.1.
+weights: the init multipliers of Appendix B.1. ``init_groups`` puts each
+weight in one of the three groups by its position, as the muP of rnd
+(pytrade/mup.py): the first layer, the last layer of each transformer stack
+(the encoder and the forecaster each have an output), and the layers between.
 
 The weight decay factor keeps lr * weight_decay of each tensor, because
 torch.optim.AdamW decays a weight by lr * weight_decay at each step (as
@@ -51,6 +54,9 @@ HIDDEN, OUTPUT, INPUT, FIXED = "hidden", "output", "input", "fixed"
 # Layers whose weight has the layout (fan_out, fan_in, kernel...).
 OUT_IN_LAYERS = (nn.Linear, nn.Conv1d, nn.Conv2d, nn.Conv3d)
 RECURRENT = (nn.GRU, nn.LSTM, nn.RNN)
+# The weights of a transformer layer that write into its output (the residual
+# stream): the attention output projection and the second FFN weight.
+LAYER_WRITES = ("self_attn.out_proj.weight", "linear2.weight")
 
 
 def fan_in_mult(shape, base_shape, in_dims) -> float:
@@ -126,23 +132,55 @@ def one_rule(module, name, shape, ref, mod_name):
     return tensor_class(shapes, out_dims, in_dims), m_in, None
 
 
+def init_groups(rules, stacks) -> dict:
+    """{parameter name: INPUT, HIDDEN, OUTPUT or None}: the group of each
+    tensor for the init factors, by its position. ``stacks`` is {name prefix:
+    count of layers} of the transformer stacks, for example
+    {"transformer.layers.": 3}.
+
+    The output of a stack is the output of its last layer, so the weights of
+    that layer that write into it (LAYER_WRITES) are OUTPUT, with the output
+    weights of their class (a value head). An input weight outside the stacks
+    (a projection of a patch encoder into the width) is INPUT: the first
+    layer. Each other hidden weight is HIDDEN. A tensor of another class, a
+    bias, and an input weight inside a stack (a depthwise conv) are None:
+    they take no factor."""
+    last = {f"{prefix}{n - 1}.{w}" for prefix, n in stacks.items() for w in LAYER_WRITES}
+    groups = {}
+    for name, (kind, _, bias_of) in rules.items():
+        if bias_of is not None:
+            groups[name] = None
+        elif name in last or kind == OUTPUT:
+            groups[name] = OUTPUT
+        elif kind == HIDDEN:
+            groups[name] = HIDDEN
+        elif kind == INPUT and not name.startswith(tuple(stacks)):
+            groups[name] = INPUT
+        else:
+            groups[name] = None
+    return groups
+
+
 @torch.no_grad()
 def mup_init_(model: nn.Module, rules, input_mult: float = 1.0,
-              hidden_mult: float = 1.0, output_mult: float = 1.0) -> None:
+              hidden_mult: float = 1.0, output_mult: float = 1.0,
+              groups=None) -> None:
     """Turns the PyTorch default init into the muP init: an output weight by
     1 / sqrt(m_in), and a bias whose layer's fan_in scales by sqrt(m_in). The
     three factors multiply the init of each weight (two or more dimensions) of
-    their class. A bias, a norm and a fixed tensor take no factor. Run it one
-    time, on a new model. An EMA copy of a module gets the same factors, so a
-    teacher stays equal to its student."""
+    their group: ``groups`` (init_groups), or the class of the weight without
+    it. A factor 0 sets the weights to 0. A bias, a norm and a fixed tensor
+    take no factor. Run it one time, on a new model. An EMA copy of a module
+    gets the same factors, so a teacher stays equal to its student."""
     params = dict(model.named_parameters())
-    mult = {INPUT: input_mult, HIDDEN: hidden_mult, OUTPUT: output_mult, FIXED: 1.0}
+    mult = {INPUT: input_mult, HIDDEN: hidden_mult, OUTPUT: output_mult}
     for name, (kind, m_in, bias_of) in rules.items():
         p = params[name]
         if bias_of is not None:
             scale = math.sqrt(m_in)
         elif p.dim() >= 2:
-            scale = mult[kind] / (math.sqrt(m_in) if kind == OUTPUT else 1.0)
+            group = kind if groups is None else groups[name]
+            scale = mult.get(group, 1.0) / (math.sqrt(m_in) if kind == OUTPUT else 1.0)
         else:
             scale = 1.0
         if scale != 1.0:

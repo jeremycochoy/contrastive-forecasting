@@ -40,8 +40,9 @@ from src.models import (ConfigurableModel, compute_metrics, count_parameters,
                         ema_tau_at_step, generate_random_batch,
                         linear_schedule_at_step)
 from src.blocks import ATTN_AMP_DIAG
-from src.mup import (depth_lr_mults, mup_attention_, mup_depth_, mup_init_,
-                     mup_param_groups, parameter_rules, summary as mup_summary)
+from src.mup import (depth_lr_mults, init_groups, mup_attention_, mup_depth_,
+                     mup_init_, mup_param_groups, parameter_rules,
+                     summary as mup_summary)
 from src.dataloader import (
     create_mixed_periodic_dataloader,
     create_mixed_composite_dataloader,
@@ -271,12 +272,14 @@ def build_parser():
     p.add_argument("--mup-base-n-heads", type=int, default=None,
                    help="muP: the number of heads of the base model. Default: "
                         "--n-heads, so d_head scales with the width.")
-    for group, which in (("input", "a weight that maps a fixed size into the "
-                                   "width (encoder.proj, encoder.skip, the depthwise convs)"),
+    for group, which in (("input", "the first layer: the projections of the patch "
+                                   "encoders into the width (proj, skip)"),
                          ("hidden", "a weight whose fan_in and fan_out both scale "
-                                    "(attention, FFN, channel mixing)"),
-                         ("output", "a weight that maps the width to a fixed size "
-                                    "(the value head)")):
+                                    "(attention, FFN, channel mixing), except the output layers"),
+                         ("output", "the output layers: the attention output projection "
+                                    "and the second FFN weight of the last layer of the "
+                                    "encoder and of the forecaster, and a value head. 0 "
+                                    "sets them to 0 (Appendix D.2)")):
         p.add_argument(f"--mup-init-{group}", type=float, default=1.0,
                        help=f"muP: multiplies the init of each {group} weight: "
                             f"{which}. Default 1 (the muP init). Needs "
@@ -1720,10 +1723,11 @@ def mup_setup(model, model_config, args):
         base = ConfigurableModel(**base_config)
         delta = ConfigurableModel(**delta_config)
     rules = parameter_rules(model, base, delta)
-    mup_init_(model, rules, args.mup_init_input, args.mup_init_hidden,
-              args.mup_init_output)
-    n_attn = mup_attention_(model, base, args.mup_attn_mult)
     stacks = mup_depth_stacks(model, args)
+    groups = init_groups(rules, {k: len(layers) for k, (layers, _, _) in stacks.items()})
+    mup_init_(model, rules, args.mup_init_input, args.mup_init_hidden,
+              args.mup_init_output, groups)
+    n_attn = mup_attention_(model, base, args.mup_attn_mult)
     n_depth = mup_depth_([(layers, n, b) for layers, n, b in stacks.values()],
                          args.mup_depth_alpha)
     depth_lr = (depth_lr_mults(model, {k: (n, b) for k, (_, n, b) in stacks.items()},
@@ -1731,11 +1735,21 @@ def mup_setup(model, model_config, args):
                 if args.mup_depth_alpha != 1.0 else {})
     depths = ", ".join(f"{k.rstrip('.')} {n} on base {b}" for k, (_, n, b) in stacks.items())
     print(f"muP: base d_model {base_config['H']} with {base_heads} heads; "
-          f"{mup_summary(rules)}; init x input {args.mup_init_input:g}, hidden "
-          f"{args.mup_init_hidden:g}, output {args.mup_init_output:g}; attention x "
+          f"{mup_summary(rules)}; init x {init_summary(model, groups, args)}; attention x "
           f"{args.mup_attn_mult:g}: {n_attn} attention layers with the muP logit scale; depth alpha "
           f"{args.mup_depth_alpha:g}: {depths}, {n_depth} layers with a branch scale")
     return mup_param_groups(model, rules, args.lr, args.weight_decay, depth_lr)
+
+
+def init_summary(model, groups, args):
+    """The three init factors with the count of weights of each group, for
+    the muP line of the log."""
+    weights = [n for n, p in model.named_parameters() if p.dim() >= 2]
+    parts = []
+    for group in ("input", "hidden", "output"):
+        count = sum(1 for n in weights if groups[n] == group)
+        parts.append(f"{group} {getattr(args, f'mup_init_{group}'):g} ({count} weights)")
+    return ", ".join(parts)
 
 
 def mup_depth_stacks(model, args):
