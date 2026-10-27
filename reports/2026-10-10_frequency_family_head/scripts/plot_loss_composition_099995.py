@@ -54,8 +54,9 @@ RUNS = {
                          "#7f7f7f", "Grey: GRN+EMA 0.99995, 6 forecaster layers (stopped at 440k)"),
     "grn_ema099995_f6_rep01": ([(MINI_DIR / "grn_ema099995_f6_rep01_losses.csv", 40_000),
                                 (MINI_DIR / "grn_ema099995_f6_rep01_r2_losses.csv", 180_000),
-                                (MINI_DIR / "grn_ema099995_f6_rep01_r3_losses.csv", None)],
-                               "#ffb000", "Yellow: GRN+EMA 0.99995, 6 layers, L_rep 0.1 (ended at 240k)"),
+                                (MINI_DIR / "grn_ema099995_f6_rep01_r3_losses.csv", 240_000),
+                                (MINI_DIR / "grn_ema099995_f6_rep01_r4_losses.csv", None)],
+                               "#ffb000", "Yellow: GRN+EMA 0.99995, 6 layers, L_rep 0.1 (goes to 665k)"),
     "grn_ema09998_rep003_halving": (
         [(RUNS_DIR / "grn_ema09998_rep003_halving/ckpt/grn_ema09998_rep003_halving_losses.csv",
           160_000),
@@ -64,8 +65,10 @@ RUNS = {
         "#e41a1c", "Red: GRN+EMA 0.9998, L_rep 0.03, depths 1/2^j (stopped at 212k)"),
     "grn_ema099995_rep003_halving": (
         [(RUNS_DIR / "grn_ema099995_rep003_halving/ckpt/grn_ema099995_rep003_halving_losses.csv",
+          300_000),
+         (RUNS_DIR / "grn_ema099995_rep003_halving/ckpt/grn_ema099995_rep003_halving_r2_losses.csv",
           None)],
-        "#8c564b", "Brown: GRN+EMA 0.99995, L_rep 0.03, depths 1/2^j (ended at 300k)"),
+        "#8c564b", "Brown: GRN+EMA 0.99995, L_rep 0.03, depths 1/2^j (stopped at 345k)"),
 }
 # run -> (row, column) of its panel
 PANEL = {"grn_ema099995": (0, 0), "grn_ema099995_f6": (0, 1),
