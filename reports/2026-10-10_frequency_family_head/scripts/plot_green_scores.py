@@ -90,11 +90,11 @@ RUNS = [
     (GRN_EMA099995_F6, r"$\mathbf{GRN+EMA\ 0.99995,\ 6\ forecaster\ layers}$  the forecaster "
      "size of MPE", GRN_EMA099995_F6_COLOUR, "H"),
     (GRN_EMA099995_F6_REP01, r"$\mathbf{GRN+EMA\ 0.99995,\ 6\ layers,\ L\_rep\ 0.1}$  the L_rep "
-     "weight 0.1 at each step", GRN_EMA099995_F6_REP01_COLOUR, "^"),
+     "weight 0.1 at each step, goes to 665k", GRN_EMA099995_F6_REP01_COLOUR, "^"),
     (GRN_EMA09998_REP003_HALVING, r"$\mathbf{GRN+EMA\ 0.9998,\ L\_rep\ 0.03,\ depths\ 1/2^j}$  "
      "the L_align of depth j at the weight 1 / 2^j", GRN_EMA09998_REP003_HALVING_COLOUR, "X"),
     (GRN_EMA099995_REP003_HALVING, r"$\mathbf{GRN+EMA\ 0.99995,\ L\_rep\ 0.03,\ depths\ 1/2^j}$  "
-     "the EMA of the teacher 0.99995 to 1.0", GRN_EMA099995_REP003_HALVING_COLOUR, "s"),
+     "last score 300k, stopped at 345k", GRN_EMA099995_REP003_HALVING_COLOUR, "s"),
     (P + "_cos200k", tagged(P + "_cos200k", "lr cosine to 1e-6 by 200k, old data"),
      colour(P + "_cos200k"), "v"),
     ("cf419_cos200k", tagged("cf419_cos200k", "lr cosine to 1e-6 by 200k, new data"),
