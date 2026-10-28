@@ -1,7 +1,7 @@
 """The parts of the total loss of grn_ema099995 (magenta), grn_ema099995_f6
 (grey, 6 forecaster layers), grn_ema099995_f6_rep01 (yellow),
-grn_ema09998_rep003_halving (red) and grn_ema099995_rep003_halving (brown),
-from their loss files. The colour names are the colours of the runs in the
+grn_ema099995_f6_rep01_mup (violet), grn_ema09998_rep003_halving (red) and
+grn_ema099995_rep003_halving (brown), from their loss files. The colour names are the colours of the runs in the
 score figure.
 
 Magenta and grey have the same loss flags: --loss-shape
@@ -9,7 +9,9 @@ cosine_similarity_batch_rep_only, L_rep with a weight from 1 to 0 over the
 first 10,000 steps, L_align on the teacher latent with rollout depth 3 and the
 sum of the 4 depths, SIGReg on e and on h with weight 1.0, CPC off (the
 column cpc_aux is blank). Yellow has the flags of grey with the L_rep weight
-0.1 at each step. Red has the flags of magenta with the EMA 0.9998, the L_rep
+0.1 at each step. Violet has the flags of yellow with muP from the muP grid
+(base width 64, base layers 3 + 3, output factor 0, input factor 0.3) and the
+lr 1e-4. Red has the flags of magenta with the EMA 0.9998, the L_rep
 weight 0.03 at each step, and --train-rollout-reduce halving: the L_align of
 depth j at the weight 1 / 2^j. Brown has the flags of red with the EMA
 0.99995 of magenta. So the column `loss` is the sum of:
@@ -23,8 +25,8 @@ depth j at the weight 1 / 2^j. Brown has the flags of red with the EMA
 Each value is the mean over log-spaced bins of steps (BINS bins from 1k to
 665k), drawn only when the run logged all the steps of the bin. Writes
 results/loss_parts_099995_binned.tsv and plots/loss_composition_099995.png
-(the stacked parts of each run: the runs with the L_rep weight 1 to 0 by 10k
-in the first row, the runs with an L_rep weight at each step in the second).
+(the stacked parts of each run: the runs with 3 forecaster layers in the
+first row, the runs with 6 forecaster layers in the second).
 
 Usage: python3 plot_loss_composition_099995.py
 """
@@ -57,6 +59,9 @@ RUNS = {
                                 (MINI_DIR / "grn_ema099995_f6_rep01_r3_losses.csv", 240_000),
                                 (MINI_DIR / "grn_ema099995_f6_rep01_r4_losses.csv", None)],
                                "#ffb000", "Yellow: GRN+EMA 0.99995, 6 layers, L_rep 0.1 (goes to 665k)"),
+    "grn_ema099995_f6_rep01_mup": (
+        [(RUNS_DIR / "grn_ema099995_f6_rep01_mup/ckpt/grn_ema099995_f6_rep01_mup_losses.csv", None)],
+        "#8a2be2", "Violet: yellow with muP, lr 1e-4 (goes to 665k)"),
     "grn_ema09998_rep003_halving": (
         [(RUNS_DIR / "grn_ema09998_rep003_halving/ckpt/grn_ema09998_rep003_halving_losses.csv",
           160_000),
@@ -71,9 +76,9 @@ RUNS = {
         "#8c564b", "Brown: GRN+EMA 0.99995, L_rep 0.03, depths 1/2^j (stopped at 345k)"),
 }
 # run -> (row, column) of its panel
-PANEL = {"grn_ema099995": (0, 0), "grn_ema099995_f6": (0, 1),
-         "grn_ema099995_f6_rep01": (1, 0), "grn_ema09998_rep003_halving": (1, 1),
-         "grn_ema099995_rep003_halving": (1, 2)}
+PANEL = {"grn_ema099995": (0, 0), "grn_ema09998_rep003_halving": (0, 1),
+         "grn_ema099995_rep003_halving": (0, 2), "grn_ema099995_f6": (1, 0),
+         "grn_ema099995_f6_rep01": (1, 1), "grn_ema099995_f6_rep01_mup": (1, 2)}
 PARTS = ["align_d0", "align_rest", "sigreg", "rep"]
 # part -> (colour, label) of the stacked areas, from the bottom up
 PART_STYLE = {
