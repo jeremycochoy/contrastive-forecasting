@@ -38,3 +38,11 @@ The total loss of magenta decreases from 1.24 at 11k to 1.05 at 366k, and grey h
 From step 100, yellow keeps L_rep x its weight between 1.15 and 1.19 up to 209k, and red between 0.35 and 0.36 up to 188k.
 L_align at depths 1 to 3 is 0.89 at 56k and 1.10 at 188k for yellow, 0.93 and 0.96 for magenta, 1.25 and 1.49 for grey, and 0.28 and 0.28 for red (with its depth weights).
 At the same steps, L_align at depth 0 is 0.24 and 0.30 for yellow, 0.24 and 0.25 for magenta, 0.32 and 0.38 for grey, and 0.26 and 0.24 for red.
+
+## Hyperparameter search
+
+![muP grid at 20k steps](plots/mup_grid_heatmap.png)
+
+Each cell is one run of 20k steps at width 64, with 3 encoder and 3 forecaster layers and the same seed.
+The factors scale the init of the last layer's output weights (output factor) and of the patch encoder projections (input factor).
+The best cell is lr 3.2e-4 with the output factor 0 and the input factor 0.3.
