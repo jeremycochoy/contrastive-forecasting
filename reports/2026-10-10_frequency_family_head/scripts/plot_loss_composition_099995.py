@@ -1,8 +1,9 @@
 """The parts of the total loss of grn_ema099995 (magenta), grn_ema099995_f6
 (grey, 6 forecaster layers), grn_ema099995_f6_rep01 (yellow),
-grn_ema099995_f6_rep01_mup (violet), grn_ema09998_rep003_halving (red) and
-grn_ema099995_rep003_halving (brown), from their loss files. The colour names are the colours of the runs in the
-score figure.
+grn_ema099995_f6_rep01_mup (violet), grn_ema099995_f6_rep005_halving_mup
+(blue), grn_ema09998_rep003_halving (red) and grn_ema099995_rep003_halving
+(brown), from their loss files. The colour names are the colours of the runs
+in the score figure.
 
 Magenta and grey have the same loss flags: --loss-shape
 cosine_similarity_batch_rep_only, L_rep with a weight from 1 to 0 over the
@@ -14,13 +15,14 @@ column cpc_aux is blank). Yellow has the flags of grey with the L_rep weight
 lr 1e-4. Red has the flags of magenta with the EMA 0.9998, the L_rep
 weight 0.03 at each step, and --train-rollout-reduce halving: the L_align of
 depth j at the weight 1 / 2^j. Brown has the flags of red with the EMA
-0.99995 of magenta. So the column `loss` is the sum of:
+0.99995 of magenta. Blue has the flags of violet with the L_rep weight 0.05
+and --train-rollout-reduce halving. So the column `loss` is the sum of:
 
   rep_w x l_rep             L_rep with its weight (blank l_rep: 0)
   l_align                   L_align at depth 0, the only depth with a column
   sigreg_e, sigreg_h        SIGReg on e and on h
   the rest                  loss minus the terms above: L_align at depths 1-3
-                            (red and brown: depth j at 1 / 2^j)
+                            (red, brown and blue: depth j at 1 / 2^j)
 
 Each value is the mean over log-spaced bins of steps (BINS bins from 1k to
 665k), drawn only when the run logged all the steps of the bin. Writes
@@ -45,7 +47,7 @@ TABLE = STUDY / "results" / "loss_parts_099995_binned.tsv"
 OUT_STACK = STUDY / "plots" / "loss_composition_099995.png"
 FIRST, TOTAL, BINS = 1000, 665_000, 60
 TICKS_K = [1, 10, 40, 100, 200, 400, 665]
-STACK_TOP = 2.7  # the total of yellow is 2.6 at 1k
+STACK_TOP_MIN = 2.7  # the total of yellow is 2.6 at 1k
 MINI_DIR = RUNS_DIR / "grn_ema099995_f6_rep01/ckpt"
 # run -> ([(loss file, last step taken from it)], colour, label)
 RUNS = {
@@ -62,6 +64,10 @@ RUNS = {
     "grn_ema099995_f6_rep01_mup": (
         [(RUNS_DIR / "grn_ema099995_f6_rep01_mup/ckpt/grn_ema099995_f6_rep01_mup_losses.csv", None)],
         "#8a2be2", "Violet: yellow with muP, lr 1e-4 (goes to 665k)"),
+    "grn_ema099995_f6_rep005_halving_mup": (
+        [(RUNS_DIR / "grn_ema099995_f6_rep005_halving_mup/ckpt/"
+          "grn_ema099995_f6_rep005_halving_mup_losses.csv", None)],
+        "#1f77b4", "Blue: violet with L_rep 0.05, depths 1/2^j (goes to 665k)"),
     "grn_ema09998_rep003_halving": (
         [(RUNS_DIR / "grn_ema09998_rep003_halving/ckpt/grn_ema09998_rep003_halving_losses.csv",
           160_000),
@@ -78,7 +84,8 @@ RUNS = {
 # run -> (row, column) of its panel
 PANEL = {"grn_ema099995": (0, 0), "grn_ema09998_rep003_halving": (0, 1),
          "grn_ema099995_rep003_halving": (0, 2), "grn_ema099995_f6": (1, 0),
-         "grn_ema099995_f6_rep01": (1, 1), "grn_ema099995_f6_rep01_mup": (1, 2)}
+         "grn_ema099995_f6_rep01": (1, 1), "grn_ema099995_f6_rep01_mup": (1, 2),
+         "grn_ema099995_f6_rep005_halving_mup": (1, 3)}
 PARTS = ["align_d0", "align_rest", "sigreg", "rep"]
 # part -> (colour, label) of the stacked areas, from the bottom up
 PART_STYLE = {
@@ -158,17 +165,25 @@ def log_steps(ax):
     ax.grid(alpha=0.3)
 
 
-def draw_stack(ax, run, cols):
+def stack_top(table):
+    """The top of the panels: above the highest total after the first 10k
+    (magenta and grey have the L_rep weight 1 to 0 over the first 10k)."""
+    highest = max(cols["total"][cols["bin_centre_step"] > 10_000].max(initial=0)
+                  for cols in table.values())
+    return max(STACK_TOP_MIN, 1.05 * highest)
+
+
+def draw_stack(ax, run, cols, top):
     """The stacked parts of one run. A note gives the first L_rep value when
     it lies above the panel (the weight 1 to 0 over the first 10k)."""
     ax.stackplot(cols["bin_centre_step"], *[cols[p] for p in PARTS],
                  colors=[PART_STYLE[p][0] for p in PARTS],
                  labels=[PART_STYLE[p][1] for p in PARTS])
     ax.plot(cols["bin_centre_step"], cols["total"], color="black", lw=1.2, label="Total loss")
-    ax.set_ylim(0, STACK_TOP)
+    ax.set_ylim(0, top)
     ax.set_title(RUNS[run][2], fontsize=10, loc="left")
-    if cols["rep"][0] > STACK_TOP:
-        ax.text(1100, STACK_TOP * 0.96, f"L_rep x weight: {cols['rep'][0]:.1f} at 1k, 0 from 10k",
+    if cols["rep"][0] > top:
+        ax.text(1100, top * 0.96, f"L_rep x weight: {cols['rep'][0]:.1f} at 1k, 0 from 10k",
                 fontsize=8.5, va="top")
     log_steps(ax)
 
@@ -180,9 +195,10 @@ def plot_stack(table):
     fig, axes = plt.subplots(2, columns, figsize=(5.6 * columns, 10.0), sharey=True, squeeze=False)
     for ax in axes.flat:
         ax.set_visible(False)
+    top = stack_top(table)
     for run, cols in table.items():
         axes[PANEL[run]].set_visible(True)
-        draw_stack(axes[PANEL[run]], run, cols)
+        draw_stack(axes[PANEL[run]], run, cols, top)
     for row in axes:
         row[0].set_ylabel("Loss, mean over log-spaced bins of steps")
     handles, labels = axes[0, 0].get_legend_handles_labels()
