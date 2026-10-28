@@ -93,8 +93,8 @@ RUNS = [
      "over 665k", GRN_EMA099995_COLOUR, "8"),
     (GRN_EMA099995_F6, r"$\mathbf{GRN+EMA\ 0.99995,\ 6\ forecaster\ layers}$  the forecaster "
      "size of MPE", GRN_EMA099995_F6_COLOUR, "H"),
-    (GRN_EMA099995_F6_REP01, r"$\mathbf{GRN+EMA\ 0.99995,\ 6\ layers,\ L\_rep\ 0.1}$  the L_rep "
-     "weight 0.1 at each step, goes to 665k", GRN_EMA099995_F6_REP01_COLOUR, "^"),
+    (GRN_EMA099995_F6_REP01, r"$\mathbf{GRN+EMA\ 0.99995,\ 6\ layers,\ L\_rep\ 0.1}$  "
+     "last score 400k, stopped at 432k", GRN_EMA099995_F6_REP01_COLOUR, "^"),
     (GRN_EMA099995_F6_REP01_MUP, r"$\mathbf{GRN+EMA\ 0.99995,\ 6\ layers,\ L\_rep\ 0.1,\ muP}$  "
      "yellow with muP, lr 1e-4, goes to 665k", GRN_EMA099995_F6_REP01_MUP_COLOUR, "p"),
     (GRN_EMA09998_REP003_HALVING, r"$\mathbf{GRN+EMA\ 0.9998,\ L\_rep\ 0.03,\ depths\ 1/2^j}$  "
