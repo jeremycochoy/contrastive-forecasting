@@ -1,8 +1,8 @@
 """The forecast and the reconstruction of the encoder latent through training,
 for the runs of this report (GRN, GRN+EMA 0.999, GRN+EMA 0.9998, GRN+EMA
 0.99995, GRN+EMA 0.99995 with a forecaster of 6 layers, the same with the
-L_rep weight 0.1 at each step, GRN+EMA 0.9998 with the L_rep weight 0.03 and
-the depth weights 1 / 2^j) next to CYN and BLK,
+L_rep weight 0.1 at each step, the same with muP, GRN+EMA 0.9998 with the
+L_rep weight 0.03 and the depth weights 1 / 2^j) next to CYN and BLK,
 and the forecast of MPE (Moirai, patch heads, EWMA, new data, batch 256: x 4
 for the data seen). Writes plots/forecast_and_reconstruction.png: three panels
 on one x axis.
@@ -20,8 +20,9 @@ reports/2026-10-06_encoder_reconstruction/results/*.tsv), and the scores of
 the runs of this report (GRN: arm abc_gift, GRN+EMA 0.999: arm grn_ema0999,
 GRN+EMA 0.9998: arm grn_ema09998, GRN+EMA 0.99995: arm grn_ema099995, with 6
 forecaster layers: arm grn_ema099995_f6, and with the L_rep weight 0.1:
-arm grn_ema099995_f6_rep01, GRN+EMA 0.9998 with the L_rep weight 0.03 and the
-depth weights 1 / 2^j: arm grn_ema09998_rep003_halving, and the same with the
+arm grn_ema099995_f6_rep01, and with muP (the settings of the muP grid, lr
+1e-4): arm grn_ema099995_f6_rep01_mup, GRN+EMA 0.9998 with the L_rep weight
+0.03 and the depth weights 1 / 2^j: arm grn_ema09998_rep003_halving, and the same with the
 EMA 0.99995: arm grn_ema099995_rep003_halving): results/scores.tsv
 (B4, arm `control`), and results/recon_*.tsv (R, with the columns arm, stop in
 thousands of steps, GM-Relative MASE, from collect_recon.py).
@@ -62,18 +63,21 @@ GRN_EMA099995_F6 = "grn_ema099995_f6"
 GRN_EMA099995_F6_COLOUR = "#7f7f7f"  # no other run of this figure has this colour
 GRN_EMA099995_F6_REP01 = "grn_ema099995_f6_rep01"
 GRN_EMA099995_F6_REP01_COLOUR = "#ffb000"  # no other run of this figure has this colour
-GRN_EMA09998_REP003_HALVING = "grn_ema09998_rep003_halving"
+GRN_EMA099995_F6_REP01_MUP = "grn_ema099995_f6_rep01_mup"
+GRN_EMA099995_F6_REP01_MUP_COLOUR = "#8a2be2"  # no other run of this figure has this colour
+GRN_EMA09998_REP003_HALVING ="grn_ema09998_rep003_halving"
 GRN_EMA09998_REP003_HALVING_COLOUR = "#e41a1c"  # no other run of this figure has this colour
 GRN_EMA099995_REP003_HALVING = "grn_ema099995_rep003_halving"
 GRN_EMA099995_REP003_HALVING_COLOUR = "#8c564b"  # no other run of this figure has this colour
 # The runs of this report: their forecast comes from results/scores.tsv.
 NEW_RUNS = [GREEN, GRN_EMA0999, GRN_EMA09998, GRN_EMA099995, GRN_EMA099995_F6,
-            GRN_EMA099995_F6_REP01, GRN_EMA09998_REP003_HALVING, GRN_EMA099995_REP003_HALVING]
+            GRN_EMA099995_F6_REP01, GRN_EMA099995_F6_REP01_MUP, GRN_EMA09998_REP003_HALVING,
+            GRN_EMA099995_REP003_HALVING]
 # Older runs with a forecast at 1k steps in results/scores.tsv: arm -> run.
 FIRST_STEPS = {"cf419_cos200k": "blk"}
 # The newest runs: drawn above the others, so that their first points show.
 ON_TOP = {GRN_EMA09998, GRN_EMA099995, GRN_EMA099995_F6, GRN_EMA099995_F6_REP01,
-          GRN_EMA09998_REP003_HALVING, GRN_EMA099995_REP003_HALVING}
+          GRN_EMA099995_F6_REP01_MUP, GRN_EMA09998_REP003_HALVING, GRN_EMA099995_REP003_HALVING}
 MPE = "cf421ew_moirai_native"
 # Its R (transformer head 0.12 to 0.21) lies far above the R panels.
 FORECAST_ONLY = {MPE}
@@ -91,6 +95,8 @@ RUNS = [
      "size of MPE", GRN_EMA099995_F6_COLOUR, "H"),
     (GRN_EMA099995_F6_REP01, r"$\mathbf{GRN+EMA\ 0.99995,\ 6\ layers,\ L\_rep\ 0.1}$  the L_rep "
      "weight 0.1 at each step, goes to 665k", GRN_EMA099995_F6_REP01_COLOUR, "^"),
+    (GRN_EMA099995_F6_REP01_MUP, r"$\mathbf{GRN+EMA\ 0.99995,\ 6\ layers,\ L\_rep\ 0.1,\ muP}$  "
+     "yellow with muP, lr 1e-4, goes to 665k", GRN_EMA099995_F6_REP01_MUP_COLOUR, "p"),
     (GRN_EMA09998_REP003_HALVING, r"$\mathbf{GRN+EMA\ 0.9998,\ L\_rep\ 0.03,\ depths\ 1/2^j}$  "
      "the L_align of depth j at the weight 1 / 2^j", GRN_EMA09998_REP003_HALVING_COLOUR, "X"),
     (GRN_EMA099995_REP003_HALVING, r"$\mathbf{GRN+EMA\ 0.99995,\ L\_rep\ 0.03,\ depths\ 1/2^j}$  "
@@ -104,7 +110,7 @@ RUNS = [
 OURS = STUDY / "results"
 # The R tables of collect_recon.py (first_steps: the 1k point of BLK).
 OUR_R_TABLES = ["green", "grn_ema0999", "grn_ema09998", "grn_ema099995", "grn_ema099995_f6",
-                "grn_ema099995_f6_rep01", "grn_ema09998_rep003_halving",
+                "grn_ema099995_f6_rep01", "grn_ema099995_f6_rep01_mup", "grn_ema09998_rep003_halving",
                 "grn_ema099995_rep003_halving", "first_steps"]
 # panel title, y range, the score tables, and whether the forecast of the
 # runs of this report comes from results/scores.tsv
@@ -210,6 +216,17 @@ def draw_links(fig, axes, all_points):
                     color=colour_hex, ls="--", lw=0.8, alpha=0.6, zorder=0))
 
 
+def legend_entries(axes):
+    """(handles, labels) of the runs drawn in any panel, in the order of RUNS:
+    a run with R scores and no forecast score yet also gets its entry."""
+    found = {}
+    for ax in axes:
+        for handle, label in zip(*ax.get_legend_handles_labels()):
+            found.setdefault(label, handle)
+    labels = [label for _, label, _, _ in RUNS if label in found]
+    return [found[label] for label in labels], labels
+
+
 def main():
     fig, axes = plt.subplots(3, 1, sharex=True, figsize=(11, 12))
     all_points = []
@@ -218,7 +235,7 @@ def main():
         draw_panel(ax, title, y_range, all_points[-1])
     style_x(axes[-1])
     # Blank rows after the older runs: the runs of this report fill the left column.
-    handles, labels = axes[0].get_legend_handles_labels()
+    handles, labels = legend_entries(axes)
     new_labels = {label for arm, label, _, _ in RUNS if arm in NEW_RUNS}
     blanks = max(0, 2 * sum(label in new_labels for label in labels) - len(handles))
     axes[0].legend(handles + [Line2D([], [], alpha=0)] * blanks, labels + [""] * blanks,
