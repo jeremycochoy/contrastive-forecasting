@@ -34,7 +34,9 @@ Each value is the mean over log-spaced bins of steps (BINS bins from 1k to
 results/loss_parts_099995_binned.tsv and plots/loss_composition_099995.png
 (the stacked parts of each run: the runs with 3 forecaster layers in the
 first row, the runs with 6 forecaster layers in the second, and orange, lime
-and pink, also with 6 forecaster layers, in the third).
+and pink, also with 6 forecaster layers, in the third). A dashed line in the
+colour of the run marks the stop with its lowest forecast GM-Relative MASE
+(results/scores.tsv, control head); a run with no forecast score has no line.
 
 Usage: python3 plot_loss_composition_099995.py
 """
@@ -43,13 +45,16 @@ from pathlib import Path
 
 import matplotlib
 matplotlib.use("Agg")
+import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.lines import Line2D
 from matplotlib.ticker import FixedLocator, NullLocator
 
 STUDY = Path(__file__).resolve().parent.parent
 RUNS_DIR = Path("/home/jupyter/cf_runs")
 TABLE = STUDY / "results" / "loss_parts_099995_binned.tsv"
+SCORES = STUDY / "results" / "scores.tsv"
 OUT_STACK = STUDY / "plots" / "loss_composition_099995.png"
 FIRST, TOTAL, BINS = 1000, 665_000, 60
 TICKS_K = [1, 10, 40, 100, 200, 400, 665]
@@ -192,9 +197,36 @@ def stack_top(table):
     return max(STACK_TOP_MIN, 1.05 * highest)
 
 
-def draw_stack(ax, run, cols, top):
-    """The stacked parts of one run. A note gives the first L_rep value when
-    it lies above the panel (the weight 1 to 0 over the first 10k)."""
+def best_forecasts():
+    """{run: (stop in k, GM-Relative MASE, number of scored stops)} of the
+    lowest forecast score of each run (control head)."""
+    scores = {}
+    with open(SCORES) as f:
+        for row in csv.DictReader(f, delimiter="\t"):
+            if row["arm"] == "control":
+                scores.setdefault(row["run"], []).append((int(row["stop_k"]),
+                                                          float(row["gm_rel_mase"])))
+    return {run: (*min(rows, key=lambda r: r[1]), len(rows)) for run, rows in scores.items()}
+
+
+def mark_best(ax, run, best):
+    """A dashed line in the colour of the run at the stop of its best forecast."""
+    if run not in best:
+        return
+    stop, score, scored = best[run]
+    colour = RUNS[run][1]
+    ax.axvline(stop * 1000, color=colour, ls="--", lw=2.0,
+               path_effects=[pe.Stroke(linewidth=3.4, foreground="black"), pe.Normal()])
+    what = "best forecast" if scored > 1 else "only forecast score so far"
+    ax.text(stop * 1000 * 1.08, 0.04, f"{what}:\n{score:.4f} at {stop}k",
+            transform=ax.get_xaxis_transform(), color=colour, fontsize=9, fontweight="bold",
+            va="bottom", bbox=dict(facecolor="white", alpha=0.9, edgecolor=colour))
+
+
+def draw_stack(ax, run, cols, top, best):
+    """The stacked parts of one run and the stop of its best forecast. A note
+    gives the first L_rep value when it lies above the panel (the weight 1 to
+    0 over the first 10k)."""
     ax.stackplot(cols["bin_centre_step"], *[cols[p] for p in PARTS],
                  colors=[PART_STYLE[p][0] for p in PARTS],
                  labels=[PART_STYLE[p][1] for p in PARTS])
@@ -205,6 +237,7 @@ def draw_stack(ax, run, cols, top):
         ax.text(1100, top * 0.96, f"L_rep x weight: {cols['rep'][0]:.1f} at 1k, 0 from 10k",
                 fontsize=8.5, va="top")
     log_steps(ax)
+    mark_best(ax, run, best)
 
 
 def plot_stack(table):
@@ -217,12 +250,15 @@ def plot_stack(table):
     for ax in axes.flat:
         ax.set_visible(False)
     top = stack_top(table)
+    best = best_forecasts()
     for run, cols in table.items():
         axes[PANEL[run]].set_visible(True)
-        draw_stack(axes[PANEL[run]], run, cols, top)
+        draw_stack(axes[PANEL[run]], run, cols, top, best)
     for row in axes:
         row[0].set_ylabel("Loss, mean over log-spaced bins of steps")
     handles, labels = axes[0, 0].get_legend_handles_labels()
+    handles.append(Line2D([], [], color="black", ls="--", lw=2.0))
+    labels.append("Stop with the lowest forecast GM-Relative MASE of the run (in its colour)")
     fig.legend(handles, labels, loc="lower center", ncol=3, fontsize=9.5, frameon=False)
     fig.suptitle("Composition of the total loss", fontsize=12)
     fig.tight_layout(rect=(0, 0.06, 1, 0.97))
