@@ -105,7 +105,7 @@ RUNS = [
      "yellow with muP, lr 1e-4, goes to 665k", GRN_EMA099995_F6_REP01_MUP_COLOUR, "p"),
     (GRN_EMA099995_F6_REP005_HALVING_MUP,
      r"$\mathbf{GRN+EMA\ 0.99995,\ 6\ layers,\ L\_rep\ 0.05,\ depths\ 1/2^j,\ muP}$  "
-     "violet's lr and muP, goes to 665k", GRN_EMA099995_F6_REP005_HALVING_MUP_COLOUR, "P"),
+     "lr 1e-4, goes to 665k", GRN_EMA099995_F6_REP005_HALVING_MUP_COLOUR, "P"),
     (GRN_EMA09998_REP003_HALVING, r"$\mathbf{GRN+EMA\ 0.9998,\ L\_rep\ 0.03,\ depths\ 1/2^j}$  "
      "the L_align of depth j at the weight 1 / 2^j", GRN_EMA09998_REP003_HALVING_COLOUR, "X"),
     (GRN_EMA099995_REP003_HALVING, r"$\mathbf{GRN+EMA\ 0.99995,\ L\_rep\ 0.03,\ depths\ 1/2^j}$  "
@@ -125,7 +125,7 @@ OUR_R_TABLES = ["green", "grn_ema0999", "grn_ema09998", "grn_ema099995", "grn_em
 # panel title, y range, the score tables, and whether the forecast of the
 # runs of this report comes from results/scores.tsv
 PANELS = [
-    ("Forecast (B4)", (1.10, 1.30),
+    ("Forecast (B4)", (1.10, 1.31),
      [MOIRAI / "results" / "gm_trajectories.tsv", RECON / "forecast_425.tsv"], True),
     ("Reconstruction of the encoder latent (R), transformer head", (0.02, 0.11),
      [RECON / "recon_trajectories.tsv"]
