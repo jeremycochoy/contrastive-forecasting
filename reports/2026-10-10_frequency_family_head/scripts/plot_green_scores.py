@@ -2,7 +2,8 @@
 for the runs of this report (GRN+EMA 0.99995, GRN+EMA 0.99995 with a
 forecaster of 6 layers, the same with the L_rep weight 0.1 at each
 step, the same with muP, the same with the L_rep weight 0.05 and the depth
-weights 1 / 2^j, GRN+EMA 0.9998 with the L_rep weight 0.03 and the depth
+weights 1 / 2^j, the muP run with lr 5.6e-5, with the EMA 0.999975, or with
+lr 3.36e-4 and the input init 1.008, GRN+EMA 0.9998 with the L_rep weight 0.03 and the depth
 weights 1 / 2^j, the same with the EMA 0.99995), next to the forecast of MPE
 (Moirai, patch heads, EWMA, new data, batch 256: x 4 for the data seen).
 Writes plots/forecast_and_reconstruction.png: three panels on one x axis.
@@ -20,7 +21,9 @@ reports/2026-10-06_encoder_reconstruction/results/*.tsv), and the scores of
 the runs of this report (GRN+EMA 0.99995: arm grn_ema099995, with 6
 forecaster layers: arm grn_ema099995_f6, and with the L_rep weight 0.1: arm
 grn_ema099995_f6_rep01, and with muP (the settings of the muP grid, lr 1e-4):
-arm grn_ema099995_f6_rep01_mup, GRN+EMA 0.9998 with the L_rep weight 0.03 and
+arm grn_ema099995_f6_rep01_mup, and its variants: arms
+grn_ema099995_f6_rep01_mup_lr56, grn_ema0999975_f6_rep01_mup and
+grn_ema099995_f6_rep01_mup_hid56, GRN+EMA 0.9998 with the L_rep weight 0.03 and
 the depth weights 1 / 2^j: arm grn_ema09998_rep003_halving, and the same with
 the EMA 0.99995: arm grn_ema099995_rep003_halving): results/scores.tsv (B4,
 arm `control`), and results/recon_*.tsv (R, with the columns arm, stop in
@@ -57,6 +60,12 @@ GRN_EMA099995_F6_REP01_MUP_COLOUR = "#8a2be2"  # no other run of this figure has
 GRN_EMA099995_F6_REP005_HALVING_MUP = "grn_ema099995_f6_rep005_halving_mup"
 # no other run of this figure has this colour
 GRN_EMA099995_F6_REP005_HALVING_MUP_COLOUR = "#1f77b4"
+GRN_EMA099995_F6_REP01_MUP_LR56 = "grn_ema099995_f6_rep01_mup_lr56"
+GRN_EMA099995_F6_REP01_MUP_LR56_COLOUR = "#ff7f0e"  # orange
+GRN_EMA0999975_F6_REP01_MUP = "grn_ema0999975_f6_rep01_mup"
+GRN_EMA0999975_F6_REP01_MUP_COLOUR = "#7fff00"  # lime
+GRN_EMA099995_F6_REP01_MUP_HID56 = "grn_ema099995_f6_rep01_mup_hid56"
+GRN_EMA099995_F6_REP01_MUP_HID56_COLOUR = "#ff69b4"  # pink
 GRN_EMA09998_REP003_HALVING ="grn_ema09998_rep003_halving"
 GRN_EMA09998_REP003_HALVING_COLOUR = "#e41a1c"  # no other run of this figure has this colour
 GRN_EMA099995_REP003_HALVING = "grn_ema099995_rep003_halving"
@@ -64,11 +73,14 @@ GRN_EMA099995_REP003_HALVING_COLOUR = "#8c564b"  # no other run of this figure h
 # The runs of this report: their forecast comes from results/scores.tsv.
 NEW_RUNS = [GRN_EMA099995, GRN_EMA099995_F6,
             GRN_EMA099995_F6_REP01, GRN_EMA099995_F6_REP01_MUP,
-            GRN_EMA099995_F6_REP005_HALVING_MUP, GRN_EMA09998_REP003_HALVING,
-            GRN_EMA099995_REP003_HALVING]
+            GRN_EMA099995_F6_REP005_HALVING_MUP, GRN_EMA099995_F6_REP01_MUP_LR56,
+            GRN_EMA0999975_F6_REP01_MUP, GRN_EMA099995_F6_REP01_MUP_HID56,
+            GRN_EMA09998_REP003_HALVING, GRN_EMA099995_REP003_HALVING]
 # The newest runs: drawn above the others, so that their first points show.
 ON_TOP = {GRN_EMA099995, GRN_EMA099995_F6, GRN_EMA099995_F6_REP01,
           GRN_EMA099995_F6_REP01_MUP, GRN_EMA099995_F6_REP005_HALVING_MUP,
+          GRN_EMA099995_F6_REP01_MUP_LR56, GRN_EMA0999975_F6_REP01_MUP,
+          GRN_EMA099995_F6_REP01_MUP_HID56,
           GRN_EMA09998_REP003_HALVING, GRN_EMA099995_REP003_HALVING}
 MPE = "cf421ew_moirai_native"
 # Its R (transformer head 0.12 to 0.21) lies far above the R panels.
@@ -87,6 +99,15 @@ RUNS = [
     (GRN_EMA099995_F6_REP005_HALVING_MUP,
      r"$\mathbf{GRN+EMA\ 0.99995,\ 6\ layers,\ L\_rep\ 0.05,\ depths\ 1/2^j,\ muP}$  "
      "lr 1e-4, stopped at 100k", GRN_EMA099995_F6_REP005_HALVING_MUP_COLOUR, "P"),
+    (GRN_EMA099995_F6_REP01_MUP_LR56,
+     r"$\mathbf{GRN+EMA\ 0.99995,\ 6\ layers,\ L\_rep\ 0.1,\ muP,\ lr\ 5.6e-5}$  "
+     "goes to 665k", GRN_EMA099995_F6_REP01_MUP_LR56_COLOUR, "o"),
+    (GRN_EMA0999975_F6_REP01_MUP,
+     r"$\mathbf{GRN+EMA\ 0.999975,\ 6\ layers,\ L\_rep\ 0.1,\ muP}$  "
+     "lr 1e-4, goes to 665k", GRN_EMA0999975_F6_REP01_MUP_COLOUR, "v"),
+    (GRN_EMA099995_F6_REP01_MUP_HID56,
+     r"$\mathbf{GRN+EMA\ 0.99995,\ 6\ layers,\ L\_rep\ 0.1,\ muP,\ lr\ 3.36e-4}$  "
+     "input init 1.008, to 665k", GRN_EMA099995_F6_REP01_MUP_HID56_COLOUR, "*"),
     (GRN_EMA09998_REP003_HALVING, r"$\mathbf{GRN+EMA\ 0.9998,\ L\_rep\ 0.03,\ depths\ 1/2^j}$  "
      "the L_align of depth j at the weight 1 / 2^j", GRN_EMA09998_REP003_HALVING_COLOUR, "X"),
     (GRN_EMA099995_REP003_HALVING, r"$\mathbf{GRN+EMA\ 0.99995,\ L\_rep\ 0.03,\ depths\ 1/2^j}$  "
@@ -97,8 +118,9 @@ OURS = STUDY / "results"
 # The R tables of collect_recon.py.
 OUR_R_TABLES = ["grn_ema099995", "grn_ema099995_f6",
                 "grn_ema099995_f6_rep01", "grn_ema099995_f6_rep01_mup",
-                "grn_ema099995_f6_rep005_halving_mup", "grn_ema09998_rep003_halving",
-                "grn_ema099995_rep003_halving"]
+                "grn_ema099995_f6_rep005_halving_mup", "grn_ema099995_f6_rep01_mup_lr56",
+                "grn_ema0999975_f6_rep01_mup", "grn_ema099995_f6_rep01_mup_hid56",
+                "grn_ema09998_rep003_halving", "grn_ema099995_rep003_halving"]
 # panel title, y range, the score tables, and whether the forecast of the
 # runs of this report comes from results/scores.tsv
 PANELS = [
