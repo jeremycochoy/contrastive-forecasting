@@ -102,10 +102,10 @@ RUNS = [
     (GRN_EMA099995_F6_REP01, r"$\mathbf{GRN+EMA\ 0.99995,\ 6\ layers,\ L\_rep\ 0.1}$  "
      "last score 400k, stopped at 432k", GRN_EMA099995_F6_REP01_COLOUR, "^"),
     (GRN_EMA099995_F6_REP01_MUP, r"$\mathbf{GRN+EMA\ 0.99995,\ 6\ layers,\ L\_rep\ 0.1,\ muP}$  "
-     "yellow with muP, lr 1e-4, goes to 665k", GRN_EMA099995_F6_REP01_MUP_COLOUR, "p"),
+     "yellow with muP, lr 1e-4, stopped at 181k", GRN_EMA099995_F6_REP01_MUP_COLOUR, "p"),
     (GRN_EMA099995_F6_REP005_HALVING_MUP,
      r"$\mathbf{GRN+EMA\ 0.99995,\ 6\ layers,\ L\_rep\ 0.05,\ depths\ 1/2^j,\ muP}$  "
-     "lr 1e-4, goes to 665k", GRN_EMA099995_F6_REP005_HALVING_MUP_COLOUR, "P"),
+     "lr 1e-4, stopped at 100k", GRN_EMA099995_F6_REP005_HALVING_MUP_COLOUR, "P"),
     (GRN_EMA09998_REP003_HALVING, r"$\mathbf{GRN+EMA\ 0.9998,\ L\_rep\ 0.03,\ depths\ 1/2^j}$  "
      "the L_align of depth j at the weight 1 / 2^j", GRN_EMA09998_REP003_HALVING_COLOUR, "X"),
     (GRN_EMA099995_REP003_HALVING, r"$\mathbf{GRN+EMA\ 0.99995,\ L\_rep\ 0.03,\ depths\ 1/2^j}$  "
