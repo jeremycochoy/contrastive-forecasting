@@ -4,8 +4,9 @@ A contrastive learning approach to time series representation learning. Trains a
 
 ## Package age rule
 
-Do not install a PyPI or npm package version that is less than 7 days old. A new release can contain malware.
+Do not install a PyPI, npm, Cargo or Go package version that is less than 7 days old. A new release can contain malware.
 Use this limit for each installation: `--uploaded-prior-to=P7D` with pip 26.1 or later, `exclude-newer = "7 days"` with uv, and `min-release-age=7` with npm 11.10 or later.
+Stable Cargo and Go have no such setting. For each new or updated crate or Go module, the author checks its release date, and the reviewer refuses a version that is less than 7 days old.
 
 ## Quick Start
 
