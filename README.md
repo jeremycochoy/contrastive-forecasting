@@ -2,6 +2,11 @@
 
 A contrastive learning approach to time series representation learning. Trains a transformer-based model to produce latent embeddings that distinguish future from past, then validates these representations by recovering the generative parameters (ARMA coefficients) from frozen embeddings.
 
+## Package age rule
+
+Do not install a PyPI or npm package version that is less than 7 days old. A new release can contain malware.
+Use this limit for each installation: `--uploaded-prior-to=P7D` with pip 26.1 or later, `exclude-newer = "7 days"` with uv, and `min-release-age=7` with npm 11.10 or later.
+
 ## Quick Start
 
 Two example notebooks in [`examples/`](examples/):
