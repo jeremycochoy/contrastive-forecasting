@@ -5,7 +5,7 @@
 ![Forecast and reconstruction through training](plots/forecast_and_reconstruction.png)
 
 Grey (EMA 0.99995, 6 forecaster layers, stopped at 440k) has the lowest forecast MASE of the GRN runs: 1.0341 at 240k.
-Magenta (the same with 3 forecaster layers) has its lowest MASE, 1.0723, at 140k, and teal (EMA 0.9998) has 1.0568 at 100k.
+Magenta (the same with 3 forecaster layers) has its lowest MASE, 1.0723, at 140k.
 At 200k, the forecast MASE is 1.0467 for yellow (grey with the L_rep weight 0.1 at each step), 1.0351 for grey and 1.0879 for red (EMA 0.9998, the L_rep weight 0.03 at each step, depth j of L_align at the weight 1/2^j).
 
 ## Learning rate

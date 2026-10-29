@@ -1,6 +1,6 @@
 """The forecast and the reconstruction of the encoder latent through training,
-for the runs of this report (GRN+EMA 0.9998, GRN+EMA 0.99995, GRN+EMA 0.99995
-with a forecaster of 6 layers, the same with the L_rep weight 0.1 at each
+for the runs of this report (GRN+EMA 0.99995, GRN+EMA 0.99995 with a
+forecaster of 6 layers, the same with the L_rep weight 0.1 at each
 step, the same with muP, the same with the L_rep weight 0.05 and the depth
 weights 1 / 2^j, GRN+EMA 0.9998 with the L_rep weight 0.03 and the depth
 weights 1 / 2^j, the same with the EMA 0.99995), next to the forecast of MPE
@@ -17,15 +17,14 @@ A dashed vertical line joins the scores of one checkpoint in the panels.
 Reads the forecast of MPE of #412 and #425
 (reports/2026-09-06_moirai_small_size/results/gm_trajectories.tsv,
 reports/2026-10-06_encoder_reconstruction/results/*.tsv), and the scores of
-the runs of this report (GRN+EMA 0.9998: arm grn_ema09998, GRN+EMA 0.99995:
-arm grn_ema099995, with 6 forecaster layers: arm grn_ema099995_f6, and with
-the L_rep weight 0.1: arm grn_ema099995_f6_rep01, and with muP (the settings
-of the muP grid, lr 1e-4): arm grn_ema099995_f6_rep01_mup, GRN+EMA 0.9998
-with the L_rep weight 0.03 and the depth weights 1 / 2^j: arm
-grn_ema09998_rep003_halving, and the same with the EMA 0.99995: arm
-grn_ema099995_rep003_halving): results/scores.tsv (B4, arm `control`), and
-results/recon_*.tsv (R, with the columns arm, stop in thousands of steps,
-GM-Relative MASE, from collect_recon.py).
+the runs of this report (GRN+EMA 0.99995: arm grn_ema099995, with 6
+forecaster layers: arm grn_ema099995_f6, and with the L_rep weight 0.1: arm
+grn_ema099995_f6_rep01, and with muP (the settings of the muP grid, lr 1e-4):
+arm grn_ema099995_f6_rep01_mup, GRN+EMA 0.9998 with the L_rep weight 0.03 and
+the depth weights 1 / 2^j: arm grn_ema09998_rep003_halving, and the same with
+the EMA 0.99995: arm grn_ema099995_rep003_halving): results/scores.tsv (B4,
+arm `control`), and results/recon_*.tsv (R, with the columns arm, stop in
+thousands of steps, GM-Relative MASE, from collect_recon.py).
 
 Usage: python3 plot_green_scores.py
 """
@@ -47,8 +46,6 @@ sys.path.insert(0, str(MOIRAI / "scripts"))
 from run_style import STYLE, colour, line, tagged  # noqa: E402
 from plot_gm_rates import XSCALE  # noqa: E402  (batch-256 runs: 4)
 
-GRN_EMA09998 = "grn_ema09998"
-GRN_EMA09998_COLOUR = "#008080"
 GRN_EMA099995 = "grn_ema099995"
 GRN_EMA099995_COLOUR = "#ff00ff"
 GRN_EMA099995_F6 = "grn_ema099995_f6"
@@ -65,12 +62,12 @@ GRN_EMA09998_REP003_HALVING_COLOUR = "#e41a1c"  # no other run of this figure ha
 GRN_EMA099995_REP003_HALVING = "grn_ema099995_rep003_halving"
 GRN_EMA099995_REP003_HALVING_COLOUR = "#8c564b"  # no other run of this figure has this colour
 # The runs of this report: their forecast comes from results/scores.tsv.
-NEW_RUNS = [GRN_EMA09998, GRN_EMA099995, GRN_EMA099995_F6,
+NEW_RUNS = [GRN_EMA099995, GRN_EMA099995_F6,
             GRN_EMA099995_F6_REP01, GRN_EMA099995_F6_REP01_MUP,
             GRN_EMA099995_F6_REP005_HALVING_MUP, GRN_EMA09998_REP003_HALVING,
             GRN_EMA099995_REP003_HALVING]
 # The newest runs: drawn above the others, so that their first points show.
-ON_TOP = {GRN_EMA09998, GRN_EMA099995, GRN_EMA099995_F6, GRN_EMA099995_F6_REP01,
+ON_TOP = {GRN_EMA099995, GRN_EMA099995_F6, GRN_EMA099995_F6_REP01,
           GRN_EMA099995_F6_REP01_MUP, GRN_EMA099995_F6_REP005_HALVING_MUP,
           GRN_EMA09998_REP003_HALVING, GRN_EMA099995_REP003_HALVING}
 MPE = "cf421ew_moirai_native"
@@ -79,8 +76,6 @@ FORECAST_ONLY = {MPE}
 OUT = STUDY / "plots" / "forecast_and_reconstruction.png"
 # (arm, legend label, colour, marker): the runs of the figure.
 RUNS = [
-    (GRN_EMA09998, r"$\mathbf{GRN+EMA\ 0.9998}$  lr 5.6e-5, new data, EMA of the teacher 0.9998 "
-     "to 1.0 over 665k", GRN_EMA09998_COLOUR, "<"),
     (GRN_EMA099995, r"$\mathbf{GRN+EMA\ 0.99995}$  lr 5.6e-5, new data, EMA of the teacher "
      "0.99995 to 1.0 over 665k", GRN_EMA099995_COLOUR, "8"),
     (GRN_EMA099995_F6, r"$\mathbf{GRN+EMA\ 0.99995,\ 6\ forecaster\ layers}$  the forecaster "
@@ -100,7 +95,7 @@ RUNS = [
 ]
 OURS = STUDY / "results"
 # The R tables of collect_recon.py.
-OUR_R_TABLES = ["grn_ema09998", "grn_ema099995", "grn_ema099995_f6",
+OUR_R_TABLES = ["grn_ema099995", "grn_ema099995_f6",
                 "grn_ema099995_f6_rep01", "grn_ema099995_f6_rep01_mup",
                 "grn_ema099995_f6_rep005_halving_mup", "grn_ema09998_rep003_halving",
                 "grn_ema099995_rep003_halving"]
