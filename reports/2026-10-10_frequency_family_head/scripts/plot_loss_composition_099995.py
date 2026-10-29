@@ -1,9 +1,10 @@
 """The parts of the total loss of grn_ema099995 (magenta), grn_ema099995_f6
 (grey, 6 forecaster layers), grn_ema099995_f6_rep01 (yellow),
 grn_ema099995_f6_rep01_mup (violet), grn_ema099995_f6_rep005_halving_mup
-(blue), grn_ema09998_rep003_halving (red) and grn_ema099995_rep003_halving
-(brown), from their loss files. The colour names are the colours of the runs
-in the score figure.
+(blue), grn_ema099995_f6_rep01_mup_lr56 (orange), grn_ema0999975_f6_rep01_mup
+(lime), grn_ema099995_f6_rep01_mup_hid56 (pink), grn_ema09998_rep003_halving
+(red) and grn_ema099995_rep003_halving (brown), from their loss files. The
+colour names are the colours of the runs in the score figure.
 
 Magenta and grey have the same loss flags: --loss-shape
 cosine_similarity_batch_rep_only, L_rep with a weight from 1 to 0 over the
@@ -16,7 +17,11 @@ lr 1e-4. Red has the flags of magenta with the EMA 0.9998, the L_rep
 weight 0.03 at each step, and --train-rollout-reduce halving: the L_align of
 depth j at the weight 1 / 2^j. Brown has the flags of red with the EMA
 0.99995 of magenta. Blue has the flags of violet with the L_rep weight 0.05
-and --train-rollout-reduce halving. So the column `loss` is the sum of:
+and --train-rollout-reduce halving. Orange has the flags of violet with the lr
+5.6e-5 of yellow. Lime has the flags of violet with the EMA 0.999975 (1 - tau
+halved). Pink has the flags of violet with the lr 3.36e-4 (muP gives the
+hidden layers 5.6e-5, the lr of yellow) and the input init factor 1.008. So
+the column `loss` is the sum of:
 
   rep_w x l_rep             L_rep with its weight (blank l_rep: 0)
   l_align                   L_align at depth 0, the only depth with a column
@@ -28,7 +33,8 @@ Each value is the mean over log-spaced bins of steps (BINS bins from 1k to
 665k), drawn only when the run logged all the steps of the bin. Writes
 results/loss_parts_099995_binned.tsv and plots/loss_composition_099995.png
 (the stacked parts of each run: the runs with 3 forecaster layers in the
-first row, the runs with 6 forecaster layers in the second).
+first row, the runs with 6 forecaster layers in the second, and orange, lime
+and pink, also with 6 forecaster layers, in the third).
 
 Usage: python3 plot_loss_composition_099995.py
 """
@@ -63,11 +69,23 @@ RUNS = {
                                "#ffb000", "Yellow: GRN+EMA 0.99995, 6 layers, L_rep 0.1 (stopped at 432k)"),
     "grn_ema099995_f6_rep01_mup": (
         [(RUNS_DIR / "grn_ema099995_f6_rep01_mup/ckpt/grn_ema099995_f6_rep01_mup_losses.csv", None)],
-        "#8a2be2", "Violet: yellow with muP, lr 1e-4 (goes to 665k)"),
+        "#8a2be2", "Violet: yellow with muP, lr 1e-4 (stopped at 181k)"),
     "grn_ema099995_f6_rep005_halving_mup": (
         [(RUNS_DIR / "grn_ema099995_f6_rep005_halving_mup/ckpt/"
           "grn_ema099995_f6_rep005_halving_mup_losses.csv", None)],
-        "#1f77b4", "Blue: violet with L_rep 0.05, depths 1/2^j (goes to 665k)"),
+        "#1f77b4", "Blue: violet with L_rep 0.05, depths 1/2^j (stopped at 100k)"),
+    "grn_ema099995_f6_rep01_mup_lr56": (
+        [(RUNS_DIR / "grn_ema099995_f6_rep01_mup_lr56/ckpt/"
+          "grn_ema099995_f6_rep01_mup_lr56_losses.csv", None)],
+        "#ff7f0e", "Orange: violet with lr 5.6e-5 (goes to 665k)"),
+    "grn_ema0999975_f6_rep01_mup": (
+        [(RUNS_DIR / "grn_ema0999975_f6_rep01_mup/ckpt/grn_ema0999975_f6_rep01_mup_losses.csv",
+          None)],
+        "#7fff00", "Lime: violet with EMA 0.999975 (goes to 665k)"),
+    "grn_ema099995_f6_rep01_mup_hid56": (
+        [(RUNS_DIR / "grn_ema099995_f6_rep01_mup_hid56/ckpt/"
+          "grn_ema099995_f6_rep01_mup_hid56_losses.csv", None)],
+        "#ff69b4", "Pink: violet with lr 3.36e-4, input init 1.008 (goes to 665k)"),
     "grn_ema09998_rep003_halving": (
         [(RUNS_DIR / "grn_ema09998_rep003_halving/ckpt/grn_ema09998_rep003_halving_losses.csv",
           160_000),
@@ -85,7 +103,8 @@ RUNS = {
 PANEL = {"grn_ema099995": (0, 0), "grn_ema09998_rep003_halving": (0, 1),
          "grn_ema099995_rep003_halving": (0, 2), "grn_ema099995_f6": (1, 0),
          "grn_ema099995_f6_rep01": (1, 1), "grn_ema099995_f6_rep01_mup": (1, 2),
-         "grn_ema099995_f6_rep005_halving_mup": (1, 3)}
+         "grn_ema099995_f6_rep005_halving_mup": (1, 3), "grn_ema099995_f6_rep01_mup_lr56": (2, 0),
+         "grn_ema0999975_f6_rep01_mup": (2, 1), "grn_ema099995_f6_rep01_mup_hid56": (2, 2)}
 PARTS = ["align_d0", "align_rest", "sigreg", "rep"]
 # part -> (colour, label) of the stacked areas, from the bottom up
 PART_STYLE = {
@@ -190,9 +209,11 @@ def draw_stack(ax, run, cols, top):
 
 def plot_stack(table):
     """Each run of the table in its PANEL slot. The other slots stay empty.
-    The grid has the columns up to the last column with a run."""
+    The grid has the rows and columns up to the last row and column with a run."""
+    rows = 1 + max(PANEL[run][0] for run in table)
     columns = 1 + max(PANEL[run][1] for run in table)
-    fig, axes = plt.subplots(2, columns, figsize=(5.6 * columns, 10.0), sharey=True, squeeze=False)
+    fig, axes = plt.subplots(rows, columns, figsize=(5.6 * columns, 5.0 * rows), sharey=True,
+                             squeeze=False)
     for ax in axes.flat:
         ax.set_visible(False)
     top = stack_top(table)
