@@ -106,7 +106,7 @@ RUNS = [
      r"$\mathbf{BLU}$  VIO with L_rep 0.05, depths $1/2^j$, stopped at 100k",
      GRN_EMA099995_F6_REP005_HALVING_MUP_COLOUR, "P"),
     (GRN_EMA099995_F6_REP01_MUP_LR56,
-     r"$\mathbf{ORA}$  VIO with lr 5.6e-5 (the lr of YEL), to 665k" "\n"
+     r"$\mathbf{ORA}$  VIO with lr 5.6e-5 (the lr of YEL), stopped at 268k" "\n"
      "(expected: better than VIO)", GRN_EMA099995_F6_REP01_MUP_LR56_COLOUR, "o"),
     (GRN_EMA0999975_F6_REP01_MUP,
      r"$\mathbf{LIM}$  VIO with the EMA 0.999975, to 665k" "\n"
