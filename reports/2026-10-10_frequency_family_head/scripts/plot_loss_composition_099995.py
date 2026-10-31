@@ -82,15 +82,15 @@ RUNS = {
     "grn_ema099995_f6_rep01_mup_lr56": (
         [(RUNS_DIR / "grn_ema099995_f6_rep01_mup_lr56/ckpt/"
           "grn_ema099995_f6_rep01_mup_lr56_losses.csv", None)],
-        "#ff7f0e", "Orange: violet with lr 5.6e-5 (goes to 665k)"),
+        "#ff7f0e", "Orange: violet with lr 5.6e-5 (stopped at 268k)"),
     "grn_ema0999975_f6_rep01_mup": (
         [(RUNS_DIR / "grn_ema0999975_f6_rep01_mup/ckpt/grn_ema0999975_f6_rep01_mup_losses.csv",
           None)],
-        "#7fff00", "Lime: violet with EMA 0.999975 (goes to 665k)"),
+        "#7fff00", "Lime: violet with EMA 0.999975 (still training)"),
     "grn_ema099995_f6_rep01_mup_hid56": (
         [(RUNS_DIR / "grn_ema099995_f6_rep01_mup_hid56/ckpt/"
           "grn_ema099995_f6_rep01_mup_hid56_losses.csv", None)],
-        "#ff69b4", "Pink: violet with lr 3.36e-4, input init 1.008 (goes to 665k)"),
+        "#ff69b4", "Pink: violet with lr 3.36e-4, input init 1.008 (stopped at 254k)"),
     "grn_ema09998_rep003_halving": (
         [(RUNS_DIR / "grn_ema09998_rep003_halving/ckpt/grn_ema09998_rep003_halving_losses.csv",
           160_000),
