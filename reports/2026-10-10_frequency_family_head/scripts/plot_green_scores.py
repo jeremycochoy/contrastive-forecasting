@@ -13,7 +13,10 @@ Writes plots/forecast_and_reconstruction.png: three panels on one x axis.
   2. Reconstruction of the encoder latent (R), transformer head.
   3. The same, linear head.
 
-A dashed vertical line joins the scores of one checkpoint in the panels.
+A dashed vertical line joins the scores of one checkpoint in the panels. The
+legend gives each run a three-letter code (from its colour: MAG, GRY, YEL, VIO,
+BLU, ORA, LIM, PNK, RED, BRN), and for orange, lime and pink the result that
+the user expected before their start.
 
 Reads the forecast of MPE of #412 and #425
 (reports/2026-09-06_moirai_small_size/results/gm_trajectories.tsv,
@@ -86,32 +89,37 @@ MPE = "cf421ew_moirai_native"
 # Its R (transformer head 0.12 to 0.21) lies far above the R panels.
 FORECAST_ONLY = {MPE}
 OUT = STUDY / "plots" / "forecast_and_reconstruction.png"
-# (arm, legend label, colour, marker): the runs of the figure.
+# (arm, legend label, colour, marker): the runs of the figure. Each label opens
+# with the three-letter code of the run (from its colour); a run that changes one
+# setting of another run names that run by its code. "expected" gives what the
+# user expected of the run before its start (the user, 10-29 and 10-31).
 RUNS = [
-    (GRN_EMA099995, r"$\mathbf{GRN+EMA\ 0.99995}$  lr 5.6e-5, new data, EMA of the teacher "
-     "0.99995 to 1.0 over 665k", GRN_EMA099995_COLOUR, "8"),
-    (GRN_EMA099995_F6, r"$\mathbf{GRN+EMA\ 0.99995,\ 6\ forecaster\ layers}$  the forecaster "
-     "size of MPE", GRN_EMA099995_F6_COLOUR, "H"),
-    (GRN_EMA099995_F6_REP01, r"$\mathbf{GRN+EMA\ 0.99995,\ 6\ layers,\ L\_rep\ 0.1}$  "
-     "last score 400k, stopped at 432k", GRN_EMA099995_F6_REP01_COLOUR, "^"),
-    (GRN_EMA099995_F6_REP01_MUP, r"$\mathbf{GRN+EMA\ 0.99995,\ 6\ layers,\ L\_rep\ 0.1,\ muP}$  "
-     "yellow with muP, lr 1e-4, stopped at 181k", GRN_EMA099995_F6_REP01_MUP_COLOUR, "p"),
+    (GRN_EMA099995, r"$\mathbf{MAG}$  GRN+EMA 0.99995, 3 forecaster layers, lr 5.6e-5, "
+     "stopped at 391k", GRN_EMA099995_COLOUR, "8"),
+    (GRN_EMA099995_F6, r"$\mathbf{GRY}$  MAG with 6 forecaster layers (the size of MPE), "
+     "stopped at 440k", GRN_EMA099995_F6_COLOUR, "H"),
+    (GRN_EMA099995_F6_REP01, r"$\mathbf{YEL}$  GRY with L_rep 0.1, stopped at 432k",
+     GRN_EMA099995_F6_REP01_COLOUR, "^"),
+    (GRN_EMA099995_F6_REP01_MUP, r"$\mathbf{VIO}$  YEL with muP, lr 1e-4, stopped at 181k",
+     GRN_EMA099995_F6_REP01_MUP_COLOUR, "p"),
     (GRN_EMA099995_F6_REP005_HALVING_MUP,
-     r"$\mathbf{GRN+EMA\ 0.99995,\ 6\ layers,\ L\_rep\ 0.05,\ depths\ 1/2^j,\ muP}$  "
-     "lr 1e-4, stopped at 100k", GRN_EMA099995_F6_REP005_HALVING_MUP_COLOUR, "P"),
+     r"$\mathbf{BLU}$  VIO with L_rep 0.05, depths $1/2^j$, stopped at 100k",
+     GRN_EMA099995_F6_REP005_HALVING_MUP_COLOUR, "P"),
     (GRN_EMA099995_F6_REP01_MUP_LR56,
-     r"$\mathbf{GRN+EMA\ 0.99995,\ 6\ layers,\ L\_rep\ 0.1,\ muP,\ lr\ 5.6e-5}$  "
-     "goes to 665k", GRN_EMA099995_F6_REP01_MUP_LR56_COLOUR, "o"),
+     r"$\mathbf{ORA}$  VIO with lr 5.6e-5 (the lr of YEL), to 665k" "\n"
+     "(expected: better than VIO)", GRN_EMA099995_F6_REP01_MUP_LR56_COLOUR, "o"),
     (GRN_EMA0999975_F6_REP01_MUP,
-     r"$\mathbf{GRN+EMA\ 0.999975,\ 6\ layers,\ L\_rep\ 0.1,\ muP}$  "
-     "lr 1e-4, goes to 665k", GRN_EMA0999975_F6_REP01_MUP_COLOUR, "v"),
+     r"$\mathbf{LIM}$  VIO with the EMA 0.999975, to 665k" "\n"
+     "(expected: better than VIO)", GRN_EMA0999975_F6_REP01_MUP_COLOUR, "v"),
     (GRN_EMA099995_F6_REP01_MUP_HID56,
-     r"$\mathbf{GRN+EMA\ 0.99995,\ 6\ layers,\ L\_rep\ 0.1,\ muP,\ lr\ 3.36e-4}$  "
-     "input init 1.008, to 665k", GRN_EMA099995_F6_REP01_MUP_HID56_COLOUR, "*"),
-    (GRN_EMA09998_REP003_HALVING, r"$\mathbf{GRN+EMA\ 0.9998,\ L\_rep\ 0.03,\ depths\ 1/2^j}$  "
-     "the L_align of depth j at the weight 1 / 2^j", GRN_EMA09998_REP003_HALVING_COLOUR, "X"),
-    (GRN_EMA099995_REP003_HALVING, r"$\mathbf{GRN+EMA\ 0.99995,\ L\_rep\ 0.03,\ depths\ 1/2^j}$  "
-     "last score 300k, stopped at 345k", GRN_EMA099995_REP003_HALVING_COLOUR, "s"),
+     r"$\mathbf{PNK}$  VIO with lr 3.36e-4 (hidden lr 5.6e-5 of YEL), input init 1.008," "\n"
+     "stopped at 254k (expected: better than VIO, maybe as good as YEL)",
+     GRN_EMA099995_F6_REP01_MUP_HID56_COLOUR, "*"),
+    (GRN_EMA09998_REP003_HALVING,
+     r"$\mathbf{RED}$  GRN+EMA 0.9998, L_rep 0.03, depths $1/2^j$, stopped at 212k",
+     GRN_EMA09998_REP003_HALVING_COLOUR, "X"),
+    (GRN_EMA099995_REP003_HALVING, r"$\mathbf{BRN}$  RED with the EMA 0.99995, stopped at 345k",
+     GRN_EMA099995_REP003_HALVING_COLOUR, "s"),
     (MPE, tagged(MPE, "Moirai, patch heads, EWMA, new data"), colour(MPE), "d"),
 ]
 OURS = STUDY / "results"
