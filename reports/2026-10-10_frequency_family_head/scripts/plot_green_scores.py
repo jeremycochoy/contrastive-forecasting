@@ -100,7 +100,7 @@ RUNS = [
      "stopped at 440k", GRN_EMA099995_F6_COLOUR, "H"),
     (GRN_EMA099995_F6_REP01, r"$\mathbf{YEL}$  GRY with L_rep 0.1, stopped at 432k",
      GRN_EMA099995_F6_REP01_COLOUR, "^"),
-    (GRN_EMA099995_F6_REP01_MUP, r"$\mathbf{VIO}$  YEL with muP, lr 1e-4, stopped at 181k",
+    (GRN_EMA099995_F6_REP01_MUP, r"$\mathbf{VIO}$  YEL with muP, lr 1e-4, to 665k",
      GRN_EMA099995_F6_REP01_MUP_COLOUR, "p"),
     (GRN_EMA099995_F6_REP005_HALVING_MUP,
      r"$\mathbf{BLU}$  VIO with L_rep 0.05, depths $1/2^j$, stopped at 100k",
