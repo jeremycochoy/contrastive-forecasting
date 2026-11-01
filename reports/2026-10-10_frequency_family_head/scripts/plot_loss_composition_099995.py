@@ -73,8 +73,11 @@ RUNS = {
                                 (MINI_DIR / "grn_ema099995_f6_rep01_r4_losses.csv", None)],
                                "#ffb000", "Yellow: GRN+EMA 0.99995, 6 layers, L_rep 0.1 (stopped at 432k)"),
     "grn_ema099995_f6_rep01_mup": (
-        [(RUNS_DIR / "grn_ema099995_f6_rep01_mup/ckpt/grn_ema099995_f6_rep01_mup_losses.csv", None)],
-        "#8a2be2", "Violet: yellow with muP, lr 1e-4 (stopped at 181k)"),
+        [(RUNS_DIR / "grn_ema099995_f6_rep01_mup/ckpt/grn_ema099995_f6_rep01_mup_losses.csv",
+          180_000),
+         (RUNS_DIR / "grn_ema099995_f6_rep01_mup/ckpt/grn_ema099995_f6_rep01_mup_r2_losses.csv",
+          None)],
+        "#8a2be2", "Violet: yellow with muP, lr 1e-4 (still training)"),
     "grn_ema099995_f6_rep005_halving_mup": (
         [(RUNS_DIR / "grn_ema099995_f6_rep005_halving_mup/ckpt/"
           "grn_ema099995_f6_rep005_halving_mup_losses.csv", None)],
