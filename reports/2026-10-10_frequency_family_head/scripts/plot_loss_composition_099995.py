@@ -78,7 +78,7 @@ RUNS = {
                                 # the box leg from 580k (11-02): train.py named it r2 again
                                 (RUNS_DIR / "grn_ema099995_f6_rep01/ckpt_box_1102/"
                                  "grn_ema099995_f6_rep01_r2_losses.csv", None)],
-                               "#ffb000", "Yellow: GRN+EMA 0.99995, 6 layers, L_rep 0.1 (still training)"),
+                               "#ffb000", "Yellow: GRN+EMA 0.99995, 6 layers, L_rep 0.1 (stopped at 583k)"),
     "grn_ema099995_f6_rep01_mup": (
         [(RUNS_DIR / "grn_ema099995_f6_rep01_mup/ckpt/grn_ema099995_f6_rep01_mup_losses.csv",
           180_000),

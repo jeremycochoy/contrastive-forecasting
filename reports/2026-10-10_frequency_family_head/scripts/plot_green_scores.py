@@ -98,7 +98,7 @@ RUNS = [
      "stopped at 391k", GRN_EMA099995_COLOUR, "8"),
     (GRN_EMA099995_F6, r"$\mathbf{GRY}$  MAG with 6 forecaster layers (the size of MPE), "
      "stopped at 440k", GRN_EMA099995_F6_COLOUR, "H"),
-    (GRN_EMA099995_F6_REP01, r"$\mathbf{YEL}$  GRY with L_rep 0.1, to 665k",
+    (GRN_EMA099995_F6_REP01, r"$\mathbf{YEL}$  GRY with L_rep 0.1, stopped at 583k",
      GRN_EMA099995_F6_REP01_COLOUR, "^"),
     (GRN_EMA099995_F6_REP01_MUP, r"$\mathbf{VIO}$  YEL with muP, lr 1e-4, to 665k",
      GRN_EMA099995_F6_REP01_MUP_COLOUR, "p"),
