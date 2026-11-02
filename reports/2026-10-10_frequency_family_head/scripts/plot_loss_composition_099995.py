@@ -30,7 +30,9 @@ the column `loss` is the sum of:
                             (red, brown and blue: depth j at 1 / 2^j)
 
 Each value is the mean over log-spaced bins of steps (BINS bins from 1k to
-665k), drawn only when the run logged all the steps of the bin. Writes
+665k). The last bin of a run can be partial: its point is at the geometric
+centre of its logged steps, so the curve also shows the steps after the
+last full bin. Writes
 results/loss_parts_099995_binned.tsv and plots/loss_composition_099995.png
 (the stacked parts of each run: the runs with 3 forecaster layers in the
 first row, the runs with 6 forecaster layers in the second, and orange, lime
@@ -153,13 +155,15 @@ def logged_parts(files):
 
 
 def binned(steps, parts):
-    """(bin centre, mean parts) of each log-spaced bin logged in full."""
+    """(bin centre, mean parts) of each log-spaced bin with logged steps; the
+    centre of a partial last bin is the geometric centre of its steps."""
     edges = np.geomspace(FIRST, TOTAL, BINS + 1)
     rows = []
     for low, high in zip(edges[:-1], edges[1:]):
         inside = (steps >= low) & (steps < high)
-        if steps[-1] >= high and inside.any():
-            rows.append((np.sqrt(low * high), *parts[inside].mean(axis=0)))
+        if inside.any():
+            top = min(high, steps[-1])
+            rows.append((np.sqrt(low * top), *parts[inside].mean(axis=0)))
     return rows
 
 
