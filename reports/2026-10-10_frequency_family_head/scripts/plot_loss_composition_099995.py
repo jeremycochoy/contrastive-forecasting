@@ -72,8 +72,11 @@ RUNS = {
                                 (MINI_DIR / "grn_ema099995_f6_rep01_r3_losses.csv", 240_000),
                                 (MINI_DIR / "grn_ema099995_f6_rep01_r4_losses.csv", 420_000),
                                 (MINI_DIR / "grn_ema099995_f6_rep01_r5_losses.csv", 480_000),
-                                (MINI_DIR / "grn_ema099995_f6_rep01_r6_losses.csv", None)],
-                               "#ffb000", "Yellow: GRN+EMA 0.99995, 6 layers, L_rep 0.1 (paused at 580k, it trains again later)"),
+                                (MINI_DIR / "grn_ema099995_f6_rep01_r6_losses.csv", 580_000),
+                                # the box leg from 580k (11-02): train.py named it r2 again
+                                (RUNS_DIR / "grn_ema099995_f6_rep01/ckpt_box_1102/"
+                                 "grn_ema099995_f6_rep01_r2_losses.csv", None)],
+                               "#ffb000", "Yellow: GRN+EMA 0.99995, 6 layers, L_rep 0.1 (still training)"),
     "grn_ema099995_f6_rep01_mup": (
         [(RUNS_DIR / "grn_ema099995_f6_rep01_mup/ckpt/grn_ema099995_f6_rep01_mup_losses.csv",
           180_000),
@@ -91,7 +94,7 @@ RUNS = {
     "grn_ema0999975_f6_rep01_mup": (
         [(RUNS_DIR / "grn_ema0999975_f6_rep01_mup/ckpt/grn_ema0999975_f6_rep01_mup_losses.csv",
           None)],
-        "#7fff00", "Lime: violet with EMA 0.999975 (still training)"),
+        "#7fff00", "Lime: violet with EMA 0.999975 (stopped at 651k)"),
     "grn_ema099995_f6_rep01_mup_hid56": (
         [(RUNS_DIR / "grn_ema099995_f6_rep01_mup_hid56/ckpt/"
           "grn_ema099995_f6_rep01_mup_hid56_losses.csv", None)],

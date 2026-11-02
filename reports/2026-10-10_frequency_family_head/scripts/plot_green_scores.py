@@ -109,7 +109,7 @@ RUNS = [
      r"$\mathbf{ORA}$  VIO with lr 5.6e-5 (the lr of YEL), stopped at 268k" "\n"
      "(expected: better than VIO)", GRN_EMA099995_F6_REP01_MUP_LR56_COLOUR, "o"),
     (GRN_EMA0999975_F6_REP01_MUP,
-     r"$\mathbf{LIM}$  VIO with the EMA 0.999975, to 665k" "\n"
+     r"$\mathbf{LIM}$  VIO with the EMA 0.999975, stopped at 651k" "\n"
      "(expected: better than VIO)", GRN_EMA0999975_F6_REP01_MUP_COLOUR, "v"),
     (GRN_EMA099995_F6_REP01_MUP_HID56,
      r"$\mathbf{PNK}$  VIO with lr 3.36e-4 (hidden lr 5.6e-5 of YEL), input init 1.008," "\n"
