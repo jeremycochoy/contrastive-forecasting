@@ -6,6 +6,9 @@ g40_lr1em4_tau999975	1e-4	0.999975		1.3254
 g40_lr2em4_tau99995	2e-4	0.99995		1.2000
 g40_lr2em4_tau999975	2e-4	0.999975		1.2427
 g40b_lr1em4_tau99995_rep005h	1e-4	0.99995	losses of blue: L_rep 0.05, depths 1/2^j	1.1891
-g40b_lr1em4_tau99995_bs128	1e-4	0.99995	batch 128	1.2124
 g40c_lr1em4_tau99995_cos	1e-4 to 1e-5	0.99995	lr cosine 1e-4 to 1e-5	1.2063
 g40w_lr1em3_wu4k_cos	warmup to 1e-3, cosine to 1e-4	0.99995	lr warmup to 1e-3, then cosine to 1e-4	1.1823
+g40b_lr1em4_tau99995_bs128	1e-4	0.99995	batch 128, lr 1e-4	1.2124
+g40b_lr2em4_tau99995_bs128	2e-4	0.99995	batch 128, lr 2e-4	1.1926
+g40b_lr4em4_tau99995_bs128	4e-4	0.99995	batch 128, lr 4e-4	1.1842
+g40w_lr1em3_wu4k_cos4em4_bs128	warmup to 1e-3, cosine to 4e-4	0.99995	batch 128, warmup to 1e-3, then cosine to 4e-4	

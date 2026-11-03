@@ -1,10 +1,11 @@
 """The training of the second round of the 40k grid (the user, 11-02 and 11-03),
 for the view only: the decisions use the forecast GM-Relative MASE. The best
-cell of the grid (lr 1e-4, EMA start 0.99995) and three directions from it,
-each one alone: the losses of blue (L_rep 0.05, the L_align depth weights
-1/2^j), batch 128 (the same lr), and the lr schedule (C: a cosine from 1e-4 to
-1e-5 over the 40k steps; W: a warmup to 1e-3 over 4k steps, then a cosine to
-1e-4). Three panels on one step axis, means over bins of 500 steps:
+cell of the grid (lr 1e-4, EMA start 0.99995) and the changes from it: the
+losses of blue (L_rep 0.05, the L_align depth weights 1/2^j), the lr schedule
+(C: a cosine from 1e-4 to 1e-5 over the 40k steps; W: a warmup to 1e-3 over 4k
+steps, then a cosine to 1e-4), batch 128 at the lr 1e-4, 2e-4 and 4e-4, and A:
+batch 128 with the warmup of W, then a cosine to 4e-4. Three panels on one step
+axis, means over bins of 500 steps:
 
   1. The lr of each step, from the flags of the run (the formula of
      scheduled_lr in train.py; the optimizer of each 20k save has this lr).
@@ -28,7 +29,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from plot_grid40k import run_score
+from plot_grid40k import ROUND2_COLOURS, run_score
 
 STUDY = Path(__file__).resolve().parent.parent
 GRID = Path("/home/jupyter/cf_runs/grid40k")
@@ -37,17 +38,18 @@ STEPS = 40000
 BIN = 500
 AFTER_WARMUP = 4000
 CONSTANT = (1e-4, 1e-4, STEPS, 0)
-# run -> (label, colour, lr schedule (lr, final lr, end of the anneal, warmup steps),
-# the loss weights and the batch of the best cell)
+# run -> (label, lr schedule (lr, final lr, end of the anneal, warmup steps),
+# the loss weights and the batch of the best cell); the colours: ROUND2_COLOURS
 RUNS = {
-    "g40_lr1em4_tau99995": ("best cell: lr 1e-4, constant", "#1b9e77", CONSTANT, True),
-    "g40b_lr1em4_tau99995_rep005h": ("losses of blue: L_rep 0.05, depths 1/2^j", "#1f77b4",
-                                     CONSTANT, False),
-    "g40b_lr1em4_tau99995_bs128": ("batch 128", "#bcbd22", CONSTANT, False),
-    "g40c_lr1em4_tau99995_cos": ("C: cosine from 1e-4 to 1e-5", "#7570b3",
-                                 (1e-4, 1e-5, STEPS, 0), True),
-    "g40w_lr1em3_wu4k_cos": ("W: warmup to 1e-3 over 4k, cosine to 1e-4", "#e7298a",
-                             (1e-3, 1e-4, STEPS, 4000), True),
+    "g40_lr1em4_tau99995": ("best cell: lr 1e-4, constant", CONSTANT, True),
+    "g40b_lr1em4_tau99995_rep005h": ("losses of blue: L_rep 0.05, depths 1/2^j", CONSTANT, False),
+    "g40c_lr1em4_tau99995_cos": ("C: cosine from 1e-4 to 1e-5", (1e-4, 1e-5, STEPS, 0), True),
+    "g40w_lr1em3_wu4k_cos": ("W: warmup to 1e-3 over 4k, cosine to 1e-4", (1e-3, 1e-4, STEPS, 4000), True),
+    "g40b_lr1em4_tau99995_bs128": ("batch 128, lr 1e-4", CONSTANT, False),
+    "g40b_lr2em4_tau99995_bs128": ("batch 128, lr 2e-4", (2e-4, 2e-4, STEPS, 0), False),
+    "g40b_lr4em4_tau99995_bs128": ("batch 128, lr 4e-4", (4e-4, 4e-4, STEPS, 0), False),
+    "g40w_lr1em3_wu4k_cos4em4_bs128": ("A: batch 128, warmup to 1e-3 over 4k, cosine to 4e-4",
+                                       (1e-3, 4e-4, STEPS, 4000), False),
 }
 
 
@@ -75,11 +77,12 @@ def legend_label(run):
 
 def draw_lr(ax):
     steps = np.arange(0, STEPS + 1, 50)
-    for run, (name, colour, schedule, _) in RUNS.items():
+    for run, (name, schedule, _) in RUNS.items():
         if schedule != CONSTANT or run == "g40_lr1em4_tau99995":
-            label = "lr 1e-4, constant (best cell, losses of blue, batch 128)" \
+            label = "lr 1e-4, constant (best cell, losses of blue, batch 128 at lr 1e-4)" \
                 if schedule == CONSTANT else name
-            ax.plot(steps, [scheduled_lr(s, *schedule) for s in steps], color=colour, lw=2, label=label)
+            ax.plot(steps, [scheduled_lr(s, *schedule) for s in steps], color=ROUND2_COLOURS[run], lw=2,
+                    label=label)
     ax.set(yscale="log", ylabel="learning rate", title="Learning rate")
     ax.legend(fontsize=8, loc="upper right")
 
@@ -97,7 +100,7 @@ def draw_loss(ax, column, runs, title):
     low = min(c.min() for c in curves.values()) * 0.97
     top = steady.max() * 1.03
     for run, series in curves.items():
-        ax.plot(series.index, series, color=RUNS[run][1], lw=2, label=legend_label(run))
+        ax.plot(series.index, series, color=ROUND2_COLOURS[run], lw=2, label=legend_label(run))
     ax.set_ylim(low, top)
     ax.set(ylabel="mean over 500 steps", title=title)
     ax.text(0.99, 0.03, above_note(curves, top), transform=ax.transAxes, ha="right",
@@ -110,12 +113,12 @@ def main():
     draw_lr(axes[0])
     draw_loss(axes[1], "l_align", list(RUNS),
               "L_align at depth 0, before the depth weights. Legend: forecast GM-Relative MASE at 40k")
-    draw_loss(axes[2], "loss", [r for r, v in RUNS.items() if v[3]],
+    draw_loss(axes[2], "loss", [r for r, v in RUNS.items() if v[2]],
               "Total loss (runs with the loss weights and the batch of the best cell)")
     for ax in axes:
         ax.grid(alpha=0.3)
     axes[2].set_xlabel("training step (EMA ramp to 1.0 over the 40k steps)")
-    fig.suptitle("40k grid, second round: the training of the best cell and of 3 directions "
+    fig.suptitle("40k grid, second round: the training of the best cell and of the changes from it "
                  "(view only; decisions use the forecast)", fontsize=11)
     fig.tight_layout()
     fig.savefig(OUT, dpi=130)

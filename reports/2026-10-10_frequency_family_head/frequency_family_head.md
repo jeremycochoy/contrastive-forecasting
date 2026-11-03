@@ -59,9 +59,11 @@ Each cell is one run of 40k steps at width 64, with 1 encoder layer, 3 forecaste
 The EMA momentum goes to 1.0 over the 40k steps.
 The best cell is lr 1e-4 with the EMA start 0.99995 (1.1888), the settings of violet.
 The EMA start 0.99995 is better than 0.999975 at each learning rate.
-Each run of the second round changes one setting of the best cell.
-A warmup of the learning rate to 1e-3 over 4k steps, then a cosine to 1e-4, gives 1.1823, the only gain.
-The losses of blue give 1.1891, a cosine from 1e-4 to 1e-5 gives 1.2063, and batch 128 at lr 1e-4 gives 1.2124.
+The second round starts from the best cell.
+A warmup of the learning rate to 1e-3 over 4k steps, then a cosine to 1e-4, gives 1.1823, the lowest score.
+The losses of blue give 1.1891, and a cosine from 1e-4 to 1e-5 gives 1.2063.
+At batch 128, the learning rates 1e-4, 2e-4 and 4e-4 give 1.2124, 1.1926 and 1.1842.
+The score decreases up to 4e-4, the highest learning rate of the search.
 
 ![Relative MASE per GIFT-Eval dataset](plots/grid40k_radar.png)
 

@@ -23,7 +23,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from plot_grid40k import BEST, LRS, ROUND2, SCORES, TAUS
+from plot_grid40k import BEST, LRS, ROUND2, ROUND2_COLOURS, SCORES, TAUS
 
 STUDY = Path(__file__).resolve().parent.parent
 MOIRAI = STUDY.parent / "2026-09-06_moirai_small_size"
@@ -38,10 +38,8 @@ TAU_STYLES = {"0.99995": "-", "0.999975": ":"}
 # run -> (legend label, colour, line style)
 GRID_LINES = {f"g40_{lr_part}_{tau_part}": (f"lr {lr}, EMA start {tau}", LR_COLOURS[lr], TAU_STYLES[tau])
               for lr, (_, lr_part) in LRS.items() for tau, (_, tau_part) in TAUS.items()}
-SECOND_COLOURS = ["#1f77b4", "#bcbd22", "#e7298a", "#66a61e"]
 SECOND_LINES = {BEST: GRID_LINES[BEST]} | {
-    run: (label.replace("\n", " "), colour, "-")
-    for (run, (label, _)), colour in zip(list(ROUND2.items())[1:], SECOND_COLOURS)}
+    run: (label.replace("\n", " "), ROUND2_COLOURS[run], "-") for run, (label, _) in list(ROUND2.items())[1:]}
 
 
 def grid_mase():
@@ -91,7 +89,7 @@ def main():
     fig, axes = plt.subplots(1, 2, figsize=(26, 13), subplot_kw=dict(polar=True),
                              gridspec_kw=dict(wspace=0.55))
     draw_radar(axes[0], values, grid, labels, scores, "The 6 cells of the 40k grid")
-    draw_radar(axes[1], values, second, labels, scores, "Second round: one change each from the best cell")
+    draw_radar(axes[1], values, second, labels, scores, "Second round: changes from the best cell")
     fig.suptitle("Relative MASE per GIFT-Eval dataset (geometric mean over its configs). Green ring: "
                  "Seasonal Naive (1.0). Inside is better. The hardest datasets are at the top.",
                  fontsize=14, y=1.03)
