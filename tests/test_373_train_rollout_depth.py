@@ -730,7 +730,7 @@ class TestEvalRolloutNumericsAreUnchanged:
         """One operator, two precision policies — pinned so they cannot swap.
 
         The eval rollout runs the stack at the ambient precision
-        (`fp32_tail=False`); the training forward and the rollout depth force
+        (`fp32_tail=False`). The training forward and the rollout depth force
         the fp32 tail, which is what the loss has always read.
 
         The spy binds against the REAL signature, so a caller that passes
@@ -878,7 +878,7 @@ class TestBackboneCheckpointGateIsOneDefinition:
 
     def test_the_forecaster_stack_does_not_gate_on_requires_grad(
             self, monkeypatch):
-        """`FCST_GRAD_CKPT` gates on `x.requires_grad`; `BACKBONE_CKPT` never
+        """`FCST_GRAD_CKPT` gates on `x.requires_grad`. `BACKBONE_CKPT` never
         did. Under `no_grad` the forecaster input carries no grad, so a gate
         that copied its neighbour would drop the forecaster's 2 calls."""
         monkeypatch.setenv('BACKBONE_CKPT', '1')
