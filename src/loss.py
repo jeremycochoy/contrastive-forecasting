@@ -1074,7 +1074,8 @@ def cpc_infonce_all_loss(forecasted_latent, original_latent, w1, source_chunk=8,
 
 
 def sigreg_loss(z, sigma2=None, M=1024, T_knots=17, W=None,
-                post_normalize=False, n_chunk=8192, projections=None):
+                post_normalize=False, n_chunk=8192, projections=None,
+                legacy_window=False):
     """LeJEPA spherical SIGReg statistic (Balestriero and others 2025, #355).
 
     Push the pooled marginal of the latent ``z`` toward ``Unif(S^{K-1})`` —
@@ -1111,8 +1112,18 @@ def sigreg_loss(z, sigma2=None, M=1024, T_knots=17, W=None,
         M: number of random 1-D projection directions per call. Ignored
             when ``projections`` is supplied.
         T_knots: number of trapezoidal-rule knots in ``[−W, W]``.
-        W: integration bound. ``None`` → ``6/√K`` (~6σ — the integrand
-            has decayed near the endpoints).
+        W: integration bound, a frequency. ``None`` → ``6/σ`` (``6√K``
+            at the default ``σ² = 1/K``): the target characteristic
+            function ``exp(−½ σ² ω²)`` has decayed to ``exp(−18)`` at the
+            endpoints. The statistic grows with ``1/σ``: at ``σ² = 1/K`` it
+            is ``√K`` times the statistic of the standardised projections
+            against ``N(0, 1)``.
+        legacy_window: restores the default bound ``6/√K`` of the runs
+            before the window fix. That bound has the unit of the
+            projections: at ``K = 384`` the window
+            stops where both characteristic functions are within about
+            ``1e-4`` of 1, so the statistic sees almost nothing of the
+            distribution. Ignored when ``W`` is given.
         post_normalize: when True, ``z`` is L2-normalised on its last
             axis before projection (LeJEPA's post-sphere-projection
             placement. The strict ``σ² = 1/K`` regime). When False
@@ -1136,7 +1147,7 @@ def sigreg_loss(z, sigma2=None, M=1024, T_knots=17, W=None,
     if sigma2 is None:
         sigma2 = 1.0 / K
     if W is None:
-        W = 6.0 / math.sqrt(K)
+        W = 6.0 / math.sqrt(K) if legacy_window else 6.0 / math.sqrt(sigma2)
     if post_normalize:
         z = F.normalize(z, p=2, dim=-1)
     z_flat = z.reshape(-1, K)                            # [N, K]
