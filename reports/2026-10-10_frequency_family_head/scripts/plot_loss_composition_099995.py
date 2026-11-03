@@ -84,7 +84,7 @@ RUNS = {
           180_000),
          (RUNS_DIR / "grn_ema099995_f6_rep01_mup/ckpt/grn_ema099995_f6_rep01_mup_r2_losses.csv",
           None)],
-        "#8a2be2", "Violet: yellow with muP, lr 1e-4 (still training)"),
+        "#8a2be2", "Violet: yellow with muP, lr 1e-4 (to 665k)"),
     "grn_ema099995_f6_rep005_halving_mup": (
         [(RUNS_DIR / "grn_ema099995_f6_rep005_halving_mup/ckpt/"
           "grn_ema099995_f6_rep005_halving_mup_losses.csv", None)],
