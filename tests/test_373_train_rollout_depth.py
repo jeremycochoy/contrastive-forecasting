@@ -715,9 +715,10 @@ class TestEvalRolloutNumericsAreUnchanged:
         assert torch.equal(token, want)
 
     def test_a_multi_token_rollout_matches_the_reference(self):
+        # The reference feeds each token back raw: --rollout-feedback raw.
         model = _tiny_backbone().to(torch.bfloat16)
         seq = torch.randn(3, 7, 8, dtype=torch.bfloat16)
-        got = rollout_latent(model, seq, 3)
+        got = rollout_latent(model, seq, 3, feedback="raw")
         with torch.no_grad():
             cur, want = seq, []
             for _ in range(3):
