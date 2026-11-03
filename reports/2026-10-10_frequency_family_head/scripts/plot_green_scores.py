@@ -16,7 +16,7 @@ Writes plots/forecast_and_reconstruction.png: three panels on one x axis.
 
 A dashed vertical line joins the scores of one checkpoint in the panels. The
 legend gives each run a three-letter code (from its colour: MAG, GRY, YEL, VIO,
-BLU, ORA, LIM, PNK, RED, BRN, BLK), and for orange, lime and pink the result that
+BLU, ORA, LIM, PNK, RED, BRN, DGY), and for orange, lime and pink the result that
 the user expected before their start.
 
 Reads the forecast of MPE of #412 and #425
@@ -58,7 +58,7 @@ GRN_EMA099995_COLOUR = "#ff00ff"
 GRN_EMA099995_F6 = "grn_ema099995_f6"
 GRN_EMA099995_F6_COLOUR = "#7f7f7f"  # no other run of this figure has this colour
 GRN_EMA099995_F6_CD240 = "grn_ema099995_f6_cd240"
-GRN_EMA099995_F6_CD240_COLOUR = "#000000"  # black: no other run of this figure has this colour
+GRN_EMA099995_F6_CD240_COLOUR = "#404040"  # dark grey, the cooldown of grey: no other run of this figure has this colour
 GRN_EMA099995_F6_REP01 = "grn_ema099995_f6_rep01"
 GRN_EMA099995_F6_REP01_COLOUR = "#ffb000"  # no other run of this figure has this colour
 GRN_EMA099995_F6_REP01_MUP = "grn_ema099995_f6_rep01_mup"
@@ -103,7 +103,7 @@ RUNS = [
      "stopped at 391k", GRN_EMA099995_COLOUR, "8"),
     (GRN_EMA099995_F6, r"$\mathbf{GRY}$  MAG with 6 forecaster layers (the size of MPE), "
      "stopped at 440k", GRN_EMA099995_F6_COLOUR, "H"),
-    (GRN_EMA099995_F6_CD240, r"$\mathbf{BLK}$  GRY from its 240k save, the lr a cosine to 0 "
+    (GRN_EMA099995_F6_CD240, r"$\mathbf{DGY}$  GRY from its 240k save, the lr a cosine to 0 "
      "over 48k steps (cooldown), 288k", GRN_EMA099995_F6_CD240_COLOUR, ">"),
     (GRN_EMA099995_F6_REP01, r"$\mathbf{YEL}$  GRY with L_rep 0.1, stopped at 583k",
      GRN_EMA099995_F6_REP01_COLOUR, "^"),

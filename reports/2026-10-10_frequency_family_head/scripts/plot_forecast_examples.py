@@ -1,4 +1,4 @@
-"""Forecasts of a few GIFT-Eval test windows: our best forecast so far (BLK, the
+"""Forecasts of a few GIFT-Eval test windows: our best forecast so far (DGY, the
 cooldown of grey at 288k, head B4) next to Moirai small 1.1-R and Seasonal
 Naive (the user, 11-03). The forecasts come from forecast_examples_ours.py and
 forecast_examples_moirai.py (results/forecast_examples/*.npz). Each panel shows
@@ -23,14 +23,14 @@ DATA = STUDY / "results" / "forecast_examples"
 OUT = STUDY / "plots" / "forecast_examples.png"
 SEASON = 24
 SHOWN_CONTEXT = {"m4_hourly/H/short": 240, "electricity/H/long": 720}
-MODELS = {"ours": ("ours: BLK, grey cooldown 288k", "#d62728"),
+MODELS = {"ours": ("ours: DGY, grey cooldown 288k", "#d62728"),
           "moirai": ("Moirai small 1.1-R", "#1f77b4"),
           "naive": ("Seasonal Naive", "#7f7f7f")}
 
 
 def windows():
     """[(config, index)] of the saved windows, in file order."""
-    ours = np.load(DATA / "ours_blk288k.npz")
+    ours = np.load(DATA / "ours_dgy288k.npz")
     keys = [k.rsplit("|", 1)[0] for k in ours.files if k.endswith("|truth")]
     return [(k.rsplit("|", 1)[0], int(k.rsplit("|", 1)[1])) for k in keys]
 
@@ -46,7 +46,7 @@ def mase(truth, forecast, context):
 
 
 def window_data(config, index):
-    ours, moirai = np.load(DATA / "ours_blk288k.npz"), np.load(DATA / "moirai_small.npz")
+    ours, moirai = np.load(DATA / "ours_dgy288k.npz"), np.load(DATA / "moirai_small.npz")
     key = f"{config}|{index}"
     context, truth = ours[f"{key}|context"], ours[f"{key}|truth"]
     forecasts = {"ours": ours[f"{key}|median"], "moirai": moirai[f"{key}|median"],
