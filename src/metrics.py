@@ -26,13 +26,13 @@ def q_random(f: Tensor, h_target: Tensor, eps: float = 1e-8) -> Tensor:
     """Q_random = mean_{c,t} [ mean_b e(f, h_target) / mean_b e(h_target, h_target[perm]) ].
 
     e(a, b) = 1 - cos_sim(a, b). Caller passes the already-shifted
-    target — i.e. for forecaster latents f at position t, pass
+    target — that is for forecaster latents f at position t, pass
     h_target = h[:, 1:T+1, ...] so f[..., t, ...] aligns with
     h_target[..., t, ...] = h[..., t+1, ...].
 
     Args:
         f, h_target: tensors with the same shape ``(B, ..., H)``. Batch
-            is the first axis; H is the last. Common shapes are
+            is the first axis. H is the last. Common shapes are
             ``(B, T, C, H)`` and ``(B*C, T, H)`` — both work.
 
     Returns:
@@ -85,7 +85,7 @@ def q_hard_neg(sim_pos: Tensor, sim_neg: Tensor, eps: float = 1e-8) -> Tensor:
 
     e(a, b) = 1 - cos_sim(a, b). For each query, the "hardest negative"
     is the negative with the largest cosine similarity to the forecast
-    (i.e. the worst confusable). The ratio is < 1 when the forecast is
+    (that is the worst confusable). The ratio is < 1 when the forecast is
     closer to the target than to its hardest distractor (top-1 win), > 1
     when it loses top-1. Sign-matched complement to ``top1``: continuous
     margin where top1 is binary.
@@ -117,7 +117,7 @@ def m_z(sim_pos: Tensor, sim_neg: Tensor, eps: float = 1e-8) -> Tensor:
     1/√d, so for a forecast with cos(f, target) = ρ this is ≈ ρ·√d.
     Linear in ρ — does not saturate.
 
-    Decoupled from pool definition like ``q_hard_neg``; caller supplies
+    Decoupled from pool definition like ``q_hard_neg``. Caller supplies
     similarities.
 
     Args:
@@ -137,7 +137,7 @@ def m_z(sim_pos: Tensor, sim_neg: Tensor, eps: float = 1e-8) -> Tensor:
 def dim_usage(z: Tensor, axis: int) -> Tensor:
     """Dimension-usage U = 1 / (d * mean_{i!=j} cos²(z_i, z_j)), clipped to [0, 1].
 
-    The chosen ``axis`` is the n axis (samples to compare); last axis is
+    The chosen ``axis`` is the n axis (samples to compare). Last axis is
     the feature dim d. All remaining axes are 'fixed slice' axes — U is
     computed per slice and the slices are averaged into a scalar.
 
@@ -156,7 +156,7 @@ def dim_usage(z: Tensor, axis: int) -> Tensor:
         return torch.ones((), device=z.device, dtype=z.dtype)
 
     z_norm = F.normalize(z, p=2, dim=-1, eps=1e-12)
-    # Flatten fixed axes for batched matmul; restore at end.
+    # Flatten fixed axes for batched matmul. Restore at end.
     fixed_shape = z_norm.shape[1:-1]
     flat = z_norm.reshape(n, -1, d).permute(1, 0, 2)   # (S, n, d)
     # Materialising sim = flat @ flat.T is (S, n, n) — 16 GiB at n=65k
@@ -225,8 +225,8 @@ def rollout_cos_error(forecasted_latent: Tensor, original_latent: Tensor,
                       rollout_latents=(), eps: float = 1e-8) -> list[float]:
     """1 − cos(f^(j)_t, h_{t+1+j}) per rollout depth j = 0..k (#373).
 
-    Depth 0 is the one-step forecast error the ``ff`` column already reads;
-    the deeper entries say whether the composed forecaster improves, and
+    Depth 0 is the one-step forecast error the ``ff`` column already reads.
+    The deeper entries say whether the composed forecaster improves, and
     whether depth 0 pays for it. ``rollout_latents`` is f^(1)..f^(k) — the
     same list the loss consumes.
 
@@ -251,14 +251,14 @@ def drift_pair(A: Tensor, B: Tensor, eps: float = 1e-8) -> dict[str, Tensor]:
     Splits per-token movement into an informative component and a pure
     feature-axis rotation component. Given two tensors ``A`` and ``B``
     of matching shape ``(..., H)``, all non-feature axes are flattened
-    into an ``N``-row sample axis; rows are then L2-normalised (the
+    into an ``N``-row sample axis. Rows are then L2-normalised (the
     loss geometry lives on the unit sphere, so drift measured there is
     the drift the objective actually moves) before three quantities
     are computed:
 
     ``drift_cos`` (``1 − mean_i cos(A_i, B_i)``) — raw per-token
-    movement. Zero when ``A_i = c_i B_i`` for any positive scalar; ``1``
-    at orthogonality; ``2`` for antipodal pairs. Includes both
+    movement. Zero when ``A_i = c_i B_i`` for any positive scalar. ``1``
+    at orthogonality. ``2`` for antipodal pairs. Includes both
     informative geometric change and uninformative feature-axis
     rotation.
 
@@ -268,7 +268,7 @@ def drift_pair(A: Tensor, B: Tensor, eps: float = 1e-8) -> dict[str, Tensor]:
     best global feature-axis rotation. This is the movement a
     downstream linear head cannot absorb — real information change.
     Derivation: on unit rows, ``mean_i cos(R* A_i, B_i) = (1/N)
-    trace(A R* B^T)``; the maximum over orthogonal ``R`` is ``Σ_k σ_k``
+    trace(A R* B^T)``. The maximum over orthogonal ``R`` is ``Σ_k σ_k``
     (Von-Neumann trace inequality applied to the SVD of ``A^T B``).
 
     ``rot_gap`` (``drift_cos − drift_cos_aligned``) — the raw movement
@@ -338,7 +338,7 @@ def retrieval_auc_top1_legacy(
         positive  = h_full[b, t+1, c, :]
         negatives = [ h_full[b, t-k, c, :] for k in lookback_lags ]
     Score by cosine sim against f[b, t, c, :]. Per-query AUC = (# negs
-    the positive beats) / len(lags); Top1 = 1 iff positive beats all.
+    the positive beats) / len(lags). Top1 = 1 iff positive beats all.
 
     TODO: original spec has 3 extra "sub-window shift" negatives that
     require additional encoder passes — not implemented here.
@@ -350,7 +350,7 @@ def retrieval_auc_top1_legacy(
 
     Returns:
         (auc, top1), both scalar tensors. NaN if no valid queries
-        (e.g. T <= max_lag).
+        (for example T <= max_lag).
     """
     B, T, C, H = f.shape
     max_lag = max(lookback_lags)
@@ -477,7 +477,7 @@ def retrieval_auc_topk(
     # L2-normalise once and contract H *inside* an einsum to get the full
     # (B, B, T_v, C) cosine matrix (~65 MB), then gather the n_b columns
     # per row. Algebraically identical to F.cosine_similarity (same
-    # eps=1e-8 denominator floor via F.normalize); the einsum routes to a
+    # eps=1e-8 denominator floor via F.normalize). The einsum routes to a
     # batched matmul and never forms the (·, ·, ·, ·, H) intermediate.
     f_n = F.normalize(f_v, dim=-1, eps=1e-8)                      # (B, T_v, C, H)
     sims_per_lag = []
@@ -490,7 +490,7 @@ def retrieval_auc_topk(
 
     sim_neg = torch.cat(sims_per_lag, dim=-1)                     # (B, T_v, C, n_b * n_lags)
     n_neg = sim_neg.size(-1)
-    beats = (sim_pos.unsqueeze(-1) > sim_neg).float()             # strict; ties = miss
+    beats = (sim_pos.unsqueeze(-1) > sim_neg).float()             # strict. Ties = miss
 
     n_beats = beats.sum(dim=-1)                                   # (B, T_v, C)
     rank = (n_neg - n_beats + 1.0)                                # in [1, n_neg+1]
