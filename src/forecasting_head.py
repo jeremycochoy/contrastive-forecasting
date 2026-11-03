@@ -788,11 +788,57 @@ def extract_teacher_encoder_latents(backbone, x, freq_ids=None,
     return h_bc.detach(), x_norm.detach()
 
 
-def rollout_latent(backbone, encoder_latents, n_future_tokens):
+# How a rollout feeds each forecaster output back in as the next latent
+# (--rollout-feedback of the eval).
+ROLLOUT_FEEDBACKS = ("normalised", "raw")
+
+
+def data_patches(backbone, shape):
+    """``(B*C, T)`` bool: the patches that hold at least one value of the
+    series, from the left-padding mask of the last normalisation
+    (``rev_norm.pad_mask``, #419). None when the normaliser keeps no mask, or
+    when its mask does not match ``shape`` (rows, patches)."""
+    pad = getattr(getattr(backbone, "rev_norm", None), "pad_mask", None)
+    rows, n = shape
+    if pad is None or pad.dim() != 3 or pad.shape[1] % n:
+        return None
+    B, T_raw, C = pad.shape
+    if B * C != rows:
+        return None
+    padded = pad.reshape(B, n, T_raw // n, C).all(2)              # (B, n, C)
+    return ~padded.permute(0, 2, 1).reshape(rows, n)
+
+
+def context_latent_norm(backbone, encoder_latents):
+    """``(B*C, 1, 1)``: the mean norm of the encoder latents of the context
+    patches that hold data (:func:`data_patches`). A context with no such
+    patch takes the mean over all of its patches."""
+    norms = encoder_latents.float().norm(dim=-1)                    # (BC, T)
+    real = data_patches(backbone, norms.shape)
+    mean_all = norms.mean(1)
+    if real is None:
+        return mean_all.view(-1, 1, 1)
+    count = real.sum(1)
+    mean_real = (norms * real).sum(1) / count.clamp_min(1)
+    return torch.where(count > 0, mean_real, mean_all).view(-1, 1, 1)
+
+
+def rollout_latent(backbone, encoder_latents, n_future_tokens, feedback=None):
     """Generate future forecaster latents via autoregressive rollout.
 
     Uses the backbone's causal transformer: since contrastive training
     makes f[t] ≈ e[t+1], we feed f[-1] back as the next encoder latent.
+
+    ``feedback`` (:data:`ROLLOUT_FEEDBACKS`) says how. ``'normalised'``: the
+    direction of the output, at the norm of the context latents
+    (:func:`context_latent_norm`). L_align is a cosine: it trains the
+    direction of f only. The encoder latents sit near a sphere (their norm
+    moves by about 3% in a window), and a raw output is about 1.45 times
+    longer, so a raw feedback grows at each step and the rollout freezes on
+    one latent. ``'raw'``: the output as it is, as every rollout before this
+    option. None reads ``backbone._rollout_feedback`` (the eval sets it),
+    else ``'normalised'``. The function returns the raw outputs: the head
+    decodes them, as it does at training.
 
     Each token runs `TransformerBlock.forecaster_forward` — the same
     forecaster operator the training forward and the training rollout depth
@@ -817,6 +863,12 @@ def rollout_latent(backbone, encoder_latents, n_future_tokens):
             residual-stream dim with `encoder_latents` and can feed the
             decoding head unchanged.
     """
+    feedback = feedback or getattr(backbone, "_rollout_feedback", "normalised")
+    if feedback not in ROLLOUT_FEEDBACKS:
+        raise ValueError(f"rollout feedback must be one of {ROLLOUT_FEEDBACKS}; "
+                         f"got {feedback!r}")
+    scale = (context_latent_norm(backbone, encoder_latents)
+             if feedback == "normalised" else None)
     seq = encoder_latents  # (B*C, T, H) in dimension_e
     generated = []
 
@@ -830,7 +882,10 @@ def rollout_latent(backbone, encoder_latents, n_future_tokens):
             generated.append(new_token)
 
             # Append as next encoder latent (in dimension_e — matches `seq`).
-            seq = torch.cat([seq, new_token], dim=1)
+            fed = new_token if scale is None else (
+                new_token * (scale / new_token.float().norm(dim=-1, keepdim=True)
+                             .clamp_min(1e-12))).to(seq.dtype)
+            seq = torch.cat([seq, fed], dim=1)
 
     return torch.cat(generated, dim=1)  # (B*C, n_future_tokens, H)
 

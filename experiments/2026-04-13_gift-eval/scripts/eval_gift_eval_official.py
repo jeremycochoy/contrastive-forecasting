@@ -75,6 +75,7 @@ from src.forecasting_head import (
     head_bank_sizes,
     native_value_head,
     reconstruct_windows,
+    ROLLOUT_FEEDBACKS,
     ZeroReconstructionHead,
 )
 from src.freq_family import (
@@ -508,6 +509,13 @@ def parse_args():
                         "rollout stays the student's. MUST match the encoder "
                         "the head was trained on — the head's own marker is "
                         "checked and a mismatch aborts.")
+    p.add_argument("--rollout-feedback", default="normalised",
+                   choices=list(ROLLOUT_FEEDBACKS),
+                   help="How the latent rollout of the B strategies feeds each "
+                        "forecaster output back in. 'normalised' (default): "
+                        "the direction of the output at the norm of the "
+                        "context latents (rollout_latent). 'raw': the output "
+                        "as it is, as every score before this option.")
     p.add_argument("--context-pad", default="auto",
                    choices=["auto", "first", "zeros"],
                    help="How to fill a context shorter than the window (#419). "
@@ -912,8 +920,10 @@ def load_models(args, device):
     from src.freq_embedding import vocab_of_rows
     backbone._freq_vocab = (vocab_of_rows(freq_rows) if freq_rows is not None
                             else "v1")
+    backbone._rollout_feedback = args.rollout_feedback
     print(f"  [eval] encoder={args.encoder_source} "
-          f"freq_vocab={backbone._freq_vocab}")
+          f"freq_vocab={backbone._freq_vocab} "
+          f"rollout feedback={args.rollout_feedback}")
     if args.native_value_head:
         from src.forecasting_head import ValueHeadForecaster
         head = ValueHeadForecaster(backbone).to(device).eval()
