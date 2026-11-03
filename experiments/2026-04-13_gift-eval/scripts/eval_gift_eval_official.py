@@ -232,8 +232,8 @@ class ContrastiveForecasterPredictor(RepresentablePredictor):
         head: ForecastingHead,
         prediction_length: int,
         device: torch.device,
-        t_raw: int = T_RAW,
-        backbone_c: int = BACKBONE_C,
+        t_raw: Optional[int] = None,
+        backbone_c: Optional[int] = None,
         quantile_levels: Optional[List[float]] = None,
         strategy: str = 'A1',
         context_pad: str = 'first',
@@ -246,8 +246,12 @@ class ContrastiveForecasterPredictor(RepresentablePredictor):
         self.backbone = backbone
         self.head = head
         self.device = device
-        self.t_raw = t_raw
-        self.backbone_c = backbone_c
+        # None reads the module values at construction: load_models sets
+        # them from --t-raw and --n-channels after this module is imported.
+        # A default of the signature kept the values of the import
+        # (T_RAW = 1024): every score before --context-len read 1024 values.
+        self.t_raw = T_RAW if t_raw is None else t_raw
+        self.backbone_c = BACKBONE_C if backbone_c is None else backbone_c
         self.quantile_levels = quantile_levels or QUANTILE_LEVELS
         self.strategy = strategy
 
@@ -431,6 +435,21 @@ class ReconstructionPredictor(ContrastiveForecasterPredictor):
 # Dataset iteration helpers
 # ============================================================================
 
+
+def build_predictor(args, backbone, head, dataset, device):
+    """The predictor of one dataset. R (#425) reads the labels of the same
+    test data the metrics read. ``--context-len`` sets the past values that
+    the backbone reads (default: the T_RAW that load_models set)."""
+    kwargs = dict(backbone=backbone, head=head,
+                  prediction_length=dataset.prediction_length, device=device,
+                  quantile_levels=QUANTILE_LEVELS, strategy=args.strategy,
+                  context_pad=args.context_pad, t_raw=args.context_len)
+    if args.strategy == "R":
+        return ReconstructionPredictor(labels=dataset.test_data.label,
+                                       latent=args.reconstruction_latent,
+                                       **kwargs)
+    return ContrastiveForecasterPredictor(**kwargs)
+
 def get_all_dataset_configs():
     """Build the list of (ds_name, term) pairs for all 97 configs."""
     short_list = SHORT_DATASETS.split()
@@ -551,6 +570,12 @@ def parse_args():
     # state_dict load will fail with a size mismatch on a non-default backbone.
     p.add_argument("--t-raw", type=int, default=None,
                    help="Backbone context window. Overrides T_RAW (default 1024).")
+    p.add_argument("--context-len", type=int, default=None,
+                   help="Past values that the backbone reads for each "
+                        "forecast. Default: --t-raw, the window that the "
+                        "backbone trains on. Every score before this flag "
+                        "read 1024 values (the predictor kept the T_RAW of "
+                        "the import): --context-len 1024 reproduces one.")
     p.add_argument("--n-channels", "--backbone-c", dest="n_channels", type=int,
                    default=None,
                    help="Backbone input channel count C. Overrides "
@@ -786,7 +811,8 @@ def load_models(args, device):
     BACKBONE_CONFIG["rev_norm_skip_leading_zeros"] = zero_pad
     if args.context_pad == "auto":
         args.context_pad = "zeros" if zero_pad else "first"
-    print(f"  [eval] context pad: {args.context_pad}")
+    print(f"  [eval] context pad: {args.context_pad}, context "
+          f"{args.context_len or T_RAW} values")
     sw = sd.get("seasonality_embedding.embedding.weight")
     BACKBONE_CONFIG["seasonality_emb_dim"] = (sw.shape[1] if sw is not None else 0)
     if "log_inv_tau" in sd:
@@ -1071,25 +1097,9 @@ def main():
                     head = family_config_head(family, config_name,
                                               dataset.freq)
 
-                # Create predictor for this dataset. R (#425) reads the
-                # labels of the same test data the metrics read.
                 test_data = dataset.test_data
-                predictor_kwargs = dict(
-                    backbone=backbone,
-                    head=head,
-                    prediction_length=dataset.prediction_length,
-                    device=device,
-                    quantile_levels=QUANTILE_LEVELS,
-                    strategy=args.strategy,
-                    context_pad=args.context_pad,
-                )
-                if args.strategy == "R":
-                    predictor = ReconstructionPredictor(
-                        labels=test_data.label,
-                        latent=args.reconstruction_latent, **predictor_kwargs)
-                else:
-                    predictor = ContrastiveForecasterPredictor(
-                        **predictor_kwargs)
+                predictor = build_predictor(args, backbone, head, dataset,
+                                            device)
 
                 # Evaluate using gluonts official function
                 res = evaluate_model(
