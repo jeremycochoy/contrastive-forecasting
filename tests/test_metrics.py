@@ -53,6 +53,24 @@ def test_q_random_anti_correlated_about_two():
     assert 1.7 <= q <= 2.3, f"Q_random={q}, expected ≈2"
 
 
+def test_q_random_never_pairs_a_row_with_itself():
+    """At B = 2 a random permutation is the identity half of the time: the
+    denominator is then 0 and Q explodes. The cyclic shift swaps the rows."""
+    h_target = torch.randn(2, 4, 3, 16)
+    f = torch.randn_like(h_target)
+    for seed in range(20):
+        torch.manual_seed(seed)
+        assert q_random(f, h_target).item() < 10.0
+
+
+def test_q_random_of_a_random_forecast_is_one_on_average_at_a_small_batch():
+    """#151: at B = 8 the mean was about 1.10 with torch.randperm."""
+    torch.manual_seed(0)
+    qs = [q_random(torch.randn(8, 4, 3, 32), torch.randn(8, 4, 3, 32)).item()
+          for _ in range(300)]
+    assert abs(sum(qs) / len(qs) - 1.0) < 0.03
+
+
 # ---------------------------------------------------------------------------
 # q_naive_latent
 # ---------------------------------------------------------------------------

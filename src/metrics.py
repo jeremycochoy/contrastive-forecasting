@@ -44,7 +44,12 @@ def q_random(f: Tensor, h_target: Tensor, eps: float = 1e-8) -> Tensor:
     """
     assert f.shape == h_target.shape, (f.shape, h_target.shape)
     B = f.shape[0]
-    perm = torch.randperm(B, device=f.device)
+    # A cyclic shift pairs no row with itself. torch.randperm can, and a
+    # row paired with itself has the error 0, which pulls the denominator
+    # down at a small B (#151: at B = 8 the mean Q of a random forecast was
+    # about 1.10, and 1.005 with the shift).
+    shift = int(torch.randint(1, B, (1,)).item()) if B > 1 else 0
+    perm = (torch.arange(B, device=f.device) + shift) % B
     num = _err(f, h_target, eps).mean(dim=0)                          # (...,)
     denom = _err(h_target, h_target[perm], eps).mean(dim=0).clamp_min(eps)
     return (num / denom).mean()
