@@ -13,7 +13,7 @@ but split into two independent terms with a single positive:
 Same τ in both, same teacher-side / stopgrad positive, same batch pooling
 inside each term. `include_positive_in_denominator` and
 `subtract_contrastive_floor` are rejected: L_pred is normalized by
-construction; the floor formula is derived for the combined shape.
+construction. The floor formula is derived for the combined shape.
 """
 
 import math
@@ -225,7 +225,7 @@ class TestSplitPredRep:
 
     def test_stopgrad_positive_h_cuts_pos_edge_of_h_grad(self):
         """With `stopgrad_positive_h`, the ENCODER gradient dh differs from
-        the no-flag run (the positive's h-edge is dropped); f-grad is
+        the no-flag run (the positive's h-edge is dropped). f-grad is
         identical (no f-edge is touched by the flag)."""
         B, T, C, H = 3, 5, 1, 8
         g = torch.Generator().manual_seed(83)
@@ -259,10 +259,10 @@ class TestSplitPredRep:
 
     def test_subtract_contrastive_floor_shifts_loss_by_constants(self):
         """The split has TWO floors (one per side). Subtracting them is a
-        constant shift = log(1+N_pred·e^(−1/τ)) + log(N_rep), unchanged by
-        the inputs — the delta between (sub_floor on) and (off) matches."""
-        import math as _math
+        constant shift = log(1+N_pred·e^(−2/τ)) + log(N_rep) − 1/τ, unchanged
+        by the inputs — the delta between (sub_floor on) and (off) matches."""
         from src.loss import infonce_floor as _floor
+        from src.loss import lse_only_floor as _lse_floor
         B, T, C, H = 3, 5, 2, 12
         f, o = _latents(B=B, T=T, C=C, H=H, seed=91)
         base = contrastive_latent_loss((f, o), False, _spec(tau=0.1))
@@ -270,11 +270,11 @@ class TestSplitPredRep:
             (f, o), False, _spec(tau=0.1, sub_floor=True))
         n_pred = B * (C + (B - 1))
         n_rep  = B * ((C - 1) + (T - 1) + (B - 1) * T)
-        expected = _floor(0.1, n_pred) + _math.log(n_rep)
+        expected = _floor(0.1, n_pred) + _lse_floor(0.1, n_rep)
         assert abs((base.item() - rebased.item()) - expected) < 1e-6
 
     def test_align_loss_still_additive(self):
-        """`align_loss_weight` applies to any shape; it adds a BYOL term on
+        """`align_loss_weight` applies to any shape. It adds a BYOL term on
         top of the split total."""
         f, o = _latents(B=3, T=4, C=1, H=8, seed=6, dtype=torch.float32)
         base = contrastive_latent_loss((f, o), False, _spec(tau=0.1)).item()
@@ -302,7 +302,7 @@ class TestSplitPredRep:
 
     def test_moco_negatives_on_uses_teacher_in_cross_batch(self):
         """With `moco_negatives=True` the cross-batch f↔h keys are the
-        teacher's h^T; reference reproduces the swap exactly."""
+        teacher's h^T. Reference reproduces the swap exactly."""
         B, T, C, H = 4, 5, 2, 12
         g = torch.Generator().manual_seed(7374)
         f = torch.randn(B, T, C, H, generator=g, dtype=torch.float64)
@@ -343,7 +343,7 @@ class TestSplitPredRep:
     def test_moco_negatives_hh_families_still_gradient_to_encoder(self):
         """#375 pre-launch check: with moco_negatives on, the three h↔h
         families (xx, hh_all, xs_allt) must still deliver gradient to the
-        encoder. The flag only swaps the cross_batch f↔h key side; the
+        encoder. The flag only swaps the cross_batch f↔h key side. The
         repulsion terms are pure student both sides and must keep training
         the encoder. Verified by zeroing the f-side gradient path (detach
         f) and confirming a nonzero gradient still lands on h."""
@@ -369,7 +369,7 @@ class TestSplitPredRep:
 
     def test_moco_negatives_rejects_other_loss_shapes(self):
         """The flag is only wired into the split + xshh_allt branches
-        (#374 arms 3+4); any other loss_shape reaching
+        (#374 arms 3+4). Any other loss_shape reaching
         contrastive_latent_loss with it set must raise (avoids silently
         training WITHOUT teacher-in-negs). No teacher is passed so the
         moco shape guard — not the teacher shape guard — is what fires."""

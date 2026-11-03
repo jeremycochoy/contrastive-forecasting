@@ -72,7 +72,7 @@ class TestAddPosHTFT:
         numerator, so the new loss must be < the baseline loss on the
         same inputs."""
         # Build h freely, then set f := h shifted so f_t == h_t at every
-        # (b, t<T-1, c). Concretely, set f[:, :-1] = h[:, :-1]; that gives
+        # (b, t<T-1, c). Concretely, set f[:, :-1] = h[:, :-1]. That gives
         # cos(h_t, f_t) = 1 on the (T-1) shared slice the loss uses, while
         # leaving f[:, -1] independent (it's only used through f[:, :-1]
         # in the loss, but assigning the full tensor is simplest).
@@ -80,7 +80,7 @@ class TestAddPosHTFT:
         g = torch.Generator().manual_seed(123)
         h = torch.randn(B, T, C, H, generator=g)
         f = torch.randn(B, T, C, H, generator=g)
-        # f_t := h_t for t in [0, T-2] — i.e. f[:, :-1] = h[:, :-1].
+        # f_t := h_t for t in [0, T-2] — that is f[:, :-1] = h[:, :-1].
         f[:, :-1, :, :] = h[:, :-1, :, :]
 
         loss_old = contrastive_latent_loss(
@@ -281,7 +281,7 @@ class TestAddNegHTFT:
         g = torch.Generator().manual_seed(123)
         h = torch.randn(B, T, C, H, generator=g)
         f = torch.randn(B, T, C, H, generator=g)
-        # f_t := h_t for t in [0, T-2] — i.e. f[:, :-1] = h[:, :-1].
+        # f_t := h_t for t in [0, T-2] — that is f[:, :-1] = h[:, :-1].
         f[:, :-1, :, :] = h[:, :-1, :, :]
 
         loss_base = contrastive_latent_loss(
@@ -314,7 +314,7 @@ class TestAddSkipFNegs:
     NON-cumulative variant: identical to `cosine_similarity_batch` except the
     `negatives` term includes an extra `f_t` vs `f_{t+2}` skip-step
     forecaster term, same-(b, c). For C=1 the existing `neg_zy` already
-    covers `f_t` vs `f_{t+1}` same-channel; `f_t` vs `f_{t+2}` is genuinely
+    covers `f_t` vs `f_{t+1}` same-channel. `f_t` vs `f_{t+2}` is genuinely
     novel — not in any other negative term.
     """
 
@@ -352,7 +352,7 @@ class TestAddSkipFNegs:
         g = torch.Generator().manual_seed(11)
         h = torch.randn(B, T, C, H, generator=g)
         f = torch.randn(B, T, C, H, generator=g)
-        # Force f_{t+2} == f_t for t=0..T-3 — i.e. f[:, 2:T] = f[:, :T-2].
+        # Force f_{t+2} == f_t for t=0..T-3 — that is f[:, 2:T] = f[:, :T-2].
         f[:, 2:T, :, :] = f[:, :T - 2, :, :].clone()
 
         loss_base = contrastive_latent_loss(
@@ -456,7 +456,7 @@ class TestFullFHNegs:
             (f_orth, h), validation=False,
             spec=_make_spec('cosine_similarity_batch_full_fh_negs', tau))
         # f_t := h_{t+1} = e_{t+1} for t=0..T-2 (aligned ONLY with the
-        # masked positive); f[:, T-1] left orthogonal.
+        # masked positive). f[:, T-1] left orthogonal.
         f_pos = f_orth.clone()
         f_pos[:, :T - 1, 0, :] = eye[1:T]
         loss_pos = contrastive_latent_loss(
@@ -560,7 +560,7 @@ class TestPosInDenominatorFlag:
 class TestFullFHNegsBackwardPerf:
     """Quantifies the backward-pass cost of replacing the single l = t
     f–h negative with the full all-l set, vs the `cosine_similarity_batch`
-    baseline. Reports fwd/bwd medians + ratios; the assertion is a loose
+    baseline. Reports fwd/bwd medians + ratios. The assertion is a loose
     regression guard, not a tight benchmark (CPU timing is noisy)."""
 
     @staticmethod
@@ -593,7 +593,7 @@ class TestFullFHNegsBackwardPerf:
         # T = 4096/16 = 256 (NOT /6 — the 6 in the run script is
         # --n-heads/--num-layers), H = d_model = 384, C = 1. Batch is
         # cut to 32 (the B² cross-batch term dominates wall time) so the
-        # test stays ~1s; the bwd ratio is shape-stable (~1.1× measured
+        # test stays ~1s. The bwd ratio is shape-stable (~1.1× measured
         # at B=32→256, T=64→256), so this faithfully answers "how much
         # slower is the backward pass at training shape".
         B, T, C, H, iters = 32, 256, 1, 384, 8
@@ -635,7 +635,7 @@ class TestCrossedLossSiblings:
     ALL = (B_NAME, C_NAME, AB_NAME)
 
     def test_finite_scalar_and_grad(self):
-        """Forward + backward at the real training shape (C=1); finite."""
+        """Forward + backward at the real training shape (C=1). Finite."""
         for name in self.ALL:
             B, T, C, H = 4, 8, 1, 16
             g = torch.Generator().manual_seed(99)
@@ -667,7 +667,7 @@ class TestCrossedLossSiblings:
     def test_exact_value_orthonormal_C1(self):
         """Closed form pins the full negative composition AND the masks.
 
-        B=1, C=1; h_l = e_l (orthonormal across l); f_t = e_{T+t}
+        B=1, C=1. h_l = e_l (orthonormal across l). f_t = e_{T+t}
         (orthonormal, disjoint basis from h). Then every cross pair has
         cos=0 except the masked self/positive ones, C=1 nulls log_neg_xx,
         and B=1 nulls the cross-batch term, so the negatives-only loss is
@@ -702,7 +702,7 @@ class TestCrossedLossSiblings:
     def test_positive_target_excluded_in_AB_fh_term(self):
         """The (A)+(B) variant must still mask l=t+1 in its (f_t, h_l)
         sub-term. Construction (B=1,C=1): h_l = e_l, f orthogonal to h
-        ⇒ all negatives cos=0; then set f_t := h_{t+1} (= the masked
+        ⇒ all negatives cos=0. Then set f_t := h_{t+1} (= the masked
         positive only). h-only terms (xy, hh_all) and zy are unchanged,
         the f–h term's sole nonzero entry sits exactly at the masked
         l=t+1, so only log_pos rises by 1/τ ⇒ loss drops by exactly 1/τ.
@@ -779,7 +779,7 @@ class TestCrossBranchAblationExtended:
     ALL = (BC_NAME, ABC_NAME)
 
     def test_finite_scalar_and_grad(self):
-        """Forward + backward at the real training shape (C=1); finite."""
+        """Forward + backward at the real training shape (C=1). Finite."""
         for name in self.ALL:
             B, T, C, H = 4, 8, 1, 16
             g = torch.Generator().manual_seed(99)
@@ -813,11 +813,11 @@ class TestCrossBranchAblationExtended:
     def test_exact_value_orthonormal_C1(self):
         """Closed form pins the full negative composition AND the masks.
 
-        B=1, C=1; h_l = e_l (orthonormal across l), f_t = e_{T+t}
+        B=1, C=1. h_l = e_l (orthonormal across l), f_t = e_{T+t}
         (orthonormal, disjoint from h). Every cross pair has cos=0 except
-        the masked self/positive ones; C=1 nulls log_neg_xx; B=1 nulls the
+        the masked self/positive ones. C=1 nulls log_neg_xx. B=1 nulls the
         cross-batch term. Negatives-only loss = log(count of active negs):
-        each of xy, zy contributes 1; each all-time term contributes its
+        each of xy, zy contributes 1. Each all-time term contributes its
         (T-1) unmasked cos=0 entries:
 
           full_hh_ff    (B)+(C):      1+1 + (T-1)+(T-1)          = log(2T)
@@ -882,9 +882,9 @@ class TestCrossBranchNegativeFree:
 
     Arm (B)'s all-time (h_t,h_l) ∀ l≠t transform, AND the cross-batch axis
     rebuilt the ``cosine_similarity_batch_square`` way: the f↔h cross-batch
-    term ``log_neg_cross_fe`` is DROPPED; the two within-branch square
+    term ``log_neg_cross_fe`` is DROPPED. The two within-branch square
     edges (f_b↔f_b', h_{b,t+1}↔h_{b',t+1}, b≠b') are kept. Net: NO f↔h
-    NEGATIVE anywhere (all-time or cross-batch); the f↔h *positive* is
+    NEGATIVE anywhere (all-time or cross-batch). The f↔h *positive* is
     retained.
     """
 
@@ -939,8 +939,8 @@ class TestCrossBranchNegativeFree:
         f[1,t]=e_{3T+t}. Every distinct pair has cos=0, every self-pair
         cos=1. Per anchor the active negatives are xy(1), zy(1),
         hh_all(T-1 zeros ⇒ T-1), cross_ff(1 off-diag zero ⇒ 1),
-        cross_hh(1 off-diag zero ⇒ 1) ⇒ Σ = T+3; both batch rows equal so
-        log_neg_total = log(2(T+3)); log_pos = 0 ⇒ loss = log(2(T+3)).
+        cross_hh(1 off-diag zero ⇒ 1) ⇒ Σ = T+3. Both batch rows equal so
+        log_neg_total = log(2(T+3)). log_pos = 0 ⇒ loss = log(2(T+3)).
 
         Contrast: (B) full_hh_negs on the SAME inputs keeps the f↔h
         cross-batch term instead (1 off-diag zero ⇒ 1) and has NO
@@ -972,7 +972,7 @@ class TestCrossBranchNegativeFree:
 
     def test_fh_positive_retained(self):
         """The f↔h *positive* (cos(h_{t+1}, f_t)) must still be the
-        numerator. B=1 (cross-batch edges nulled); h_l=e_l, f orthogonal.
+        numerator. B=1 (cross-batch edges nulled). h_l=e_l, f orthogonal.
         Setting f_t := h_{t+1} aligns ONLY the positive (h-only xy/hh_all
         and f–f zy stay cos=0), so log_pos rises by exactly 1/τ and every
         negative is unchanged ⇒ loss drops by exactly 1/τ. If the f↔h
@@ -1012,7 +1012,7 @@ class TestCrossSeriesSameStepHH:
     β (``cosine_similarity_batch_full_hh_negs``) with exactly two edits:
       (1) ADD cross-series, same-step h↔h negatives cos(h_{b,t}, h_{b',t})
           ∀ b' ≠ b, anchored at h_t (every step l = t).
-      (2) REMOVE the adjacent ``log_neg_xy`` = cos(h_t, h_{t+1}); at C = 1 it
+      (2) REMOVE the adjacent ``log_neg_xy`` = cos(h_t, h_{t+1}). At C = 1 it
           is byte-for-byte the l = t+1 slice already in (B)'s all-time term.
     Everything else (log_pos, xx, zy, all-time hh, cross-batch f↔h) = (B).
     """
@@ -1109,10 +1109,10 @@ class TestCrossSeriesSameStepHH:
     def test_exact_value_orthonormal_B2_C1(self):
         """Disjoint orthonormal blocks (every distinct pair cos=0, self
         cos=1). Active negatives per anchor: zy(1), hh_all(T-1), cross_fe(1),
-        xshh(1) ⇒ Σ = T+2; both batch rows equal ⇒ log_neg_total =
-        log(2(T+2)); log_pos = 0 ⇒ loss = log(2(T+2)). xx is −inf (C=1), xy
+        xshh(1) ⇒ Σ = T+2. Both batch rows equal ⇒ log_neg_total =
+        log(2(T+2)). log_pos = 0 ⇒ loss = log(2(T+2)). xx is −inf (C=1), xy
         is removed. Contrast: xbfree on the same inputs keeps cross_ff +
-        cross_hh (no f↔h) ⇒ T+3 ⇒ log(2(T+3)); the +1 difference pins that
+        cross_hh (no f↔h) ⇒ T+3 ⇒ log(2(T+3)). The +1 difference pins that
         xshh adds exactly ONE cross-series edge and xy was dropped."""
         T = 5
         B, C, H = 2, 1, 4 * T
@@ -1138,7 +1138,7 @@ class TestCrossSeriesSameStepHH:
         orthonormal blocks set h_{0,1} := h_{0,0} (so the ADJACENT pair
         cos(h_{0,0}, h_{0,1}) = 1) while every cross-series and f↔h pair stays
         orthogonal. (B) carries this as the standalone log_neg_xy edge AND
-        inside hh_all; this variant carries it ONLY inside hh_all (xy dropped).
+        inside hh_all. This variant carries it ONLY inside hh_all (xy dropped).
         So (B)'s anchor (0,0) denominator gets the e^{1/τ} spike twice, this
         variant once ⇒ loss_xshh < loss_beta strictly."""
         T = 5
@@ -1180,7 +1180,7 @@ class TestCrossSeriesAllTimeHH:
     rest) except the cross-series h↔h edge ranges over EVERY source step l, not
     only the same step — LSE_{b'≠b, ∀l} cos(h_{b,t}, h_{b',l})/τ, the
     cross-series analog of (B)'s within-series all-time term. ``_xshh`` is its
-    l = t slice; this is the strict superset.
+    l = t slice. This is the strict superset.
     """
 
     NAME = 'cosine_similarity_batch_full_hh_negs_xshh_allt'
@@ -1253,7 +1253,7 @@ class TestCrossSeriesAllTimeHH:
     def test_matches_transparent_reference(self):
         """Production == fp64 reference for both objectives, and the chunked
         logsumexp is chunk-invariant (B=5 spans multiple CH-independent
-        sizes; here a single chunk, but the seeds exercise the masking)."""
+        sizes. Here a single chunk, but the seeds exercise the masking)."""
         for seed in (0, 7, 42):
             f, h = _random_inputs(B=5, T=6, C=1, H=12, seed=seed)
             f, h = f.double(), h.double()
@@ -1314,7 +1314,7 @@ class TestAlignLoss:
     """The BYOL/SimSiam alignment add-on (#309): L_align = (2 − 2·cos(f_t,
     sg(h_{t+1}))).mean(), weight λ = `align_loss_weight` (default 0 = off).
     `2 − 2·cos = ‖f̂ − ĥ‖²` ∈ [0, 4], minimum 0 at cos = 1 — already ≥ 0 /
-    min-0 (the `2` is the built-in constant); stop-grad on the target."""
+    min-0 (the `2` is the built-in constant). Stop-grad on the target."""
 
     NAME = 'cosine_similarity_batch_full_fh_negs'
 
@@ -1390,7 +1390,7 @@ class TestAlignLoss:
 
 class TestContrastiveFloor:
     """`subtract_contrastive_floor` (#309) re-bases the loss by the constant
-    floor `log(1 + N·e^(−1/τ))`. Gradient-neutral; needs the normalized form."""
+    floor `log(1 + N·e^(−1/τ))`. Gradient-neutral. Needs the normalized form."""
 
     NAME = 'cosine_similarity_batch_full_fh_negs'
 
@@ -1401,14 +1401,24 @@ class TestContrastiveFloor:
         return spec
 
     def test_infonce_floor_formula(self):
+        # Strict lower bound: cos_pos = +1, cos_neg = −1 ⇒
+        # floor = log(exp(+1/τ) + N·exp(−1/τ)) − 1/τ = log(1 + N·e^(−2/τ)).
         for tau, n in [(0.1, 100), (0.07, 5000), (0.2, 256 * 511)]:
             assert abs(infonce_floor(tau, n)
-                       - math.log1p(n * math.exp(-1.0 / tau))) < 1e-12
+                       - math.log1p(n * math.exp(-2.0 / tau))) < 1e-12
+
+    def test_subtract_floor_keeps_loss_nonnegative(self):
+        # With the strict floor, `loss − floor ≥ 0` on any batch.
+        for seed in (3, 11, 42, 101):
+            f, h = _random_inputs(B=3, T=5, C=1, H=8, seed=seed)
+            L = contrastive_latent_loss((f, h), False, self._spec(floor=True))
+            assert L.item() >= -1e-6, (
+                f"rebased loss must be ≥ 0 with the strict floor; got {L.item()}")
 
     def test_effective_negative_count_matches_structure(self):
-        # full_fh_negs, C=1: per-anchor = (xy+xx+zy)=2 + fh_all(T-1) + (B-1); ×B.
+        # full_fh_negs, C=1: per-anchor = (xy+xx+zy)=2 + fh_all(T-1) + (B-1). ×B.
         assert _effective_negative_count(self.NAME, B=4, T=5, C=1) == 4 * (2 + 4 + 3)
-        # base variant: 2 + xy_hat(1) + (B-1); ×B.
+        # base variant: 2 + xy_hat(1) + (B-1). ×B.
         assert _effective_negative_count('cosine_similarity_batch', 4, 5, 1) == 4 * (2 + 1 + 3)
         # two all-time terms add another (T-1).
         assert _effective_negative_count(
@@ -1519,7 +1529,7 @@ class TestCPCInfonceAuxLoss:
         assert loss.item() == 0.0
 
     def test_rejects_5d_forecaster(self):
-        # The cpc_multistep forecaster stack is 5-D [B,T,C,K,H]; the single-step
+        # The cpc_multistep forecaster stack is 5-D [B,T,C,K,H]. The single-step
         # aux term must reject it loudly (not a cryptic unpack error).
         from src.loss import cpc_infonce_aux_loss
         f5 = torch.randn(2, 4, 1, 3, 8)  # 5-D
