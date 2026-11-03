@@ -178,7 +178,10 @@ def test_the_cyan_run_writes_the_losses_csv_of_the_base_commit(tmp_path):
     data = long_corpus(tmp_path)
     old = run(git_tree(BASE_COMMIT, tmp_path), tmp_path / "old", *CYAN_EWMA,
               *data)
-    new = run(REPO_ROOT, tmp_path / "new", *CYAN_EWMA, *data)
+    # The cyan recipe runs SIGReg on e and h. The base commit has the bound
+    # W = 6/sqrt(K), which --sigreg-legacy-window restores.
+    new = run(REPO_ROOT, tmp_path / "new", *CYAN_EWMA, "--sigreg-legacy-window",
+              *data)
     assert old.returncode == 0, old.stdout[-2000:] + old.stderr[-2000:]
     assert new.returncode == 0, new.stdout[-2000:] + new.stderr[-2000:]
     assert len(losses(tmp_path / "new")) == 3

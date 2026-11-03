@@ -914,6 +914,20 @@ def build_parser():
                         "encoder to LAND on the sphere with a uniform "
                         "marginal, leaving the downstream L2-normalize a "
                         "near-identity. (#355)")
+    p.add_argument("--sigreg-legacy-window", action="store_true",
+                   help="Restores the SIGReg integration bound W = 6/√K of "
+                        "the runs before the window fix, to reproduce them. "
+                        "That bound is in the unit of the projections: at "
+                        "K = 384 the window stops where both characteristic "
+                        "functions are within about 1e-4 of 1, so SIGReg sees "
+                        "almost nothing of the distribution. Default off: "
+                        "W = 6/σ = 6√K, where the target characteristic "
+                        "function exp(−σ²ω²/2) has decayed. At K = 384 the "
+                        "old statistic is about 1e-8 for every feature "
+                        "distribution; the fixed one is about 0.03 on "
+                        "isotropic features and up to about 40 on collapsed "
+                        "ones (docs/sigreg.md), so a weight tuned with the "
+                        "old bound acts much more strongly.")
     p.add_argument("--sigreg-embedding-weight", type=float, default=0.1,
                    help="λ for L_sigreg_embedding (the e_t term) in the total "
                         "loss. LeJEPA default 0.1. No-op when "
@@ -2306,7 +2320,8 @@ def sigreg_term(latent, args, pad_patches):
     return sigreg_loss(real_positions(latent, pad_patches), M=args.sigreg_m,
                        T_knots=args.sigreg_t_knots,
                        post_normalize=args.sigreg_post_normalization,
-                       n_chunk=args.sigreg_n_chunk)
+                       n_chunk=args.sigreg_n_chunk,
+                       legacy_window=args.sigreg_legacy_window)
 
 
 def no_contrastive_values():

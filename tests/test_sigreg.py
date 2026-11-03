@@ -59,7 +59,9 @@ def test_sigreg_uniform_on_sphere_is_small():
     # post_normalize=False because z is already on the sphere; either path
     # should now return the same value modulo the random projections.
     out = sigreg_loss(z, M=256, T_knots=17, post_normalize=False)
-    assert out.item() < 1e-3, f"expected ~0 for uniform sphere; got {out.item()}"
+    # The floor is the sampling noise of the empirical characteristic
+    # function: about (2W - sqrt(pi)/sigma) / N = 10.2 sqrt(K) / N = 0.010.
+    assert out.item() < 0.03, f"expected ~0 for uniform sphere; got {out.item()}"
 
 
 def test_sigreg_collapsed_is_large():
@@ -79,7 +81,7 @@ def test_sigreg_collapsed_is_large():
 
 
 # ---------------------------------------------------------------------------
-# Auto-scaling: target variance σ² = 1/K and integration bound W = 6/√K
+# Auto-scaling: target variance σ² = 1/K and integration bound W = 6/σ = 6√K
 # ---------------------------------------------------------------------------
 
 
@@ -91,12 +93,68 @@ def test_default_sigma2_is_one_over_K():
     z = F.normalize(torch.randn(N, K), p=2, dim=-1)
     out_default = sigreg_loss(z, M=128, T_knots=17, post_normalize=False)
     out_explicit = sigreg_loss(
-        z, sigma2=1.0 / K, W=6.0 / math.sqrt(K),
+        z, sigma2=1.0 / K, W=6.0 * math.sqrt(K),
         M=128, T_knots=17, post_normalize=False)
-    # Same random draws → exact equality; we use fresh draws each call here.
-    # Both should be small for the same reason.
-    assert out_default.item() < 1e-3
-    assert out_explicit.item() < 1e-3
+    # Fresh draws each call. Both sit at the sampling-noise floor,
+    # about 10.2 sqrt(K) / N = 0.014.
+    assert out_default.item() < 0.04
+    assert out_explicit.item() < 0.04
+
+
+def _unit_projections(M, K, seed=0):
+    g = torch.Generator().manual_seed(seed)
+    return F.normalize(torch.randn(M, K, generator=g), p=2, dim=-1)
+
+
+def test_default_window_is_six_target_sd_in_frequency():
+    """The bound W is a frequency: 6/σ, where the target characteristic
+    function exp(-σ²ω²/2) has decayed to exp(-18). At σ² = 1/K it is 6√K."""
+    torch.manual_seed(0)
+    K = 64
+    z = torch.randn(2048, K) / math.sqrt(K)
+    a = _unit_projections(32, K)
+    out_default = sigreg_loss(z, T_knots=17, projections=a)
+    out_explicit = sigreg_loss(z, T_knots=17, W=6.0 * math.sqrt(K), projections=a)
+    assert torch.isclose(out_default, out_explicit, rtol=1e-6, atol=0.0)
+
+
+def test_sigma2_sets_the_window():
+    """An explicit target variance sets the default bound to 6/σ."""
+    torch.manual_seed(0)
+    K = 16
+    z = torch.randn(2048, K)
+    a = _unit_projections(32, K)
+    out_default = sigreg_loss(z, sigma2=1.0, T_knots=17, projections=a)
+    out_explicit = sigreg_loss(z, sigma2=1.0, W=6.0, T_knots=17, projections=a)
+    assert torch.isclose(out_default, out_explicit, rtol=1e-6, atol=0.0)
+
+
+def test_legacy_window_restores_six_over_sqrt_k():
+    """legacy_window=True gives the bound 6/√K of the runs before the fix."""
+    torch.manual_seed(0)
+    K = 64
+    z = torch.randn(2048, K) / math.sqrt(K)
+    a = _unit_projections(32, K)
+    out_legacy = sigreg_loss(z, T_knots=17, projections=a, legacy_window=True)
+    out_explicit = sigreg_loss(z, T_knots=17, W=6.0 / math.sqrt(K), projections=a)
+    assert torch.isclose(out_legacy, out_explicit, rtol=1e-6, atol=0.0)
+
+
+def test_scale_mismatch_gives_its_analytic_statistic():
+    """Projections from N(0, c²σ²) against the target N(0, σ²): the statistic
+    is the integral of (exp(-c²σ²ω²/2) - exp(-σ²ω²/2))² over ω, which is
+    sqrt(K) · (sqrt(pi/c²) + sqrt(pi) - 2 sqrt(2 pi / (c² + 1))) at σ² = 1/K.
+    For c = 2 that is 0.4157 sqrt(K) = 3.33 at K = 64. The bound 6/√K sees
+    about 5e-5 of it."""
+    torch.manual_seed(0)
+    K, N, c = 64, 16384, 2.0
+    z = c * torch.randn(N, K) / math.sqrt(K)
+    expected = math.sqrt(K) * (math.sqrt(math.pi / c ** 2) + math.sqrt(math.pi)
+                               - 2.0 * math.sqrt(2.0 * math.pi / (c ** 2 + 1.0)))
+    out = sigreg_loss(z, M=64, T_knots=129)
+    assert abs(out.item() - expected) < 0.1 * expected, (out.item(), expected)
+    legacy = sigreg_loss(z, M=64, T_knots=129, legacy_window=True)
+    assert legacy.item() < 1e-3 * expected
 
 
 # ---------------------------------------------------------------------------
