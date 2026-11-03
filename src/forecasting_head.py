@@ -325,6 +325,41 @@ def build_e_then_f_mask(T_e: int, T_f: int, device=None) -> torch.Tensor:
     return ~allowed
 
 
+# The input layouts of a forecast head at training (--head-train-input).
+HEAD_TRAIN_INPUTS = ("f_only", "e_then_f")
+
+
+def forecast_head_input(backbone, x, f_bc, layout, **kwargs):
+    """``(sequence, mask, start)``: the input of a forecast head, its mask,
+    and the position of its first decoded latent.
+
+    ``'f_only'``: the forecaster latents f_0..f_{T-1}, no mask, start 0.
+    ``'e_then_f'``: [e_0..e_{T-1}, f_0..f_{T-1}] under
+    :func:`build_e_then_f_mask`, start T. It is the layout that
+    :func:`forecast_B4` decodes: the encoder latents of the context, then
+    the rolled forecaster latents. ``kwargs`` go to
+    :func:`extract_encoder_latents`.
+    """
+    if layout not in HEAD_TRAIN_INPUTS:
+        raise ValueError(f"head input layout must be one of "
+                         f"{HEAD_TRAIN_INPUTS}; got {layout!r}")
+    if layout == "f_only":
+        return f_bc, None, 0
+    e_bc, _ = extract_encoder_latents(backbone, x, **kwargs)
+    mask = build_e_then_f_mask(e_bc.size(1), f_bc.size(1), device=f_bc.device)
+    return torch.cat([e_bc, f_bc], dim=1), mask, e_bc.size(1)
+
+
+def decode_forecast_head(head, seq, mask, start, *args):
+    """The output of ``head`` on ``seq`` from position ``start`` on, from
+    :func:`forecast_head_input`. ``args`` come before the mask (the members
+    of a frequency family). A Gaussian head gives a ``(mu, log_var)`` pair."""
+    out = head(seq, *args, **({} if mask is None else {"src_mask": mask}))
+    if isinstance(out, tuple):
+        return tuple(part[:, start:] for part in out)
+    return out[:, start:]
+
+
 def gaussian_nll_loss(mu, log_var, target):
     """Per-step Gaussian NLL: 0.5 * (log(2π) + log σ² + (y-μ)² / σ²).
 
@@ -1353,13 +1388,18 @@ def bank_training_inputs(backbone, x, freq_ids, sizes):
     return x_norm, drawn, target_keep(pad, target)
 
 
-def _bank_group_loss(backbone, head, x_norm, keep, size, labels):
+def _bank_group_loss(backbone, head, x_norm, keep, size, labels,
+                     layout="f_only"):
     """The pinball loss of the head of ``size`` on its rows: at each patch
-    t, the quantiles of the P values of patch t + 1, over the kept targets."""
+    t, the quantiles of the P values of patch t + 1, over the kept targets.
+    ``layout`` is the input of the head (:func:`forecast_head_input`)."""
     f_bc, _ = extract_forecaster_latents(backbone, x_norm, patch_size=size,
                                          normalised=True, **labels)
+    seq, mask, start = forecast_head_input(backbone, x_norm, f_bc, layout,
+                                           patch_size=size, normalised=True,
+                                           **labels)
     targets, t_valid = compute_valid_targets(x_norm, W=size, forecast_len=size)
-    preds = head(f_bc)[:, :t_valid]
+    preds = decode_forecast_head(head, seq, mask, start)[:, :t_valid]
     if keep is None:
         return quantile_loss(preds, targets)
     kept, _ = compute_valid_targets(keep.float(), W=size, forecast_len=size)
@@ -1432,7 +1472,8 @@ def _bank_group_reconstruction_loss(backbone, head, x_norm, keep, size,
 
 def bank_quantile_loss(backbone, bank, x_norm, sample_sizes, keep=None,
                        freq_ids=None, seasonality_ids=None,
-                       reconstruction=False, latent="encoder"):
+                       reconstruction=False, latent="encoder",
+                       layout="f_only"):
     """The loss of a head bank on one batch (#412): each row trains the
     head of its patch size, on the frozen backbone's latents at that size.
     A group's loss counts with its share of the rows, as the backbone's
@@ -1442,7 +1483,8 @@ def bank_quantile_loss(backbone, bank, x_norm, sample_sizes, keep=None,
     patch into the values of that patch, in place of the forecaster latent
     into the values of the next patch. ``latent`` names the latent that a
     reconstruction head reads (:func:`extract_reconstruction_latents`):
-    ``'output'`` for a copy of Moirai."""
+    ``'output'`` for a copy of Moirai. ``layout`` is the input of a
+    forecast head (:func:`forecast_head_input`)."""
     loss = 0.0
     for size, rows in patch_size_groups(sample_sizes).items():
         labels = dict(freq_ids=_rows(freq_ids, rows),
@@ -1450,7 +1492,7 @@ def bank_quantile_loss(backbone, bank, x_norm, sample_sizes, keep=None,
         group = (backbone, bank.head_for(size), _rows(x_norm, rows),
                  _rows(keep, rows), size, labels)
         part = (_bank_group_reconstruction_loss(*group, latent)
-                if reconstruction else _bank_group_loss(*group))
+                if reconstruction else _bank_group_loss(*group, layout))
         loss = loss + len(rows) / x_norm.shape[0] * part
     return loss
 
