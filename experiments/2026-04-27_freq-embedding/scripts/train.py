@@ -90,7 +90,9 @@ from src.forecasting_head import (QUANTILE_LEVELS,
                                   multi_patch_value_objective,
                                   patch_size_groups,
                                   rollout_forecaster_latents,
-                                  value_space_objective)
+                                  ROLLOUT_FEEDBACKS,
+                                  value_space_objective,
+                                  window_latent_norm)
 from src.patch_size import check_patch_sizes, draw_patch_sizes
 
 # -- Tiny architecture (identical to v3c) -----------------------------------
@@ -797,6 +799,17 @@ def build_parser():
                         "every depth would then add exactly zero. Adds "
                         "cos_err_d0..dk to the losses CSV. Full reference: "
                         "docs/train_rollout_depth.md.")
+    p.add_argument("--train-rollout-feedback", choices=list(ROLLOUT_FEEDBACKS),
+                   default="normalised",
+                   help="How --train-rollout-depth feeds each copy of the "
+                        "forecaster back in. 'normalised' (default): its "
+                        "direction at the mean norm of the encoder latents "
+                        "of the window, as the eval rollout does. L_align is "
+                        "a cosine: it trains the direction of f only, and a "
+                        "raw f is about 1.45 times longer than an encoder "
+                        "latent. 'raw': the copy as it is, as every run "
+                        "before this flag. Resume an older run with raw, or "
+                        "its objective changes at the resume.")
     p.add_argument("--train-rollout-reduce", choices=["sum", "mean", "halving"],
                    default="sum",
                    help="How the k + 1 copies of every f-bearing term combine "
@@ -1098,7 +1111,7 @@ def take_rows(tensor, rows):
     return tensor[rows.to(tensor.device)]
 
 
-def group_forward(model, x_norm, labels, size, args):
+def group_forward(model, x_norm, labels, size, args, pad=None):
     """The latents of one forward at patch size ``size`` (#412), in the
     layout and the precision of ``forward_step``: ``f`` and ``o``, the
     teacher's ``o`` and the patch embedding ``e`` when the run reads them,
@@ -1113,7 +1126,7 @@ def group_forward(model, x_norm, labels, size, args):
                if args.ema_embedding or args.ema_encoder else None)
     return SimpleNamespace(
         f=f, o=o, teacher=teacher, e=out[2].float() if want_embed else None,
-        rollout=forecaster_depths(model, f, args))
+        rollout=forecaster_depths(model, f, o, args, pad))
 
 
 def group_padding(pad_mask, rows, size, active, shape, start_mask=None):
@@ -1374,7 +1387,9 @@ def contrastive_objective(model, inputs, args, multi_patch_sizes, active=None,
     groups = size_groups(inputs["sample_sizes"], model.W)
     lats = {size: group_forward(
                 model, take_rows(x_norm, rows),
-                {k: take_rows(v, rows) for k, v in labels.items()}, size, args)
+                {k: take_rows(v, rows) for k, v in labels.items()}, size, args,
+                pad=group_padding(inputs["pad_mask"], rows, size, None,
+                                  x_norm.shape))
             for size, rows in groups.items()}
     pads = {size: group_padding(inputs["pad_mask"], rows, size, active,
                                 x_norm.shape, inputs.get("start_mask"))
@@ -2162,11 +2177,25 @@ def contrastive_padding(model, args):
     return pad if start is None else pad | start_window_anchors(start, model.W)
 
 
-def forecaster_depths(model, f_lat, args):
+def forecaster_depths(model, f_lat, o_lat, args, pad=None):
     """f^(1) .. f^(k) of the forward output ``f_lat`` (#373): the one place
     the trainer composes the forecaster on its own output, for the whole
-    batch and for each patch-size group (#412)."""
-    return rollout_forecaster_latents(model, f_lat, args.train_rollout_depth)
+    batch and for each patch-size group (#412). Under
+    --train-rollout-feedback normalised each copy goes back in at the mean
+    norm of the encoder latents ``o_lat`` of its window, over the patches
+    that ``pad`` does not mark (window_latent_norm)."""
+    scale = (window_latent_norm(o_lat, pad)
+             if args.train_rollout_feedback == "normalised"
+             and args.train_rollout_depth > 0 else None)
+    return rollout_forecaster_latents(model, f_lat, args.train_rollout_depth,
+                                      scale=scale)
+
+
+def zero_padding(model):
+    """``[B, T, C]``: the zero-padded patches (#419) of the batch the model
+    has just normalised, or None when the run pads nothing."""
+    pad = getattr(model.rev_norm, "pad_mask", None)
+    return None if pad is None else patch_padding(pad, model.W)
 
 
 def value_diagnostic_padding(model, inputs):
@@ -3746,7 +3775,8 @@ def main():
         elif rows_contrastive:
             rollout_lats = row_extra.rollout
         else:
-            rollout_lats = forecaster_depths(model, f_lat, args)
+            rollout_lats = forecaster_depths(model, f_lat, o_lat, args,
+                                             zero_padding(model))
         # DDP: gather latents across ranks so the contrastive loss pools
         # negatives over the GLOBAL (W*B) batch — 2-GPU @ B/2 == 1-GPU @ B.
         # Strict no-op single-GPU. Done on the fp32 latents so loss,

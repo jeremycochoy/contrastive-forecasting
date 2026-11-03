@@ -890,7 +890,23 @@ def rollout_latent(backbone, encoder_latents, n_future_tokens, feedback=None):
     return torch.cat(generated, dim=1)  # (B*C, n_future_tokens, H)
 
 
-def rollout_forecaster_latents(backbone, forecasted_latent, depth):
+def window_latent_norm(latents, pad=None):
+    """``(B, 1, C, 1)``, detached: the mean norm of the latents ``(B, T, C,
+    H)`` of each window over its patches that hold data. ``pad`` ``(B, T,
+    C)`` marks the patches that do not (#419). A window with no such patch
+    takes the mean over all of its patches. The training counterpart of
+    :func:`context_latent_norm`."""
+    norms = latents.detach().float().norm(dim=-1)                   # (B, T, C)
+    mean_all = norms.mean(1, keepdim=True)
+    if pad is None:
+        return mean_all.unsqueeze(-1)
+    real = ~pad.to(norms.device)
+    count = real.sum(1, keepdim=True)
+    mean_real = (norms * real).sum(1, keepdim=True) / count.clamp_min(1)
+    return torch.where(count > 0, mean_real, mean_all).unsqueeze(-1)
+
+
+def rollout_forecaster_latents(backbone, forecasted_latent, depth, scale=None):
     """f^(1) .. f^(k) — re-apply the forecaster to its own output (#373).
 
     The training loss ties f^(0)_t to h_{t+1} only, while the eval rolls the
@@ -909,21 +925,32 @@ def rollout_forecaster_latents(backbone, forecasted_latent, depth):
     the front of the attention context and buys a fully parallel pass over
     all t. Gradient flows through the chain — no detach between passes.
 
+    ``scale`` ``(B, 1, C, 1)`` (:func:`window_latent_norm`) feeds each copy
+    back with its direction at that norm, as :func:`rollout_latent` does
+    under ``'normalised'``: L_align trains the direction of f only, and a raw
+    f is longer than an encoder latent. None feeds the raw copy back, as
+    every run before ``--train-rollout-feedback``.
+
     Args:
         backbone: ConfigurableModel whose `transformer` holds the forecaster.
         forecasted_latent: (B, T, C, H) f^(0), the training forward's output.
         depth: k, how many further applications to compose.
+        scale: (B, 1, C, 1) norm of each fed-back copy, or None.
 
     Returns:
-        list of k tensors (B, T, C, H). Entry j−1 is f^(j).
+        list of k tensors (B, T, C, H), the raw outputs. Entry j−1 is f^(j).
     """
     if depth <= 0:
         return []
     B, T, C, H = forecasted_latent.shape
     seq = forecasted_latent.permute(0, 2, 1, 3).reshape(B * C, T, H)
+    norm = (None if scale is None else
+            scale.permute(0, 2, 1, 3).reshape(B * C, 1, 1).to(seq.dtype))
     depths = []
     for _ in range(depth):
-        seq = backbone.transformer.forecaster_forward(seq)
+        fed = seq if norm is None else (
+            seq * (norm / seq.norm(dim=-1, keepdim=True).clamp_min(1e-12)))
+        seq = backbone.transformer.forecaster_forward(fed)
         depths.append(seq.reshape(B, C, T, H).permute(0, 2, 1, 3))
     return depths
 

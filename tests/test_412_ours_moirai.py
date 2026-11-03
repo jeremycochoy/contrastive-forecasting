@@ -180,9 +180,10 @@ def test_the_cyan_run_writes_the_losses_csv_of_the_base_commit(tmp_path):
     old = run(git_tree(BASE_COMMIT, tmp_path), tmp_path / "old", *CYAN_EWMA,
               *data)
     # The cyan recipe runs SIGReg on e and h. The base commit has the bound
-    # W = 6/sqrt(K), which --sigreg-legacy-window restores.
+    # W = 6/sqrt(K), which --sigreg-legacy-window restores, and it feeds the
+    # rollout depth back raw, which --train-rollout-feedback raw restores.
     new = run(REPO_ROOT, tmp_path / "new", *CYAN_EWMA, "--sigreg-legacy-window",
-              *data)
+              "--train-rollout-feedback", "raw", *data)
     assert old.returncode == 0, old.stdout[-2000:] + old.stderr[-2000:]
     assert new.returncode == 0, new.stdout[-2000:] + new.stderr[-2000:]
     assert len(losses(tmp_path / "new")) == 3
@@ -350,8 +351,8 @@ def test_each_size_rolls_out_by_its_own_patches(train_py, monkeypatch):
     seen = {}
     real = train_py.group_forward
 
-    def spy(model_, x_norm, labels, size, args_):
-        lat = real(model_, x_norm, labels, size, args_)
+    def spy(model_, x_norm, labels, size, args_, **kwargs):
+        lat = real(model_, x_norm, labels, size, args_, **kwargs)
         seen[size] = lat
         return lat
 
@@ -619,8 +620,8 @@ def test_each_row_draws_the_same_masks_in_every_pass(train_py, monkeypatch):
     def outputs(active, rng):
         seen = []
 
-        def spy(model_, x_norm, labels, size, args_):
-            lat = real(model_, x_norm, labels, size, args_)
+        def spy(model_, x_norm, labels, size, args_, **kwargs):
+            lat = real(model_, x_norm, labels, size, args_, **kwargs)
             seen.append(lat.o.detach().clone())
             return lat
         monkeypatch.setattr(train_py, "group_forward", spy)
