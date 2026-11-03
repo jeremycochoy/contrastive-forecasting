@@ -240,7 +240,9 @@ K0_REFERENCE = {
     ('cosine_similarity_batch_full_hh_negs_xshh', 'pos_in_denom'): 7.929531269731005,
     ('cosine_similarity_batch_full_hh_negs_xshh_allt', 'base'): 9.111158849872979,
     ('cosine_similarity_batch_full_hh_negs_xshh_allt', 'pos_in_denom'): 9.120692816171422,
-    ('cosine_similarity_batch_full_hh_negs_xshh_allt', 'arm4'): 9.35239321298506,
+    # The two floor cases moved by the analytic shift of the strict floor
+    # (the port of 6c809779): arm4 +0.005252, split_floor +10.000908.
+    ('cosine_similarity_batch_full_hh_negs_xshh_allt', 'arm4'): 9.357645546798233,
     ('cosine_similarity_batch_full_hh_negs_xshh_allt', 'align_teacher'): 11.269468193057037,
     ('cosine_similarity_batch_full_hh_negs_xshh_allt', 'stopgrad_pos'): 9.111158849872979,
     ('cosine_similarity_batch_no_time_neg', 'base'): 6.537327286188794,
@@ -257,7 +259,7 @@ K0_REFERENCE = {
     ('cosine_similarity_batch_split_pred_rep', 'base'): 15.73789835105975,
     ('cosine_similarity_batch_split_pred_rep', 'align_teacher'): 17.880922522184363,
     ('cosine_similarity_batch_split_pred_rep', 'align_moco_rep'): 16.83829488617452,
-    ('cosine_similarity_batch_split_pred_rep', 'split_floor'): 11.172642572978022,
+    ('cosine_similarity_batch_split_pred_rep', 'split_floor'): 21.173550118368844,
     ('cosine_similarity_batch_split_pred_rep', 'stopgrad_pos'): 15.73789835105975,
     ('cosine_similarity_batch_split_pred_rep', 'tau_rep'): 6.183315256163423,
     ('cosine_similarity_batch_square', 'base'): 8.243637551311775,
@@ -1115,7 +1117,9 @@ class TestFloorAtDepthOverEveryShape:
                 continue
             off = _call(shape, 'base', latents=latents,
                         **dict(floor_on, subtract_contrastive_floor=False))
-            assert float(off - on) > 0.0, f'{shape}: the floor changed nothing'
+            # The strict floor of L_rep, log(N) − 1/τ, is below 0 for
+            # N < e^(1/τ): at these sizes the split floor raises the value.
+            assert float(off - on) != 0.0, f'{shape}: the floor changed nothing'
             reached.append(shape)
         assert reached == FOUR_D_SHAPES
 
