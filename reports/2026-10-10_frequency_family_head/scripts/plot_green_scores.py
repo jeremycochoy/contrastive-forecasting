@@ -158,6 +158,9 @@ PANELS = [
      + [OURS / f"recon_{table}_lin_trajectories.tsv" for table in OUR_R_TABLES], False),
 ]
 TICKS_K = [1, 10, 40, 100, 200, 400, 665, 1330]
+# The forecast scores of the eval with the normalised rollout feedback (#446):
+# columns run, stop_k, tag. The user (11-03): a light asterisk on these points.
+NORMALISED = STUDY / "results" / "normalised_rollout_scores.tsv"
 
 
 def read_table(paths):
@@ -181,6 +184,19 @@ def new_run_forecast(run):
                 if r["run"] == run and r["arm"] == "control"}
 
 
+def normalised_points():
+    """``{run: {stop k}}``: the forecast scores of the eval that feeds back the
+    normalised forecaster output (#446), from NORMALISED. The other scores
+    feed back the raw output."""
+    if not NORMALISED.is_file():
+        return {}
+    starred = {}
+    with open(NORMALISED) as fh:
+        for row in csv.DictReader(fh, delimiter="\t"):
+            starred.setdefault(row["run"], set()).add(int(row["stop_k"]) * XSCALE.get(row["run"], 1))
+    return starred
+
+
 def panel_points(tables, forecast):
     points = read_table(tables)
     if forecast:
@@ -192,9 +208,10 @@ def panel_points(tables, forecast):
     return points
 
 
-def draw_panel(ax, title, y_range, points):
+def draw_panel(ax, title, y_range, points, starred=None):
     """One line for each run, and an arrow with the value for each point
-    above the y range. The y range goes down to the lowest point."""
+    above the y range. The y range goes down to the lowest point. A point of
+    ``starred`` gets a light black asterisk."""
     low = y_range[0]
     for arm, label, colour_hex, marker in RUNS:
         stops = sorted(points.get(arm, {}))
@@ -205,6 +222,9 @@ def draw_panel(ax, title, y_range, points):
         ax.plot([s * 1000 for s in stops], values, color=colour_hex, marker=marker,
                 ls=line(arm) if arm in STYLE else "-", lw=2.2, ms=7, label=label,
                 zorder=3 if arm in ON_TOP else 2)
+        for stop in sorted(set(stops) & (starred or {}).get(arm, set())):
+            ax.plot(stop * 1000, min(points[arm][stop], y_range[1]), marker="*", ms=15,
+                    color="black", alpha=0.25, ls="none", zorder=4)
         for stop, value in zip(stops, values):
             if value > y_range[1]:
                 ax.plot(stop * 1000, y_range[1], "^", ms=11, color=colour_hex, clip_on=False)
@@ -260,12 +280,16 @@ def legend_entries(axes):
 def main():
     fig, axes = plt.subplots(3, 1, sharex=True, figsize=(11, 12))
     all_points = []
+    starred = normalised_points()
     for ax, (title, y_range, tables, forecast) in zip(axes, PANELS):
         all_points.append(panel_points(tables, forecast))
-        draw_panel(ax, title, y_range, all_points[-1])
+        draw_panel(ax, title, y_range, all_points[-1], starred if forecast else None)
     style_x(axes[-1])
     # Blank rows after the older runs: the runs of this report fill the left column.
     handles, labels = legend_entries(axes)
+    if any(starred.get(arm, set()) & set(all_points[0].get(arm, {})) for arm in starred):
+        handles.append(Line2D([], [], marker="*", ms=15, color="black", alpha=0.25, ls="none"))
+        labels.append("scored with the normalised rollout feedback (#446)")
     new_labels = {label for arm, label, _, _ in RUNS if arm in NEW_RUNS}
     blanks = max(0, 2 * sum(label in new_labels for label in labels) - len(handles))
     axes[0].legend(handles + [Line2D([], [], alpha=0)] * blanks, labels + [""] * blanks,
