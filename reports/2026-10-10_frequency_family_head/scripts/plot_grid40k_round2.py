@@ -52,12 +52,6 @@ RUNS = {
     "g40w_lr1em3_wu4k_cos4em4_bs128": ("A: batch 128, warmup to 1e-3 over 4k, cosine to 4e-4",
                                        (1e-3, 4e-4, STEPS, 4000), False),
     "g40b_lr8em4_tau99995_bs128": ("batch 128, lr 8e-4", (8e-4, 8e-4, STEPS, 0), False),
-    "g40w_lr1em3_wu4k_cos8em4_bs256_fx": ("FIXED CODE, batch 256, warmup to 1e-3 over 4k, cosine to 8e-4",
-                                          (1e-3, 8e-4, STEPS, 4000), False),
-    "g40w_lr1p6em3_wu4k_bs256_fx": ("FIXED CODE, batch 256, warmup to 1.6e-3 over 4k, then constant",
-                                    (1.6e-3, 1.6e-3, STEPS, 4000), False),
-    "g40w_lr3p2em3_wu4k_bs256_fx": ("FIXED CODE, batch 256, warmup to 3.2e-3 over 4k, then constant",
-                                    (3.2e-3, 3.2e-3, STEPS, 4000), False),
 }
 
 

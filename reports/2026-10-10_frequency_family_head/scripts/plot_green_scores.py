@@ -94,6 +94,9 @@ ON_TOP = {GRN_EMA099995, GRN_EMA099995_F6, GRN_EMA099995_F6_REP01,
           GRN_EMA099995_F6_REP01_MUP_HID56,
           GRN_EMA09998_REP003_HALVING, GRN_EMA099995_REP003_HALVING,
           GRN_EMA099995_F6_CD240, GRN_EMA09998, GRN_EMA09998_SIGFIX}
+# A run that resumed from another run's save: its line starts at the score of
+# that save (parent run, stop k), and it is drawn above the other runs.
+BRANCHES = {GRN_EMA099995_F6_CD240: (GRN_EMA099995_F6, 240), GRN_EMA09998_SIGFIX: (GRN_EMA09998, 100)}
 MPE = "cf421ew_moirai_native"
 # Its R (transformer head 0.12 to 0.21) lies far above the R panels.
 FORECAST_ONLY = {MPE}
@@ -219,9 +222,15 @@ def draw_panel(ax, title, y_range, points, starred=None):
             continue
         values = [points[arm][s] for s in stops]
         low = min(low, min(values) - 0.02 * (y_range[1] - y_range[0]))
+        style = line(arm) if arm in STYLE else "-"
+        parent, branch_k = BRANCHES.get(arm, (None, None))
+        start = points.get(parent, {}).get(branch_k)
+        if start is not None:
+            ax.plot([branch_k * 1000, stops[0] * 1000], [start, values[0]], color=colour_hex,
+                    ls=style, lw=2.2, zorder=4)
         ax.plot([s * 1000 for s in stops], values, color=colour_hex, marker=marker,
-                ls=line(arm) if arm in STYLE else "-", lw=2.2, ms=7, label=label,
-                zorder=3 if arm in ON_TOP else 2)
+                ls=style, lw=2.2, ms=7, label=label,
+                zorder=4 if arm in BRANCHES else 3 if arm in ON_TOP else 2)
         for stop in sorted(set(stops) & (starred or {}).get(arm, set())):
             ax.plot(stop * 1000, min(points[arm][stop], y_range[1]), marker="*", ms=15,
                     color="black", alpha=0.25, ls="none", zorder=4)

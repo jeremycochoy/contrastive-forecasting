@@ -8,11 +8,8 @@ rows are the learning rate, the columns the EMA start (--ema-tau).
 The second round (the user, 11-02 and 11-03): runs from the cell lr 1e-4,
 EMA start 0.99995, each with one change (the losses of blue or an lr
 schedule); batch 128 at the lr 1e-4, 2e-4, 4e-4 and 8e-4, and with the warmup
-of W and a cosine to 4e-4; batch 256 with a warmup to 1e-3, 1.6e-3 or 3.2e-3
-(around the projected lr 1.6e-3) on the FIXED CODE (the user, 11-03: the
-normalised rollout feedback in training and scoring, #446 and #447, and the
-SIGReg window 6/sigma, #438): the _fx runs. Its panel has that cell as its
-first row.
+of W and a cosine to 4e-4. Batch 256 comes after these batch-128 results (the
+user, 11-03), on the fixed code. Its panel has that cell as its first row.
 
 Each cell is the forecast GM-Relative MASE of head B4 at 40k (30k head steps,
 97 configs). Lower is better. A grey cell has no score yet.
@@ -54,20 +51,13 @@ ROUND2 = {BEST: ("lr 1e-4, EMA start 0.99995\n(no change)", "1e-4"),
           "g40b_lr4em4_tau99995_bs128": ("batch 128, lr 4e-4", "4e-4"),
           "g40w_lr1em3_wu4k_cos4em4_bs128": ("batch 128, warmup to 1e-3,\nthen cosine to 4e-4",
                                              "warmup to 1e-3, cosine to 4e-4"),
-          "g40b_lr8em4_tau99995_bs128": ("batch 128, lr 8e-4", "8e-4"),
-          "g40w_lr1em3_wu4k_cos8em4_bs256_fx": ("FIXED CODE, batch 256,\nwarmup to 1e-3, cosine to 8e-4",
-                                                "warmup to 1e-3, cosine to 8e-4"),
-          "g40w_lr1p6em3_wu4k_bs256_fx": ("FIXED CODE, batch 256,\nwarmup to 1.6e-3, constant",
-                                          "warmup to 1.6e-3, constant"),
-          "g40w_lr3p2em3_wu4k_bs256_fx": ("FIXED CODE, batch 256,\nwarmup to 3.2e-3, constant",
-                                          "warmup to 3.2e-3, constant")}
+          "g40b_lr8em4_tau99995_bs128": ("batch 128, lr 8e-4", "8e-4")}
 # run -> its colour in the radar and in the training figure of the second round
 ROUND2_COLOURS = {BEST: "#d95f02", "g40b_lr1em4_tau99995_rep005h": "#1f77b4",
                   "g40c_lr1em4_tau99995_cos": "#e7298a", "g40w_lr1em3_wu4k_cos": "#66a61e",
                   "g40b_lr1em4_tau99995_bs128": "#bcbd22", "g40b_lr2em4_tau99995_bs128": "#17becf",
                   "g40b_lr4em4_tau99995_bs128": "#8c564b", "g40w_lr1em3_wu4k_cos4em4_bs128": "#d62728",
-                  "g40b_lr8em4_tau99995_bs128": "#6a3d9a", "g40w_lr1em3_wu4k_cos8em4_bs256_fx": "#e6ab02",
-                  "g40w_lr1p6em3_wu4k_bs256_fx": "#000000", "g40w_lr3p2em3_wu4k_bs256_fx": "#7f7f7f"}
+                  "g40b_lr8em4_tau99995_bs128": "#6a3d9a"}
 
 
 def run_score(run):
