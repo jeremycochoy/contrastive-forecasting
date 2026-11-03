@@ -49,6 +49,9 @@ from src.forecasting_head import (
     ForecastingHeadBank,
     bank_quantile_loss,
     bank_training_inputs,
+    decode_forecast_head,
+    forecast_head_input,
+    HEAD_TRAIN_INPUTS,
     QUANTILE_LEVELS,
     quantile_loss,
     gaussian_nll_loss,
@@ -305,7 +308,7 @@ def parse_args(argv=None):
                         "when forecast_len > W=16 so the head can use "
                         "f_t..f_{t+k} to reconstruct multiple patches.")
     p.add_argument("--head-train-input", default="f_only",
-                   choices=["f_only", "e_then_f"],
+                   choices=list(HEAD_TRAIN_INPUTS),
                    help="Training-time input layout to the head. "
                         "'f_only' (default): head sees f_0..f_{T-1} only "
                         "— the legacy training pattern. "
@@ -313,7 +316,11 @@ def parse_args(argv=None):
                         "(length 2T), loss applied at positions T..2T-1. "
                         "Matches the [e_ctx, rolled_f] input the head sees "
                         "at eval B-strategies, fixing a train-eval input "
-                        "distribution mismatch.")
+                        "distribution mismatch. The forecast head, a "
+                        "frequency family, a head bank and --reconstruction "
+                        "forecaster read it, with a transformer head (the "
+                        "layout needs a mask). --reconstruction encoder "
+                        "does not read it; --mixed-rollout refuses it.")
     # -- Frequency family (src/freq_family.py) ------------------------------
     p.add_argument("--freq-family", default=None, choices=FAMILY_BODIES,
                    help="Train a family of forecast decoders in place of "
@@ -436,6 +443,22 @@ def refuse_bank_flags(args):
         raise SystemExit("A head bank (#412) trains quantile heads on the "
                          "pinball loss. Pass --quantile-head, and a head "
                          "arch other than transformer-gaussian.")
+
+
+def refuse_head_input(args):
+    """SystemExit for an e_then_f layout that the run cannot train: its
+    mask needs a transformer head, and --mixed-rollout builds its own
+    layout. --reconstruction encoder reads e[t] only and ignores it."""
+    if args.head_train_input != "e_then_f" or args.reconstruction == "encoder":
+        return
+    if args.mixed_rollout > 0:
+        raise SystemExit("--mixed-rollout gives the head [f of the context, "
+                         "rolled f]: drop --head-train-input e_then_f.")
+    if args.head_arch not in ("transformer", "transformer-gaussian"):
+        raise SystemExit(f"--head-train-input e_then_f masks the head input, "
+                         f"and a {args.head_arch} head takes no mask: pass "
+                         f"--head-arch transformer or transformer-gaussian, "
+                         f"or --head-train-input f_only.")
 
 
 def family_of_flags(args, use_bank, emit_labels):
@@ -750,6 +773,7 @@ class HeadJob:
         freq_w = sd.get("freq_embedding.embedding.weight")
         self.freq_vocab = vocab_of_rows(freq_w.shape[0]) if freq_w is not None else "v1"
         self.emit_labels = (args.freq_emb_dim > 0 or args.seasonality_emb_dim > 0)
+        refuse_head_input(args)
         # The frequency family of the run, and the rows that each member
         # trained.
         self.family = family_of_flags(args, self.use_bank, self.emit_labels)
@@ -964,7 +988,7 @@ class HeadJob:
                     backbone, head, x_norm, sample_sizes, keep,
                     freq_ids=freq_ids, seasonality_ids=seasonality_ids,
                     reconstruction=args.reconstruction == "encoder",
-                    latent=self.recon_latent)
+                    latent=self.recon_latent, layout=args.head_train_input)
             elif args.mixed_rollout > 0:
                 # Mixed training: use first 48 patches as context, roll out N tokens
                 N_roll = args.mixed_rollout
@@ -1045,32 +1069,16 @@ class HeadJob:
                 targets, T_valid = compute_reconstruction_targets(
                     x_norm, W=W, output_len=args.forecast_len, mode='forecaster')
                 targets = targets.to(device)
-                if args.head_train_input == "e_then_f":
-                    # Match the eval-time [e_ctx, rolled_f] layout: feed the
-                    # head [e_0..e_{T-1}, f_0..f_{T-1}] (length 2T). The
-                    # head's outputs at positions T..(T+T_valid-1) — that is the
-                    # f-half — get the loss against `targets`.
-                    #
-                    # Custom mask prevents the head from peeking at e_{p_f+1}
-                    # (the encoder latent that encodes the *target* patch
-                    # for f-block position p_f). With the standard causal
-                    # mask, all e-block positions are "past" relative to any
-                    # f-block position, so the head can copy the target
-                    # directly — that bug showed up as self.ema_loss collapsing
-                    # to <0.12 vs the legitimate ~0.19 plateau.
-                    e_bc, _ = extract_encoder_latents(
-                        backbone, x, freq_ids=freq_ids,
-                        seasonality_ids=seasonality_ids)
-                    T_e = e_bc.size(1)
-                    T_f = f_bc.size(1)
-                    seq = torch.cat([e_bc, f_bc], dim=1)             # (BC, T_e+T_f, H)
-                    from src.forecasting_head import build_e_then_f_mask
-                    src_mask = build_e_then_f_mask(T_e, T_f, device=device)
-                    preds = head(seq, src_mask=src_mask)
-                    f_slice = slice(T_e, T_e + T_valid)
-                else:
-                    preds = head(f_bc)
-                    f_slice = slice(0, T_valid)
+                # e_then_f: the layout that B4 decodes at eval. Its mask
+                # keeps the head from reading e_{p_f+1}, the encoder latent
+                # of the target patch of f-position p_f (with a plain causal
+                # mask the head copied the target: ema_loss fell below 0.12
+                # against the true plateau of about 0.19).
+                seq, mask, start = forecast_head_input(
+                    backbone, x, f_bc, args.head_train_input,
+                    freq_ids=freq_ids, seasonality_ids=seasonality_ids)
+                preds = decode_forecast_head(head, seq, mask, start)
+                f_slice = slice(0, T_valid)
                 if isinstance(preds, tuple):
                     # Gaussian head: (mu, log_var) per position.
                     mu, log_var = preds
@@ -1085,17 +1093,23 @@ class HeadJob:
                     loss = torch.nn.functional.mse_loss(preds, targets)
 
             else:
-                # Standard prediction training (old behavior)
+                # The prediction branch: f_t decodes the values of patch
+                # t + 1. --head-train-input e_then_f gives the head the
+                # layout that B4 decodes at eval (forecast_head_input).
                 f_bc, x_norm = extract_forecaster_latents(
                     backbone, x, freq_ids=freq_ids,
                     seasonality_ids=seasonality_ids)
+                seq, mask, start = forecast_head_input(
+                    backbone, x, f_bc, args.head_train_input,
+                    freq_ids=freq_ids, seasonality_ids=seasonality_ids)
                 targets, T_valid = compute_valid_targets(
                     x_norm, W=W, forecast_len=args.forecast_len)
                 targets = targets.to(device)
                 # A frequency family decodes each row with the member of
                 # its frequency. All else is the standard head.
-                preds = (head(f_bc) if self.family is None else
-                         head(f_bc, self.row_members(freq_ids, x.shape[0])))
+                members = (() if self.family is None else
+                           (self.row_members(freq_ids, x.shape[0]),))
+                preds = decode_forecast_head(head, seq, mask, start, *members)
                 # #419: the padded targets of a zero-padding backbone.
                 keep = (valid_target_keep(backbone.rev_norm.pad_mask, W,
                                           args.forecast_len)

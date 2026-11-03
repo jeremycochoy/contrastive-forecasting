@@ -174,17 +174,19 @@ class FrequencyFamilyHead(nn.Module):
         """The decoder that scores a series of frequency ``freq``."""
         return self.member(family_member(freq, self.members))
 
-    def forward(self, latents, members):
+    def forward(self, latents, members, src_mask=None):
         """Each row of ``latents`` through the decoder of its member.
 
         ``latents`` is ``(B*C, T, H)`` and ``members`` holds one key for
-        each row. Returns ``(B*C, T, Q, L)``, in the row order of
-        ``latents``.
+        each row. ``src_mask`` goes to each member, as to a standard head
+        (the mask of ``--head-train-input e_then_f``). Returns
+        ``(B*C, T, Q, L)``, in the row order of ``latents``.
         """
         members = members.to(latents.device)
         rows = [(members == key).nonzero().squeeze(1)
                 for key in members.unique()]
-        outs = [self.member(members[r[0]])(latents[r]) for r in rows]
+        outs = [self.member(members[r[0]])(latents[r], src_mask=src_mask)
+                for r in rows]
         return torch.cat(outs)[torch.cat(rows).argsort()]
 
 
