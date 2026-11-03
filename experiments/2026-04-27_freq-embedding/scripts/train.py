@@ -940,6 +940,16 @@ def build_parser():
                         "--sigreg-encoding is OFF. Independent from "
                         "--sigreg-embedding-weight so the two sides can be "
                         "tuned separately. (#359)")
+    p.add_argument("--sigreg-forecast", action="store_true",
+                   help="SIGReg on the forecaster output f, the one-step "
+                        "forecast latent, at its real positions: the "
+                        "statistic of --sigreg-encoding (docs/sigreg.md). "
+                        "Total loss adds --sigreg-forecast-weight · "
+                        "L_sigreg_forecast. The losses CSV gets a trailing "
+                        "column sigreg_f. Off by default.")
+    p.add_argument("--sigreg-forecast-weight", type=float, default=0.1,
+                   help="λ for L_sigreg_forecast (the f term). No-op when "
+                        "--sigreg-forecast is OFF.")
     p.add_argument("--sigreg-m", type=int, default=1024,
                    help="Number of random unit-direction projections per "
                         "SIGReg forward call. LeJEPA default 1024. (#355)")
@@ -1208,7 +1218,9 @@ def multi_size_contrastive_terms(model, lats, pads, counts, args, rep_w,
             (args.sigreg_embedding, args.sigreg_embedding_weight, "sigreg_e",
              grid.e),
             (args.sigreg_encoding, args.sigreg_encoding_weight, "sigreg_h",
-             grid.o)):
+             grid.o),
+            (args.sigreg_forecast, args.sigreg_forecast_weight, "sigreg_f",
+             grid.f)):
         if on:
             term = sigreg_term(latent, args, grid.pad)
             loss = loss + weight * term
@@ -1889,7 +1901,8 @@ def keeps_gradient_without_rep(args):
             or args.cpc_infonce_weight > 0
             or args.align_moco_loss_weight > 0
             or (args.sigreg_embedding and args.sigreg_embedding_weight > 0)
-            or (args.sigreg_encoding and args.sigreg_encoding_weight > 0))
+            or (args.sigreg_encoding and args.sigreg_encoding_weight > 0)
+            or (args.sigreg_forecast and args.sigreg_forecast_weight > 0))
 
 
 # The flags a value-space run reads (#415), by argparse dest. The run refuses
@@ -2327,7 +2340,8 @@ def sigreg_term(latent, args, pad_patches):
 def no_contrastive_values():
     """The add-on values of a step that computes none of them."""
     return dict(terms={}, align_moco=float("nan"), cpc_aux=float("nan"),
-                sigreg_e=float("nan"), sigreg_h=float("nan"))
+                sigreg_e=float("nan"), sigreg_h=float("nan"),
+                sigreg_f=float("nan"))
 
 
 def contrastive_terms(model, lat, args, rep_w, tau, pad_patches):
@@ -2356,7 +2370,9 @@ def contrastive_terms(model, lat, args, rep_w, tau, pad_patches):
             (args.sigreg_embedding, args.sigreg_embedding_weight, "sigreg_e",
              lat.e),
             (args.sigreg_encoding, args.sigreg_encoding_weight, "sigreg_h",
-             lat.o)):
+             lat.o),
+            (args.sigreg_forecast, args.sigreg_forecast_weight, "sigreg_f",
+             lat.f)):
         if on:
             term = sigreg_term(latent, args, pad_patches)
             loss = loss + weight * term
@@ -2391,8 +2407,13 @@ def safe_run_name(save_dir, run_name):
 class CSVLogger:
     def __init__(self, path, flush_every=100, tau_ref_column=True,
                  rollout_depth=0, depth_column_prefix="cos_err_d",
-                 dropped_column=False, nan_column=False, rms_column=False):
+                 dropped_column=False, nan_column=False, rms_column=False,
+                 sigreg_f_column=False):
         self.path = path
+        # sigreg_f_column: a trailing `sigreg_f` column, the SIGReg term on
+        # the forecaster output (--sigreg-forecast). Last, so the columns of
+        # every other run keep their place.
+        self.sigreg_f_column = bool(sigreg_f_column)
         # dropped_column (#421): a trailing `meanstd_dropped` column, the
         # share of the step's windows the mean/std filter dropped. Only a
         # run with --meanstd-z-max on writes it, so every other CSV keeps
@@ -2482,6 +2503,8 @@ class CSVLogger:
             header += ["nan_dropped", "spike_dropped", "grad_norm"]
         if self.rms_column:
             header += ["patch_rms"]
+        if self.sigreg_f_column:
+            header += ["sigreg_f"]
         if os.path.getsize(path) == 0:
             self._writer.writerow(header)
             self._file.flush()
@@ -2517,7 +2540,8 @@ class CSVLogger:
             u_batchtime=None, u_batchtime_e=None, ema_tau=None,
             rep_w=None, l_pred=None, l_rep=None, l_align=None,
             cos_err_depths=None, meanstd_dropped=None, nan_dropped=None,
-            spike_dropped=None, grad_norm=None, patch_rms=None):
+            spike_dropped=None, grad_norm=None, patch_rms=None,
+            sigreg_f=None):
         if not self._enabled:
             return
         row = [step, loss]
@@ -2545,6 +2569,8 @@ class CSVLogger:
                     for v in (nan_dropped, spike_dropped, grad_norm)]
         if self.rms_column:
             row.append('' if patch_rms is None else patch_rms)
+        if self.sigreg_f_column:
+            row.append('' if sigreg_f is None else sigreg_f)
         self._buffer.append(row)
         if len(self._buffer) >= self.flush_every:
             self.flush()
@@ -2917,7 +2943,8 @@ def main():
             "Use --forecaster-kind transformer, or drop --cpc-infonce-weight.")
     if args.no_main_contrastive_loss and not (
             args.cpc_infonce_weight > 0 or args.align_loss_weight > 0
-            or args.sigreg_embedding or args.sigreg_encoding):
+            or args.sigreg_embedding or args.sigreg_encoding
+            or args.sigreg_forecast):
         raise SystemExit(
             "--no-main-contrastive-loss drops the only contrastive term, so the "
             "objective would be empty; pass --cpc-infonce-weight and/or "
@@ -3048,6 +3075,10 @@ def main():
         raise SystemExit(
             f"--sigreg-encoding-weight must be ≥ 0; got "
             f"{args.sigreg_encoding_weight}.")
+    if args.sigreg_forecast_weight < 0:
+        raise SystemExit(
+            f"--sigreg-forecast-weight must be ≥ 0; got "
+            f"{args.sigreg_forecast_weight}.")
     if args.sigreg_m <= 0:
         raise SystemExit(f"--sigreg-m must be > 0; got {args.sigreg_m}.")
     if args.sigreg_t_knots < 3:
@@ -3254,7 +3285,8 @@ def main():
         dropped_column=(args.rev_norm_kind == "meanstd"
                         and args.meanstd_z_max > 0),
         nan_column=args.skip_nan_samples,
-        rms_column=args.patch_rms_weight > 0)
+        rms_column=args.patch_rms_weight > 0,
+        sigreg_f_column=args.sigreg_forecast)
     print(f"Loss CSV: {csv_path}")
 
     # Latent-drift probe (rank-0 only). Fixed ARMA batch drawn once and
@@ -3781,6 +3813,7 @@ def main():
         cpc_aux_val = step_values["cpc_aux"]
         sigreg_e_val = step_values["sigreg_e"]
         sigreg_h_val = step_values["sigreg_h"]
+        sigreg_f_val = step_values["sigreg_f"]
         # Diagnostic: the loss at a fixed τ=0.07, with no gradient
         # (`tau_reference`). #415 keeps no contrastive term, so the CSV drops
         # the column. The `auc`, `gap` and `r2_*` columns still read the
@@ -3879,6 +3912,7 @@ def main():
                 cpc_aux_val = step_values["cpc_aux"]
                 sigreg_e_val = step_values["sigreg_e"]
                 sigreg_h_val = step_values["sigreg_h"]
+                sigreg_f_val = step_values["sigreg_f"]
                 loss_tau_ref_val = tau_reference(f_lat, o_lat, pad_patches,
                                                  args)
             else:
@@ -4014,6 +4048,8 @@ def main():
                                  if args.sigreg_embedding else None),
                        sigreg_h=(sigreg_h_val
                                  if args.sigreg_encoding else None),
+                       sigreg_f=(sigreg_f_val
+                                 if args.sigreg_forecast else None),
                        u_temporal_e=u_t_e, u_batch_e=u_b_e,
                        u_batchtime=u_bt, u_batchtime_e=u_bt_e,
                        ema_tau=ema_tau_now,
