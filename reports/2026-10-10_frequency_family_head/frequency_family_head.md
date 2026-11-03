@@ -59,9 +59,9 @@ The best cell is lr 3.2e-4 with the output factor 0 and the input factor 0.3.
 
 Each cell is one run of 40k steps at width 64, with 1 encoder layer, 3 forecaster layers, the flags of violet and the same seed.
 The EMA momentum goes to 1.0 over the 40k steps.
-The best cell is lr 1e-4 with the EMA start 0.99995 (1.1888), the settings of violet.
+Of the 6 cells, lr 1e-4 with the EMA start 0.99995 (the settings of violet) has the lowest score, 1.1888.
 The EMA start 0.99995 is better than 0.999975 at each learning rate.
-The second round starts from the best cell.
+The second round starts from lr 1e-4 with the EMA start 0.99995.
 A warmup of the learning rate to 1e-3 over 4k steps, then a cosine to 1e-4, gives 1.1823, the lowest score.
 The losses of blue give 1.1891, and a cosine from 1e-4 to 1e-5 gives 1.2063.
 At batch 128, the learning rates 1e-4, 2e-4 and 4e-4 give 1.2124, 1.1926 and 1.1842.
@@ -71,7 +71,7 @@ The score decreases up to 4e-4, the highest learning rate of the search.
 
 The radars give the relative MASE of each GIFT-Eval dataset, the geometric mean over its configs.
 19 of the 28 datasets stay above 1 in each of the 6 cells.
-The largest gaps to MPE are m4_hourly (4.87 for the best cell, 1.55 for MPE), electricity (1.58 and 0.97) and solar (1.97 and 1.25).
+The largest gaps to MPE are m4_hourly (4.87 for lr 1e-4 with the EMA start 0.99995, 1.55 for MPE), electricity (1.58 and 0.97) and solar (1.97 and 1.25).
 
 ![Learning rate and training losses of the second round](plots/grid40k_round2_dynamics.png)
 

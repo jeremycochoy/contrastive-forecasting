@@ -5,11 +5,11 @@ and input 0.3, L_rep 0.1, batch 64, seed 20260520) at width 64, 1 encoder layer
 and 3 forecaster layers, 40k steps, the EMA ramp to 1.0 over the 40k steps. The
 rows are the learning rate, the columns the EMA start (--ema-tau).
 
-The second round (the user, 11-02 and 11-03): runs from the best cell (lr 1e-4,
-EMA start 0.99995), each with one change (the losses of blue or an lr
-schedule), and batch 128 at the lr 1e-4, 2e-4 and 4e-4, then with the warmup
-of W and a cosine to the best of these lr. Its panel has the best cell as its
-first row.
+The second round (the user, 11-02 and 11-03): runs from the cell lr 1e-4,
+EMA start 0.99995, each with one change (the losses of blue or an lr
+schedule); batch 128 at the lr 1e-4, 2e-4, 4e-4 and 8e-4, and with the warmup
+of W and a cosine to 4e-4; batch 256 with a warmup to 1e-3, 1.6e-3 or 3.2e-3
+(around the projected lr 1.6e-3). Its panel has that cell as its first row.
 
 Each cell is the forecast GM-Relative MASE of head B4 at 40k (30k head steps,
 97 configs). Lower is better. A grey cell has no score yet.
@@ -40,8 +40,8 @@ LRS = {"5e-5": ("5e-5", "lr5em5"), "1e-4": ("1e-4 (violet)", "lr1em4"),
 TAUS = {"0.99995": ("0.99995 (violet)", "tau99995"),
         "0.999975": ("0.999975 (lime)", "tau999975")}
 BEST = "g40_lr1em4_tau99995"
-# run -> (label, lr): the second round, each run one change from the best cell
-ROUND2 = {BEST: ("best cell (no change)", "1e-4"),
+# run -> (label, lr): the second round, the changes from lr 1e-4, EMA start 0.99995
+ROUND2 = {BEST: ("lr 1e-4, EMA start 0.99995\n(no change)", "1e-4"),
           "g40b_lr1em4_tau99995_rep005h": ("losses of blue:\nL_rep 0.05, depths 1/2^j", "1e-4"),
           "g40c_lr1em4_tau99995_cos": ("lr cosine\n1e-4 to 1e-5", "1e-4 to 1e-5"),
           "g40w_lr1em3_wu4k_cos": ("lr warmup to 1e-3,\nthen cosine to 1e-4",
@@ -50,12 +50,21 @@ ROUND2 = {BEST: ("best cell (no change)", "1e-4"),
           "g40b_lr2em4_tau99995_bs128": ("batch 128, lr 2e-4", "2e-4"),
           "g40b_lr4em4_tau99995_bs128": ("batch 128, lr 4e-4", "4e-4"),
           "g40w_lr1em3_wu4k_cos4em4_bs128": ("batch 128, warmup to 1e-3,\nthen cosine to 4e-4",
-                                             "warmup to 1e-3, cosine to 4e-4")}
+                                             "warmup to 1e-3, cosine to 4e-4"),
+          "g40b_lr8em4_tau99995_bs128": ("batch 128, lr 8e-4", "8e-4"),
+          "g40w_lr1em3_wu4k_cos8em4_bs256": ("batch 256, warmup to 1e-3,\nthen cosine to 8e-4",
+                                             "warmup to 1e-3, cosine to 8e-4"),
+          "g40w_lr1p6em3_wu4k_bs256": ("batch 256, warmup to 1.6e-3,\nthen constant",
+                                       "warmup to 1.6e-3, constant"),
+          "g40w_lr3p2em3_wu4k_bs256": ("batch 256, warmup to 3.2e-3,\nthen constant",
+                                       "warmup to 3.2e-3, constant")}
 # run -> its colour in the radar and in the training figure of the second round
 ROUND2_COLOURS = {BEST: "#d95f02", "g40b_lr1em4_tau99995_rep005h": "#1f77b4",
                   "g40c_lr1em4_tau99995_cos": "#e7298a", "g40w_lr1em3_wu4k_cos": "#66a61e",
                   "g40b_lr1em4_tau99995_bs128": "#bcbd22", "g40b_lr2em4_tau99995_bs128": "#17becf",
-                  "g40b_lr4em4_tau99995_bs128": "#8c564b", "g40w_lr1em3_wu4k_cos4em4_bs128": "#d62728"}
+                  "g40b_lr4em4_tau99995_bs128": "#8c564b", "g40w_lr1em3_wu4k_cos4em4_bs128": "#d62728",
+                  "g40b_lr8em4_tau99995_bs128": "#6a3d9a", "g40w_lr1em3_wu4k_cos8em4_bs256": "#e6ab02",
+                  "g40w_lr1p6em3_wu4k_bs256": "#000000", "g40w_lr3p2em3_wu4k_bs256": "#7f7f7f"}
 
 
 def run_score(run):
@@ -150,17 +159,17 @@ def draw_grid(ax, grid, low, high):
 
 def draw_round2(ax, round2, low, high):
     draw_cells(ax, round2, low, high)
-    ax.set_xticks([0], ["the flags of the best cell,\nwith the change of the row"])
+    ax.set_xticks([0], ["lr 1e-4, EMA start 0.99995, batch 64,\nwith the change of the row"])
     ax.set_yticks(range(len(ROUND2)), [label for label, _ in ROUND2.values()], fontsize=9)
     scored = int(np.sum(~np.isnan(round2[1:])))
-    ax.set_title(f"Second round: changes from\nthe best cell ({scored} of {len(ROUND2) - 1} scored)")
+    ax.set_title(f"Second round: changes from lr 1e-4,\nEMA start 0.99995 ({scored} of {len(ROUND2) - 1} scored)")
 
 
 def main():
     grid, round2 = grid_scores(), round2_scores()
     write_table(grid, round2)
     low, high = color_scale(grid, round2)
-    fig, (left, right) = plt.subplots(1, 2, figsize=(12, 7.5), gridspec_kw={"width_ratios": [2, 1.2]})
+    fig, (left, right) = plt.subplots(1, 2, figsize=(12, 10), gridspec_kw={"width_ratios": [2, 1.2]})
     image = draw_grid(left, grid, low, high)
     draw_round2(right, round2, low, high)
     fig.colorbar(image, ax=[left, right], label="forecast GM-Relative MASE (lower is better)")

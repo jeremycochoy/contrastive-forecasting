@@ -8,7 +8,7 @@ datasets sit at the top.
 
 Two radars, each with MPE (our copy of Moirai: patch heads, EWMA, new data,
 batch 256, at its best checkpoint 166k) as a reference: the 6 cells of the grid,
-and the second round (one change each from the best cell).
+and the second round (the changes from lr 1e-4, EMA start 0.99995).
 
 Writes plots/grid40k_radar.png and results/grid40k_dataset_rel_mase.tsv.
 
@@ -89,7 +89,7 @@ def main():
     fig, axes = plt.subplots(1, 2, figsize=(26, 13), subplot_kw=dict(polar=True),
                              gridspec_kw=dict(wspace=0.55))
     draw_radar(axes[0], values, grid, labels, scores, "The 6 cells of the 40k grid")
-    draw_radar(axes[1], values, second, labels, scores, "Second round: changes from the best cell")
+    draw_radar(axes[1], values, second, labels, scores, "Second round: changes from lr 1e-4, EMA start 0.99995")
     fig.suptitle("Relative MASE per GIFT-Eval dataset (geometric mean over its configs). Green ring: "
                  "Seasonal Naive (1.0). Inside is better. The hardest datasets are at the top.",
                  fontsize=14, y=1.03)
