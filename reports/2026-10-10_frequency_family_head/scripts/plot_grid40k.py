@@ -52,6 +52,15 @@ ROUND2 = {BEST: ("lr 1e-4, EMA start 0.99995\n(no change)", "1e-4"),
           "g40w_lr1em3_wu4k_cos4em4_bs128": ("batch 128, warmup to 1e-3,\nthen cosine to 4e-4",
                                              "warmup to 1e-3, cosine to 4e-4"),
           "g40b_lr8em4_tau99995_bs128": ("batch 128, lr 8e-4", "8e-4")}
+# The planned runs of the search, not started: (row label, when). The user (11-03 about
+# 21:05 UTC): the heatmap shows them; each one moves into ROUND2 when it starts.
+PLANNED = [
+    ("batch 128, lr 1e-3\n(if lr 8e-4 beats 4e-4)", "planned, about 03:00 UTC"),
+    ("batch 128, warmup to 2e-3,\nthen cosine to the best lr", "planned after A,\nif a higher peak looks better"),
+    ("the best batch-128 config\nwith the fixed SIGReg window", "planned, about 03:00 UTC\n(the SIGReg gate)"),
+    ("FIXED CODE, batch 256, constant lr\naround the projected lr", "planned after the gate\n(about 09:00 UTC)"),
+    ("FIXED CODE, batch 256, warmup to a\nhigh peak, then cosine to the best lr", "planned after the gate\n(about 09:00 UTC)"),
+]
 # run -> its colour in the radar and in the training figure of the second round
 ROUND2_COLOURS = {BEST: "#d95f02", "g40b_lr1em4_tau99995_rep005h": "#1f77b4",
                   "g40c_lr1em4_tau99995_cos": "#e7298a", "g40w_lr1em3_wu4k_cos": "#66a61e",
@@ -83,8 +92,8 @@ def grid_scores():
 
 
 def round2_scores():
-    """Array [run of ROUND2, 1] of the scores, NaN for no score."""
-    return np.array([[as_value(run_score(run))] for run in ROUND2])
+    """Array [run of ROUND2 and planned run, 1] of the scores, NaN for no score."""
+    return np.array([[as_value(run_score(run))] for run in ROUND2] + [[np.nan]] * len(PLANNED))
 
 
 def score_text(value):
@@ -103,10 +112,10 @@ def write_table(grid, round2):
                 f.write(f"{run}\t{lr}\t0.99995\t{change}\t{score_text(round2[k, 0])}\n")
 
 
-def cell_text(ax, i, j, score, low, high):
-    """A score in bold, or a grey "no score yet"."""
+def cell_text(ax, i, j, score, low, high, empty="no score yet"):
+    """A score in bold, or the grey text ``empty``."""
     if np.isnan(score):
-        ax.text(j, i, "no score yet", ha="center", va="center", fontsize=10, color="#777777")
+        ax.text(j, i, empty, ha="center", va="center", fontsize=10, color="#777777")
         return
     dark = (score - low) / (high - low) > 0.5
     ax.text(j, i, f"{score:.4f}", ha="center", va="center", fontsize=13,
@@ -130,13 +139,14 @@ def color_scale(*panels):
     return low, high
 
 
-def draw_cells(ax, values, low, high):
+def draw_cells(ax, values, low, high, empty_texts=None):
+    """The cells on one colour scale; ``empty_texts`` gives the text of an empty row."""
     cmap = plt.get_cmap("viridis_r").copy()
     cmap.set_bad("#eeeeee")
     image = ax.imshow(np.ma.masked_invalid(values), cmap=cmap, vmin=low, vmax=high, aspect="auto")
     for i in range(values.shape[0]):
         for j in range(values.shape[1]):
-            cell_text(ax, i, j, values[i, j], low, high)
+            cell_text(ax, i, j, values[i, j], low, high, (empty_texts or {}).get(i, "no score yet"))
     mark_best(ax, values)
     return image
 
@@ -151,18 +161,21 @@ def draw_grid(ax, grid, low, high):
 
 
 def draw_round2(ax, round2, low, high):
-    draw_cells(ax, round2, low, high)
+    planned = {len(ROUND2) + k: when for k, (_, when) in enumerate(PLANNED)}
+    draw_cells(ax, round2, low, high, planned)
     ax.set_xticks([0], ["lr 1e-4, EMA start 0.99995, batch 64,\nwith the change of the row"])
-    ax.set_yticks(range(len(ROUND2)), [label for label, _ in ROUND2.values()], fontsize=9)
-    scored = int(np.sum(~np.isnan(round2[1:])))
-    ax.set_title(f"Second round: changes from lr 1e-4,\nEMA start 0.99995 ({scored} of {len(ROUND2) - 1} scored)")
+    labels = [label for label, _ in ROUND2.values()] + [label for label, _ in PLANNED]
+    ax.set_yticks(range(len(labels)), labels, fontsize=9)
+    scored = int(np.sum(~np.isnan(round2[1:len(ROUND2)])))
+    ax.set_title(f"Second round: changes from lr 1e-4, EMA start 0.99995\n"
+                 f"({scored} of {len(ROUND2) - 1} scored, {len(PLANNED)} planned)")
 
 
 def main():
     grid, round2 = grid_scores(), round2_scores()
     write_table(grid, round2)
     low, high = color_scale(grid, round2)
-    fig, (left, right) = plt.subplots(1, 2, figsize=(12, 10), gridspec_kw={"width_ratios": [2, 1.2]})
+    fig, (left, right) = plt.subplots(1, 2, figsize=(14.5, 13), gridspec_kw={"width_ratios": [2, 1.2], "wspace": 0.75})
     image = draw_grid(left, grid, low, high)
     draw_round2(right, round2, low, high)
     fig.colorbar(image, ax=[left, right], label="forecast GM-Relative MASE (lower is better)")
