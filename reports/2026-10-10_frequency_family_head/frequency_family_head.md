@@ -10,7 +10,9 @@ At 200k, the forecast MASE is 1.0467 for yellow (grey with the L_rep weight 0.1 
 DGY (dark grey) is grey from its 240k save, with the learning rate annealed from 5.6e-5 to 0 by a cosine over 48k steps (the cooldown of a WSD schedule).
 Its forecast MASE at 288k is 1.0238, the lowest of the report.
 Its R scores at 288k are 0.0388 (transformer head) and 0.2000 (linear head), between the scores of grey at 240k (0.0304 and 0.1973) and at 300k (0.0429 and 0.2039).
-Violet has its lowest forecast MASE, 1.0779, at 460k, and 1.0977 at 600k.
+Violet has its lowest forecast MASE, 1.0779, at 460k.
+At 665k, the end of its training, it gets 1.0799 (1.0977 at 600k).
+Its R scores at 665k are 0.0218 (transformer head) and 0.1323 (linear head).
 
 ## Learning rate
 
