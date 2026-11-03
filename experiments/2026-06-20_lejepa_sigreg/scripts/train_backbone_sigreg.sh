@@ -5,9 +5,8 @@
 #   --batch-size 1024 -> 512                            (half batch)
 #   --sigreg-embedding                                   ON
 #   --sigreg-encoding                                    ON
-# --sigreg-post-normalization is left OFF (the issue's pre-normalisation
-# regime — the default). Everything else stays the #353 EMA-target enc3+CPC
-# recipe verbatim: --ema-embedding --ema-encoder --ema-tau 0.98 (half-life ≈34 steps),
+# SIGReg reads the raw vectors. Everything else stays the #353 EMA-target
+# enc3+CPC recipe verbatim: --ema-embedding --ema-encoder --ema-tau 0.98 (half-life ≈34 steps),
 # --cpc-infonce-weight 1.0, GRU patch-embed, 3L encoder, 6L decoder, dropkey
 # 0.70, mix_ratio 0.0078125, 12,500 steps, same dtypes/seed/dataset.
 #

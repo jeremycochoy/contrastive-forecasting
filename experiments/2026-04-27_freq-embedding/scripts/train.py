@@ -928,15 +928,6 @@ def build_parser():
                         "original_latent). Same statistic and stateless "
                         "contract as --sigreg-embedding. Total loss adds "
                         "--sigreg-encoding-weight · L_sigreg_encoding. (#355)")
-    p.add_argument("--sigreg-post-normalization", action="store_true",
-                   help="When ON, both SIGReg terms are evaluated on the "
-                        "POST-F.normalize unit-sphere version of e_t / h_t "
-                        "(the LeJEPA-strict, σ²=1/K placement). When OFF "
-                        "(default — issue #355's arm), they are evaluated on "
-                        "the raw PRE-normalisation vectors — pushes the "
-                        "encoder to LAND on the sphere with a uniform "
-                        "marginal, leaving the downstream L2-normalize a "
-                        "near-identity. (#355)")
     p.add_argument("--sigreg-legacy-window", action="store_true",
                    help="Restores the SIGReg integration bound W = 6/√K of "
                         "the runs before the window fix, to reproduce them. "
@@ -2371,7 +2362,6 @@ def sigreg_term(latent, args, pad_patches):
     """SIGReg (#355) on the real positions of one latent, unweighted."""
     return sigreg_loss(real_positions(latent, pad_patches), M=args.sigreg_m,
                        T_knots=args.sigreg_t_knots,
-                       post_normalize=args.sigreg_post_normalization,
                        n_chunk=args.sigreg_n_chunk,
                        legacy_window=args.sigreg_legacy_window)
 

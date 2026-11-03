@@ -1088,8 +1088,7 @@ def cpc_infonce_all_loss(forecasted_latent, original_latent, w1, source_chunk=8,
 
 
 def sigreg_loss(z, sigma2=None, M=1024, T_knots=17, W=None,
-                post_normalize=False, n_chunk=8192, projections=None,
-                legacy_window=False):
+                n_chunk=8192, projections=None, legacy_window=False):
     """LeJEPA spherical SIGReg statistic (Balestriero and others 2025, #355).
 
     Push the pooled marginal of the latent ``z`` toward ``Unif(S^{K-1})`` —
@@ -1138,13 +1137,6 @@ def sigreg_loss(z, sigma2=None, M=1024, T_knots=17, W=None,
             stops where both characteristic functions are within about
             ``1e-4`` of 1, so the statistic sees almost nothing of the
             distribution. Ignored when ``W`` is given.
-        post_normalize: when True, ``z`` is L2-normalised on its last
-            axis before projection (LeJEPA's post-sphere-projection
-            placement. The strict ``σ² = 1/K`` regime). When False
-            (default), the statistic is on the raw pre-normalisation
-            vectors — pushes the encoder to LAND on the sphere with a
-            uniform marginal, leaving the downstream L2-normalise as a
-            near-identity.
         n_chunk: chunk size along the sample axis ``N`` for the
             ``cos/sin`` integrand evaluation — peaks at ``M·n_chunk·
             T_knots`` floats per chunk. logsumexp-free averaging over
@@ -1162,8 +1154,6 @@ def sigreg_loss(z, sigma2=None, M=1024, T_knots=17, W=None,
         sigma2 = 1.0 / K
     if W is None:
         W = 6.0 / math.sqrt(K) if legacy_window else 6.0 / math.sqrt(sigma2)
-    if post_normalize:
-        z = F.normalize(z, p=2, dim=-1)
     z_flat = z.reshape(-1, K)                            # [N, K]
     N = z_flat.shape[0]
 
