@@ -16,7 +16,7 @@ Writes plots/forecast_and_reconstruction.png: three panels on one x axis.
 
 A dashed vertical line joins the scores of one checkpoint in the panels. The
 legend gives each run a three-letter code (from its colour: MAG, GRY, YEL, VIO,
-BLU, ORA, LIM, PNK, RED, BRN, DGY), and for orange, lime and pink the result that
+BLU, ORA, LIM, PNK, RED, BRN, DGY, TEL, TRQ), and for orange, lime and pink the result that
 the user expected before their start.
 
 Reads the forecast of MPE of #412 and #425
@@ -58,6 +58,10 @@ GRN_EMA099995_COLOUR = "#ff00ff"
 GRN_EMA099995_F6 = "grn_ema099995_f6"
 GRN_EMA099995_F6_COLOUR = "#7f7f7f"  # no other run of this figure has this colour
 GRN_EMA099995_F6_CD240 = "grn_ema099995_f6_cd240"
+GRN_EMA09998 = "grn_ema09998"
+GRN_EMA09998_COLOUR = "#008080"  # teal
+GRN_EMA09998_SIGFIX = "grn_ema09998_sigfix"
+GRN_EMA09998_SIGFIX_COLOUR = "#40e0d0"  # turquoise: no other run of this figure has this colour
 GRN_EMA099995_F6_CD240_COLOUR = "#404040"  # dark grey, the cooldown of grey: no other run of this figure has this colour
 GRN_EMA099995_F6_REP01 = "grn_ema099995_f6_rep01"
 GRN_EMA099995_F6_REP01_COLOUR = "#ffb000"  # no other run of this figure has this colour
@@ -82,14 +86,14 @@ NEW_RUNS = [GRN_EMA099995, GRN_EMA099995_F6,
             GRN_EMA099995_F6_REP005_HALVING_MUP, GRN_EMA099995_F6_REP01_MUP_LR56,
             GRN_EMA0999975_F6_REP01_MUP, GRN_EMA099995_F6_REP01_MUP_HID56,
             GRN_EMA09998_REP003_HALVING, GRN_EMA099995_REP003_HALVING,
-            GRN_EMA099995_F6_CD240]
+            GRN_EMA099995_F6_CD240, GRN_EMA09998, GRN_EMA09998_SIGFIX]
 # The newest runs: drawn above the others, so that their first points show.
 ON_TOP = {GRN_EMA099995, GRN_EMA099995_F6, GRN_EMA099995_F6_REP01,
           GRN_EMA099995_F6_REP01_MUP, GRN_EMA099995_F6_REP005_HALVING_MUP,
           GRN_EMA099995_F6_REP01_MUP_LR56, GRN_EMA0999975_F6_REP01_MUP,
           GRN_EMA099995_F6_REP01_MUP_HID56,
           GRN_EMA09998_REP003_HALVING, GRN_EMA099995_REP003_HALVING,
-          GRN_EMA099995_F6_CD240}
+          GRN_EMA099995_F6_CD240, GRN_EMA09998, GRN_EMA09998_SIGFIX}
 MPE = "cf421ew_moirai_native"
 # Its R (transformer head 0.12 to 0.21) lies far above the R panels.
 FORECAST_ONLY = {MPE}
@@ -105,6 +109,10 @@ RUNS = [
      "stopped at 440k", GRN_EMA099995_F6_COLOUR, "H"),
     (GRN_EMA099995_F6_CD240, r"$\mathbf{DGY}$  GRY from its 240k save, the lr a cosine to 0 "
      "over 48k steps (cooldown), 288k", GRN_EMA099995_F6_CD240_COLOUR, ">"),
+    (GRN_EMA09998, r"$\mathbf{TEL}$  MAG with the EMA 0.9998, stopped at 335k",
+     GRN_EMA09998_COLOUR, "<"),
+    (GRN_EMA09998_SIGFIX, r"$\mathbf{TRQ}$  TEL from its 100k save with the SIGReg window fix (PR #438), "
+     "to 240k", GRN_EMA09998_SIGFIX_COLOUR, "h"),
     (GRN_EMA099995_F6_REP01, r"$\mathbf{YEL}$  GRY with L_rep 0.1, stopped at 583k",
      GRN_EMA099995_F6_REP01_COLOUR, "^"),
     (GRN_EMA099995_F6_REP01_MUP, r"$\mathbf{VIO}$  YEL with muP, lr 1e-4, to 665k",
@@ -136,7 +144,7 @@ OUR_R_TABLES = ["grn_ema099995", "grn_ema099995_f6",
                 "grn_ema099995_f6_rep005_halving_mup", "grn_ema099995_f6_rep01_mup_lr56",
                 "grn_ema0999975_f6_rep01_mup", "grn_ema099995_f6_rep01_mup_hid56",
                 "grn_ema09998_rep003_halving", "grn_ema099995_rep003_halving",
-                "grn_ema099995_f6_cd240"]
+                "grn_ema099995_f6_cd240", "grn_ema09998"]
 # panel title, y range, the score tables, and whether the forecast of the
 # runs of this report comes from results/scores.tsv
 PANELS = [
