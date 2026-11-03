@@ -1,9 +1,11 @@
 """The context that the official eval gives the backbone (--context-len).
 
-load_models sets the module value T_RAW from --t-raw after the module is
-imported. The predictor took `t_raw: int = T_RAW` as a default of its
-signature, bound at import to 1024: every score read the last 1024 values,
-while the backbones and their heads train on 4096.
+Every score so far read the last 1024 values: the predictor took
+`t_raw: int = T_RAW` as a default of its signature, bound at import to 1024,
+and load_models set T_RAW from --t-raw only later. #448 gave the predictor the
+training window (4096), which scored worse on grey 400k (GM-Relative MASE
+1.0555 against 1.0331). The default is now CONTEXT_LEN = 1024, stated in one
+place, and --context-len 4096 reads the training window.
 """
 import importlib.util
 import sys
@@ -40,41 +42,39 @@ def dataset(horizon=48):
                            test_data=SimpleNamespace(label=[]))
 
 
-def test_the_predictor_reads_the_window_that_load_models_sets():
-    ev = eval_module("window")
+def test_the_predictor_reads_1024_values_whatever_the_training_window():
+    ev = eval_module("default")
     ev.T_RAW = 4096        # what load_models does with --t-raw 4096
     predictor = ev.ContrastiveForecasterPredictor(None, None, 48, CPU)
     history = np.arange(10_000, dtype=np.float32)
-    assert predictor.t_raw == 4096
-    assert predictor._prepare_context(history).shape == (1, 4096, 1)
+    assert ev.CONTEXT_LEN == 1024 and predictor.t_raw == 1024
+    assert predictor._prepare_context(history).shape == (1, 1024, 1)
 
 
 def test_an_explicit_window_wins():
     ev = eval_module("explicit")
-    ev.T_RAW = 4096
-    assert ev.ContrastiveForecasterPredictor(None, None, 48, CPU, t_raw=1024).t_raw == 1024
+    assert ev.ContrastiveForecasterPredictor(None, None, 48, CPU, t_raw=4096).t_raw == 4096
 
 
-def test_context_len_defaults_to_the_training_window(monkeypatch):
-    ev = eval_module("default")
+def test_context_len_defaults_to_1024(monkeypatch):
+    ev = eval_module("flag_default")
     args = parse(ev, monkeypatch, "--t-raw", "4096")
-    ev.T_RAW = args.t_raw
-    assert args.context_len is None
-    assert ev.build_predictor(args, None, None, dataset(), CPU).t_raw == 4096
-
-
-def test_context_len_1024_reproduces_the_scores_before_the_fix(monkeypatch):
-    ev = eval_module("legacy")
-    args = parse(ev, monkeypatch, "--t-raw", "4096", "--context-len", "1024")
-    ev.T_RAW = args.t_raw
+    assert args.context_len == 1024
     assert ev.build_predictor(args, None, None, dataset(), CPU).t_raw == 1024
+
+
+def test_context_len_4096_reads_the_training_window(monkeypatch):
+    ev = eval_module("training_window")
+    args = parse(ev, monkeypatch, "--t-raw", "4096", "--context-len", "4096")
+    predictor = ev.build_predictor(args, None, None, dataset(), CPU)
+    assert predictor.t_raw == 4096
+    assert predictor._prepare_context(np.arange(10_000, dtype=np.float32)).shape == (1, 4096, 1)
 
 
 def test_strategy_r_reads_the_same_window(monkeypatch):
     ev = eval_module("r")
     args = parse(ev, monkeypatch, "--t-raw", "4096", "--strategy", "R",
-                 "--zero-head")
-    ev.T_RAW = args.t_raw
+                 "--zero-head", "--context-len", "4096")
     args.reconstruction_latent = "encoder"   # load_models reads it off the checkpoint
     predictor = ev.build_predictor(args, None, None, dataset(), CPU)
     assert isinstance(predictor, ev.ReconstructionPredictor)

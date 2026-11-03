@@ -102,6 +102,11 @@ HEAD_CONFIG = dict(
 )
 
 T_RAW = 1024       # Backbone context window
+# The past values that the backbone reads for each forecast (--context-len).
+# Every score so far read 1024. The training window (4096 for our runs)
+# scored worse on grey 400k: GM-Relative MASE 1.0555 against 1.0331, the
+# short configs 3.8% worse (their short series get much more zero padding).
+CONTEXT_LEN = 1024
 BACKBONE_C = 4     # Backbone expects 4 channels
 MODEL_NAME = "contrastive_tiny"
 
@@ -246,11 +251,10 @@ class ContrastiveForecasterPredictor(RepresentablePredictor):
         self.backbone = backbone
         self.head = head
         self.device = device
-        # None reads the module values at construction: load_models sets
-        # them from --t-raw and --n-channels after this module is imported.
-        # A default of the signature kept the values of the import
-        # (T_RAW = 1024): every score before --context-len read 1024 values.
-        self.t_raw = T_RAW if t_raw is None else t_raw
+        # None reads CONTEXT_LEN (1024), the context of every score so
+        # far. BACKBONE_C is read at construction: load_models sets it from
+        # --n-channels after this module is imported.
+        self.t_raw = CONTEXT_LEN if t_raw is None else t_raw
         self.backbone_c = BACKBONE_C if backbone_c is None else backbone_c
         self.quantile_levels = quantile_levels or QUANTILE_LEVELS
         self.strategy = strategy
@@ -570,12 +574,12 @@ def parse_args():
     # state_dict load will fail with a size mismatch on a non-default backbone.
     p.add_argument("--t-raw", type=int, default=None,
                    help="Backbone context window. Overrides T_RAW (default 1024).")
-    p.add_argument("--context-len", type=int, default=None,
+    p.add_argument("--context-len", type=int, default=CONTEXT_LEN,
                    help="Past values that the backbone reads for each "
-                        "forecast. Default: --t-raw, the window that the "
-                        "backbone trains on. Every score before this flag "
-                        "read 1024 values (the predictor kept the T_RAW of "
-                        "the import): --context-len 1024 reproduces one.")
+                        "forecast. Default 1024, the context of every score "
+                        "so far. --context-len 4096 reads the training "
+                        "window of our runs: on grey 400k it scored worse "
+                        "(1.0555 against 1.0331), the short configs most.")
     p.add_argument("--n-channels", "--backbone-c", dest="n_channels", type=int,
                    default=None,
                    help="Backbone input channel count C. Overrides "
@@ -812,7 +816,7 @@ def load_models(args, device):
     if args.context_pad == "auto":
         args.context_pad = "zeros" if zero_pad else "first"
     print(f"  [eval] context pad: {args.context_pad}, context "
-          f"{args.context_len or T_RAW} values")
+          f"{args.context_len} values")
     sw = sd.get("seasonality_embedding.embedding.weight")
     BACKBONE_CONFIG["seasonality_emb_dim"] = (sw.shape[1] if sw is not None else 0)
     if "log_inv_tau" in sd:
