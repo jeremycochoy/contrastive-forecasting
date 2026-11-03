@@ -4,7 +4,8 @@ forecaster of 6 layers, the same with the L_rep weight 0.1 at each
 step, the same with muP, the same with the L_rep weight 0.05 and the depth
 weights 1 / 2^j, the muP run with lr 5.6e-5, with the EMA 0.999975, or with
 lr 3.36e-4 and the input init 1.008, GRN+EMA 0.9998 with the L_rep weight 0.03 and the depth
-weights 1 / 2^j, the same with the EMA 0.99995), next to the forecast of MPE
+weights 1 / 2^j, the same with the EMA 0.99995, and the cooldown of GRY: its
+240k save with the lr annealed to 0 over 48k steps), next to the forecast of MPE
 (Moirai, patch heads, EWMA, new data, batch 256: x 4 for the data seen).
 Writes plots/forecast_and_reconstruction.png: three panels on one x axis.
 
@@ -15,7 +16,7 @@ Writes plots/forecast_and_reconstruction.png: three panels on one x axis.
 
 A dashed vertical line joins the scores of one checkpoint in the panels. The
 legend gives each run a three-letter code (from its colour: MAG, GRY, YEL, VIO,
-BLU, ORA, LIM, PNK, RED, BRN), and for orange, lime and pink the result that
+BLU, ORA, LIM, PNK, RED, BRN, BLK), and for orange, lime and pink the result that
 the user expected before their start.
 
 Reads the forecast of MPE of #412 and #425
@@ -56,6 +57,8 @@ GRN_EMA099995 = "grn_ema099995"
 GRN_EMA099995_COLOUR = "#ff00ff"
 GRN_EMA099995_F6 = "grn_ema099995_f6"
 GRN_EMA099995_F6_COLOUR = "#7f7f7f"  # no other run of this figure has this colour
+GRN_EMA099995_F6_CD240 = "grn_ema099995_f6_cd240"
+GRN_EMA099995_F6_CD240_COLOUR = "#000000"  # black: no other run of this figure has this colour
 GRN_EMA099995_F6_REP01 = "grn_ema099995_f6_rep01"
 GRN_EMA099995_F6_REP01_COLOUR = "#ffb000"  # no other run of this figure has this colour
 GRN_EMA099995_F6_REP01_MUP = "grn_ema099995_f6_rep01_mup"
@@ -78,13 +81,15 @@ NEW_RUNS = [GRN_EMA099995, GRN_EMA099995_F6,
             GRN_EMA099995_F6_REP01, GRN_EMA099995_F6_REP01_MUP,
             GRN_EMA099995_F6_REP005_HALVING_MUP, GRN_EMA099995_F6_REP01_MUP_LR56,
             GRN_EMA0999975_F6_REP01_MUP, GRN_EMA099995_F6_REP01_MUP_HID56,
-            GRN_EMA09998_REP003_HALVING, GRN_EMA099995_REP003_HALVING]
+            GRN_EMA09998_REP003_HALVING, GRN_EMA099995_REP003_HALVING,
+            GRN_EMA099995_F6_CD240]
 # The newest runs: drawn above the others, so that their first points show.
 ON_TOP = {GRN_EMA099995, GRN_EMA099995_F6, GRN_EMA099995_F6_REP01,
           GRN_EMA099995_F6_REP01_MUP, GRN_EMA099995_F6_REP005_HALVING_MUP,
           GRN_EMA099995_F6_REP01_MUP_LR56, GRN_EMA0999975_F6_REP01_MUP,
           GRN_EMA099995_F6_REP01_MUP_HID56,
-          GRN_EMA09998_REP003_HALVING, GRN_EMA099995_REP003_HALVING}
+          GRN_EMA09998_REP003_HALVING, GRN_EMA099995_REP003_HALVING,
+          GRN_EMA099995_F6_CD240}
 MPE = "cf421ew_moirai_native"
 # Its R (transformer head 0.12 to 0.21) lies far above the R panels.
 FORECAST_ONLY = {MPE}
@@ -98,6 +103,8 @@ RUNS = [
      "stopped at 391k", GRN_EMA099995_COLOUR, "8"),
     (GRN_EMA099995_F6, r"$\mathbf{GRY}$  MAG with 6 forecaster layers (the size of MPE), "
      "stopped at 440k", GRN_EMA099995_F6_COLOUR, "H"),
+    (GRN_EMA099995_F6_CD240, r"$\mathbf{BLK}$  GRY from its 240k save, the lr a cosine to 0 "
+     "over 48k steps (cooldown), 288k", GRN_EMA099995_F6_CD240_COLOUR, ">"),
     (GRN_EMA099995_F6_REP01, r"$\mathbf{YEL}$  GRY with L_rep 0.1, stopped at 583k",
      GRN_EMA099995_F6_REP01_COLOUR, "^"),
     (GRN_EMA099995_F6_REP01_MUP, r"$\mathbf{VIO}$  YEL with muP, lr 1e-4, to 665k",
@@ -128,7 +135,8 @@ OUR_R_TABLES = ["grn_ema099995", "grn_ema099995_f6",
                 "grn_ema099995_f6_rep01", "grn_ema099995_f6_rep01_mup",
                 "grn_ema099995_f6_rep005_halving_mup", "grn_ema099995_f6_rep01_mup_lr56",
                 "grn_ema0999975_f6_rep01_mup", "grn_ema099995_f6_rep01_mup_hid56",
-                "grn_ema09998_rep003_halving", "grn_ema099995_rep003_halving"]
+                "grn_ema09998_rep003_halving", "grn_ema099995_rep003_halving",
+                "grn_ema099995_f6_cd240"]
 # panel title, y range, the score tables, and whether the forecast of the
 # runs of this report comes from results/scores.tsv
 PANELS = [
