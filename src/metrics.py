@@ -47,8 +47,15 @@ def q_random(f: Tensor, h_target: Tensor, eps: float = 1e-8) -> Tensor:
     # A cyclic shift pairs no row with itself. torch.randperm can, and a
     # row paired with itself has the error 0, which pulls the denominator
     # down at a small B (#151: at B = 8 the mean Q of a random forecast was
-    # about 1.10, and 1.005 with the shift).
-    shift = int(torch.randint(1, B, (1,)).item()) if B > 1 else 0
+    # about 1.10, and 1.005 with the shift). The shift comes from the draw of
+    # the old pairing, torch.randperm(B): the training loop calls this metric,
+    # so it must take from the global random stream what it always took, or
+    # every later draw of the run changes. The first entry, else the second
+    # when the first is 0, is uniform on 1..B-1.
+    shift = 0
+    if B > 1:
+        drawn = torch.randperm(B, device=f.device)
+        shift = int(drawn[0].item()) or int(drawn[1].item())
     perm = (torch.arange(B, device=f.device) + shift) % B
     num = _err(f, h_target, eps).mean(dim=0)                          # (...,)
     denom = _err(h_target, h_target[perm], eps).mean(dim=0).clamp_min(eps)

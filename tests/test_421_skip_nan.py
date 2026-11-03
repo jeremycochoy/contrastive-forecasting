@@ -34,6 +34,7 @@ import torch
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
+from tests.losses_csv import rows_without_q_random  # noqa: E402
 
 import src.forecasting_head as fh  # noqa: E402
 from src.forecasting_head import mean_std_inputs  # noqa: E402
@@ -581,8 +582,8 @@ def test_off_the_losses_csv_equals_the_commit_before(tmp_path):
     new = run(REPO_ROOT, tmp_path / "new", "--mixup-p", "1.0",
               "--total-steps", "3", *data)
     assert old.returncode == 0 and new.returncode == 0, new.stderr[-2000:]
-    assert ((tmp_path / "new" / "r_losses.csv").read_bytes()
-            == (tmp_path / "old" / "r_losses.csv").read_bytes())
+    assert (rows_without_q_random(tmp_path / "new" / "r_losses.csv")
+            == rows_without_q_random(tmp_path / "old" / "r_losses.csv"))
 
 
 # ---------------------------------------------------------------------------

@@ -38,6 +38,7 @@ import torch
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
+from tests.losses_csv import rows_without_q_random  # noqa: E402
 
 import src.forecasting_head as fh  # noqa: E402
 from src.checkpoint import multi_patch_sizes_of  # noqa: E402
@@ -185,8 +186,8 @@ def test_the_cyan_run_writes_the_losses_csv_of_the_base_commit(tmp_path):
     assert old.returncode == 0, old.stdout[-2000:] + old.stderr[-2000:]
     assert new.returncode == 0, new.stdout[-2000:] + new.stderr[-2000:]
     assert len(losses(tmp_path / "new")) == 3
-    assert ((tmp_path / "new" / "r_losses.csv").read_bytes()
-            == (tmp_path / "old" / "r_losses.csv").read_bytes())
+    assert (rows_without_q_random(tmp_path / "new" / "r_losses.csv")
+            == rows_without_q_random(tmp_path / "old" / "r_losses.csv"))
 
 
 def test_the_objective_by_row_with_one_group_trains_as_before(tmp_path):

@@ -37,6 +37,7 @@ import torch
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
+from tests.losses_csv import rows_without_q_random  # noqa: E402
 
 import src.forecasting_head as fh  # noqa: E402
 from src.checkpoint import load_backbone_from_checkpoint  # noqa: E402
@@ -1120,8 +1121,9 @@ NO_PADDING_RUN = (
 @pytest.mark.parametrize("case", ["no_padding", "stream_no_mixing"])
 def test_the_flag_off_writes_the_losses_csv_of_the_421_commit(case, tmp_path):
     """With --meanstd-z-max 0, a run that no fix of this round touches
-    writes the losses CSV of #421 (e9985049) byte for byte: a run without
-    padding, and a run on the stream without mixup and triplets."""
+    writes the losses CSV of #421 (e9985049) value for value, but for the
+    r2_random column of #440 (tests/losses_csv.py): a run without padding,
+    and a run on the stream without mixup and triplets."""
     old_root = git_tree("e9985049", tmp_path)
     flags = list(NO_PADDING_RUN)
     if case == "stream_no_mixing":
@@ -1135,4 +1137,4 @@ def test_the_flag_off_writes_the_losses_csv_of_the_421_commit(case, tmp_path):
     old = losses_csv(old_root, tmp_path / "old", flags)
     new = losses_csv(REPO_ROOT, tmp_path / "new",
                      flags + ["--meanstd-z-max", "0"])
-    assert new == old
+    assert rows_without_q_random(new) == rows_without_q_random(old)
