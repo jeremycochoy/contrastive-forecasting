@@ -9,6 +9,7 @@ Magenta (the same with 3 forecaster layers) has its lowest MASE, 1.0723, at 140k
 At 200k, the forecast MASE is 1.0467 for yellow (grey with the L_rep weight 0.1 at each step), 1.0351 for grey and 1.0879 for red (EMA 0.9998, the L_rep weight 0.03 at each step, depth j of L_align at the weight 1/2^j).
 DGY (dark grey) is grey from its 240k save, with the learning rate annealed from 5.6e-5 to 0 by a cosine over 48k steps (the cooldown of a WSD schedule).
 Its forecast MASE at 288k is 1.0238, the lowest of the report.
+Its R scores at 288k are 0.0388 (transformer head) and 0.2000 (linear head), between the scores of grey at 240k (0.0304 and 0.1973) and at 300k (0.0429 and 0.2039).
 Violet has its lowest forecast MASE, 1.0779, at 460k, and 1.0977 at 600k.
 
 ## Learning rate
@@ -126,4 +127,6 @@ Each forecast score of this report comes from the eval of this time:
 - The forecast head trains on `f` only, and B4 decodes the encoder latent of the context and the rolled `f`.
 - The rollout gives the raw forecaster output back to the forecaster.
 
-Session think-contrastive fixes the three points.
+Session think-contrastive fixes the second and the third point (#443, #446 and #447).
+With the normalised rollout of #446, grey at 400k gets 1.0331 with 1024 context values and 1.0555 with 4096 values.
+So the eval keeps 1024 values (#449).
