@@ -123,8 +123,9 @@ python scripts/recover.py --device cuda --model-path model.pth --epochs 20000
 - [`docs/mup.md`](docs/mup.md) — `--mup-base-d-model`, which tunes the
   learning rate at a small width and keeps it at a larger width (muP).
 - [`docs/sigreg.md`](docs/sigreg.md) — the integration window of SIGReg,
-  `W = 6/σ` since the window fix, and `--sigreg-legacy-window`, which
-  restores the old window to reproduce an older run.
+  `W = 6/σ` since the window fix, `--sigreg-legacy-window`, which restores
+  the old window to reproduce an older run, and `--sigreg-forecast`, which
+  adds SIGReg on the forecaster output.
 
 ### How large is the model?
 

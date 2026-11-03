@@ -42,6 +42,19 @@ projections against `N(0, 1)`. A weight that was tuned with the old bound
 now acts much more strongly. Check the `sigreg_e` and `sigreg_h` columns of
 `<run>_losses.csv` against the other terms.
 
+## On the forecast latent
+
+`--sigreg-forecast` adds the same statistic on the forecaster output `f`,
+the one-step forecast latent, at its real positions. The loss adds
+`--sigreg-forecast-weight` (default 0.1) times it. The term is off by
+default. With the flag, the losses CSV gets a trailing column `sigreg_f`.
+The CSV of a run without the flag keeps its columns.
+
+```bash
+python experiments/2026-04-27_freq-embedding/scripts/train.py \
+  --sigreg-encoding --sigreg-forecast --sigreg-forecast-weight 0.1 ...
+```
+
 ## Reproduce an older run
 
 `--sigreg-legacy-window` restores the bound `6/√K`. Use it only to reproduce
