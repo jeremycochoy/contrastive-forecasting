@@ -1,9 +1,16 @@
-"""Heat map of the 40k grid: small runs with the flags of violet (muP base 64/3/3,
-init output 0 and input 0.3, L_rep 0.1, batch 64, seed 20260520) at width 64,
-1 encoder layer and 3 forecaster layers, 40k steps, the EMA ramp to 1.0 over
-the 40k steps. The rows are the learning rate, the columns the EMA start
-(--ema-tau). Each cell is the forecast GM-Relative MASE of head B4 at 40k
-(30k head steps, 97 configs). Lower is better. A grey cell has no score yet.
+"""Heat map of the 40k grid and of its second round, on one colour scale.
+
+The grid: small runs with the flags of violet (muP base 64/3/3, init output 0
+and input 0.3, L_rep 0.1, batch 64, seed 20260520) at width 64, 1 encoder layer
+and 3 forecaster layers, 40k steps, the EMA ramp to 1.0 over the 40k steps. The
+rows are the learning rate, the columns the EMA start (--ema-tau).
+
+The second round (the user, 11-02 and 11-03): runs from the best cell (lr 1e-4,
+EMA start 0.99995), each with one change (the losses of blue, batch 128, or an
+lr schedule). Its panel has the best cell as its first row.
+
+Each cell is the forecast GM-Relative MASE of head B4 at 40k (30k head steps,
+97 configs). Lower is better. A grey cell has no score yet.
 
 The heads of the runs trained on cf-recon (vast 56873094) or on elisa. SCORES
 holds their score files score_<run>_bb40k_h30k_control.txt (elisa) and a copy
@@ -30,6 +37,14 @@ LRS = {"5e-5": ("5e-5", "lr5em5"), "1e-4": ("1e-4 (violet)", "lr1em4"),
        "2e-4": ("2e-4", "lr2em4")}
 TAUS = {"0.99995": ("0.99995 (violet)", "tau99995"),
         "0.999975": ("0.999975 (lime)", "tau999975")}
+BEST = "g40_lr1em4_tau99995"
+# run -> (label, lr): the second round, each run one change from the best cell
+ROUND2 = {BEST: ("best cell (no change)", "1e-4"),
+          "g40b_lr1em4_tau99995_rep005h": ("losses of blue:\nL_rep 0.05, depths 1/2^j", "1e-4"),
+          "g40b_lr1em4_tau99995_bs128": ("batch 128", "1e-4"),
+          "g40c_lr1em4_tau99995_cos": ("lr cosine\n1e-4 to 1e-5", "1e-4 to 1e-5"),
+          "g40w_lr1em3_wu4k_cos": ("lr warmup to 1e-3,\nthen cosine to 1e-4",
+                                   "warmup to 1e-3, cosine to 1e-4")}
 
 
 def run_score(run):
@@ -41,23 +56,38 @@ def run_score(run):
     return float(found[0].read_text().split()[-1]) if found else None
 
 
+def as_value(score):
+    return np.nan if score is None else score
+
+
 def grid_scores():
     """Array [learning rate, EMA start] of the scores, NaN for no score."""
     grid = np.full((len(LRS), len(TAUS)), np.nan)
     for i, (_, lr_part) in enumerate(LRS.values()):
         for j, (_, tau_part) in enumerate(TAUS.values()):
-            score = run_score(f"g40_{lr_part}_{tau_part}")
-            grid[i, j] = np.nan if score is None else score
+            grid[i, j] = as_value(run_score(f"g40_{lr_part}_{tau_part}"))
     return grid
 
 
-def write_table(grid):
+def round2_scores():
+    """Array [run of ROUND2, 1] of the scores, NaN for no score."""
+    return np.array([[as_value(run_score(run))] for run in ROUND2])
+
+
+def score_text(value):
+    return "" if np.isnan(value) else f"{value:.4f}"
+
+
+def write_table(grid, round2):
     with open(TABLE, "w") as f:
-        f.write("run\tlr\tema_tau\tforecast_gm_mase\n")
+        f.write("run\tlr\tema_tau\tchange\tforecast_gm_mase\n")
         for i, (lr, (_, lr_part)) in enumerate(LRS.items()):
             for j, (tau, (_, tau_part)) in enumerate(TAUS.items()):
-                score = "" if np.isnan(grid[i, j]) else f"{grid[i, j]:.4f}"
-                f.write(f"g40_{lr_part}_{tau_part}\t{lr}\t{tau}\t{score}\n")
+                f.write(f"g40_{lr_part}_{tau_part}\t{lr}\t{tau}\t\t{score_text(grid[i, j])}\n")
+        for k, (run, (label, lr)) in enumerate(ROUND2.items()):
+            if run != BEST:
+                change = label.replace("\n", " ")
+                f.write(f"{run}\t{lr}\t0.99995\t{change}\t{score_text(round2[k, 0])}\n")
 
 
 def cell_text(ax, i, j, score, low, high):
@@ -70,43 +100,59 @@ def cell_text(ax, i, j, score, low, high):
             color="white" if dark else "black", fontweight="bold")
 
 
-def mark_best(ax, grid):
-    """A red frame around the lowest score, when there are 2 scores or more."""
-    if np.sum(~np.isnan(grid)) < 2:
+def mark_best(ax, values):
+    """A red frame around the lowest score of the panel, when it has 2 scores or more."""
+    if np.sum(~np.isnan(values)) < 2:
         return
-    i, j = np.unravel_index(np.nanargmin(grid), grid.shape)
+    i, j = np.unravel_index(np.nanargmin(values), values.shape)
     ax.add_patch(Rectangle((j - 0.5, i - 0.5), 1, 1, fill=False, edgecolor="red", linewidth=3))
 
 
-def color_scale(grid):
-    """The lowest and highest score, at least 0.01 apart (one score or two close ones)."""
-    low, high = np.nanmin(grid), np.nanmax(grid)
+def color_scale(*panels):
+    """The lowest and highest score of all panels, at least 0.01 apart."""
+    values = np.concatenate([p.ravel() for p in panels])
+    low, high = np.nanmin(values), np.nanmax(values)
     if high - low < 0.01:
         low, high = (low + high) / 2 - 0.005, (low + high) / 2 + 0.005
     return low, high
 
 
-def draw_grid(ax, grid, low, high):
+def draw_cells(ax, values, low, high):
     cmap = plt.get_cmap("viridis_r").copy()
     cmap.set_bad("#eeeeee")
-    image = ax.imshow(np.ma.masked_invalid(grid), cmap=cmap, vmin=low, vmax=high, aspect="auto")
-    for i in range(len(LRS)):
-        for j in range(len(TAUS)):
-            cell_text(ax, i, j, grid[i, j], low, high)
-    mark_best(ax, grid)
-    ax.set_xticks(range(len(TAUS)), [label for label, _ in TAUS.values()])
-    ax.set_yticks(range(len(LRS)), [label for label, _ in LRS.values()])
-    ax.set(xlabel="EMA start (--ema-tau)", ylabel="learning rate")
+    image = ax.imshow(np.ma.masked_invalid(values), cmap=cmap, vmin=low, vmax=high, aspect="auto")
+    for i in range(values.shape[0]):
+        for j in range(values.shape[1]):
+            cell_text(ax, i, j, values[i, j], low, high)
+    mark_best(ax, values)
     return image
 
 
-def main():
-    grid = grid_scores()
-    write_table(grid)
-    fig, ax = plt.subplots(figsize=(6.5, 5))
-    image = draw_grid(ax, grid, *color_scale(grid))
-    fig.colorbar(image, ax=ax, label="forecast GM-Relative MASE (lower is better)")
+def draw_grid(ax, grid, low, high):
+    image = draw_cells(ax, grid, low, high)
+    ax.set_xticks(range(len(TAUS)), [label for label, _ in TAUS.values()])
+    ax.set_yticks(range(len(LRS)), [label for label, _ in LRS.values()])
+    ax.set(xlabel="EMA start (--ema-tau)", ylabel="learning rate")
     ax.set_title(f"40k grid: forecast at 40k ({int(np.sum(~np.isnan(grid)))} of 6 scored)")
+    return image
+
+
+def draw_round2(ax, round2, low, high):
+    draw_cells(ax, round2, low, high)
+    ax.set_xticks([0], ["the flags of the best cell,\nwith the change of the row"])
+    ax.set_yticks(range(len(ROUND2)), [label for label, _ in ROUND2.values()], fontsize=9)
+    scored = int(np.sum(~np.isnan(round2[1:])))
+    ax.set_title(f"Second round: one change each from\nthe best cell ({scored} of {len(ROUND2) - 1} scored)")
+
+
+def main():
+    grid, round2 = grid_scores(), round2_scores()
+    write_table(grid, round2)
+    low, high = color_scale(grid, round2)
+    fig, (left, right) = plt.subplots(1, 2, figsize=(12, 5.5), gridspec_kw={"width_ratios": [2, 1.2]})
+    image = draw_grid(left, grid, low, high)
+    draw_round2(right, round2, low, high)
+    fig.colorbar(image, ax=[left, right], label="forecast GM-Relative MASE (lower is better)")
     fig.savefig(OUT, dpi=130, bbox_inches="tight")
 
 
