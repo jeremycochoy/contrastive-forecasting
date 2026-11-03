@@ -56,9 +56,7 @@ def test_sigreg_uniform_on_sphere_is_small():
     K = 64
     N = 8192
     z = F.normalize(torch.randn(N, K), p=2, dim=-1)
-    # post_normalize=False because z is already on the sphere; either path
-    # should now return the same value modulo the random projections.
-    out = sigreg_loss(z, M=256, T_knots=17, post_normalize=False)
+    out = sigreg_loss(z, M=256, T_knots=17)
     # The floor is the sampling noise of the empirical characteristic
     # function: about (2W - sqrt(pi)/sigma) / N = 10.2 sqrt(K) / N = 0.010.
     assert out.item() < 0.03, f"expected ~0 for uniform sphere; got {out.item()}"
@@ -73,8 +71,8 @@ def test_sigreg_collapsed_is_large():
     e1[0] = 1.0
     z = e1.expand(N, K).clone()
     uniform = F.normalize(torch.randn(N, K), p=2, dim=-1)
-    out_collapsed = sigreg_loss(z, M=256, T_knots=17, post_normalize=False)
-    out_uniform = sigreg_loss(uniform, M=256, T_knots=17, post_normalize=False)
+    out_collapsed = sigreg_loss(z, M=256, T_knots=17)
+    out_uniform = sigreg_loss(uniform, M=256, T_knots=17)
     assert out_collapsed.item() > 10.0 * out_uniform.item(), (
         f"collapsed={out_collapsed.item()} should dominate "
         f"uniform={out_uniform.item()}")
@@ -91,10 +89,9 @@ def test_default_sigma2_is_one_over_K():
     K = 128
     N = 8192
     z = F.normalize(torch.randn(N, K), p=2, dim=-1)
-    out_default = sigreg_loss(z, M=128, T_knots=17, post_normalize=False)
+    out_default = sigreg_loss(z, M=128, T_knots=17)
     out_explicit = sigreg_loss(
-        z, sigma2=1.0 / K, W=6.0 * math.sqrt(K),
-        M=128, T_knots=17, post_normalize=False)
+        z, sigma2=1.0 / K, W=6.0 * math.sqrt(K), M=128, T_knots=17)
     # Fresh draws each call. Both sit at the sampling-noise floor,
     # about 10.2 sqrt(K) / N = 0.014.
     assert out_default.item() < 0.04
@@ -158,42 +155,6 @@ def test_scale_mismatch_gives_its_analytic_statistic():
 
 
 # ---------------------------------------------------------------------------
-# post_normalize flag
-# ---------------------------------------------------------------------------
-
-
-def test_post_normalize_unit_sphere_invariance():
-    """When z is already on the sphere, post_normalize=True is a no-op."""
-    torch.manual_seed(123)
-    K = 32
-    N = 1024
-    z_unit = F.normalize(torch.randn(N, K), p=2, dim=-1)
-    g1 = torch.Generator().manual_seed(7)
-    g2 = torch.Generator().manual_seed(7)
-    a_pre = F.normalize(torch.randn(128, K, generator=g1), p=2, dim=-1)
-    a_post = F.normalize(torch.randn(128, K, generator=g2), p=2, dim=-1)
-    # Use the same `a` to make the two calls byte-identical.
-    out_a = sigreg_loss(z_unit, projections=a_pre, T_knots=17, post_normalize=False)
-    out_b = sigreg_loss(z_unit, projections=a_post, T_knots=17, post_normalize=True)
-    assert torch.isclose(out_a, out_b, atol=1e-6)
-
-
-def test_post_normalize_changes_value_for_scaled_input():
-    """If z is NOT unit-norm, post_normalize=True vs False give different values."""
-    torch.manual_seed(0)
-    K = 32
-    z = F.normalize(torch.randn(2048, K), p=2, dim=-1) * 10.0  # norm = 10
-    g1 = torch.Generator().manual_seed(7)
-    a = F.normalize(torch.randn(128, K, generator=g1), p=2, dim=-1)
-    out_raw = sigreg_loss(z, projections=a, T_knots=17, post_normalize=False)
-    out_norm = sigreg_loss(z, projections=a, T_knots=17, post_normalize=True)
-    assert not torch.isclose(out_raw, out_norm, rtol=0.1), (
-        f"raw={out_raw.item()} normed={out_norm.item()} should differ")
-    # post_normalize=True puts vectors back on the sphere → much smaller.
-    assert out_norm.item() < out_raw.item()
-
-
-# ---------------------------------------------------------------------------
 # Gradient: SIGReg is supposed to push the encoder toward a uniform pool —
 # the term must be differentiable end-to-end.
 # ---------------------------------------------------------------------------
@@ -207,16 +168,6 @@ def test_sigreg_loss_admits_backward():
     assert z.grad is not None
     assert torch.isfinite(z.grad).all()
     assert z.grad.abs().sum().item() > 0.0
-
-
-def test_sigreg_loss_post_normalize_admits_backward():
-    """post_normalize path uses F.normalize — backward must still work."""
-    torch.manual_seed(0)
-    z = torch.randn(128, 16, requires_grad=True)
-    out = sigreg_loss(z, M=64, T_knots=17, post_normalize=True)
-    out.backward()
-    assert z.grad is not None
-    assert torch.isfinite(z.grad).all()
 
 
 # ---------------------------------------------------------------------------
