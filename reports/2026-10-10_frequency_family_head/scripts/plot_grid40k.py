@@ -12,7 +12,9 @@ of W and a cosine to 4e-4. Batch 256 comes after these batch-128 results (the
 user, 11-03), on the fixed code. Its panel has that cell as its first row.
 
 Each cell is the forecast GM-Relative MASE of head B4 at 40k (30k head steps,
-97 configs). Lower is better. A grey cell has no score yet.
+97 configs). Lower is better. A grey cell has no score yet. A red frame marks
+the lowest score of a set of rows scored the same way: the rows of the raw
+rollout feedback (bugged scores) and the batch-256 rows (fixed rollout).
 
 The heads of the runs trained on cf-recon (vast 56873094) or on elisa. SCORES
 holds their score files score_<run>_bb40k_h30k_control.txt (elisa) and a copy
@@ -123,11 +125,13 @@ def cell_text(ax, i, j, score, low, high, empty="no score yet"):
             color="white" if dark else "black", fontweight="bold")
 
 
-def mark_best(ax, values):
-    """A red frame around the lowest score of the panel, when it has 2 scores or more."""
-    if np.sum(~np.isnan(values)) < 2:
+def mark_best(ax, values, rows):
+    """A red frame around the lowest score of ``rows``, when they have 2 scores or more."""
+    part = np.full(values.shape, np.nan)
+    part[rows] = values[rows]
+    if np.sum(~np.isnan(part)) < 2:
         return
-    i, j = np.unravel_index(np.nanargmin(values), values.shape)
+    i, j = np.unravel_index(np.nanargmin(part), part.shape)
     ax.add_patch(Rectangle((j - 0.5, i - 0.5), 1, 1, fill=False, edgecolor="red", linewidth=3))
 
 
@@ -140,15 +144,17 @@ def color_scale(*panels):
     return low, high
 
 
-def draw_cells(ax, values, low, high, empty_texts=None):
-    """The cells on one colour scale; ``empty_texts`` gives the text of an empty row."""
+def draw_cells(ax, values, low, high, empty_texts=None, groups=None):
+    """The cells on one colour scale; ``empty_texts`` gives the text of an empty row,
+    ``groups`` the sets of rows that each get a frame on their lowest score (default: all rows)."""
     cmap = plt.get_cmap("viridis_r").copy()
     cmap.set_bad("#eeeeee")
     image = ax.imshow(np.ma.masked_invalid(values), cmap=cmap, vmin=low, vmax=high, aspect="auto")
     for i in range(values.shape[0]):
         for j in range(values.shape[1]):
             cell_text(ax, i, j, values[i, j], low, high, (empty_texts or {}).get(i, "no score yet"))
-    mark_best(ax, values)
+    for rows in groups or [list(range(values.shape[0]))]:
+        mark_best(ax, values, rows)
     return image
 
 
@@ -163,7 +169,9 @@ def draw_grid(ax, grid, low, high):
 
 def draw_round2(ax, round2, low, high):
     planned = {len(ROUND2) + k: when for k, (_, when) in enumerate(PLANNED)}
-    draw_cells(ax, round2, low, high, planned)
+    fixed = [k for k, run in enumerate(ROUND2) if run.endswith("_rollfix")]
+    bugged = [k for k in range(len(ROUND2)) if k not in fixed]
+    draw_cells(ax, round2, low, high, planned, groups=[bugged, fixed])
     ax.set_xticks([0], ["lr 1e-4, EMA start 0.99995, batch 64,\nwith the change of the row"])
     labels = [label for label, _ in ROUND2.values()] + [label for label, _ in PLANNED]
     ax.set_yticks(range(len(labels)), labels, fontsize=9)

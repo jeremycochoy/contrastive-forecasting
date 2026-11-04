@@ -82,6 +82,11 @@ The same run with the SIGReg window fix of #438 gives 1.2866.
 In this run, SIGReg is about 16.4 from step 200 to 35.5k, 100 to 300 times L_align.
 Between 35.5k and 36.5k, SIGReg falls to about 0.2.
 The batch-256 runs keep the old SIGReg window.
+They train with the normalised rollout feedback of #447, and their scores use the normalised rollout of #446.
+At batch 256, the constant learning rates 4e-4, 8e-4 and 1.6e-3 give 1.0734, 1.0669 and 1.1225.
+The lowest score is at 8e-4.
+The other scores of the grid use the raw rollout feedback, so compare a batch-256 score only with the other batch-256 scores.
+The largest change is on m4_hourly: 2.29 for batch 256 at 8e-4, 4.89 for batch 128 at 4e-4 and 1.55 for MPE.
 
 ![Relative MASE per GIFT-Eval dataset](plots/grid40k_radar.png)
 
@@ -151,7 +156,7 @@ Session think-contrastive fixes the second and the third point (#443, #446 and #
 With the normalised rollout of #446, grey at 400k gets 1.0331 with 1024 context values and 1.0555 with 4096 values.
 So the eval keeps 1024 values (#449).
 With the normalised rollout, DGY at 288k gets 0.9928, violet at 460k 1.0208, grey at 240k 1.0269 and yellow at 200k 1.0304.
-More stops get the normalised rollout on the box and on elisa: grey at 200k gets 1.0215 (raw rollout 1.0351), blue at 100k 1.1190 (raw rollout 1.1435) and violet at 180k 1.0772 (raw rollout 1.1081).
+More stops get the normalised rollout on the box and on elisa: grey at 200k gets 1.0215 (raw rollout 1.0351), blue at 100k 1.1190 (raw rollout 1.1435), violet at 180k 1.0772 (raw rollout 1.1081) and violet at 200k 1.0818 (raw rollout 1.1117).
 Violet at 665k gets 1.0175 with the normalised rollout (raw rollout 1.0799), its lowest score, below its 1.0208 at 460k.
 With the raw rollout, the score of violet rises after 460k. With the normalised rollout, the score at 665k is lower than at 460k.
 With the raw rollout, the same heads give 1.0238, 1.0779, 1.0341 and 1.0467.
