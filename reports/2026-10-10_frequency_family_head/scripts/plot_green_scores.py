@@ -125,7 +125,7 @@ RUNS = [
     (GRN_EMA099995_F6_REP01_MUP, r"$\mathbf{VIO}$  YEL with muP, lr 1e-4, to 665k",
      GRN_EMA099995_F6_REP01_MUP_COLOUR, "p"),
     (GRN_EMA099995_F6_REP005_HALVING_MUP,
-     r"$\mathbf{BLU}$  VIO with L_rep 0.05, depths $1/2^j$, to 200k",
+     r"$\mathbf{BLU}$  VIO with L_rep 0.05, depths $1/2^j$, trains to 665k",
      GRN_EMA099995_F6_REP005_HALVING_MUP_COLOUR, "P"),
     (GRN_EMA099995_F6_REP01_MUP_LR56,
      r"$\mathbf{ORA}$  VIO with lr 5.6e-5 (the lr of YEL), stopped at 268k" "\n"
