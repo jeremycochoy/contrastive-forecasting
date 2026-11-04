@@ -173,6 +173,8 @@ NORMALISED = STUDY / "results" / "normalised_rollout_scores.tsv"
 # stop_k, gm_rel_mase. The best stop of grey, yellow, violet and DGY first (11-03), then more stops.
 # A rescore replaces the bugged score of its stop in the line of its run (the user, 11-04).
 RESCORES = STUDY / "results" / "best_stop_rescores.tsv"
+# Two scores closer than this at one stop overlap in the forecast panel (about 7 pixels).
+CLOSE = 0.004
 
 
 def read_table(paths):
@@ -232,11 +234,23 @@ def panel_points(tables, forecast):
     return points
 
 
-def draw_on_top(ax, scores, fixed, colour_hex, marker):
-    """The points of ``fixed`` (normalised rollout) again over every line, then a small core
-    of each other point over them: two runs with almost the same score at a stop both show
-    (violet 1.0606 and yellow 1.0623 at 360k)."""
-    for stops, size, zorder in ((sorted(fixed), 7, 5.5), (sorted(set(scores) - fixed), 3.5, 6)):
+def near_later_run(points, arm, stop):
+    """True when a run of ON_TOP that RUNS draws after ``arm`` has almost the same score at
+    ``stop`` (the other runs lie under every point)."""
+    names = [run for run, *_ in RUNS if run in ON_TOP]
+    score = points[arm][stop]
+    return any(abs(points.get(run, {}).get(stop, 9.0) - score) < CLOSE for run in names[names.index(arm) + 1:])
+
+
+def draw_on_top(ax, points, arm, fixed, colour_hex, marker):
+    """The points of ``fixed`` (normalised rollout) again over every line, as a larger ring
+    where a later run has almost the same score at the stop (grey 1.0269 and yellow 1.0257 at
+    240k), then a small core of each other point over them (violet 1.0606 and yellow 1.0623
+    at 360k): two runs with almost the same score at a stop both show."""
+    scores = points[arm]
+    near = {stop for stop in fixed if near_later_run(points, arm, stop)}
+    for stops, size, zorder in ((sorted(near), 11, 5.4), (sorted(fixed - near), 7, 5.5),
+                                (sorted(set(scores) - fixed), 3.5, 6)):
         ax.plot([stop * 1000 for stop in stops], [scores[stop] for stop in stops], marker=marker,
                 ms=size, color=colour_hex, ls="none", zorder=zorder)
 
@@ -267,7 +281,7 @@ def draw_panel(ax, title, y_range, points, starred=None):
             ax.plot(stop * 1000, min(points[arm][stop], y_range[1]), marker="*", ms=13,
                     color="black", alpha=0.25, ls="none", zorder=1.9)
         if starred is not None and arm in ON_TOP:
-            draw_on_top(ax, points[arm], fixed, colour_hex, marker)
+            draw_on_top(ax, points, arm, fixed, colour_hex, marker)
         for stop, value in zip(stops, values):
             if value > y_range[1]:
                 ax.plot(stop * 1000, y_range[1], "^", ms=11, color=colour_hex, clip_on=False)
