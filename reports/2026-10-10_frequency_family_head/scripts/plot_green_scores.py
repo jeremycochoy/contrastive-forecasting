@@ -95,12 +95,12 @@ NEW_RUNS = [GRN_EMA099995, GRN_EMA099995_F6,
             GRN_EMA0999975_F6_REP01_MUP, GRN_EMA099995_F6_REP01_MUP_HID56,
             GRN_EMA09998_REP003_HALVING, GRN_EMA099995_REP003_HALVING,
             GRN_EMA099995_F6_CD240, GRN_EMA09998, GRN_EMA09998_SIGFIX]
-# The newest runs: drawn above the others, so that their first points show.
+# The newest runs: drawn above the others, so that their first points show. RED and BRN
+# lie under them: their points hid violet's rescore at 180k.
 ON_TOP = {GRN_EMA099995, GRN_EMA099995_F6, GRN_EMA099995_F6_REP01,
           GRN_EMA099995_F6_REP01_MUP, GRN_EMA099995_F6_REP005_HALVING_MUP,
           GRN_EMA099995_F6_REP01_MUP_LR56, GRN_EMA0999975_F6_REP01_MUP,
           GRN_EMA099995_F6_REP01_MUP_HID56,
-          GRN_EMA09998_REP003_HALVING, GRN_EMA099995_REP003_HALVING,
           GRN_EMA099995_F6_CD240, GRN_EMA09998, GRN_EMA09998_SIGFIX}
 # A run that resumed from another run's save: its line starts at the score of
 # that save (parent run, stop k), and it is drawn above the other runs.
