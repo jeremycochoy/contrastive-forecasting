@@ -223,6 +223,14 @@ def best_forecasts():
     return {run: (*min(rows, key=lambda r: r[1]), len(rows)) for run, rows in scores.items()}
 
 
+def normalised(run, stop):
+    """True when the forecast score of the run at this stop used the normalised
+    rollout feedback of #446 (results/normalised_rollout_scores.tsv)."""
+    with open(STUDY / "results" / "normalised_rollout_scores.tsv") as f:
+        return any(r["run"] == run and int(r["stop_k"]) == stop
+                   for r in csv.DictReader(f, delimiter="\t"))
+
+
 def mark_best(ax, run, best):
     """A dashed line in the colour of the run at the stop of its best forecast."""
     if run not in best:
@@ -232,6 +240,8 @@ def mark_best(ax, run, best):
     ax.axvline(stop * 1000, color=colour, ls="--", lw=2.0,
                path_effects=[pe.Stroke(linewidth=3.4, foreground="black"), pe.Normal()])
     what = "best forecast" if scored > 1 else "only forecast score so far"
+    if normalised(run, stop):
+        what += "\n(normalised rollout)"
     ax.text(stop * 1000 * 1.08, 0.04, f"{what}:\n{score:.4f} at {stop}k",
             transform=ax.get_xaxis_transform(), color=colour, fontsize=9, fontweight="bold",
             va="bottom", bbox=dict(facecolor="white", alpha=0.9, edgecolor=colour))

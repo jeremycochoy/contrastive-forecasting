@@ -6,6 +6,7 @@
 
 Grey (EMA 0.99995, 6 forecaster layers, stopped at 440k) has the lowest forecast MASE of the GRN runs: 1.0341 at 240k.
 Magenta (the same with 3 forecaster layers) has its lowest MASE, 1.0723, at 140k.
+Magenta and teal (magenta with the EMA 0.9998) are out of this figure, on the request of the user.
 At 200k, the forecast MASE is 1.0467 for yellow (grey with the L_rep weight 0.1 at each step), 1.0351 for grey and 1.0879 for red (EMA 0.9998, the L_rep weight 0.03 at each step, depth j of L_align at the weight 1/2^j).
 DGY (dark grey) is grey from its 240k save, with the learning rate annealed from 5.6e-5 to 0 by a cosine over 48k steps (the cooldown of a WSD schedule).
 Its forecast MASE at 288k is 1.0238, the lowest of the report.
@@ -16,6 +17,8 @@ Its R scores at 665k are 0.0218 (transformer head) and 0.1323 (linear head).
 Blue (violet with the L_rep weight 0.05 and the depth weights 1/2^j) gets 1.0693 at 140k with the normalised rollout of #446.
 At 100k, with the raw rollout, it gets 1.1435.
 At 140k, with the raw rollout, grey gets 1.0414, yellow 1.0600 and violet 1.1169.
+At 180k, blue gets 1.0482 with the normalised rollout, its lowest score.
+At 180k, with the raw rollout, grey gets 1.0421 and yellow 1.0537.
 A light asterisk marks each score with the normalised rollout.
 
 ## Learning rate
@@ -72,7 +75,10 @@ At batch 128, the learning rates 1e-4, 2e-4, 4e-4 and 8e-4 give 1.2124, 1.1926, 
 The lowest score is at 4e-4.
 At batch 128, a warmup to 1e-3 over 4k steps, then a cosine to 4e-4, gives 1.1922.
 The constant learning rate 4e-4 gives 1.1842.
-A run at batch 128 and lr 4e-4 with the SIGReg window fix of #438 trains.
+The same run with the SIGReg window fix of #438 gives 1.2866.
+In this run, SIGReg is about 16.4 from step 200 to 35.5k, 100 to 300 times L_align.
+Between 35.5k and 36.5k, SIGReg falls to about 0.2.
+The batch-256 runs keep the old SIGReg window.
 
 ![Relative MASE per GIFT-Eval dataset](plots/grid40k_radar.png)
 

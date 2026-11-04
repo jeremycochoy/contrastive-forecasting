@@ -15,9 +15,11 @@ Writes plots/forecast_and_reconstruction.png: three panels on one x axis.
   3. The same, linear head.
 
 A dashed vertical line joins the scores of one checkpoint in the panels. The
-legend gives each run a three-letter code (from its colour: MAG, GRY, YEL, VIO,
-BLU, ORA, LIM, PNK, RED, BRN, DGY, TEL, TRQ), and for orange, lime and pink the result that
-the user expected before their start.
+legend gives each run a three-letter code (from its colour: GRY, YEL, VIO,
+BLU, ORA, LIM, PNK, RED, BRN, DGY, TRQ), and for orange, lime and pink the result that
+the user expected before their start. GRN+EMA 0.99995 with 3 forecaster layers
+(MAG) and the same with the EMA 0.9998 (TEL) are out of the figure (the user,
+11-04); TRQ starts at the 100k score of TEL, the save that it resumed.
 
 Reads the forecast of MPE of #412 and #425
 (reports/2026-09-06_moirai_small_size/results/gm_trajectories.tsv,
@@ -108,16 +110,12 @@ OUT = STUDY / "plots" / "forecast_and_reconstruction.png"
 # setting of another run names that run by its code. "expected" gives what the
 # user expected of the run before its start (the user, 10-29 and 10-31).
 RUNS = [
-    (GRN_EMA099995, r"$\mathbf{MAG}$  GRN+EMA 0.99995, 3 forecaster layers, lr 5.6e-5, "
-     "stopped at 391k", GRN_EMA099995_COLOUR, "8"),
-    (GRN_EMA099995_F6, r"$\mathbf{GRY}$  MAG with 6 forecaster layers (the size of MPE), "
-     "stopped at 440k", GRN_EMA099995_F6_COLOUR, "H"),
+    (GRN_EMA099995_F6, r"$\mathbf{GRY}$  GRN+EMA 0.99995, 6 forecaster layers (the size of MPE), "
+     "lr 5.6e-5, stopped at 440k", GRN_EMA099995_F6_COLOUR, "H"),
     (GRN_EMA099995_F6_CD240, r"$\mathbf{DGY}$  GRY from its 240k save, the lr a cosine to 0 "
      "over 48k steps (cooldown), 288k", GRN_EMA099995_F6_CD240_COLOUR, ">"),
-    (GRN_EMA09998, r"$\mathbf{TEL}$  MAG with the EMA 0.9998, stopped at 335k",
-     GRN_EMA09998_COLOUR, "<"),
-    (GRN_EMA09998_SIGFIX, r"$\mathbf{TRQ}$  TEL from its 100k save with the SIGReg window fix (PR #438), "
-     "stopped at 215k", GRN_EMA09998_SIGFIX_COLOUR, "h"),
+    (GRN_EMA09998_SIGFIX, r"$\mathbf{TRQ}$  GRN+EMA 0.9998, 3 forecaster layers, lr 5.6e-5, from its 100k "
+     "save" "\n" "with the SIGReg window fix (PR #438), stopped at 215k", GRN_EMA09998_SIGFIX_COLOUR, "h"),
     (GRN_EMA099995_F6_REP01, r"$\mathbf{YEL}$  GRY with L_rep 0.1, stopped at 583k",
      GRN_EMA099995_F6_REP01_COLOUR, "^"),
     (GRN_EMA099995_F6_REP01_MUP, r"$\mathbf{VIO}$  YEL with muP, lr 1e-4, to 665k",
