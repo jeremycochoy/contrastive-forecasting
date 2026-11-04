@@ -159,6 +159,7 @@ With the normalised rollout, DGY at 288k gets 0.9928, violet at 460k 1.0208, gre
 More stops get the normalised rollout on the box and on elisa: grey at 200k gets 1.0215 (raw rollout 1.0351), blue at 100k 1.1190 (raw rollout 1.1435), violet at 180k 1.0772 (raw rollout 1.1081) and violet at 200k 1.0818 (raw rollout 1.1117).
 Grey at 300k gets 1.0008 with the normalised rollout (raw rollout 1.0370), its lowest score.
 Yellow at 300k gets 1.0245 with the normalised rollout (raw rollout 1.0477), its lowest score.
+Violet at 360k gets 1.0606 with the normalised rollout (raw rollout 1.0874).
 Violet at 665k gets 1.0175 with the normalised rollout (raw rollout 1.0799), its lowest score, below its 1.0208 at 460k.
 With the raw rollout, the score of violet rises after 460k. With the normalised rollout, the score at 665k is lower than at 460k.
 With the raw rollout, the same heads give 1.0238, 1.0779, 1.0341 and 1.0467.
@@ -167,3 +168,4 @@ A light asterisk marks these points.
 At the other stops, the lines give the scores of the raw rollout.
 A box at the lower left of the forecast panel gives the lowest score of each run with the normalised rollout.
 No value is written next to a point, because a value can hide the points near it.
+In the forecast panel, the points with the normalised rollout lie over every line, and a small core of each other point lies over them, so that two runs with almost the same score at a stop both show.

@@ -232,6 +232,15 @@ def panel_points(tables, forecast):
     return points
 
 
+def draw_on_top(ax, scores, fixed, colour_hex, marker):
+    """The points of ``fixed`` (normalised rollout) again over every line, then a small core
+    of each other point over them: two runs with almost the same score at a stop both show
+    (violet 1.0606 and yellow 1.0623 at 360k)."""
+    for stops, size, zorder in ((sorted(fixed), 7, 5.5), (sorted(set(scores) - fixed), 3.5, 6)):
+        ax.plot([stop * 1000 for stop in stops], [scores[stop] for stop in stops], marker=marker,
+                ms=size, color=colour_hex, ls="none", zorder=zorder)
+
+
 def draw_panel(ax, title, y_range, points, starred=None):
     """One line for each run, and an arrow with the value for each point
     above the y range. The y range goes down to the lowest point. A point of
@@ -253,9 +262,12 @@ def draw_panel(ax, title, y_range, points, starred=None):
                 ls=style, lw=2.2, ms=7, label=label,
                 zorder=5 if arm in FRONT else 4 if arm in BRANCHES else 3 if arm in ON_TOP else 2)
         # the asterisk lies under the run lines: a marker of another run near it stays visible
-        for stop in sorted(set(stops) & (starred or {}).get(arm, set())):
+        fixed = set(stops) & (starred or {}).get(arm, set())
+        for stop in sorted(fixed):
             ax.plot(stop * 1000, min(points[arm][stop], y_range[1]), marker="*", ms=13,
                     color="black", alpha=0.25, ls="none", zorder=1.9)
+        if starred is not None and arm in ON_TOP:
+            draw_on_top(ax, points[arm], fixed, colour_hex, marker)
         for stop, value in zip(stops, values):
             if value > y_range[1]:
                 ax.plot(stop * 1000, y_range[1], "^", ms=11, color=colour_hex, clip_on=False)
