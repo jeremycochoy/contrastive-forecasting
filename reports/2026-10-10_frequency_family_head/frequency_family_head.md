@@ -6,7 +6,7 @@
 
 Grey (EMA 0.99995, 6 forecaster layers, stopped at 440k) has the lowest forecast MASE of the GRN runs: 1.0341 at 240k.
 Magenta (the same with 3 forecaster layers) has its lowest MASE, 1.0723, at 140k.
-Magenta and teal (magenta with the EMA 0.9998) are out of this figure, on the request of the user.
+Magenta, teal (magenta with the EMA 0.9998) and TRQ (teal with the SIGReg window fix) are out of this figure, on the request of the user.
 At 200k, the forecast MASE is 1.0467 for yellow (grey with the L_rep weight 0.1 at each step), 1.0351 for grey and 1.0879 for red (EMA 0.9998, the L_rep weight 0.03 at each step, depth j of L_align at the weight 1/2^j).
 DGY (dark grey) is grey from its 240k save, with the learning rate annealed from 5.6e-5 to 0 by a cosine over 48k steps (the cooldown of a WSD schedule).
 Its forecast MASE at 288k is 1.0238, the lowest of the report.

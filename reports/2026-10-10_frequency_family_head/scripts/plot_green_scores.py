@@ -16,10 +16,11 @@ Writes plots/forecast_and_reconstruction.png: three panels on one x axis.
 
 A dashed vertical line joins the scores of one checkpoint in the panels. The
 legend gives each run a three-letter code (from its colour: GRY, YEL, VIO,
-BLU, ORA, LIM, PNK, RED, BRN, DGY, TRQ), and for orange, lime and pink the result that
+BLU, ORA, LIM, PNK, RED, BRN, DGY), and for orange, lime and pink the result that
 the user expected before their start. GRN+EMA 0.99995 with 3 forecaster layers
-(MAG) and the same with the EMA 0.9998 (TEL) are out of the figure (the user,
-11-04); TRQ starts at the 100k score of TEL, the save that it resumed.
+(MAG), the same with the EMA 0.9998 (TEL) and TEL from its 100k save with the
+SIGReg window fix (TRQ) are out of the figure (the user, 11-04). The forecast
+panel gives the value of the last point of the FRONT run.
 
 Reads the forecast of MPE of #412 and #425
 (reports/2026-09-06_moirai_small_size/results/gm_trajectories.tsv,
@@ -114,8 +115,6 @@ RUNS = [
      "lr 5.6e-5, stopped at 440k", GRN_EMA099995_F6_COLOUR, "H"),
     (GRN_EMA099995_F6_CD240, r"$\mathbf{DGY}$  GRY from its 240k save, the lr a cosine to 0 "
      "over 48k steps (cooldown), 288k", GRN_EMA099995_F6_CD240_COLOUR, ">"),
-    (GRN_EMA09998_SIGFIX, r"$\mathbf{TRQ}$  GRN+EMA 0.9998, 3 forecaster layers, lr 5.6e-5, from its 100k "
-     "save" "\n" "with the SIGReg window fix (PR #438), stopped at 215k", GRN_EMA09998_SIGFIX_COLOUR, "h"),
     (GRN_EMA099995_F6_REP01, r"$\mathbf{YEL}$  GRY with L_rep 0.1, stopped at 583k",
      GRN_EMA099995_F6_REP01_COLOUR, "^"),
     (GRN_EMA099995_F6_REP01_MUP, r"$\mathbf{VIO}$  YEL with muP, lr 1e-4, to 665k",
@@ -231,6 +230,10 @@ def draw_panel(ax, title, y_range, points, starred=None):
         ax.plot([s * 1000 for s in stops], values, color=colour_hex, marker=marker,
                 ls=style, lw=2.2, ms=7, label=label,
                 zorder=5 if arm in FRONT else 4 if arm in BRANCHES else 3 if arm in ON_TOP else 2)
+        if arm in FRONT and starred is not None:
+            ax.annotate(f"{values[-1]:.4f}", (stops[-1] * 1000, values[-1]), xytext=(7, -15),
+                        textcoords="offset points", fontsize=10, fontweight="bold",
+                        color=colour_hex, zorder=7)
         for stop in sorted(set(stops) & (starred or {}).get(arm, set())):
             ax.plot(stop * 1000, min(points[arm][stop], y_range[1]), marker="*", ms=15,
                     color="black", alpha=0.25, ls="none", zorder=6)
