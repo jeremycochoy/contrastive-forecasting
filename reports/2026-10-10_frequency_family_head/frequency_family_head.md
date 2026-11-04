@@ -158,6 +158,7 @@ So the eval keeps 1024 values (#449).
 With the normalised rollout, DGY at 288k gets 0.9928, violet at 460k 1.0208, grey at 240k 1.0269 and yellow at 200k 1.0304.
 More stops get the normalised rollout on the box and on elisa: grey at 200k gets 1.0215 (raw rollout 1.0351), blue at 100k 1.1190 (raw rollout 1.1435), violet at 180k 1.0772 (raw rollout 1.1081) and violet at 200k 1.0818 (raw rollout 1.1117).
 Grey at 300k gets 1.0008 with the normalised rollout (raw rollout 1.0370), its lowest score.
+Yellow at 300k gets 1.0245 with the normalised rollout (raw rollout 1.0477), its lowest score.
 Violet at 665k gets 1.0175 with the normalised rollout (raw rollout 1.0799), its lowest score, below its 1.0208 at 460k.
 With the raw rollout, the score of violet rises after 460k. With the normalised rollout, the score at 665k is lower than at 460k.
 With the raw rollout, the same heads give 1.0238, 1.0779, 1.0341 and 1.0467.
