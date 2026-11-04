@@ -179,6 +179,8 @@ Violet at 300k gets 1.0684 with the normalised rollout (raw rollout 1.1043).
 Grey at 1k gets 1.3061 with the normalised rollout (raw rollout 1.2802).
 For grey, the normalised rollout gives higher scores at 1k and 100k, about the same score at 140k, and lower scores from 180k on.
 Violet at 1k gets 1.3273 with the normalised rollout (raw rollout 1.2903).
+Yellow at 1k gets 1.2973 with the normalised rollout (raw rollout 1.2732).
+At 1k, the normalised rollout gives a higher score for each of grey, yellow and violet.
 At 180k, the stop of a low score of blue, the normalised rollout gives grey 1.0265 (raw rollout 1.0421), yellow 1.0399 (raw rollout 1.0537), blue 1.0482 and violet 1.0772.
 Violet at 665k gets 1.0175 with the normalised rollout (raw rollout 1.0799), its lowest score, below its 1.0208 at 460k.
 Violet at 600k gets 1.0208 with the normalised rollout (raw rollout 1.0977).
