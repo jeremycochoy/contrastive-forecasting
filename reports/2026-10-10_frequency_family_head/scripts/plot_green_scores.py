@@ -173,8 +173,9 @@ NORMALISED = STUDY / "results" / "normalised_rollout_scores.tsv"
 # stop_k, gm_rel_mase. The best stop of grey, yellow, violet and DGY first (11-03), then more stops.
 # A rescore replaces the bugged score of its stop in the line of its run (the user, 11-04).
 RESCORES = STUDY / "results" / "best_stop_rescores.tsv"
-# Two scores closer than this at one stop overlap in the forecast panel (about 8 pixels).
-CLOSE = 0.005
+# Two scores closer than this at one stop overlap in the forecast panel: the height of a
+# 7-point marker there (12.6 pixels at dpi 130, 1661 pixels for 1.0 of score).
+CLOSE = 0.0076
 
 
 def read_table(paths):

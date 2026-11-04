@@ -173,6 +173,7 @@ At this stop the normalised rollout gives the higher score, the first stop where
 Yellow at 140k gets 1.0375 with the normalised rollout (raw rollout 1.0600).
 Grey at 40k gets 1.0672 with the normalised rollout (raw rollout 1.0864).
 Violet at 100k gets 1.1030 with the normalised rollout (raw rollout 1.1379).
+Grey at 360k gets 1.0279 with the normalised rollout (raw rollout 1.0438).
 At 180k, the stop of a low score of blue, the normalised rollout gives grey 1.0265 (raw rollout 1.0421), yellow 1.0399 (raw rollout 1.0537), blue 1.0482 and violet 1.0772.
 Violet at 665k gets 1.0175 with the normalised rollout (raw rollout 1.0799), its lowest score, below its 1.0208 at 460k.
 Violet at 600k gets 1.0208 with the normalised rollout (raw rollout 1.0977).
@@ -185,4 +186,4 @@ At the other stops, the lines give the scores of the raw rollout.
 A box at the lower left of the forecast panel gives the lowest score of each run with the normalised rollout.
 No value is written next to a point, because a value can hide the points near it.
 In the forecast panel, the points with the normalised rollout lie over every line, and a small core of each other point lies over them, so that two runs with almost the same score at a stop both show.
-Where two points with the normalised rollout lie less than 0.005 apart at a stop, the first run gets a larger marker around the marker of the second run.
+Where a point with the normalised rollout lies less than 0.0076 (the height of a marker) from a point of a run drawn after it at the same stop, it gets a larger marker.
