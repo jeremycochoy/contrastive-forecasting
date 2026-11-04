@@ -163,6 +163,12 @@ TICKS_K = [1, 10, 40, 100, 200, 400, 665, 1330]
 # The forecast scores of the eval with the normalised rollout feedback (#446):
 # columns run, stop_k, tag. The user (11-03): a light asterisk on these points.
 NORMALISED = STUDY / "results" / "normalised_rollout_scores.tsv"
+# The best stop of grey, yellow, violet and DGY rescored with the normalised rollout feedback
+# (#446) and their official head (rescore_normalised/ on elisa, 11-03): run, stop_k, gm_rel_mase.
+RESCORES = STUDY / "results" / "best_stop_rescores.tsv"
+# yellow's value goes left of its point (the rescore of grey lies right of it), grey's value
+# lower left of its point (the values of blue and DGY lie above and right of it)
+RESCORE_LABEL_OFFSET = {GRN_EMA099995_F6_REP01: (-46, -4), GRN_EMA099995_F6: (-46, -17)}
 
 
 def read_table(paths):
@@ -289,6 +295,26 @@ def legend_entries(axes):
     return [found[label] for label in labels], labels
 
 
+def best_stop_rescores():
+    """``{run: (stop k, score)}`` of RESCORES."""
+    with open(RESCORES) as fh:
+        return {r["run"]: (int(r["stop_k"]), float(r["gm_rel_mase"]))
+                for r in csv.DictReader(fh, delimiter="\t")}
+
+
+def draw_rescores(ax):
+    """Each best-stop rescore: the marker of its run with the light asterisk and its value."""
+    rescored = best_stop_rescores()
+    for arm, _, colour_hex, marker in RUNS:
+        if arm not in rescored:
+            continue
+        stop, score = rescored[arm]
+        ax.plot(stop * 1000, score, marker=marker, ms=8, color=colour_hex, ls="none", zorder=6)
+        ax.plot(stop * 1000, score, marker="*", ms=15, color="black", alpha=0.25, ls="none", zorder=7)
+        ax.annotate(f"{score:.4f}", (stop * 1000, score), xytext=RESCORE_LABEL_OFFSET.get(arm, (7, -4)),
+                    textcoords="offset points", fontsize=9, fontweight="bold", color=colour_hex, zorder=7)
+
+
 def main():
     fig, axes = plt.subplots(3, 1, sharex=True, figsize=(11, 12))
     all_points = []
@@ -296,6 +322,8 @@ def main():
     for ax, (title, y_range, tables, forecast) in zip(axes, PANELS):
         all_points.append(panel_points(tables, forecast))
         draw_panel(ax, title, y_range, all_points[-1], starred if forecast else None)
+        if forecast:
+            draw_rescores(ax)
     style_x(axes[-1])
     # Blank rows after the older runs: the runs of this report fill the left column.
     handles, labels = legend_entries(axes)

@@ -20,6 +20,7 @@ At 140k, with the raw rollout, grey gets 1.0414, yellow 1.0600 and violet 1.1169
 At 180k, blue gets 1.0482 with the normalised rollout, its lowest score.
 At 180k, with the raw rollout, grey gets 1.0421 and yellow 1.0537.
 A light asterisk marks each score with the normalised rollout.
+With the normalised rollout, the best stops of grey (1.0269 at 240k), yellow (1.0304 at 200k) and violet (1.0208 at 460k) are below blue at 180k (1.0482).
 
 ## Learning rate
 
@@ -149,4 +150,5 @@ With the normalised rollout of #446, grey at 400k gets 1.0331 with 1024 context 
 So the eval keeps 1024 values (#449).
 With the normalised rollout, DGY at 288k gets 0.9928, violet at 460k 1.0208, grey at 240k 1.0269 and yellow at 200k 1.0304.
 With the raw rollout, the same heads give 1.0238, 1.0779, 1.0341 and 1.0467.
-The figure keeps the scores of the raw rollout for these runs.
+The lines of the figure give the scores of the raw rollout for these runs.
+A separate point with a light asterisk gives the score of the normalised rollout at each of these 4 stops (results/best_stop_rescores.tsv).
