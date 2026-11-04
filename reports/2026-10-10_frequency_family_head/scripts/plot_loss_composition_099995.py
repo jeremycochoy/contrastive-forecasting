@@ -57,6 +57,9 @@ STUDY = Path(__file__).resolve().parent.parent
 RUNS_DIR = Path("/home/jupyter/cf_runs")
 TABLE = STUDY / "results" / "loss_parts_099995_binned.tsv"
 SCORES = STUDY / "results" / "scores.tsv"
+# Stops scored again with the normalised rollout feedback (#446): a rescore replaces the bugged
+# score of its stop (the user, 11-04)
+RESCORES = STUDY / "results" / "best_stop_rescores.tsv"
 OUT_STACK = STUDY / "plots" / "loss_composition_099995.png"
 FIRST, TOTAL, BINS = 1000, 665_000, 60
 TICKS_K = [1, 10, 40, 100, 200, 400, 665]
@@ -211,21 +214,32 @@ def stack_top(table):
     return max(STACK_TOP_MIN, 1.05 * highest)
 
 
+def rescores():
+    """{(run, stop in k): GM-Relative MASE} of RESCORES."""
+    with open(RESCORES) as f:
+        return {(r["run"], int(r["stop_k"])): float(r["gm_rel_mase"])
+                for r in csv.DictReader(f, delimiter="\t")}
+
+
 def best_forecasts():
     """{run: (stop in k, GM-Relative MASE, number of scored stops)} of the
-    lowest forecast score of each run (control head)."""
-    scores = {}
+    lowest forecast score of each run (control head); a rescore replaces the
+    bugged score of its stop."""
+    rescored, scores = rescores(), {}
     with open(SCORES) as f:
         for row in csv.DictReader(f, delimiter="\t"):
             if row["arm"] == "control":
-                scores.setdefault(row["run"], []).append((int(row["stop_k"]),
-                                                          float(row["gm_rel_mase"])))
+                stop = int(row["stop_k"])
+                score = rescored.get((row["run"], stop), float(row["gm_rel_mase"]))
+                scores.setdefault(row["run"], []).append((stop, score))
     return {run: (*min(rows, key=lambda r: r[1]), len(rows)) for run, rows in scores.items()}
 
 
 def normalised(run, stop):
     """True when the forecast score of the run at this stop used the normalised
-    rollout feedback of #446 (results/normalised_rollout_scores.tsv)."""
+    rollout feedback of #446 (results/normalised_rollout_scores.tsv, or a rescore)."""
+    if (run, stop) in rescores():
+        return True
     with open(STUDY / "results" / "normalised_rollout_scores.tsv") as f:
         return any(r["run"] == run and int(r["stop_k"]) == stop
                    for r in csv.DictReader(f, delimiter="\t"))

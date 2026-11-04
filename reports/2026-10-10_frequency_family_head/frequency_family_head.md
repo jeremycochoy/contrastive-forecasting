@@ -17,7 +17,8 @@ Its R scores at 665k are 0.0218 (transformer head) and 0.1323 (linear head).
 Blue (violet with the L_rep weight 0.05 and the depth weights 1/2^j) gets 1.0693 at 140k with the normalised rollout of #446.
 At 100k, it gets 1.1190 with the normalised rollout and 1.1435 with the raw rollout.
 At 140k, with the raw rollout, grey gets 1.0414, yellow 1.0600 and violet 1.1169.
-At 180k, blue gets 1.0482 with the normalised rollout, its lowest score.
+At 180k, blue gets 1.0482 with the normalised rollout.
+At 200k, blue gets 1.0434 with the normalised rollout, its lowest score.
 At 180k, with the raw rollout, grey gets 1.0421 and yellow 1.0537.
 A light asterisk marks each score with the normalised rollout.
 With the normalised rollout, the best stops of grey (1.0269 at 240k), yellow (1.0304 at 200k) and violet (1.0208 at 460k) are below blue at 180k (1.0482).
