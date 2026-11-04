@@ -51,20 +51,19 @@ ROUND2 = {BEST: ("lr 1e-4, EMA start 0.99995\n(no change)", "1e-4"),
           "g40b_lr4em4_tau99995_bs128": ("batch 128, lr 4e-4", "4e-4"),
           "g40w_lr1em3_wu4k_cos4em4_bs128": ("batch 128, warmup to 1e-3,\nthen cosine to 4e-4",
                                              "warmup to 1e-3, cosine to 4e-4"),
-          "g40b_lr8em4_tau99995_bs128": ("batch 128, lr 8e-4", "8e-4")}
+          "g40b_lr8em4_tau99995_bs128": ("batch 128, lr 8e-4", "8e-4"),
+          "g40b_lr4em4_tau99995_bs128_sigfix": ("batch 128, lr 4e-4,\nfixed SIGReg window", "4e-4")}
 # The planned runs of the search, not started: (row label, when). The user (11-03 about
 # 21:05 UTC): the heatmap shows them; each one moves into ROUND2 when it starts.
 PLANNED = [
-    ("batch 128, lr 1e-3\n(if lr 8e-4 beats 4e-4)", "planned, about 02:30 UTC"),
-    ("the best batch-128 config\nwith the fixed SIGReg window", "planned, about 02:30 UTC\n(the SIGReg gate)"),
-    ("FIXED CODE, batch 256, constant lr\naround the projected lr", "planned after the gate\n(about 09:00 UTC)"),
+    ("FIXED CODE, batch 256, constant lr\naround the projected lr", "planned after the gate\n(about 10:30 UTC)"),
 ]
 # run -> its colour in the radar and in the training figure of the second round
 ROUND2_COLOURS = {BEST: "#d95f02", "g40b_lr1em4_tau99995_rep005h": "#1f77b4",
                   "g40c_lr1em4_tau99995_cos": "#e7298a", "g40w_lr1em3_wu4k_cos": "#66a61e",
                   "g40b_lr1em4_tau99995_bs128": "#bcbd22", "g40b_lr2em4_tau99995_bs128": "#17becf",
                   "g40b_lr4em4_tau99995_bs128": "#8c564b", "g40w_lr1em3_wu4k_cos4em4_bs128": "#d62728",
-                  "g40b_lr8em4_tau99995_bs128": "#6a3d9a"}
+                  "g40b_lr8em4_tau99995_bs128": "#6a3d9a", "g40b_lr4em4_tau99995_bs128_sigfix": "#e6ab02"}
 
 
 def run_score(run):

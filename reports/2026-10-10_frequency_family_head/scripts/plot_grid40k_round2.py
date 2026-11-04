@@ -3,8 +3,9 @@ for the view only: the decisions use the forecast GM-Relative MASE. The best
 cell of the grid (lr 1e-4, EMA start 0.99995) and the changes from it: the
 losses of blue (L_rep 0.05, the L_align depth weights 1/2^j), the lr schedule
 (C: a cosine from 1e-4 to 1e-5 over the 40k steps; W: a warmup to 1e-3 over 4k
-steps, then a cosine to 1e-4), batch 128 at the lr 1e-4, 2e-4 and 4e-4, and A:
-batch 128 with the warmup of W, then a cosine to 4e-4. Three panels on one step
+steps, then a cosine to 1e-4), batch 128 at the lr 1e-4, 2e-4, 4e-4 and 8e-4, A:
+batch 128 with the warmup of W, then a cosine to 4e-4, and the SIGReg gate: batch
+128 at lr 4e-4 with the SIGReg window fix of #438. Three panels on one step
 axis, means over bins of 500 steps:
 
   1. The lr of each step, from the flags of the run (the formula of
@@ -52,6 +53,8 @@ RUNS = {
     "g40w_lr1em3_wu4k_cos4em4_bs128": ("A: batch 128, warmup to 1e-3 over 4k, cosine to 4e-4",
                                        (1e-3, 4e-4, STEPS, 4000), False),
     "g40b_lr8em4_tau99995_bs128": ("batch 128, lr 8e-4", (8e-4, 8e-4, STEPS, 0), False),
+    "g40b_lr4em4_tau99995_bs128_sigfix": ("SIGReg gate: batch 128, lr 4e-4, fixed SIGReg window",
+                                          (4e-4, 4e-4, STEPS, 0), False),
 }
 
 
