@@ -19,8 +19,11 @@ legend gives each run a three-letter code (from its colour: GRY, YEL, VIO,
 BLU, ORA, LIM, PNK, RED, BRN, DGY), and for orange, lime and pink the result that
 the user expected before their start. GRN+EMA 0.99995 with 3 forecaster layers
 (MAG), the same with the EMA 0.9998 (TEL) and TEL from its 100k save with the
-SIGReg window fix (TRQ) are out of the figure (the user, 11-04). The forecast
-panel gives the value of the last point of the FRONT run.
+SIGReg window fix (TRQ) are out of the figure (the user, 11-04). In the forecast
+panel, a light asterisk marks each score with the normalised rollout feedback, a
+dashed line of the colour of a run joins its rescores to its other such scores,
+and a box at the lower left gives the lowest of these scores of each run. No value
+is written next to a point: a value can hide the points near it.
 
 Reads the forecast of MPE of #412 and #425
 (reports/2026-09-06_moirai_small_size/results/gm_trajectories.tsv,
@@ -39,6 +42,7 @@ thousands of steps, GM-Relative MASE, from collect_recon.py).
 Usage: python3 plot_green_scores.py
 """
 import csv
+import re
 import sys
 from pathlib import Path
 
@@ -163,12 +167,10 @@ TICKS_K = [1, 10, 40, 100, 200, 400, 665, 1330]
 # The forecast scores of the eval with the normalised rollout feedback (#446):
 # columns run, stop_k, tag. The user (11-03): a light asterisk on these points.
 NORMALISED = STUDY / "results" / "normalised_rollout_scores.tsv"
-# The best stop of grey, yellow, violet and DGY rescored with the normalised rollout feedback
-# (#446) and their official head (rescore_normalised/ on elisa, 11-03): run, stop_k, gm_rel_mase.
+# Stops with a bugged score (raw rollout feedback) scored again with the normalised rollout
+# feedback (#446) and their official head (rescore_normalised/ on elisa and on the box): run,
+# stop_k, gm_rel_mase. The best stop of grey, yellow, violet and DGY first (11-03), then more stops.
 RESCORES = STUDY / "results" / "best_stop_rescores.tsv"
-# yellow's value goes left of its point (the rescore of grey lies right of it), grey's value
-# lower left of its point (the values of blue and DGY lie above and right of it)
-RESCORE_LABEL_OFFSET = {GRN_EMA099995_F6_REP01: (-46, -4), GRN_EMA099995_F6: (-46, -17)}
 
 
 def read_table(paths):
@@ -236,10 +238,6 @@ def draw_panel(ax, title, y_range, points, starred=None):
         ax.plot([s * 1000 for s in stops], values, color=colour_hex, marker=marker,
                 ls=style, lw=2.2, ms=7, label=label,
                 zorder=5 if arm in FRONT else 4 if arm in BRANCHES else 3 if arm in ON_TOP else 2)
-        if arm in FRONT and starred is not None:
-            ax.annotate(f"{values[-1]:.4f}", (stops[-1] * 1000, values[-1]), xytext=(7, -15),
-                        textcoords="offset points", fontsize=10, fontweight="bold",
-                        color=colour_hex, zorder=7)
         for stop in sorted(set(stops) & (starred or {}).get(arm, set())):
             ax.plot(stop * 1000, min(points[arm][stop], y_range[1]), marker="*", ms=15,
                     color="black", alpha=0.25, ls="none", zorder=6)
@@ -295,24 +293,66 @@ def legend_entries(axes):
     return [found[label] for label in labels], labels
 
 
-def best_stop_rescores():
-    """``{run: (stop k, score)}`` of RESCORES."""
+def run_code(label):
+    """The three-letter code that opens a legend label of RUNS."""
+    found = re.match(r"\$\\mathbf\{(\w+)\}\$", label)
+    return found.group(1) if found else label
+
+
+def rescores():
+    """``{run: {stop k: score}}`` of RESCORES."""
+    points = {}
     with open(RESCORES) as fh:
-        return {r["run"]: (int(r["stop_k"]), float(r["gm_rel_mase"]))
-                for r in csv.DictReader(fh, delimiter="\t")}
+        for row in csv.DictReader(fh, delimiter="\t"):
+            points.setdefault(row["run"], {})[int(row["stop_k"])] = float(row["gm_rel_mase"])
+    return points
 
 
-def draw_rescores(ax):
-    """Each best-stop rescore: the marker of its run with the light asterisk and its value."""
-    rescored = best_stop_rescores()
+def normalised_scores(points, starred):
+    """``{run: {stop k: score}}``: each forecast score with the normalised rollout
+    feedback, the starred points of the run lines and the rescores."""
+    fixed = {arm: {stop: points[arm][stop] for stop in stops if stop in points.get(arm, {})}
+             for arm, stops in starred.items()}
+    for arm, scores in rescores().items():
+        fixed.setdefault(arm, {}).update(scores)
+    return fixed
+
+
+def draw_rescores(ax, fixed):
+    """The rescores of each run: its marker with the light asterisk, on a dashed line of
+    its colour through its scores with the normalised rollout feedback."""
+    rescored = rescores()
     for arm, _, colour_hex, marker in RUNS:
         if arm not in rescored:
             continue
-        stop, score = rescored[arm]
-        ax.plot(stop * 1000, score, marker=marker, ms=8, color=colour_hex, ls="none", zorder=6)
-        ax.plot(stop * 1000, score, marker="*", ms=15, color="black", alpha=0.25, ls="none", zorder=7)
-        ax.annotate(f"{score:.4f}", (stop * 1000, score), xytext=RESCORE_LABEL_OFFSET.get(arm, (7, -4)),
-                    textcoords="offset points", fontsize=9, fontweight="bold", color=colour_hex, zorder=7)
+        stops = sorted(fixed[arm])
+        ax.plot([stop * 1000 for stop in stops], [fixed[arm][stop] for stop in stops],
+                marker=marker, ms=8, color=colour_hex, ls="--", lw=1.4, zorder=6)
+        for stop, score in rescored[arm].items():
+            ax.plot(stop * 1000, score, marker="*", ms=15, color="black", alpha=0.25, ls="none", zorder=7)
+
+
+def value_label(arm, label, scores):
+    """'GRY  1.0269 at 240k': the lowest score of the run; the FRONT run also gives its last score."""
+    best = min(scores, key=scores.get)
+    text = f"{run_code(label)}  {scores[best]:.4f} at {best}k"
+    last = max(scores)
+    return text + (f" (last: {scores[last]:.4f} at {last}k)" if arm in FRONT and last != best else "")
+
+
+def draw_value_box(ax, fixed):
+    """A box in the empty lower left of the panel: the lowest score with the normalised
+    rollout feedback of each run, lowest first, with the marker of the run."""
+    rows = sorted((min(fixed[arm].values()), arm, label, colour_hex, marker)
+                  for arm, label, colour_hex, marker in RUNS if fixed.get(arm))
+    handles = [(Line2D([], [], marker=marker, color=colour_hex, ls="none", ms=7),
+                Line2D([], [], marker="*", ms=11, color="black", alpha=0.25, ls="none"))
+               for *_, colour_hex, marker in rows]
+    labels = [value_label(arm, label, fixed[arm]) for _, arm, label, _, _ in rows]
+    box = ax.legend(handles, labels, loc="lower left", bbox_to_anchor=(0.065, 0.0), fontsize=9,
+                    title="Normalised rollout: lowest score of each run",
+                    title_fontsize=9, labelspacing=0.3, borderpad=0.4, framealpha=0.95)
+    ax.add_artist(box)
 
 
 def main():
@@ -323,7 +363,9 @@ def main():
         all_points.append(panel_points(tables, forecast))
         draw_panel(ax, title, y_range, all_points[-1], starred if forecast else None)
         if forecast:
-            draw_rescores(ax)
+            fixed = normalised_scores(all_points[-1], starred)
+            draw_rescores(ax, fixed)
+            draw_value_box(ax, fixed)
     style_x(axes[-1])
     # Blank rows after the older runs: the runs of this report fill the left column.
     handles, labels = legend_entries(axes)
