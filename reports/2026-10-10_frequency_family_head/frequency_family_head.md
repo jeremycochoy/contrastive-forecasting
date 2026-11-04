@@ -15,12 +15,13 @@ Violet has its lowest forecast MASE, 1.0779, at 460k.
 At 665k, the end of its training, it gets 1.0799 (1.0977 at 600k).
 Its R scores at 665k are 0.0218 (transformer head) and 0.1323 (linear head).
 Blue (violet with the L_rep weight 0.05 and the depth weights 1/2^j) gets 1.0693 at 140k with the normalised rollout of #446.
-At 100k, with the raw rollout, it gets 1.1435.
+At 100k, it gets 1.1190 with the normalised rollout and 1.1435 with the raw rollout.
 At 140k, with the raw rollout, grey gets 1.0414, yellow 1.0600 and violet 1.1169.
 At 180k, blue gets 1.0482 with the normalised rollout, its lowest score.
 At 180k, with the raw rollout, grey gets 1.0421 and yellow 1.0537.
 A light asterisk marks each score with the normalised rollout.
 With the normalised rollout, the best stops of grey (1.0269 at 240k), yellow (1.0304 at 200k) and violet (1.0208 at 460k) are below blue at 180k (1.0482).
+Grey at 200k gets 1.0215 with the normalised rollout, its lowest score.
 
 ## Learning rate
 
@@ -149,6 +150,7 @@ Session think-contrastive fixes the second and the third point (#443, #446 and #
 With the normalised rollout of #446, grey at 400k gets 1.0331 with 1024 context values and 1.0555 with 4096 values.
 So the eval keeps 1024 values (#449).
 With the normalised rollout, DGY at 288k gets 0.9928, violet at 460k 1.0208, grey at 240k 1.0269 and yellow at 200k 1.0304.
+More stops get the normalised rollout on the box: grey at 200k gets 1.0215 (raw rollout 1.0351) and blue at 100k 1.1190 (raw rollout 1.1435).
 With the raw rollout, the same heads give 1.0238, 1.0779, 1.0341 and 1.0467.
 In the line of each run, the score of the normalised rollout replaces the score of the raw rollout at each rescored stop (results/best_stop_rescores.tsv).
 A light asterisk marks these points.

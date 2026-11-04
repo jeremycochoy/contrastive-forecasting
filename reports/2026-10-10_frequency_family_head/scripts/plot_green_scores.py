@@ -252,9 +252,10 @@ def draw_panel(ax, title, y_range, points, starred=None):
         ax.plot([s * 1000 for s in stops], values, color=colour_hex, marker=marker,
                 ls=style, lw=2.2, ms=7, label=label,
                 zorder=5 if arm in FRONT else 4 if arm in BRANCHES else 3 if arm in ON_TOP else 2)
+        # the asterisk lies under the run lines: a marker of another run near it stays visible
         for stop in sorted(set(stops) & (starred or {}).get(arm, set())):
-            ax.plot(stop * 1000, min(points[arm][stop], y_range[1]), marker="*", ms=15,
-                    color="black", alpha=0.25, ls="none", zorder=6)
+            ax.plot(stop * 1000, min(points[arm][stop], y_range[1]), marker="*", ms=13,
+                    color="black", alpha=0.25, ls="none", zorder=1.9)
         for stop, value in zip(stops, values):
             if value > y_range[1]:
                 ax.plot(stop * 1000, y_range[1], "^", ms=11, color=colour_hex, clip_on=False)
@@ -333,8 +334,8 @@ def draw_value_box(ax, fixed):
     rollout feedback of each run, lowest first, with the marker of the run."""
     rows = sorted((min(fixed[arm].values()), arm, label, colour_hex, marker)
                   for arm, label, colour_hex, marker in RUNS if fixed.get(arm))
-    handles = [(Line2D([], [], marker=marker, color=colour_hex, ls="none", ms=7),
-                Line2D([], [], marker="*", ms=11, color="black", alpha=0.25, ls="none"))
+    handles = [(Line2D([], [], marker="*", ms=11, color="black", alpha=0.25, ls="none"),
+                Line2D([], [], marker=marker, color=colour_hex, ls="none", ms=7))
                for *_, colour_hex, marker in rows]
     labels = [value_label(arm, label, fixed[arm]) for _, arm, label, _, _ in rows]
     box = ax.legend(handles, labels, loc="lower left", bbox_to_anchor=(0.065, 0.0), fontsize=9,
@@ -344,7 +345,8 @@ def draw_value_box(ax, fixed):
 
 
 def main():
-    fig, axes = plt.subplots(3, 1, sharex=True, figsize=(11, 12))
+    # The forecast panel is twice as tall as an R panel: its late points lie close together.
+    fig, axes = plt.subplots(3, 1, sharex=True, figsize=(11, 15), gridspec_kw={"height_ratios": [2, 1, 1]})
     all_points = []
     starred = normalised_points()
     for ax, (title, y_range, tables, forecast) in zip(axes, PANELS):
@@ -356,7 +358,7 @@ def main():
     # Blank rows after the older runs: the runs of this report fill the left column.
     handles, labels = legend_entries(axes)
     if any(starred.get(arm, set()) & set(all_points[0].get(arm, {})) for arm in starred):
-        handles.append(Line2D([], [], marker="*", ms=15, color="black", alpha=0.25, ls="none"))
+        handles.append(Line2D([], [], marker="*", ms=13, color="black", alpha=0.25, ls="none"))
         labels.append("scored with the normalised rollout feedback (#446)")
     new_labels = {label for arm, label, _, _ in RUNS if arm in NEW_RUNS}
     blanks = max(0, 2 * sum(label in new_labels for label in labels) - len(handles))
