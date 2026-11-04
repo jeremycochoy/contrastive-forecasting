@@ -55,11 +55,9 @@ ROUND2 = {BEST: ("lr 1e-4, EMA start 0.99995\n(no change)", "1e-4"),
 # The planned runs of the search, not started: (row label, when). The user (11-03 about
 # 21:05 UTC): the heatmap shows them; each one moves into ROUND2 when it starts.
 PLANNED = [
-    ("batch 128, lr 1e-3\n(if lr 8e-4 beats 4e-4)", "planned, about 03:00 UTC"),
-    ("batch 128, warmup to 2e-3,\nthen cosine to the best lr", "planned after A,\nif a higher peak looks better"),
-    ("the best batch-128 config\nwith the fixed SIGReg window", "planned, about 03:00 UTC\n(the SIGReg gate)"),
+    ("batch 128, lr 1e-3\n(if lr 8e-4 beats 4e-4)", "planned, about 02:30 UTC"),
+    ("the best batch-128 config\nwith the fixed SIGReg window", "planned, about 02:30 UTC\n(the SIGReg gate)"),
     ("FIXED CODE, batch 256, constant lr\naround the projected lr", "planned after the gate\n(about 09:00 UTC)"),
-    ("FIXED CODE, batch 256, warmup to a\nhigh peak, then cosine to the best lr", "planned after the gate\n(about 09:00 UTC)"),
 ]
 # run -> its colour in the radar and in the training figure of the second round
 ROUND2_COLOURS = {BEST: "#d95f02", "g40b_lr1em4_tau99995_rep005h": "#1f77b4",

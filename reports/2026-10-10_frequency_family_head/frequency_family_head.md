@@ -66,6 +66,8 @@ A warmup of the learning rate to 1e-3 over 4k steps, then a cosine to 1e-4, give
 The losses of blue give 1.1891, and a cosine from 1e-4 to 1e-5 gives 1.2063.
 At batch 128, the learning rates 1e-4, 2e-4 and 4e-4 give 1.2124, 1.1926 and 1.1842.
 The score decreases up to 4e-4, the highest learning rate of the search.
+At batch 128, a warmup to 1e-3 over 4k steps, then a cosine to 4e-4, gives 1.1922.
+The constant learning rate 4e-4 gives 1.1842.
 
 ![Relative MASE per GIFT-Eval dataset](plots/grid40k_radar.png)
 
