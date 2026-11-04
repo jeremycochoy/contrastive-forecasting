@@ -155,7 +155,7 @@ OUR_R_TABLES = ["grn_ema099995", "grn_ema099995_f6",
 # panel title, y range, the score tables, and whether the forecast of the
 # runs of this report comes from results/scores.tsv
 PANELS = [
-    ("Forecast (B4)", (1.10, 1.31),
+    ("Forecast (B4)", (1.10, 1.335),
      [MOIRAI / "results" / "gm_trajectories.tsv", RECON / "forecast_425.tsv"], True),
     ("Reconstruction of the encoder latent (R), transformer head", (0.02, 0.11),
      [RECON / "recon_trajectories.tsv"]
@@ -174,8 +174,8 @@ NORMALISED = STUDY / "results" / "normalised_rollout_scores.tsv"
 # A rescore replaces the bugged score of its stop in the line of its run (the user, 11-04).
 RESCORES = STUDY / "results" / "best_stop_rescores.tsv"
 # Two scores closer than this at one stop overlap in the forecast panel: the height of a
-# 7-point marker there (12.6 pixels at dpi 130, 1661 pixels for 1.0 of score).
-CLOSE = 0.0076
+# 7-point marker there (12.6 pixels at dpi 130, 1556 pixels for 1.0 of score).
+CLOSE = 0.0081
 
 
 def read_table(paths):
