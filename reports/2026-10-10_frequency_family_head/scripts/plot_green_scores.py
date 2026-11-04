@@ -97,6 +97,8 @@ ON_TOP = {GRN_EMA099995, GRN_EMA099995_F6, GRN_EMA099995_F6_REP01,
 # A run that resumed from another run's save: its line starts at the score of
 # that save (parent run, stop k), and it is drawn above the other runs.
 BRANCHES = {GRN_EMA099995_F6_CD240: (GRN_EMA099995_F6, 240), GRN_EMA09998_SIGFIX: (GRN_EMA09998, 100)}
+# The run that trains now: drawn above every other run.
+FRONT = {GRN_EMA099995_F6_REP005_HALVING_MUP}
 MPE = "cf421ew_moirai_native"
 # Its R (transformer head 0.12 to 0.21) lies far above the R panels.
 FORECAST_ONLY = {MPE}
@@ -115,13 +117,13 @@ RUNS = [
     (GRN_EMA09998, r"$\mathbf{TEL}$  MAG with the EMA 0.9998, stopped at 335k",
      GRN_EMA09998_COLOUR, "<"),
     (GRN_EMA09998_SIGFIX, r"$\mathbf{TRQ}$  TEL from its 100k save with the SIGReg window fix (PR #438), "
-     "to 240k", GRN_EMA09998_SIGFIX_COLOUR, "h"),
+     "stopped at 215k", GRN_EMA09998_SIGFIX_COLOUR, "h"),
     (GRN_EMA099995_F6_REP01, r"$\mathbf{YEL}$  GRY with L_rep 0.1, stopped at 583k",
      GRN_EMA099995_F6_REP01_COLOUR, "^"),
     (GRN_EMA099995_F6_REP01_MUP, r"$\mathbf{VIO}$  YEL with muP, lr 1e-4, to 665k",
      GRN_EMA099995_F6_REP01_MUP_COLOUR, "p"),
     (GRN_EMA099995_F6_REP005_HALVING_MUP,
-     r"$\mathbf{BLU}$  VIO with L_rep 0.05, depths $1/2^j$, stopped at 100k",
+     r"$\mathbf{BLU}$  VIO with L_rep 0.05, depths $1/2^j$, to 200k",
      GRN_EMA099995_F6_REP005_HALVING_MUP_COLOUR, "P"),
     (GRN_EMA099995_F6_REP01_MUP_LR56,
      r"$\mathbf{ORA}$  VIO with lr 5.6e-5 (the lr of YEL), stopped at 268k" "\n"
@@ -230,10 +232,10 @@ def draw_panel(ax, title, y_range, points, starred=None):
                     ls=style, lw=2.2, zorder=4)
         ax.plot([s * 1000 for s in stops], values, color=colour_hex, marker=marker,
                 ls=style, lw=2.2, ms=7, label=label,
-                zorder=4 if arm in BRANCHES else 3 if arm in ON_TOP else 2)
+                zorder=5 if arm in FRONT else 4 if arm in BRANCHES else 3 if arm in ON_TOP else 2)
         for stop in sorted(set(stops) & (starred or {}).get(arm, set())):
             ax.plot(stop * 1000, min(points[arm][stop], y_range[1]), marker="*", ms=15,
-                    color="black", alpha=0.25, ls="none", zorder=4)
+                    color="black", alpha=0.25, ls="none", zorder=6)
         for stop, value in zip(stops, values):
             if value > y_range[1]:
                 ax.plot(stop * 1000, y_range[1], "^", ms=11, color=colour_hex, clip_on=False)

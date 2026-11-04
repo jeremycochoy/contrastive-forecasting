@@ -13,6 +13,10 @@ Its R scores at 288k are 0.0388 (transformer head) and 0.2000 (linear head), bet
 Violet has its lowest forecast MASE, 1.0779, at 460k.
 At 665k, the end of its training, it gets 1.0799 (1.0977 at 600k).
 Its R scores at 665k are 0.0218 (transformer head) and 0.1323 (linear head).
+Blue (violet with the L_rep weight 0.05 and the depth weights 1/2^j) gets 1.0693 at 140k with the normalised rollout of #446.
+At 100k, with the raw rollout, it gets 1.1435.
+At 140k, with the raw rollout, grey gets 1.0414, yellow 1.0600 and violet 1.1169.
+A light asterisk marks each score with the normalised rollout.
 
 ## Learning rate
 
@@ -128,7 +132,7 @@ The rollout gives the raw forecaster output back to the forecaster, and L_align 
 
 ## Caveats of the forecast scores
 
-Each forecast score of this report comes from the eval of this time:
+Each forecast score of this report with no asterisk comes from the eval of this time:
 
 - The official eval gives the backbone 1024 context values. The backbones trained on 4096.
 - The forecast head trains on `f` only, and B4 decodes the encoder latent of the context and the rolled `f`.
@@ -137,3 +141,6 @@ Each forecast score of this report comes from the eval of this time:
 Session think-contrastive fixes the second and the third point (#443, #446 and #447).
 With the normalised rollout of #446, grey at 400k gets 1.0331 with 1024 context values and 1.0555 with 4096 values.
 So the eval keeps 1024 values (#449).
+With the normalised rollout, DGY at 288k gets 0.9928, violet at 460k 1.0208, grey at 240k 1.0269 and yellow at 200k 1.0304.
+With the raw rollout, the same heads give 1.0238, 1.0779, 1.0341 and 1.0467.
+The figure keeps the scores of the raw rollout for these runs.
