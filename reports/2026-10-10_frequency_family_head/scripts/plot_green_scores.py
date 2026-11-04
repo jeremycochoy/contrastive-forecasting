@@ -20,10 +20,11 @@ BLU, ORA, LIM, PNK, RED, BRN, DGY), and for orange, lime and pink the result tha
 the user expected before their start. GRN+EMA 0.99995 with 3 forecaster layers
 (MAG), the same with the EMA 0.9998 (TEL) and TEL from its 100k save with the
 SIGReg window fix (TRQ) are out of the figure (the user, 11-04). In the forecast
-panel, a light asterisk marks each score with the normalised rollout feedback, a
-dashed line of the colour of a run joins its rescores to its other such scores,
-and a box at the lower left gives the lowest of these scores of each run. No value
-is written next to a point: a value can hide the points near it.
+panel, a light asterisk marks each score with the normalised rollout feedback. A
+rescore with this feedback replaces the bugged score (raw rollout feedback) of its
+stop in the line of its run. A box at the lower left gives the lowest of these
+scores of each run. No value is written next to a point: a value can hide the
+points near it.
 
 Reads the forecast of MPE of #412 and #425
 (reports/2026-09-06_moirai_small_size/results/gm_trajectories.tsv,
@@ -170,6 +171,7 @@ NORMALISED = STUDY / "results" / "normalised_rollout_scores.tsv"
 # Stops with a bugged score (raw rollout feedback) scored again with the normalised rollout
 # feedback (#446) and their official head (rescore_normalised/ on elisa and on the box): run,
 # stop_k, gm_rel_mase. The best stop of grey, yellow, violet and DGY first (11-03), then more stops.
+# A rescore replaces the bugged score of its stop in the line of its run (the user, 11-04).
 RESCORES = STUDY / "results" / "best_stop_rescores.tsv"
 
 
@@ -194,24 +196,36 @@ def new_run_forecast(run):
                 if r["run"] == run and r["arm"] == "control"}
 
 
+def rescores():
+    """``{run: {stop k: score}}`` of RESCORES."""
+    points = {}
+    with open(RESCORES) as fh:
+        for row in csv.DictReader(fh, delimiter="\t"):
+            points.setdefault(row["run"], {})[int(row["stop_k"])] = float(row["gm_rel_mase"])
+    return points
+
+
 def normalised_points():
     """``{run: {stop k}}``: the forecast scores of the eval that feeds back the
-    normalised forecaster output (#446), from NORMALISED. The other scores
-    feed back the raw output."""
-    if not NORMALISED.is_file():
-        return {}
+    normalised forecaster output (#446): the scores of NORMALISED and the
+    rescores. The other scores feed back the raw output."""
     starred = {}
-    with open(NORMALISED) as fh:
-        for row in csv.DictReader(fh, delimiter="\t"):
-            starred.setdefault(row["run"], set()).add(int(row["stop_k"]) * XSCALE.get(row["run"], 1))
+    if NORMALISED.is_file():
+        with open(NORMALISED) as fh:
+            for row in csv.DictReader(fh, delimiter="\t"):
+                starred.setdefault(row["run"], set()).add(int(row["stop_k"]) * XSCALE.get(row["run"], 1))
+    for run, scores in rescores().items():
+        starred.setdefault(run, set()).update(scores)
     return starred
 
 
 def panel_points(tables, forecast):
     points = read_table(tables)
     if forecast:
+        rescored = rescores()
         for run in NEW_RUNS:
-            points[run] = new_run_forecast(run)
+            # a rescore replaces the bugged score of its stop in the line of its run (the user, 11-04)
+            points[run] = {**new_run_forecast(run), **rescored.get(run, {})}
     else:
         for arm in FORECAST_ONLY:
             points.pop(arm, None)
@@ -299,37 +313,11 @@ def run_code(label):
     return found.group(1) if found else label
 
 
-def rescores():
-    """``{run: {stop k: score}}`` of RESCORES."""
-    points = {}
-    with open(RESCORES) as fh:
-        for row in csv.DictReader(fh, delimiter="\t"):
-            points.setdefault(row["run"], {})[int(row["stop_k"])] = float(row["gm_rel_mase"])
-    return points
-
-
 def normalised_scores(points, starred):
-    """``{run: {stop k: score}}``: each forecast score with the normalised rollout
-    feedback, the starred points of the run lines and the rescores."""
-    fixed = {arm: {stop: points[arm][stop] for stop in stops if stop in points.get(arm, {})}
-             for arm, stops in starred.items()}
-    for arm, scores in rescores().items():
-        fixed.setdefault(arm, {}).update(scores)
-    return fixed
-
-
-def draw_rescores(ax, fixed):
-    """The rescores of each run: its marker with the light asterisk, on a dashed line of
-    its colour through its scores with the normalised rollout feedback."""
-    rescored = rescores()
-    for arm, _, colour_hex, marker in RUNS:
-        if arm not in rescored:
-            continue
-        stops = sorted(fixed[arm])
-        ax.plot([stop * 1000 for stop in stops], [fixed[arm][stop] for stop in stops],
-                marker=marker, ms=8, color=colour_hex, ls="--", lw=1.4, zorder=6)
-        for stop, score in rescored[arm].items():
-            ax.plot(stop * 1000, score, marker="*", ms=15, color="black", alpha=0.25, ls="none", zorder=7)
+    """``{run: {stop k: score}}``: the starred points of the run lines, the scores
+    with the normalised rollout feedback."""
+    return {arm: {stop: points[arm][stop] for stop in stops if stop in points.get(arm, {})}
+            for arm, stops in starred.items()}
 
 
 def value_label(arm, label, scores):
@@ -363,9 +351,7 @@ def main():
         all_points.append(panel_points(tables, forecast))
         draw_panel(ax, title, y_range, all_points[-1], starred if forecast else None)
         if forecast:
-            fixed = normalised_scores(all_points[-1], starred)
-            draw_rescores(ax, fixed)
-            draw_value_box(ax, fixed)
+            draw_value_box(ax, normalised_scores(all_points[-1], starred))
     style_x(axes[-1])
     # Blank rows after the older runs: the runs of this report fill the left column.
     handles, labels = legend_entries(axes)

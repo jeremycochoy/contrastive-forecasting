@@ -150,7 +150,8 @@ With the normalised rollout of #446, grey at 400k gets 1.0331 with 1024 context 
 So the eval keeps 1024 values (#449).
 With the normalised rollout, DGY at 288k gets 0.9928, violet at 460k 1.0208, grey at 240k 1.0269 and yellow at 200k 1.0304.
 With the raw rollout, the same heads give 1.0238, 1.0779, 1.0341 and 1.0467.
-The lines of the figure give the scores of the raw rollout for these runs.
-A separate point with a light asterisk gives the score of the normalised rollout at each of these 4 stops (results/best_stop_rescores.tsv).
+In the line of each run, the score of the normalised rollout replaces the score of the raw rollout at each rescored stop (results/best_stop_rescores.tsv).
+A light asterisk marks these points.
+At the other stops, the lines give the scores of the raw rollout.
 A box at the lower left of the forecast panel gives the lowest score of each run with the normalised rollout.
 No value is written next to a point, because a value can hide the points near it.
