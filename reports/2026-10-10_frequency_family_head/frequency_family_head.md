@@ -84,10 +84,12 @@ In this run, SIGReg is about 16.4 from step 200 to 35.5k, 100 to 300 times L_ali
 Between 35.5k and 36.5k, SIGReg falls to about 0.2.
 The batch-256 runs keep the old SIGReg window.
 They train with the normalised rollout feedback of #447, and their scores use the normalised rollout of #446.
-At batch 256, the constant learning rates 4e-4, 8e-4 and 1.6e-3 give 1.0734, 1.0669 and 1.1225.
-The lowest score is at 8e-4.
-The run at 1e-3 has no score yet.
-The grey rows of the heat map show the planned runs: L_rep 0.05 at the better learning rate, then 80k steps with the SIGReg window fix at the two L_rep weights.
+At batch 256, the constant learning rates 4e-4, 8e-4, 1e-3 and 1.6e-3 give 1.0734, 1.0669, 1.0590 and 1.1225.
+The lowest score is at 1e-3.
+Compared with 8e-4, the score at 1e-3 is lower on the medium and long horizons (1.1605 and 1.1546 against 1.1852 and 1.1728).
+At 1e-3, a run with L_rep 0.05 trains now.
+The grey rows of the heat map show the next planned runs: 80k steps with the SIGReg window fix at the two L_rep weights.
+The right column of the second round is for the rescore of batch 128 at 4e-4 with the fixed rollout.
 The other scores of the grid use the raw rollout feedback, so compare a batch-256 score only with the other batch-256 scores.
 The largest change is on m4_hourly: 2.29 for batch 256 at 8e-4, 4.89 for batch 128 at 4e-4 and 1.55 for MPE.
 

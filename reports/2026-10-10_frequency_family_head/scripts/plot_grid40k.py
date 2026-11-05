@@ -9,22 +9,25 @@ The second round (the user, 11-02 and 11-03): runs from the cell lr 1e-4,
 EMA start 0.99995, each with one change (the losses of blue or an lr
 schedule); batch 128 at the lr 1e-4, 2e-4, 4e-4 and 8e-4, and with the warmup
 of W and a cosine to 4e-4. Batch 256 runs on the fixed code (the user, 11-03):
-the constant lr 4e-4, 8e-4, 1e-3 and 1.6e-3. The grey rows are the planned runs
-of the user's plan of 11-04: L_rep 0.05 at the better lr, then 80k steps with the
-fixed SIGReg window at both L_rep weights. Its panel has that cell as its first row.
+the constant lr 4e-4, 8e-4, 1e-3 and 1.6e-3, then L_rep 0.05 at the best of them
+(1e-3; the user's plan of 11-04). The grey rows are the next planned runs: 80k
+steps with the fixed SIGReg window at both L_rep weights. Its panel has that cell as its first row.
 
 Each cell is the forecast GM-Relative MASE of head B4 at 40k (30k head steps,
 97 configs). Lower is better. A grey cell has no score yet. A red frame marks
 the lowest score of a set of rows scored the same way: the rows of the raw
-rollout feedback (bugged scores) and the batch-256 rows (fixed rollout).
+rollout feedback (bugged scores) and the batch-256 rows (fixed rollout). The
+right column of the second round holds the rescores with the fixed rollout of
+runs scored with the raw rollout (the user, 11-05: the best batch-128 run).
 
 The heads of the runs trained on cf-recon (vast 56873094) or on elisa. SCORES
 holds their score files score_<run>_bb40k_h30k_control.txt (elisa) and a copy
-of the results folder of the box. Writes results/grid40k_scores.tsv and
-plots/grid40k_heatmap.png.
+of the results folder of the box. results/grid40k_rescores.tsv holds the
+rescores. Writes results/grid40k_scores.tsv and plots/grid40k_heatmap.png.
 
 Usage: python3 plot_grid40k.py
 """
+import csv
 from pathlib import Path
 
 import matplotlib
@@ -37,6 +40,7 @@ STUDY = Path(__file__).resolve().parent.parent
 SCORES = [Path("/home/jupyter/cf_runs/grid40k/ff/results"),
           Path("/home/jupyter/cf_runs/grid40k/ff_box_results")]
 TABLE = STUDY / "results" / "grid40k_scores.tsv"
+RESCORES = STUDY / "results" / "grid40k_rescores.tsv"
 OUT = STUDY / "plots" / "grid40k_heatmap.png"
 # learning rate -> (label, run name part); EMA start -> (label, run name part)
 LRS = {"5e-5": ("5e-5", "lr5em5"), "1e-4": ("1e-4 (violet)", "lr1em4"),
@@ -61,13 +65,14 @@ ROUND2 = {BEST: ("lr 1e-4, EMA start 0.99995\n(no change)", "1e-4"),
           "g40b_lr8em4_tau99995_bs256_rollfix": ("FIXED ROLLOUT, batch 256, lr 8e-4\n(scored with the fixed rollout)", "8e-4"),
           "g40b_lr1em3_tau99995_bs256_rollfix": ("FIXED ROLLOUT, batch 256, lr 1e-3\n(scored with the fixed rollout)", "1e-3"),
           "g40b_lr1p6em3_tau99995_bs256_rollfix": ("FIXED ROLLOUT, batch 256, lr 1.6e-3\n(scored with the fixed rollout)",
-                                                   "1.6e-3")}
+                                                   "1.6e-3"),
+          "g40b_lr1em3_tau99995_bs256_rep005_rollfix": ("FIXED ROLLOUT, batch 256, lr 1e-3,\nL_rep 0.05 (scored with the fixed rollout)",
+                                                        "1e-3")}
 # The planned runs of the search, not started: (row label, when). The user (11-03 about
 # 21:05 UTC): the heatmap shows them; each one moves into ROUND2 when it starts.
-PLANNED = [("PLANNED, FIXED ROLLOUT, batch 256,\nL_rep 0.05, the better lr\n(1e-3 or 8e-4)", "starts at the 1e-3 score"),
-           ("PLANNED, FIXED ROLLOUT, batch 256,\n80k steps, fixed SIGReg window,\nthe better lr and L_rep weight",
+PLANNED = [("PLANNED, FIXED ROLLOUT, batch 256,\n80k steps, fixed SIGReg window,\nlr 1e-3, the better L_rep weight",
             "starts at the L_rep 0.05 score"),
-           ("PLANNED, FIXED ROLLOUT, batch 256,\n80k steps, fixed SIGReg window,\nthe better lr, the other L_rep weight",
+           ("PLANNED, FIXED ROLLOUT, batch 256,\n80k steps, fixed SIGReg window,\nlr 1e-3, the other L_rep weight",
             "starts at the L_rep 0.05 score")]
 # run -> its colour in the radar and in the training figure of the second round
 ROUND2_COLOURS = {BEST: "#d95f02", "g40b_lr1em4_tau99995_rep005h": "#1f77b4",
@@ -76,7 +81,8 @@ ROUND2_COLOURS = {BEST: "#d95f02", "g40b_lr1em4_tau99995_rep005h": "#1f77b4",
                   "g40b_lr4em4_tau99995_bs128": "#8c564b", "g40w_lr1em3_wu4k_cos4em4_bs128": "#d62728",
                   "g40b_lr8em4_tau99995_bs128": "#6a3d9a", "g40b_lr4em4_tau99995_bs128_sigfix": "#e6ab02",
                   "g40b_lr4em4_tau99995_bs256_rollfix": "#1b9e77", "g40b_lr8em4_tau99995_bs256_rollfix": "#999999",
-                  "g40b_lr1em3_tau99995_bs256_rollfix": "#ff00ff", "g40b_lr1p6em3_tau99995_bs256_rollfix": "#000000"}
+                  "g40b_lr1em3_tau99995_bs256_rollfix": "#ff00ff", "g40b_lr1p6em3_tau99995_bs256_rollfix": "#000000",
+                  "g40b_lr1em3_tau99995_bs256_rep005_rollfix": "#8b008b"}
 
 
 def run_score(run):
@@ -101,9 +107,18 @@ def grid_scores():
     return grid
 
 
+def rescores():
+    """{run: GM-Relative MASE} of the rescores with the fixed rollout (RESCORES)."""
+    with open(RESCORES) as f:
+        return {row["run"]: float(row["gm_rel_mase"]) for row in csv.DictReader(f, delimiter="\t")}
+
+
 def round2_scores():
-    """Array [run of ROUND2 and planned run, 1] of the scores, NaN for no score."""
-    return np.array([[as_value(run_score(run))] for run in ROUND2] + [[np.nan]] * len(PLANNED))
+    """Array [run of ROUND2 and planned run, 2] of the scores and of the rescores with the
+    fixed rollout, NaN for no score."""
+    fixed = rescores()
+    rows = [[as_value(run_score(run)), fixed.get(run, np.nan)] for run in ROUND2]
+    return np.array(rows + [[np.nan, np.nan]] * len(PLANNED))
 
 
 def score_text(value):
@@ -132,10 +147,11 @@ def cell_text(ax, i, j, score, low, high, empty="no score yet"):
             color="white" if dark else "black", fontweight="bold")
 
 
-def mark_best(ax, values, rows):
-    """A red frame around the lowest score of ``rows``, when they have 2 scores or more."""
+def mark_best(ax, values, cells):
+    """A red frame around the lowest score of ``cells`` ((row, column) pairs), when they have 2 scores or more."""
     part = np.full(values.shape, np.nan)
-    part[rows] = values[rows]
+    for i, j in cells:
+        part[i, j] = values[i, j]
     if np.sum(~np.isnan(part)) < 2:
         return
     i, j = np.unravel_index(np.nanargmin(part), part.shape)
@@ -152,16 +168,16 @@ def color_scale(*panels):
 
 
 def draw_cells(ax, values, low, high, empty_texts=None, groups=None):
-    """The cells on one colour scale; ``empty_texts`` gives the text of an empty row,
-    ``groups`` the sets of rows that each get a frame on their lowest score (default: all rows)."""
+    """The cells on one colour scale; ``empty_texts`` gives the text of an empty cell (row, column),
+    ``groups`` the sets of cells that each get a frame on their lowest score (default: all cells)."""
     cmap = plt.get_cmap("viridis_r").copy()
     cmap.set_bad("#eeeeee")
     image = ax.imshow(np.ma.masked_invalid(values), cmap=cmap, vmin=low, vmax=high, aspect="auto")
     for i in range(values.shape[0]):
         for j in range(values.shape[1]):
-            cell_text(ax, i, j, values[i, j], low, high, (empty_texts or {}).get(i, "no score yet"))
-    for rows in groups or [list(range(values.shape[0]))]:
-        mark_best(ax, values, rows)
+            cell_text(ax, i, j, values[i, j], low, high, (empty_texts or {}).get((i, j), "no score yet"))
+    for cells in groups or [list(np.ndindex(values.shape))]:
+        mark_best(ax, values, cells)
     return image
 
 
@@ -175,14 +191,16 @@ def draw_grid(ax, grid, low, high):
 
 
 def draw_round2(ax, round2, low, high):
-    planned = {len(ROUND2) + k: when for k, (_, when) in enumerate(PLANNED)}
-    fixed = [k for k, run in enumerate(ROUND2) if run.endswith("_rollfix")]
-    bugged = [k for k in range(len(ROUND2)) if k not in fixed]
-    draw_cells(ax, round2, low, high, planned, groups=[bugged, fixed])
-    ax.set_xticks([0], ["lr 1e-4, EMA start 0.99995, batch 64,\nwith the change of the row"])
+    empty = {(k, 1): "" for k in range(round2.shape[0])}
+    empty.update({(len(ROUND2) + k, 0): when for k, (_, when) in enumerate(PLANNED)})
+    fixed = [(k, 0) for k, run in enumerate(ROUND2) if run.endswith("_rollfix")]
+    bugged = [(k, 0) for k, run in enumerate(ROUND2) if not run.endswith("_rollfix")]
+    draw_cells(ax, round2, low, high, empty, groups=[bugged, fixed])
+    ax.set_xticks([0, 1], ["lr 1e-4, EMA start 0.99995, batch 64,\nwith the change of the row",
+                           "the same run,\nrescored with\nthe fixed rollout"])
     labels = [label for label, _ in ROUND2.values()] + [label for label, _ in PLANNED]
     ax.set_yticks(range(len(labels)), labels, fontsize=9)
-    scored = int(np.sum(~np.isnan(round2[1:len(ROUND2)])))
+    scored = int(np.sum(~np.isnan(round2[1:len(ROUND2), 0])))
     ax.set_title(f"Second round: changes from lr 1e-4, EMA start 0.99995\n"
                  f"({scored} of {len(ROUND2) - 1} scored, {len(PLANNED)} planned)")
 
@@ -191,7 +209,7 @@ def main():
     grid, round2 = grid_scores(), round2_scores()
     write_table(grid, round2)
     low, high = color_scale(grid, round2)
-    fig, (left, right) = plt.subplots(1, 2, figsize=(14.5, 13), gridspec_kw={"width_ratios": [2, 1.2], "wspace": 0.9})
+    fig, (left, right) = plt.subplots(1, 2, figsize=(19, 13), gridspec_kw={"width_ratios": [2, 2.4], "wspace": 0.75})
     image = draw_grid(left, grid, low, high)
     draw_round2(right, round2, low, high)
     fig.colorbar(image, ax=[left, right], label="forecast GM-Relative MASE (lower is better)")
