@@ -292,15 +292,3 @@ script scores a family under B4 only.
 The tag must end in `_ff_<body>_<rule>`. For a member list, `_m` and the
 keys follow, with `-` between the keys: `_ff_shared_strict_m16`. So a family
 head and a standard head of one checkpoint share no file.
-
-## `--patch-norm-gain-init G`
-
-Each patch encoder ends with a LayerNorm. Its output is the patch embedding e, the input of the encoder stack. This LayerNorm sets the scale of e. At its PyTorch init (the gain 1), e has a variance of 1 per dimension, whatever the init of the layers before it. The flag sets the start value of the gain, in the student and in the EMA teacher.
-
-| value | e at the start |
-|---|---|
-| `1.0` (default) | the PyTorch init: the variance 1 per dimension, a norm of about sqrt(d_model) |
-| `1/sqrt(d_model)` | the variance of the SIGReg target (1/d_model), a norm of about 1 |
-| `0` | e = 0. With `--mup-init-output 0`, the encoder output h and the forecaster output f are 0 too. Then each gradient is 0 and the run does not train: a test at batch 256 did not change in 300 steps |
-
-The gain trains as before. A resume keeps the saved gain. The training log prints the value and the count of the norms. Example at `--d-model 64`: `--patch-norm-gain-init 0.125`.

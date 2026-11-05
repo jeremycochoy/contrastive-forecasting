@@ -40,7 +40,6 @@ from src.models import (SCHEDULE_SHAPES, ConfigurableModel, compute_metrics,
                         count_parameters, ema_tau_at_step,
                         generate_random_batch, linear_schedule_at_step)
 from src.blocks import ATTN_AMP_DIAG
-from src.encoders import set_patch_norm_gain_
 from src.mup import (depth_lr_mults, init_groups, mup_attention_, mup_depth_,
                      mup_init_, mup_param_groups, parameter_rules,
                      summary as mup_summary)
@@ -126,6 +125,11 @@ SPLIT_SHAPE = "cosine_similarity_batch_split_pred_rep"
 ROW_MASK_SHAPES = ("cosine_similarity_batch_rep_only", SPLIT_SHAPE)
 
 T_RAW = 1024  # Default. Overridden by --t-raw CLI flag.
+
+
+def sigreg_scale_arg(text):
+    """--sigreg-latent-scale: a number, or inv_sqrt_d for 1/sqrt(K) of each latent."""
+    return text if text == "inv_sqrt_d" else float(text)
 
 
 def build_parser():
@@ -550,17 +554,6 @@ def build_parser():
                         "for a skipped step) and the gradient norm before "
                         "the clip (grad_norm), and each dropped row is "
                         "written to <run>_nan_rows_<step>.pt. Default off.")
-    p.add_argument("--patch-norm-gain-init", type=float, default=1.0,
-                   help="The start value of the gain of the LayerNorm at the "
-                        "end of each patch encoder, the student's and the EMA "
-                        "teacher's. This LayerNorm sets the scale of the patch "
-                        "embedding e: a variance of 1 per dimension at the "
-                        "default 1.0 (the PyTorch init). The SIGReg target has "
-                        "the variance 1/d_model, so 1/sqrt(d_model) starts e at "
-                        "that scale, and 0 starts e at 0 (with --mup-init-output "
-                        "0, the encoder output h and the forecaster output f "
-                        "start at 0 too, each gradient is 0 and the run does "
-                        "not train). A resume keeps the saved gain.")
     p.add_argument("--patch-rms-weight", type=float, default=0.0,
                    help="With --value-space-objective, --multi-patch-sizes "
                         "and the GRU encoder (#421): adds this weight times "
@@ -954,6 +947,17 @@ def build_parser():
                         "isotropic features and up to about 40 on collapsed "
                         "ones (docs/sigreg.md), so a weight tuned with the "
                         "old bound acts much more strongly.")
+    p.add_argument("--sigreg-latent-scale", type=sigreg_scale_arg, default=1.0,
+                   help="SIGReg reads each latent (e, h, and f with "
+                        "--sigreg-forecast) times this fixed factor. Its target "
+                        "(the variance 1/K of each projection, K the size of "
+                        "the latent) and its window stay. inv_sqrt_d gives "
+                        "1/sqrt(K): the latents of plain muP, with coordinates "
+                        "of about 1 at any width, then meet the target, as with "
+                        "a target variance of 1 per coordinate and the weight "
+                        "times sqrt(K). The factor is the same constant for each "
+                        "sample and step: no normalisation. The default 1.0 "
+                        "keeps the runs unchanged.")
     p.add_argument("--sigreg-embedding-weight", type=float, default=0.1,
                    help="λ for L_sigreg_embedding (the e_t term) in the total "
                         "loss. LeJEPA default 0.1. No-op when "
@@ -2370,9 +2374,19 @@ def cpc_aux_term(model, lat, args, pad_patches):
         rollout_latents=lat.rollout, depth_reduce=args.train_rollout_reduce)
 
 
+def sigreg_scale(args, size: int) -> float:
+    """The factor SIGReg reads a latent of ``size`` features with
+    (--sigreg-latent-scale)."""
+    value = args.sigreg_latent_scale
+    return 1.0 / math.sqrt(size) if value == "inv_sqrt_d" else float(value)
+
+
 def sigreg_term(latent, args, pad_patches):
-    """SIGReg (#355) on the real positions of one latent, unweighted."""
-    return sigreg_loss(real_positions(latent, pad_patches), M=args.sigreg_m,
+    """SIGReg (#355) on the real positions of one latent, unweighted, read
+    at the scale of --sigreg-latent-scale."""
+    real = real_positions(latent, pad_patches)
+    scale = sigreg_scale(args, real.shape[-1])
+    return sigreg_loss(real if scale == 1.0 else scale * real, M=args.sigreg_m,
                        T_knots=args.sigreg_t_knots,
                        n_chunk=args.sigreg_n_chunk,
                        legacy_window=args.sigreg_legacy_window)
@@ -3179,10 +3193,9 @@ def main():
     if not 0.5 <= args.mup_depth_alpha <= 1.0:
         raise SystemExit(f"--mup-depth-alpha must be in [0.5, 1], not {args.mup_depth_alpha}.")
     model = ConfigurableModel(**model_config).to(device)
-    if args.patch_norm_gain_init != 1.0:
-        count = set_patch_norm_gain_(model, args.patch_norm_gain_init)
-        print(f"Patch encoder LayerNorm gain at the start: "
-              f"{args.patch_norm_gain_init:g} ({count} norms)")
+    if args.sigreg_latent_scale != 1.0:
+        print(f"SIGReg latent scale: {args.sigreg_latent_scale} "
+              f"({sigreg_scale(args, args.d_model):g} at d_model {args.d_model})")
     optimizer = optim.AdamW(
         mup_setup(model, model_config, args) if args.mup_base_d_model
         else model.parameters(),
