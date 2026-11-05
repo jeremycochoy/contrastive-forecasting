@@ -11,8 +11,9 @@ schedule); batch 128 at the lr 1e-4, 2e-4, 4e-4 and 8e-4, and with the warmup
 of W and a cosine to 4e-4. Batch 256 runs on the fixed code (the user, 11-03):
 the constant lr 4e-4, 8e-4, 1e-3 and 1.6e-3, then L_rep 0.05 at the best of them
 (1e-3; the user's plan of 11-04), and 80k steps at lr 1e-3 with the fixed SIGReg
-window at both L_rep weights and a linear lr ramp over the first 1k steps, at the same
-time (the user, 11-05). A grey row is a planned run. Its panel has that cell as its first row.
+window at both L_rep weights, SIGReg reading each latent times 1/sqrt(d_model)
+(--sigreg-latent-scale inv_sqrt_d), at the same time (the user, 11-05). A grey
+row is a planned run. Its panel has that cell as its first row.
 
 Each cell is the forecast GM-Relative MASE of head B4 at 40k (30k head steps,
 97 configs). Lower is better. A grey cell has no score yet. A red frame marks
@@ -69,10 +70,10 @@ ROUND2 = {BEST: ("lr 1e-4, EMA start 0.99995\n(no change)", "1e-4"),
                                                    "1.6e-3"),
           "g40b_lr1em3_tau99995_bs256_rep005_rollfix": ("FIXED ROLLOUT, batch 256, lr 1e-3,\nL_rep 0.05 (scored with the fixed rollout)",
                                                         "1e-3"),
-          "g80b_lr1em3_tau99995_bs256_rep01_sigfix_wu1k_rollfix": (
-              "FIXED ROLLOUT, batch 256, lr 1e-3,\nL_rep 0.1, fixed SIGReg window,\nlr ramp over 1k steps, 80k steps", "1e-3"),
-          "g80b_lr1em3_tau99995_bs256_rep005_sigfix_wu1k_rollfix": (
-              "FIXED ROLLOUT, batch 256, lr 1e-3,\nL_rep 0.05, fixed SIGReg window,\nlr ramp over 1k steps, 80k steps", "1e-3")}
+          "g80b_lr1em3_tau99995_bs256_rep01_sigfix_ss_rollfix": (
+              "FIXED ROLLOUT, batch 256, lr 1e-3,\nL_rep 0.1, fixed SIGReg window,\nSIGReg latent scale 1/8, 80k steps", "1e-3"),
+          "g80b_lr1em3_tau99995_bs256_rep005_sigfix_ss_rollfix": (
+              "FIXED ROLLOUT, batch 256, lr 1e-3,\nL_rep 0.05, fixed SIGReg window,\nSIGReg latent scale 1/8, 80k steps", "1e-3")}
 # The planned runs of the search, not started: (row label, when). The user (11-03 about
 # 21:05 UTC): the heatmap shows them; each one moves into ROUND2 when it starts.
 PLANNED = []
@@ -85,8 +86,8 @@ ROUND2_COLOURS = {BEST: "#d95f02", "g40b_lr1em4_tau99995_rep005h": "#1f77b4",
                   "g40b_lr4em4_tau99995_bs256_rollfix": "#1b9e77", "g40b_lr8em4_tau99995_bs256_rollfix": "#999999",
                   "g40b_lr1em3_tau99995_bs256_rollfix": "#ff00ff", "g40b_lr1p6em3_tau99995_bs256_rollfix": "#000000",
                   "g40b_lr1em3_tau99995_bs256_rep005_rollfix": "#8b008b",
-                  "g80b_lr1em3_tau99995_bs256_rep01_sigfix_wu1k_rollfix": "#0000ff",
-                  "g80b_lr1em3_tau99995_bs256_rep005_sigfix_wu1k_rollfix": "#00ff7f"}
+                  "g80b_lr1em3_tau99995_bs256_rep01_sigfix_ss_rollfix": "#0000ff",
+                  "g80b_lr1em3_tau99995_bs256_rep005_sigfix_ss_rollfix": "#00ff7f"}
 
 
 def run_score(run):

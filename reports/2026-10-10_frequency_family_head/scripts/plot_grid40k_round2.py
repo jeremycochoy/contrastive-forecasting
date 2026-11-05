@@ -8,7 +8,7 @@ batch 128 with the warmup of W, then a cosine to 4e-4, and the SIGReg gate: batc
 128 at lr 4e-4 with the SIGReg window fix of #438, and batch 256 at the lr 4e-4, 8e-4,
 1e-3 and 1.6e-3, and at lr 1e-3 with L_rep 0.05, with the fixed rollout of #446
 and #447 (the old SIGReg window), and at lr 1e-3 for 80k steps with the fixed SIGReg
-window and a linear lr ramp over the first 1k steps at L_rep 0.1 and 0.05. Three panels on one step axis, means over bins
+window and SIGReg reading each latent times 1/sqrt(d_model) at L_rep 0.1 and 0.05. Three panels on one step axis, means over bins
 of 500 steps:
 
   1. The lr of each step, from the flags of the run (the formula of
@@ -65,10 +65,10 @@ RUNS = {
                                              (1.6e-3, 1.6e-3, STEPS, 0), False),
     "g40b_lr1em3_tau99995_bs256_rep005_rollfix": ("fixed rollout, batch 256, lr 1e-3, L_rep 0.05",
                                                   (1e-3, 1e-3, STEPS, 0), False),
-    "g80b_lr1em3_tau99995_bs256_rep01_sigfix_wu1k_rollfix": ("80k steps, fixed SIGReg window, lr ramp over 1k steps, batch 256, lr 1e-3, L_rep 0.1",
-                                                        (1e-3, 1e-3, STEPS, 1000), False),
-    "g80b_lr1em3_tau99995_bs256_rep005_sigfix_wu1k_rollfix": ("80k steps, fixed SIGReg window, lr ramp over 1k steps, batch 256, lr 1e-3, L_rep 0.05",
-                                                         (1e-3, 1e-3, STEPS, 1000), False),
+    "g80b_lr1em3_tau99995_bs256_rep01_sigfix_ss_rollfix": ("80k steps, fixed SIGReg window, SIGReg latent scale 1/8, batch 256, lr 1e-3, L_rep 0.1",
+                                                        (1e-3, 1e-3, STEPS, 0), False),
+    "g80b_lr1em3_tau99995_bs256_rep005_sigfix_ss_rollfix": ("80k steps, fixed SIGReg window, SIGReg latent scale 1/8, batch 256, lr 1e-3, L_rep 0.05",
+                                                         (1e-3, 1e-3, STEPS, 0), False),
 }
 
 
