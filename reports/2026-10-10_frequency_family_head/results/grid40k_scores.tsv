@@ -19,5 +19,5 @@ g40b_lr8em4_tau99995_bs256_rollfix	8e-4	0.99995	FIXED ROLLOUT, batch 256, lr 8e-
 g40b_lr1em3_tau99995_bs256_rollfix	1e-3	0.99995	FIXED ROLLOUT, batch 256, lr 1e-3 (scored with the fixed rollout)	1.0590
 g40b_lr1p6em3_tau99995_bs256_rollfix	1.6e-3	0.99995	FIXED ROLLOUT, batch 256, lr 1.6e-3 (scored with the fixed rollout)	1.1225
 g40b_lr1em3_tau99995_bs256_rep005_rollfix	1e-3	0.99995	FIXED ROLLOUT, batch 256, lr 1e-3, L_rep 0.05 (scored with the fixed rollout)	
-g80b_lr1em3_tau99995_bs256_rep01_sigfix_ss_rollfix	1e-3	0.99995	FIXED ROLLOUT, batch 256, lr 1e-3, L_rep 0.1, fixed SIGReg window, SIGReg latent scale 1/8, 80k steps	
-g80b_lr1em3_tau99995_bs256_rep005_sigfix_ss_rollfix	1e-3	0.99995	FIXED ROLLOUT, batch 256, lr 1e-3, L_rep 0.05, fixed SIGReg window, SIGReg latent scale 1/8, 80k steps	
+g80b_lr1em3_tau99995_bs256_rep01_sigfix_ss_rollfix	1e-3	0.99995	FIXED ROLLOUT, batch 256, lr 1e-3, L_rep 0.1, fixed SIGReg window, SIGReg latent scale 1/8, stop at 40k	
+g80b_lr1em3_tau99995_bs256_rep005_sigfix_ss_rollfix	1e-3	0.99995	FIXED ROLLOUT, batch 256, lr 1e-3, L_rep 0.05, fixed SIGReg window, SIGReg latent scale 1/8, stop at 40k	
