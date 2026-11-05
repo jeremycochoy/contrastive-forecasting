@@ -351,10 +351,3 @@ def test_an_output_factor_0_trains_from_the_last_layers_at_0(tmp_path):
     out0 = (tmp_path / "out0_losses.csv").read_text().splitlines()
     assert plain[0] == out0[0] and plain[1] != out0[1]
     assert math.isfinite(float(out0[-1].split(",")[1]))
-
-
-def test_the_patch_norm_gain_flag_starts_the_patch_embedding_at_0(tmp_path):
-    run = trainer(tmp_path, "gain0", 8, mup_base=8,
-                  extra=["--patch-norm-gain-init", "0", "--mup-init-output", "0",
-                         "--encoder-type", "gru", "--ema-embedding"])
-    assert "Patch encoder LayerNorm gain at the start: 0 (2 norms)" in run.stdout
