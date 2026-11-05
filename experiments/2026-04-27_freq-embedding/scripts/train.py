@@ -127,6 +127,11 @@ ROW_MASK_SHAPES = ("cosine_similarity_batch_rep_only", SPLIT_SHAPE)
 T_RAW = 1024  # Default. Overridden by --t-raw CLI flag.
 
 
+def sigreg_scale_arg(text):
+    """--sigreg-latent-scale: a number, or inv_sqrt_d for 1/sqrt(K) of each latent."""
+    return text if text == "inv_sqrt_d" else float(text)
+
+
 def build_parser():
     p = argparse.ArgumentParser(description="Contrastive + freq embedding training")
     p.add_argument("--device", default="cuda")
@@ -942,6 +947,17 @@ def build_parser():
                         "isotropic features and up to about 40 on collapsed "
                         "ones (docs/sigreg.md), so a weight tuned with the "
                         "old bound acts much more strongly.")
+    p.add_argument("--sigreg-latent-scale", type=sigreg_scale_arg, default=1.0,
+                   help="SIGReg reads each latent (e, h, and f with "
+                        "--sigreg-forecast) times this fixed factor. Its target "
+                        "(the variance 1/K of each projection, K the size of "
+                        "the latent) and its window stay. inv_sqrt_d gives "
+                        "1/sqrt(K): the latents of plain muP, with coordinates "
+                        "of about 1 at any width, then meet the target, as with "
+                        "a target variance of 1 per coordinate and the weight "
+                        "times sqrt(K). The factor is the same constant for each "
+                        "sample and step: no normalisation. The default 1.0 "
+                        "keeps the runs unchanged.")
     p.add_argument("--sigreg-embedding-weight", type=float, default=0.1,
                    help="λ for L_sigreg_embedding (the e_t term) in the total "
                         "loss. LeJEPA default 0.1. No-op when "
@@ -2358,9 +2374,19 @@ def cpc_aux_term(model, lat, args, pad_patches):
         rollout_latents=lat.rollout, depth_reduce=args.train_rollout_reduce)
 
 
+def sigreg_scale(args, size: int) -> float:
+    """The factor SIGReg reads a latent of ``size`` features with
+    (--sigreg-latent-scale)."""
+    value = args.sigreg_latent_scale
+    return 1.0 / math.sqrt(size) if value == "inv_sqrt_d" else float(value)
+
+
 def sigreg_term(latent, args, pad_patches):
-    """SIGReg (#355) on the real positions of one latent, unweighted."""
-    return sigreg_loss(real_positions(latent, pad_patches), M=args.sigreg_m,
+    """SIGReg (#355) on the real positions of one latent, unweighted, read
+    at the scale of --sigreg-latent-scale."""
+    real = real_positions(latent, pad_patches)
+    scale = sigreg_scale(args, real.shape[-1])
+    return sigreg_loss(real if scale == 1.0 else scale * real, M=args.sigreg_m,
                        T_knots=args.sigreg_t_knots,
                        n_chunk=args.sigreg_n_chunk,
                        legacy_window=args.sigreg_legacy_window)
@@ -3167,6 +3193,9 @@ def main():
     if not 0.5 <= args.mup_depth_alpha <= 1.0:
         raise SystemExit(f"--mup-depth-alpha must be in [0.5, 1], not {args.mup_depth_alpha}.")
     model = ConfigurableModel(**model_config).to(device)
+    if args.sigreg_latent_scale != 1.0:
+        print(f"SIGReg latent scale: {args.sigreg_latent_scale} "
+              f"({sigreg_scale(args, args.d_model):g} at d_model {args.d_model})")
     optimizer = optim.AdamW(
         mup_setup(model, model_config, args) if args.mup_base_d_model
         else model.parameters(),

@@ -42,6 +42,24 @@ projections against `N(0, 1)`. A weight that was tuned with the old bound
 now acts much more strongly. Check the `sigreg_e` and `sigreg_h` columns of
 `<run>_losses.csv` against the other terms.
 
+## The scale of the latent
+
+The target of each projection is `N(0, 1/K)`, `K` the size of the latent: a latent of norm about 1. With muP, each coordinate of a latent stays at about 1 at any width, so the latent has a norm of about `√K`. The patch embedding e is the output of a LayerNorm (variance 1 per coordinate), and the writes of the encoder and forecaster layers keep the same scale. At this scale the statistic stays at about 8.2 per term, and its gradient gives almost no pull.
+
+`--sigreg-latent-scale S` makes SIGReg read each latent times the fixed factor `S`. The value `inv_sqrt_d` gives `1/√K`: the latents of plain muP then meet the target at any width. This is the same as a target variance of 1 per coordinate with the weight times `√K`. The factor is one constant for each sample and step, not a normalisation, and the model does not change. The default 1.0 keeps the runs unchanged.
+
+```bash
+python experiments/2026-04-27_freq-embedding/scripts/train.py \
+  --sigreg-embedding --sigreg-encoding --sigreg-latent-scale inv_sqrt_d ...
+```
+
+A test of 300 steps at batch 256, width 64 and lr 1e-3 (fixed window, weight 1.0 on e and h):
+
+| `--sigreg-latent-scale` | SIGReg on e, steps 1 to 300 | SIGReg on h, steps 1 to 300 |
+|---|---|---|
+| 1.0 | 8.5 to 8.3 | 8.5 to 8.19 (8.19 from step 2) |
+| `inv_sqrt_d` (0.125) | 10.0 to 0.53 | 9.4 to 0.09 |
+
 ## On the forecast latent
 
 `--sigreg-forecast` adds the same statistic on the forecaster output `f`,
