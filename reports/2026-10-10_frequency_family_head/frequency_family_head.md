@@ -101,6 +101,7 @@ The 80k runs now train with `--sigreg-latent-scale inv_sqrt_d`: SIGReg reads eac
 In a test of 300 steps, SIGReg on the encoder output falls from 9.4 to 0.09 with this factor.
 At 20k, the 80k run with L_rep 0.1 gets 1.0656 (short 0.9844, medium 1.1831, long 1.1811).
 At 40k, it gets 1.0481 (short 0.9741, medium 1.1572, long 1.1500), the lowest score of the grid.
+With L_rep 0.05, the other 80k run gets 1.0770 at 40k (short 0.9769, medium 1.2063, long 1.2416).
 With the fixed rollout, batch 128 at 4e-4 gets 1.2440, and 1.1842 with the raw rollout (the right column).
 This run trained with the raw rollout feedback.
 At 40k, the fixed rollout also gives higher scores for violet (1.1948 against 1.1430) and blue (1.2337 against 1.1944), the two muP runs with the flags of the grid.
