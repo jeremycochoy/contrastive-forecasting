@@ -87,9 +87,10 @@ They train with the normalised rollout feedback of #447, and their scores use th
 At batch 256, the constant learning rates 4e-4, 8e-4, 1e-3 and 1.6e-3 give 1.0734, 1.0669, 1.0590 and 1.1225.
 The lowest score is at 1e-3.
 Compared with 8e-4, the score at 1e-3 is lower on the medium and long horizons (1.1605 and 1.1546 against 1.1852 and 1.1728).
-At 1e-3, a run with L_rep 0.05 trains now.
-The grey rows of the heat map show the next planned runs: 80k steps with the SIGReg window fix at the two L_rep weights.
-The right column of the second round is for the rescore of batch 128 at 4e-4 with the fixed rollout.
+At 1e-3, three runs train now: L_rep 0.05 for 40k steps, and L_rep 0.1 and 0.05 for 80k steps with the SIGReg window fix.
+With the fixed rollout, batch 128 at 4e-4 gets 1.2440, and 1.1842 with the raw rollout (the right column).
+This run trained with the raw rollout feedback.
+At 40k, the fixed rollout also gives higher scores for violet (1.1948 against 1.1430) and blue (1.2337 against 1.1944), the two muP runs with the flags of the grid.
 The other scores of the grid use the raw rollout feedback, so compare a batch-256 score only with the other batch-256 scores.
 The largest change is on m4_hourly: 2.29 for batch 256 at 8e-4, 4.89 for batch 128 at 4e-4 and 1.55 for MPE.
 

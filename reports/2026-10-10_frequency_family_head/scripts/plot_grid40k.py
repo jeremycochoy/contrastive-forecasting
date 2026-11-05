@@ -10,8 +10,9 @@ EMA start 0.99995, each with one change (the losses of blue or an lr
 schedule); batch 128 at the lr 1e-4, 2e-4, 4e-4 and 8e-4, and with the warmup
 of W and a cosine to 4e-4. Batch 256 runs on the fixed code (the user, 11-03):
 the constant lr 4e-4, 8e-4, 1e-3 and 1.6e-3, then L_rep 0.05 at the best of them
-(1e-3; the user's plan of 11-04). The grey rows are the next planned runs: 80k
-steps with the fixed SIGReg window at both L_rep weights. Its panel has that cell as its first row.
+(1e-3; the user's plan of 11-04), and 80k steps at lr 1e-3 with the fixed SIGReg
+window at both L_rep weights, at the same time (the user, 11-05). A grey row is a
+planned run. Its panel has that cell as its first row.
 
 Each cell is the forecast GM-Relative MASE of head B4 at 40k (30k head steps,
 97 configs). Lower is better. A grey cell has no score yet. A red frame marks
@@ -67,13 +68,14 @@ ROUND2 = {BEST: ("lr 1e-4, EMA start 0.99995\n(no change)", "1e-4"),
           "g40b_lr1p6em3_tau99995_bs256_rollfix": ("FIXED ROLLOUT, batch 256, lr 1.6e-3\n(scored with the fixed rollout)",
                                                    "1.6e-3"),
           "g40b_lr1em3_tau99995_bs256_rep005_rollfix": ("FIXED ROLLOUT, batch 256, lr 1e-3,\nL_rep 0.05 (scored with the fixed rollout)",
-                                                        "1e-3")}
+                                                        "1e-3"),
+          "g80b_lr1em3_tau99995_bs256_rep01_sigfix_rollfix": (
+              "FIXED ROLLOUT, batch 256, lr 1e-3, L_rep 0.1,\nfixed SIGReg window, 80k steps (score at 40k)", "1e-3"),
+          "g80b_lr1em3_tau99995_bs256_rep005_sigfix_rollfix": (
+              "FIXED ROLLOUT, batch 256, lr 1e-3, L_rep 0.05,\nfixed SIGReg window, 80k steps (score at 40k)", "1e-3")}
 # The planned runs of the search, not started: (row label, when). The user (11-03 about
 # 21:05 UTC): the heatmap shows them; each one moves into ROUND2 when it starts.
-PLANNED = [("PLANNED, FIXED ROLLOUT, batch 256,\n80k steps, fixed SIGReg window,\nlr 1e-3, the better L_rep weight",
-            "starts at the L_rep 0.05 score"),
-           ("PLANNED, FIXED ROLLOUT, batch 256,\n80k steps, fixed SIGReg window,\nlr 1e-3, the other L_rep weight",
-            "starts at the L_rep 0.05 score")]
+PLANNED = []
 # run -> its colour in the radar and in the training figure of the second round
 ROUND2_COLOURS = {BEST: "#d95f02", "g40b_lr1em4_tau99995_rep005h": "#1f77b4",
                   "g40c_lr1em4_tau99995_cos": "#e7298a", "g40w_lr1em3_wu4k_cos": "#66a61e",
@@ -82,7 +84,9 @@ ROUND2_COLOURS = {BEST: "#d95f02", "g40b_lr1em4_tau99995_rep005h": "#1f77b4",
                   "g40b_lr8em4_tau99995_bs128": "#6a3d9a", "g40b_lr4em4_tau99995_bs128_sigfix": "#e6ab02",
                   "g40b_lr4em4_tau99995_bs256_rollfix": "#1b9e77", "g40b_lr8em4_tau99995_bs256_rollfix": "#999999",
                   "g40b_lr1em3_tau99995_bs256_rollfix": "#ff00ff", "g40b_lr1p6em3_tau99995_bs256_rollfix": "#000000",
-                  "g40b_lr1em3_tau99995_bs256_rep005_rollfix": "#8b008b"}
+                  "g40b_lr1em3_tau99995_bs256_rep005_rollfix": "#8b008b",
+                  "g80b_lr1em3_tau99995_bs256_rep01_sigfix_rollfix": "#0000ff",
+                  "g80b_lr1em3_tau99995_bs256_rep005_sigfix_rollfix": "#00ff7f"}
 
 
 def run_score(run):
@@ -202,7 +206,7 @@ def draw_round2(ax, round2, low, high):
     ax.set_yticks(range(len(labels)), labels, fontsize=9)
     scored = int(np.sum(~np.isnan(round2[1:len(ROUND2), 0])))
     ax.set_title(f"Second round: changes from lr 1e-4, EMA start 0.99995\n"
-                 f"({scored} of {len(ROUND2) - 1} scored, {len(PLANNED)} planned)")
+                 f"({scored} of {len(ROUND2) - 1} scored" + (f", {len(PLANNED)} planned)" if PLANNED else ")"))
 
 
 def main():
