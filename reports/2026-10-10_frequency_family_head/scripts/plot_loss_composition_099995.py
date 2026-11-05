@@ -93,7 +93,7 @@ RUNS = {
           "grn_ema099995_f6_rep005_halving_mup_losses.csv", 100_000),
          (RUNS_DIR / "grn_ema099995_f6_rep005_halving_mup/ckpt/"
           "grn_ema099995_f6_rep005_halving_mup_r2_losses.csv", None)],
-        "#1f77b4", "Blue: violet with L_rep 0.05, depths 1/2^j (to 200k)"),
+        "#1f77b4", "Blue: violet with L_rep 0.05, depths 1/2^j (trains to 665k)"),
     "grn_ema099995_f6_rep01_mup_lr56": (
         [(RUNS_DIR / "grn_ema099995_f6_rep01_mup_lr56/ckpt/"
           "grn_ema099995_f6_rep01_mup_lr56_losses.csv", None)],
