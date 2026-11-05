@@ -352,3 +352,26 @@ def create_encoder(encoder_type, W, H, intermediate_dim=None,
         )
     else:
         raise ValueError(f"Unknown encoder type: {encoder_type}")
+
+
+# The patch encoders that end with ``self.layer_norm``: its output is the
+# patch embedding e.
+NORMED_PATCH_ENCODERS = (MLPEncoder, MLPWideEncoder, ResidualSiLUEncoder,
+                         GRUEncoder, ConvEncoder)
+
+
+@torch.no_grad()
+def set_patch_norm_gain_(model: nn.Module, gain: float) -> int:
+    """Sets the gain of the last LayerNorm of each patch encoder in ``model``
+    (the student's and the EMA teacher's) to ``gain``. Returns their count.
+
+    At the PyTorch init (gain 1), the LayerNorm gives the patch embedding e a
+    variance of 1 per dimension, whatever the init of the layers before it.
+    The SIGReg target has the variance 1/d_model: the gain 1/sqrt(d_model)
+    starts e at that scale, and the gain 0 starts e at 0 (the LayerNorm bias
+    starts at 0)."""
+    norms = [module.layer_norm for module in model.modules()
+             if isinstance(module, NORMED_PATCH_ENCODERS)]
+    for norm in norms:
+        norm.weight.fill_(gain)
+    return len(norms)
