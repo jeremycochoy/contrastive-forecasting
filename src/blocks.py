@@ -762,6 +762,40 @@ class TransformerBlock(nn.Module):
                 lyr.attn_amp_block_tag = "fcst"
 
         self.causal_mask = None
+        # --latent-sphere (set_latent_sphere): off unless the run or its
+        # checkpoint turns it on.
+        self._latent_sphere = False
+
+    def set_latent_sphere(self) -> None:
+        """Puts the latents e, h and f on one sphere of radius sqrt(K), K their
+        size, so that each coordinate is about 1 (--latent-sphere). The encoder
+        reads e on the sphere. The forecaster reads each input token on the
+        sphere: the encoder output h and each output that a rollout feeds back.
+        It returns its output f on the sphere. ``forward`` returns e and h
+        before the projection, so SIGReg reads them raw. The flag is a buffer
+        of the state_dict, so a loader of the checkpoint gets it back, as the
+        muP scales."""
+        if self.forecaster_kind != "transformer":
+            raise ValueError("--latent-sphere needs --forecaster-kind transformer")
+        device = next(self.parameters()).device
+        self.register_buffer("latent_sphere", torch.ones((), device=device))
+        self._latent_sphere = True
+
+    def sphere(self, x: Tensor) -> Tensor:
+        """``x`` with each vector of its last axis at the norm sqrt(K), K the
+        size of that axis, or ``x`` itself when the latent sphere is off."""
+        if not self._latent_sphere:
+            return x
+        x32 = x.float()
+        radius = math.sqrt(x.shape[-1])
+        return (x32 * (radius / x32.norm(dim=-1, keepdim=True).clamp_min(1e-12))).to(x.dtype)
+
+    def _load_from_state_dict(self, state_dict, prefix, *args, **kwargs):
+        # A checkpoint of a --latent-sphere run gives the sphere to a block
+        # built without it, so the head trainer and the evaluation need no flag.
+        if prefix + "latent_sphere" in state_dict and not self._latent_sphere:
+            self.set_latent_sphere()
+        super()._load_from_state_dict(state_dict, prefix, *args, **kwargs)
 
     def causal_mask_for(self, x, cache=True):
         """The [T, T] causal mask for `x`'s sequence length and device.
@@ -825,6 +859,9 @@ class TransformerBlock(nn.Module):
         run at a fixed T keep the cache.
         """
         causal_mask = self.causal_mask_for(x, cache=cache_mask)
+        # --latent-sphere: each input token on the sphere, the encoder output
+        # and each fed-back output alike.
+        x = self.sphere(x)
         # Forecaster bottleneck (#286 follow-up, v13). When configured
         # smaller than `dimension_e`, `fcst_down_proj` is a Linear that
         # shrinks per-token. Otherwise it's nn.Identity (no-op). The
@@ -869,7 +906,8 @@ class TransformerBlock(nn.Module):
         # Project the forecaster output back up to dimension_e so the
         # downstream contrastive loss / channel-mixing operates in the
         # same H-dim space as `x_original` (the encoder-side latent).
-        return self.fcst_up_proj(x)
+        # --latent-sphere: the output f on the sphere.
+        return self.sphere(self.fcst_up_proj(x))
 
     def _run_layer(self, layer, x, mask, is_causal, ckpt):
         """Run one decoder layer, optionally gradient-checkpointed (#327).
@@ -896,6 +934,9 @@ class TransformerBlock(nn.Module):
         if self.input_to_latent is not None:
             x = self.input_to_latent(x)
         embed = x if return_embed else None
+        # --latent-sphere: the encoder reads e on the sphere. `embed` keeps
+        # the raw e, for SIGReg.
+        x = self.sphere(x)
 
         B,T,C,H = x.size()
         x = x.permute(0,2,1,3)

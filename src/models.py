@@ -104,7 +104,8 @@ class ConfigurableModel(torch.nn.Module):
                  log_attn_amplitude: bool = False,
                  ema_embedding: bool = False,
                  ema_encoder: bool = False,
-                 channel_mixing_kind='simple', channel_mixing_n_heads=8):
+                 channel_mixing_kind='simple', channel_mixing_n_heads=8,
+                 latent_sphere: bool = False):
         super().__init__()
         self.C = C
         self.H = H
@@ -302,6 +303,8 @@ class ConfigurableModel(torch.nn.Module):
             attn_out_norm=attn_out_norm,
             log_attn_amplitude=log_attn_amplitude,
         )
+        if latent_sphere:
+            self.transformer.set_latent_sphere()
         # Override activation if requested
         if activation != 'gelu':
             act_fn = torch.nn.functional.silu if activation == 'silu' else torch.nn.functional.gelu
@@ -393,6 +396,9 @@ class ConfigurableModel(torch.nn.Module):
                            for chunk in xr.chunk(nchunk, dim=0)], dim=0)
         else:
             x = embed(xr)                        # [B, T, C, H]
+        # --latent-sphere: the teacher's encoder reads e on the sphere, as the
+        # student's does.
+        x = self.transformer.sphere(x)
         B, T, C, H = x.size()
         x = x.permute(0, 2, 1, 3).reshape(B * C, T, H)
         # Mirror TransformerBlock.forward's causal-mask cache by lazily
