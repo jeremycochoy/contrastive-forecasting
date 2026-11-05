@@ -958,6 +958,17 @@ def build_parser():
                         "times sqrt(K). The factor is the same constant for each "
                         "sample and step: no normalisation. The default 1.0 "
                         "keeps the runs unchanged.")
+    p.add_argument("--latent-sphere", action="store_true",
+                   help="Puts the latents e, h and f on one sphere of radius "
+                        "sqrt(K), K their size, so that each coordinate is "
+                        "about 1. The encoder reads e on the sphere, the "
+                        "forecaster reads each input token on the sphere (the "
+                        "encoder output h and each fed-back output of a "
+                        "rollout), and its output f is on the sphere, also for "
+                        "the EMA teacher, the forecast heads and the eval. "
+                        "SIGReg reads e and h before the projection: no "
+                        "normalisation before SIGReg. The checkpoint keeps the "
+                        "setting. Needs --forecaster-kind transformer.")
     p.add_argument("--sigreg-embedding-weight", type=float, default=0.1,
                    help="λ for L_sigreg_embedding (the e_t term) in the total "
                         "loss. LeJEPA default 0.1. No-op when "
@@ -3121,6 +3132,9 @@ def main():
                 "this run has no L_align term; pass --align-loss-weight.")
     model_config["ema_embedding"] = bool(args.ema_embedding)
     model_config["ema_encoder"] = bool(args.ema_encoder)
+    model_config["latent_sphere"] = bool(args.latent_sphere)
+    if args.latent_sphere and args.forecaster_kind != "transformer":
+        raise SystemExit("--latent-sphere needs --forecaster-kind transformer.")
     # LeJEPA SIGReg (#355): the term contributes nothing to the model's
     # state_dict (no buffers. M projections resampled per forward), so
     # there is no model_config to thread through — only the run-level
@@ -3193,6 +3207,9 @@ def main():
     if not 0.5 <= args.mup_depth_alpha <= 1.0:
         raise SystemExit(f"--mup-depth-alpha must be in [0.5, 1], not {args.mup_depth_alpha}.")
     model = ConfigurableModel(**model_config).to(device)
+    if args.latent_sphere:
+        print(f"Latent sphere: e, h and f at radius sqrt({args.d_model}) = "
+              f"{math.sqrt(args.d_model):g}; SIGReg reads e and h before it")
     if args.sigreg_latent_scale != 1.0:
         print(f"SIGReg latent scale: {args.sigreg_latent_scale} "
               f"({sigreg_scale(args, args.d_model):g} at d_model {args.d_model})")
