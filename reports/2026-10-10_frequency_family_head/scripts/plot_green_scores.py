@@ -88,6 +88,20 @@ GRN_EMA09998_REP003_HALVING ="grn_ema09998_rep003_halving"
 GRN_EMA09998_REP003_HALVING_COLOUR = "#e41a1c"  # no other run of this figure has this colour
 GRN_EMA099995_REP003_HALVING = "grn_ema099995_rep003_halving"
 GRN_EMA099995_REP003_HALVING_COLOUR = "#8c564b"  # no other run of this figure has this colour
+# The width-64 runs of the 40k grid (the user, 11-05 about 22:45 UTC: "plot on the GMMase graph
+# these models of 256-batch [...] And on the GMMase graph you can bring back the best model of
+# similar size that we had before"): their forecast in results/grid40k_gm_points.tsv (arm, own stop
+# k, score), placed at the data they saw (batch 256: 4 batch-64 steps for each step, batch 128: 2).
+GRID_POINTS = STUDY / "results" / "grid40k_gm_points.tsv"
+G256_SS = "g80b_lr1em3_tau99995_bs256_rep01_sigfix_ss_rollfix"
+G256_OLD = "g40b_lr1em3_tau99995_bs256_rollfix"
+G128 = "g40b_lr4em4_tau99995_bs128"
+G64_W = "g40w_lr1em3_wu4k_cos"
+XSCALE = {**XSCALE, G256_SS: 4, G256_OLD: 4, G128: 2, G64_W: 1}
+# Their scores with the normalised rollout feedback: each point except W64's (a bugged score).
+GRID_FIXED = {G256_SS, G256_OLD, G128}
+# Drawn above the runs of width 384: W64 1.1823 lies 0.0027 from ORA at 40k.
+GRID_ARMS = GRID_FIXED | {G64_W}
 # The runs of this report: their forecast comes from results/scores.tsv.
 NEW_RUNS = [GRN_EMA099995, GRN_EMA099995_F6,
             GRN_EMA099995_F6_REP01, GRN_EMA099995_F6_REP01_MUP,
@@ -142,6 +156,13 @@ RUNS = [
      GRN_EMA09998_REP003_HALVING_COLOUR, "X"),
     (GRN_EMA099995_REP003_HALVING, r"$\mathbf{BRN}$  RED with the EMA 0.99995, stopped at 345k",
      GRN_EMA099995_REP003_HALVING_COLOUR, "s"),
+    (G256_SS, r"$\mathbf{S256}$  width 64, batch 256, lr 1e-3, L_rep 0.1," "\n"
+     "SIGReg latent scale 1/8, trains to 80k", "#17becf", "D"),
+    (G256_OLD, r"$\mathbf{O256}$  S256 with the old SIGReg window, 40k", "#ff00ff", "8"),
+    (G128, r"$\mathbf{O128}$  O256 at batch 128 and lr 4e-4," "\n"
+     "trained with the raw rollout, 40k", "#bcbd22", "h"),
+    (G64_W, r"$\mathbf{W64}$  O128 at batch 64, lr warmup and cosine," "\n"
+     "40k (bugged score)", "#000000", "x"),
     (MPE, tagged(MPE, "Moirai, patch heads, EWMA, new data"), colour(MPE), "d"),
 ]
 OURS = STUDY / "results"
@@ -156,7 +177,7 @@ OUR_R_TABLES = ["grn_ema099995", "grn_ema099995_f6",
 # runs of this report comes from results/scores.tsv
 PANELS = [
     ("Forecast (B4)", (1.10, 1.34),
-     [MOIRAI / "results" / "gm_trajectories.tsv", RECON / "forecast_425.tsv"], True),
+     [MOIRAI / "results" / "gm_trajectories.tsv", RECON / "forecast_425.tsv", GRID_POINTS], True),
     ("Reconstruction of the encoder latent (R), transformer head", (0.02, 0.11),
      [RECON / "recon_trajectories.tsv"]
      + [OURS / f"recon_{table}_trajectories.tsv" for table in OUR_R_TABLES], False),
@@ -219,6 +240,9 @@ def normalised_points():
                 starred.setdefault(row["run"], set()).add(int(row["stop_k"]) * XSCALE.get(row["run"], 1))
     for run, scores in rescores().items():
         starred.setdefault(run, set()).update(scores)
+    for run, scores in read_table([GRID_POINTS]).items():
+        if run in GRID_FIXED:
+            starred.setdefault(run, set()).update(scores)
     return starred
 
 
@@ -275,7 +299,8 @@ def draw_panel(ax, title, y_range, points, starred=None):
                     ls=style, lw=2.2, zorder=4)
         ax.plot([s * 1000 for s in stops], values, color=colour_hex, marker=marker,
                 ls=style, lw=2.2, ms=7, label=label,
-                zorder=5 if arm in FRONT else 4 if arm in BRANCHES else 3 if arm in ON_TOP else 2)
+                zorder=5 if arm in FRONT else 4.5 if arm in GRID_ARMS else 4 if arm in BRANCHES
+                else 3 if arm in ON_TOP else 2)
         # the asterisk lies under the run lines: a marker of another run near it stays visible
         fixed = set(stops) & (starred or {}).get(arm, set())
         for stop in sorted(fixed):
