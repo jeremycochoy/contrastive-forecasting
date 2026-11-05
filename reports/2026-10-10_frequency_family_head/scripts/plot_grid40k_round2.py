@@ -5,8 +5,8 @@ losses of blue (L_rep 0.05, the L_align depth weights 1/2^j), the lr schedule
 (C: a cosine from 1e-4 to 1e-5 over the 40k steps; W: a warmup to 1e-3 over 4k
 steps, then a cosine to 1e-4), batch 128 at the lr 1e-4, 2e-4, 4e-4 and 8e-4, A:
 batch 128 with the warmup of W, then a cosine to 4e-4, and the SIGReg gate: batch
-128 at lr 4e-4 with the SIGReg window fix of #438, and batch 256 at the lr 4e-4, 8e-4
-and 1.6e-3 with the fixed rollout of #446 and #447 (the old SIGReg window). Three panels on one step
+128 at lr 4e-4 with the SIGReg window fix of #438, and batch 256 at the lr 4e-4, 8e-4,
+1e-3 and 1.6e-3 with the fixed rollout of #446 and #447 (the old SIGReg window). Three panels on one step
 axis, means over bins of 500 steps:
 
   1. The lr of each step, from the flags of the run (the formula of
@@ -58,6 +58,7 @@ RUNS = {
                                           (4e-4, 4e-4, STEPS, 0), False),
     "g40b_lr4em4_tau99995_bs256_rollfix": ("fixed rollout, batch 256, lr 4e-4", (4e-4, 4e-4, STEPS, 0), False),
     "g40b_lr8em4_tau99995_bs256_rollfix": ("fixed rollout, batch 256, lr 8e-4", (8e-4, 8e-4, STEPS, 0), False),
+    "g40b_lr1em3_tau99995_bs256_rollfix": ("fixed rollout, batch 256, lr 1e-3", (1e-3, 1e-3, STEPS, 0), False),
     "g40b_lr1p6em3_tau99995_bs256_rollfix": ("fixed rollout, batch 256, lr 1.6e-3",
                                              (1.6e-3, 1.6e-3, STEPS, 0), False),
 }

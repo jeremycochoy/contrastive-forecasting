@@ -8,8 +8,10 @@ rows are the learning rate, the columns the EMA start (--ema-tau).
 The second round (the user, 11-02 and 11-03): runs from the cell lr 1e-4,
 EMA start 0.99995, each with one change (the losses of blue or an lr
 schedule); batch 128 at the lr 1e-4, 2e-4, 4e-4 and 8e-4, and with the warmup
-of W and a cosine to 4e-4. Batch 256 comes after these batch-128 results (the
-user, 11-03), on the fixed code. Its panel has that cell as its first row.
+of W and a cosine to 4e-4. Batch 256 runs on the fixed code (the user, 11-03):
+the constant lr 4e-4, 8e-4, 1e-3 and 1.6e-3. The grey rows are the planned runs
+of the user's plan of 11-04: L_rep 0.05 at the better lr, then 80k steps with the
+fixed SIGReg window at both L_rep weights. Its panel has that cell as its first row.
 
 Each cell is the forecast GM-Relative MASE of head B4 at 40k (30k head steps,
 97 configs). Lower is better. A grey cell has no score yet. A red frame marks
@@ -57,11 +59,16 @@ ROUND2 = {BEST: ("lr 1e-4, EMA start 0.99995\n(no change)", "1e-4"),
           "g40b_lr4em4_tau99995_bs128_sigfix": ("batch 128, lr 4e-4,\nfixed SIGReg window", "4e-4"),
           "g40b_lr4em4_tau99995_bs256_rollfix": ("FIXED ROLLOUT, batch 256, lr 4e-4\n(scored with the fixed rollout)", "4e-4"),
           "g40b_lr8em4_tau99995_bs256_rollfix": ("FIXED ROLLOUT, batch 256, lr 8e-4\n(scored with the fixed rollout)", "8e-4"),
+          "g40b_lr1em3_tau99995_bs256_rollfix": ("FIXED ROLLOUT, batch 256, lr 1e-3\n(scored with the fixed rollout)", "1e-3"),
           "g40b_lr1p6em3_tau99995_bs256_rollfix": ("FIXED ROLLOUT, batch 256, lr 1.6e-3\n(scored with the fixed rollout)",
                                                    "1.6e-3")}
 # The planned runs of the search, not started: (row label, when). The user (11-03 about
 # 21:05 UTC): the heatmap shows them; each one moves into ROUND2 when it starts.
-PLANNED = []
+PLANNED = [("PLANNED, FIXED ROLLOUT, batch 256,\nL_rep 0.05, the better lr\n(1e-3 or 8e-4)", "starts at the 1e-3 score"),
+           ("PLANNED, FIXED ROLLOUT, batch 256,\n80k steps, fixed SIGReg window,\nthe better lr and L_rep weight",
+            "starts at the L_rep 0.05 score"),
+           ("PLANNED, FIXED ROLLOUT, batch 256,\n80k steps, fixed SIGReg window,\nthe better lr, the other L_rep weight",
+            "starts at the L_rep 0.05 score")]
 # run -> its colour in the radar and in the training figure of the second round
 ROUND2_COLOURS = {BEST: "#d95f02", "g40b_lr1em4_tau99995_rep005h": "#1f77b4",
                   "g40c_lr1em4_tau99995_cos": "#e7298a", "g40w_lr1em3_wu4k_cos": "#66a61e",
@@ -69,7 +76,7 @@ ROUND2_COLOURS = {BEST: "#d95f02", "g40b_lr1em4_tau99995_rep005h": "#1f77b4",
                   "g40b_lr4em4_tau99995_bs128": "#8c564b", "g40w_lr1em3_wu4k_cos4em4_bs128": "#d62728",
                   "g40b_lr8em4_tau99995_bs128": "#6a3d9a", "g40b_lr4em4_tau99995_bs128_sigfix": "#e6ab02",
                   "g40b_lr4em4_tau99995_bs256_rollfix": "#1b9e77", "g40b_lr8em4_tau99995_bs256_rollfix": "#999999",
-                  "g40b_lr1p6em3_tau99995_bs256_rollfix": "#000000"}
+                  "g40b_lr1em3_tau99995_bs256_rollfix": "#ff00ff", "g40b_lr1p6em3_tau99995_bs256_rollfix": "#000000"}
 
 
 def run_score(run):
@@ -184,7 +191,7 @@ def main():
     grid, round2 = grid_scores(), round2_scores()
     write_table(grid, round2)
     low, high = color_scale(grid, round2)
-    fig, (left, right) = plt.subplots(1, 2, figsize=(14.5, 13), gridspec_kw={"width_ratios": [2, 1.2], "wspace": 0.75})
+    fig, (left, right) = plt.subplots(1, 2, figsize=(14.5, 13), gridspec_kw={"width_ratios": [2, 1.2], "wspace": 0.9})
     image = draw_grid(left, grid, low, high)
     draw_round2(right, round2, low, high)
     fig.colorbar(image, ax=[left, right], label="forecast GM-Relative MASE (lower is better)")
