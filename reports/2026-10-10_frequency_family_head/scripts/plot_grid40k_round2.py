@@ -65,9 +65,9 @@ RUNS = {
                                              (1.6e-3, 1.6e-3, STEPS, 0), False),
     "g40b_lr1em3_tau99995_bs256_rep005_rollfix": ("fixed rollout, batch 256, lr 1e-3, L_rep 0.05",
                                                   (1e-3, 1e-3, STEPS, 0), False),
-    "g80b_lr1em3_tau99995_bs256_rep01_sigfix_ss_rollfix": ("fixed SIGReg window, SIGReg latent scale 1/8, batch 256, lr 1e-3, L_rep 0.1 (EMA ramp over 80k, stop at 40k)",
+    "g80b_lr1em3_tau99995_bs256_rep01_sigfix_ss_rollfix": ("80k steps, fixed SIGReg window, SIGReg latent scale 1/8, batch 256, lr 1e-3, L_rep 0.1",
                                                         (1e-3, 1e-3, STEPS, 0), False),
-    "g80b_lr1em3_tau99995_bs256_rep005_sigfix_ss_rollfix": ("fixed SIGReg window, SIGReg latent scale 1/8, batch 256, lr 1e-3, L_rep 0.05 (EMA ramp over 80k, stop at 40k)",
+    "g80b_lr1em3_tau99995_bs256_rep005_sigfix_ss_rollfix": ("80k steps, fixed SIGReg window, SIGReg latent scale 1/8, batch 256, lr 1e-3, L_rep 0.05",
                                                          (1e-3, 1e-3, STEPS, 0), False),
 }
 

@@ -92,8 +92,7 @@ At 1e-3, three runs train now: L_rep 0.05 for 40k steps, and L_rep 0.1 and 0.05 
 With the SIGReg window fix, SIGReg stays at about 8.2 per term on the latents of plain muP.
 Each coordinate of a latent stays at about 1, and the target of SIGReg is a variance of 1/64 per coordinate.
 A start of the patch encoder near zero (`--mup-init-input 0.01`) and a linear ramp of the learning rate over 1k steps did not change this.
-The two runs with the SIGReg window fix now train with `--sigreg-latent-scale inv_sqrt_d`: SIGReg reads each latent times 1/8, and the model stays plain muP.
-They stop at their 40k save. Their EMA ramp goes over 80k steps, so at 40k their EMA rate is 0.999975, against 1.0 in the 40k runs.
+The 80k runs now train with `--sigreg-latent-scale inv_sqrt_d`: SIGReg reads each latent times 1/8, and the model stays plain muP.
 In a test of 300 steps, SIGReg on the encoder output falls from 9.4 to 0.09 with this factor.
 With the fixed rollout, batch 128 at 4e-4 gets 1.2440, and 1.1842 with the raw rollout (the right column).
 This run trained with the raw rollout feedback.
