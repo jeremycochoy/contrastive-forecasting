@@ -21,6 +21,7 @@ At 180k, blue gets 1.0482 with the normalised rollout.
 At 200k, blue gets 1.0434 with the normalised rollout, its lowest score.
 At 240k, blue gets 1.0512 (grey 1.0269, yellow 1.0257, violet 1.0614, all with the normalised rollout).
 At 300k, blue gets 1.0504 (grey 1.0008, yellow 1.0245, violet 1.0684, all with the normalised rollout).
+At 360k, blue gets 1.0848 (grey 1.0279, yellow 1.0330, violet 1.0606, all with the normalised rollout).
 At 180k, with the raw rollout, grey gets 1.0421 and yellow 1.0537.
 A light asterisk marks each score with the normalised rollout.
 With the normalised rollout, the best stops of grey (1.0269 at 240k), yellow (1.0304 at 200k) and violet (1.0208 at 460k) are below blue at 180k (1.0482).
