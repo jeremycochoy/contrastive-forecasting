@@ -89,12 +89,14 @@ They train with the normalised rollout feedback of #447, and their scores use th
 At batch 256, the constant learning rates 4e-4, 8e-4, 1e-3 and 1.6e-3 give 1.0734, 1.0669, 1.0590 and 1.1225.
 The lowest score is at 1e-3.
 Compared with 8e-4, the score at 1e-3 is lower on the medium and long horizons (1.1605 and 1.1546 against 1.1852 and 1.1728).
-At 1e-3, three runs train now: L_rep 0.05 for 40k steps, and L_rep 0.1 and 0.05 for 80k steps with the SIGReg window fix.
+At 1e-3, L_rep 0.05 gets 1.0936 at 40k (short 1.0114, medium 1.2092, long 1.2137), above L_rep 0.1 (1.0590).
+Two runs at 1e-3 train now for 80k steps with the SIGReg window fix, with L_rep 0.1 and 0.05.
 With the SIGReg window fix, SIGReg stays at about 8.2 per term on the latents of plain muP.
 Each coordinate of a latent stays at about 1, and the target of SIGReg is a variance of 1/64 per coordinate.
 A start of the patch encoder near zero (`--mup-init-input 0.01`) and a linear ramp of the learning rate over 1k steps did not change this.
 The 80k runs now train with `--sigreg-latent-scale inv_sqrt_d`: SIGReg reads each latent times 1/8, and the model stays plain muP.
 In a test of 300 steps, SIGReg on the encoder output falls from 9.4 to 0.09 with this factor.
+At 20k, the 80k run with L_rep 0.1 gets 1.0656 (short 0.9844, medium 1.1831, long 1.1811).
 With the fixed rollout, batch 128 at 4e-4 gets 1.2440, and 1.1842 with the raw rollout (the right column).
 This run trained with the raw rollout feedback.
 At 40k, the fixed rollout also gives higher scores for violet (1.1948 against 1.1430) and blue (1.2337 against 1.1944), the two muP runs with the flags of the grid.
