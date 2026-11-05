@@ -88,6 +88,8 @@ At batch 256, the constant learning rates 4e-4, 8e-4, 1e-3 and 1.6e-3 give 1.073
 The lowest score is at 1e-3.
 Compared with 8e-4, the score at 1e-3 is lower on the medium and long horizons (1.1605 and 1.1546 against 1.1852 and 1.1728).
 At 1e-3, three runs train now: L_rep 0.05 for 40k steps, and L_rep 0.1 and 0.05 for 80k steps with the SIGReg window fix.
+The 80k runs start the patch encoder near zero (`--mup-init-input 0.01`, against 0.3 before).
+With the SIGReg window fix, SIGReg on the encoder output stays at about 8.2 from the second step on, also with this init.
 With the fixed rollout, batch 128 at 4e-4 gets 1.2440, and 1.1842 with the raw rollout (the right column).
 This run trained with the raw rollout feedback.
 At 40k, the fixed rollout also gives higher scores for violet (1.1948 against 1.1430) and blue (1.2337 against 1.1944), the two muP runs with the flags of the grid.
