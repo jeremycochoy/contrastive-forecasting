@@ -98,11 +98,14 @@ GRID_POINTS = STUDY / "results" / "grid40k_gm_points.tsv"
 # The one grid run of this figure (the user, 11-06: the heatmap compares the grid runs; this figure
 # keeps the long runs, and S256 has the most stops of the grid).
 G256_SS = "g80b_lr1em3_tau99995_bs256_rep01_sigfix_ss_rollfix"
-XSCALE = {**XSCALE, G256_SS: 4}
-# Its scores with the normalised rollout feedback.
-GRID_FIXED = {G256_SS}
-# Drawn above the runs of width 384.
-GRID_ARMS = GRID_FIXED
+# The 166k-step run of width 384 with the flags of S256 (the user, 11-06): its forecast in
+# results/ss256_gm_points.tsv, in the form of GRID_POINTS.
+SS256_POINTS = STUDY / "results" / "ss256_gm_points.tsv"
+SS256 = "grn_ema099995_f6_rep01_ss256"
+XSCALE = {**XSCALE, G256_SS: 4, SS256: 4}
+# The runs of the two tables: all their scores use the normalised rollout feedback. Drawn above
+# the older runs.
+TABLE_ARMS = {G256_SS, SS256}
 # The runs of this report: their forecast comes from results/scores.tsv.
 NEW_RUNS = [GRN_EMA099995, GRN_EMA099995_F6,
             GRN_EMA099995_F6_REP01, GRN_EMA099995_F6_REP01_MUP,
@@ -160,6 +163,9 @@ RUNS = [
     (G256_SS, r"$\mathbf{S256}$  width 64, 1 encoder and 3 forecaster layers," "\n"
      "batch 256, lr 1e-3, L_rep 0.1, SIGReg target:" "\n"
      "latent norm about √64 = 8, 80k steps (Nov 5 to 6)", "#17becf", "D"),
+    (SS256, r"$\mathbf{S36}$  S256 at width 384 (muP), 3 encoder and" "\n"
+     "6 forecaster layers, SIGReg target: latent norm" "\n"
+     "about √384 = 19.6, trains to 166k (since Nov 6)", "#006400", "X"),
     (MPE, tagged(MPE, "Moirai, patch heads, EWMA, new data"), colour(MPE), "d"),
 ]
 OURS = STUDY / "results"
@@ -174,7 +180,8 @@ OUR_R_TABLES = ["grn_ema099995", "grn_ema099995_f6",
 # runs of this report comes from results/scores.tsv
 PANELS = [
     ("Forecast (B4)", (1.10, 1.34),
-     [MOIRAI / "results" / "gm_trajectories.tsv", RECON / "forecast_425.tsv", GRID_POINTS], True),
+     [MOIRAI / "results" / "gm_trajectories.tsv", RECON / "forecast_425.tsv", GRID_POINTS, SS256_POINTS],
+     True),
     ("Reconstruction of the encoder latent (R), transformer head", (0.02, 0.11),
      [RECON / "recon_trajectories.tsv"]
      + [OURS / f"recon_{table}_trajectories.tsv" for table in OUR_R_TABLES], False),
@@ -198,13 +205,14 @@ CLOSE = 0.0082
 
 def read_table(paths):
     """``{arm: {data seen in thousands of batch-64 steps: score}}`` from
-    tables of arm, stop k and score."""
+    tables of arm, stop k and score (stop 0.25: the save at 250 steps)."""
     points = {}
     for path in paths:
         if Path(path).is_file():
             for row in open(path):
                 arm, stop_k, score = row.split()
-                points.setdefault(arm, {})[int(stop_k) * XSCALE.get(arm, 1)] = float(score)
+                seen = float(stop_k) * XSCALE.get(arm, 1)
+                points.setdefault(arm, {})[int(seen) if seen.is_integer() else seen] = float(score)
     return points
 
 
@@ -237,8 +245,8 @@ def normalised_points():
                 starred.setdefault(row["run"], set()).add(int(row["stop_k"]) * XSCALE.get(row["run"], 1))
     for run, scores in rescores().items():
         starred.setdefault(run, set()).update(scores)
-    for run, scores in read_table([GRID_POINTS]).items():
-        if run in GRID_FIXED:
+    for run, scores in read_table([GRID_POINTS, SS256_POINTS]).items():
+        if run in TABLE_ARMS:
             starred.setdefault(run, set()).update(scores)
     return starred
 
@@ -257,9 +265,9 @@ def panel_points(tables, forecast):
 
 
 def later_near_runs(points, arm, stop):
-    """The number of runs of ON_TOP and of GRID_FIXED that RUNS draws after ``arm`` with almost
+    """The number of runs of ON_TOP and of TABLE_ARMS that RUNS draws after ``arm`` with almost
     the same score at ``stop`` (the other runs lie under every point)."""
-    names = [run for run, *_ in RUNS if run in ON_TOP | GRID_FIXED]
+    names = [run for run, *_ in RUNS if run in ON_TOP | TABLE_ARMS]
     score = points[arm][stop]
     return sum(abs(points.get(run, {}).get(stop, 9.0) - score) < CLOSE for run in names[names.index(arm) + 1:])
 
@@ -298,7 +306,7 @@ def draw_panel(ax, title, y_range, points, starred=None):
                     ls=style, lw=2.2, zorder=4)
         ax.plot([s * 1000 for s in stops], values, color=colour_hex, marker=marker,
                 ls=style, lw=2.2, ms=7, label=label,
-                zorder=5 if arm in FRONT else 4.5 if arm in GRID_ARMS else 4 if arm in BRANCHES
+                zorder=5 if arm in FRONT else 4.5 if arm in TABLE_ARMS else 4 if arm in BRANCHES
                 else 3 if arm in ON_TOP else 2)
         # the disc lies under the run lines: a marker of another run near it stays visible
         fixed = set(stops) & (starred or {}).get(arm, set())
@@ -306,7 +314,7 @@ def draw_panel(ax, title, y_range, points, starred=None):
         for stop in sorted(bugged):
             ax.plot(stop * 1000, min(points[arm][stop], y_range[1]), marker="o", ms=14,
                     color="black", alpha=0.2, ls="none", zorder=1.9)
-        if starred is not None and (arm in ON_TOP or arm in GRID_FIXED):
+        if starred is not None and (arm in ON_TOP or arm in TABLE_ARMS):
             draw_on_top(ax, points, arm, fixed, colour_hex, marker)
         for stop, value in zip(stops, values):
             if value > y_range[1]:

@@ -26,7 +26,11 @@ At 180k, with the raw rollout, grey gets 1.0421 and yellow 1.0537.
 A light grey disc behind a point marks a bugged score, with the raw rollout.
 The forecast panel also shows one run of the 40k grid at the data it saw, S256: width 64, 1 encoder and 3 forecaster layers, batch 256, lr 1e-3, L_rep 0.1.
 The heatmap compares it with the other runs of the grid.
-With the SIGReg target at a latent norm of about √64 = 8, S256 gets 1.0656 at 20k, 1.0481 at 40k steps of batch 256 (160k on the axis), 1.0309 at 60k (240k on the axis) and 1.0281 at 80k (320k on the axis).
+With the SIGReg target at a latent norm of about √64 = 8, S256 gets 1.3010 after 250 steps of batch 256 (1k on the axis), 1.0656 at 20k, 1.0481 at 40k steps of batch 256 (160k on the axis), 1.0309 at 60k (240k on the axis) and 1.0281 at 80k (320k on the axis).
+S36 is S256 at width 384 with muP: 3 encoder and 6 forecaster layers, the SIGReg target at a latent norm of about √384 = 19.6, and 166k steps of batch 256 with the EMA ramp over the 166k steps.
+It gets 1.2365 after 250 steps (1k on the axis) and 1.0345 at 10k (40k on the axis).
+At 10k, its short, medium and long scores are 0.9384, 1.1893 and 1.1616, and MPE gets 1.0247.
+The scores after 250 steps come from a second run of the first 250 steps of S256 and of S36, with the same flags and seed: in each, the losses of steps 1 to 200 are equal to the losses of the run.
 With the normalised rollout, the best stops of grey (1.0269 at 240k), yellow (1.0304 at 200k) and violet (1.0208 at 460k) are below blue at 180k (1.0482).
 Grey at 200k gets 1.0215 with the normalised rollout, its lowest score.
 
@@ -109,9 +113,11 @@ With L_rep 0.05, the other 80k run gets 1.0770 at 40k (short 0.9769, medium 1.20
 At 80k, it gets 1.0347 (short 0.9351, medium 1.1755, long 1.1874), 0.0066 above the run with L_rep 0.1.
 Its short score is lower: 0.9351 against 0.9584.
 A third 80k run adds `--latent-sphere` to the L_rep 0.1 run (contrastive-forecasting #453): e, h and f go on one sphere of radius 8 after SIGReg.
-At 20k, it gets 1.0691 (short 0.9897, medium 1.1871, long 1.1781).
-At 40k, it gets 1.0610 (short 0.9580, medium 1.2082, long 1.2175), 0.0129 above the run without the sphere.
-With the sphere, the short score is lower (0.9580 against 0.9741), and the medium and long scores are higher (1.2082 against 1.1572, 1.2175 against 1.1500).
+In training, the encoder reads e on the sphere.
+The first heads of this run read the encoder output of the raw e: contrastive-forecasting #454 puts e on the sphere in the head path too.
+With the fixed head path, the run gets 1.0658 at 20k (short 0.9884, medium 1.1807, long 1.1724), 0.0002 above the run without the sphere.
+With the old head path, it got 1.0691 at 20k and 1.0610 at 40k (short 0.9580, medium 1.2082, long 1.2175).
+The heatmap row gives the 40k score of the old head path.
 The heatmap has its row.
 With the fixed rollout, batch 128 at 4e-4 gets 1.2440, and 1.1842 with the raw rollout (the middle column).
 This run trained with the raw rollout feedback.
