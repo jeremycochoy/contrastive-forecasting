@@ -256,26 +256,27 @@ def panel_points(tables, forecast):
     return points
 
 
-def near_later_run(points, arm, stop):
-    """True when a run of the group of ``arm`` (ON_TOP, or the grid runs of GRID_FIXED) that RUNS
-    draws after ``arm`` has almost the same score at ``stop`` (the other runs lie under every point)."""
-    group = ON_TOP if arm in ON_TOP else GRID_FIXED
-    names = [run for run, *_ in RUNS if run in group]
+def later_near_runs(points, arm, stop):
+    """The number of runs of ON_TOP and of GRID_FIXED that RUNS draws after ``arm`` with almost
+    the same score at ``stop`` (the other runs lie under every point)."""
+    names = [run for run, *_ in RUNS if run in ON_TOP | GRID_FIXED]
     score = points[arm][stop]
-    return any(abs(points.get(run, {}).get(stop, 9.0) - score) < CLOSE for run in names[names.index(arm) + 1:])
+    return sum(abs(points.get(run, {}).get(stop, 9.0) - score) < CLOSE for run in names[names.index(arm) + 1:])
 
 
 def draw_on_top(ax, points, arm, fixed, colour_hex, marker):
-    """The points of ``fixed`` (normalised rollout) again over every line, as a larger ring
-    where a later run has almost the same score at the stop (grey 1.0269 and yellow 1.0257 at
-    240k), then a small core of each other point over them (violet 1.0606 and yellow 1.0623
-    at 360k): two runs with almost the same score at a stop both show."""
+    """The points of ``fixed`` (normalised rollout) again over every line, each one 4 points larger
+    and lower for each later run with almost the same score at the stop (grey 1.0269, yellow 1.0257
+    and S256 1.0309 at 240k: three nested markers), then a small core of each other point over them
+    (violet 1.0606 and yellow 1.0623 at 360k): runs with almost the same score at a stop all show."""
     scores = points[arm]
-    near = {stop for stop in fixed if near_later_run(points, arm, stop)}
-    for stops, size, zorder in ((sorted(near), 11, 5.4), (sorted(fixed - near), 7, 5.5),
-                                (sorted(set(scores) - fixed), 3.5, 6)):
-        ax.plot([stop * 1000 for stop in stops], [scores[stop] for stop in stops], marker=marker,
-                ms=size, color=colour_hex, ls="none", zorder=zorder)
+    for stop in sorted(fixed):
+        near = later_near_runs(points, arm, stop)
+        ax.plot(stop * 1000, scores[stop], marker=marker, ms=7 + 4 * near, color=colour_hex,
+                ls="none", zorder=5.5 - 0.1 * near)
+    others = sorted(set(scores) - fixed)
+    ax.plot([stop * 1000 for stop in others], [scores[stop] for stop in others], marker=marker,
+            ms=3.5, color=colour_hex, ls="none", zorder=6)
 
 
 def draw_panel(ax, title, y_range, points, starred=None):

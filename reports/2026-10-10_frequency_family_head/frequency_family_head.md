@@ -26,7 +26,7 @@ At 180k, with the raw rollout, grey gets 1.0421 and yellow 1.0537.
 A light grey disc behind a point marks a bugged score, with the raw rollout.
 The forecast panel also shows one run of the 40k grid at the data it saw, S256: width 64, 1 encoder and 3 forecaster layers, batch 256, lr 1e-3, L_rep 0.1.
 The heatmap compares it with the other runs of the grid.
-With the SIGReg target at a latent norm of about √64 = 8, S256 gets 1.0656 at 20k, 1.0481 at 40k steps of batch 256 (160k on the axis) and 1.0281 at 80k (320k on the axis).
+With the SIGReg target at a latent norm of about √64 = 8, S256 gets 1.0656 at 20k, 1.0481 at 40k steps of batch 256 (160k on the axis), 1.0309 at 60k (240k on the axis) and 1.0281 at 80k (320k on the axis).
 With the normalised rollout, the best stops of grey (1.0269 at 240k), yellow (1.0304 at 200k) and violet (1.0208 at 460k) are below blue at 180k (1.0482).
 Grey at 200k gets 1.0215 with the normalised rollout, its lowest score.
 
@@ -103,6 +103,7 @@ Only SIGReg changes: the model uses the latents as they are, and it stays plain 
 In a test of 300 steps, SIGReg on the encoder output falls from 9.4 to 0.09 with this factor.
 At 20k, the 80k run with L_rep 0.1 gets 1.0656 (short 0.9844, medium 1.1831, long 1.1811).
 At 40k, it gets 1.0481 (short 0.9741, medium 1.1572, long 1.1500), the lowest score of the grid.
+At 60k, it gets 1.0309 (short 0.9356, medium 1.1576, long 1.1836).
 At 80k, it gets 1.0281 (short 0.9584, medium 1.1303, long 1.1238), in the right column of the heatmap.
 With L_rep 0.05, the other 80k run gets 1.0770 at 40k (short 0.9769, medium 1.2063, long 1.2416).
 At 80k, it gets 1.0347 (short 0.9351, medium 1.1755, long 1.1874), 0.0066 above the run with L_rep 0.1.
@@ -233,3 +234,4 @@ A box at the lower left of the forecast panel gives the lowest score of each run
 No value is written next to a point, because a value can hide the points near it.
 In the forecast panel, the points with the normalised rollout lie over every line, and a small core of each other point lies over them, so that two runs with almost the same score at a stop both show.
 Where a point with the normalised rollout lies less than 0.0082 (the height of a marker) from a point of a run drawn after it at the same stop, it gets a larger marker.
+Each such run makes it one size larger: at 240k, grey, yellow and S256 show as three nested markers.
