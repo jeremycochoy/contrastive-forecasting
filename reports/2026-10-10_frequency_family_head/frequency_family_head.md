@@ -116,8 +116,10 @@ A third 80k run adds `--latent-sphere` to the L_rep 0.1 run (contrastive-forecas
 In training, the encoder reads e on the sphere.
 The first heads of this run read the encoder output of the raw e: contrastive-forecasting #454 puts e on the sphere in the head path too.
 With the fixed head path, the run gets 1.0658 at 20k (short 0.9884, medium 1.1807, long 1.1724), 0.0002 above the run without the sphere.
-With the old head path, it got 1.0691 at 20k and 1.0610 at 40k (short 0.9580, medium 1.2082, long 1.2175).
-The heatmap row gives the 40k score of the old head path.
+At 40k, it gets 1.0559 (short 0.9508, medium 1.2049, long 1.2175), 0.0078 above the run without the sphere (1.0481).
+With the sphere, the short score is lower (0.9508 against 0.9741), and the medium and long scores are higher (1.2049 against 1.1572, 1.2175 against 1.1500).
+With the old head path, it got 1.0691 at 20k and 1.0610 at 40k.
+The heatmap row gives the 40k score of the fixed head path.
 
 ![Forecast with and without the latent sphere](plots/sphere_compare.png)
 
