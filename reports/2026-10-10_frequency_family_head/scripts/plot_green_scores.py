@@ -20,9 +20,10 @@ BLU, ORA, LIM, PNK, RED, BRN, DGY), and for orange, lime and pink the result tha
 the user expected before their start. GRN+EMA 0.99995 with 3 forecaster layers
 (MAG), the same with the EMA 0.9998 (TEL) and TEL from its 100k save with the
 SIGReg window fix (TRQ) are out of the figure (the user, 11-04). In the forecast
-panel, a light asterisk marks each score with the normalised rollout feedback. A
-rescore with this feedback replaces the bugged score (raw rollout feedback) of its
-stop in the line of its run. A box at the lower left gives the lowest of these
+panel, a light grey disc behind a point marks a bugged score: the eval fed the raw
+forecaster output back (the user, 11-06: the late points crowd, and most of them
+have the normalised rollout feedback of #446). A rescore with the normalised
+feedback replaces the bugged score of its stop in the line of its run. A box at the lower left gives the lowest of these
 scores of each run. No value is written next to a point: a value can hide the
 points near it.
 
@@ -184,7 +185,7 @@ PANELS = [
 ]
 TICKS_K = [1, 10, 40, 100, 200, 400, 665, 1330]
 # The forecast scores of the eval with the normalised rollout feedback (#446):
-# columns run, stop_k, tag. The user (11-03): a light asterisk on these points.
+# columns run, stop_k, tag. The other points of our runs get a light grey disc (the user, 11-06).
 NORMALISED = STUDY / "results" / "normalised_rollout_scores.tsv"
 # Stops with a bugged score (raw rollout feedback) scored again with the normalised rollout
 # feedback (#446) and their official head (rescore_normalised/ on elisa and on the box): run,
@@ -280,8 +281,8 @@ def draw_on_top(ax, points, arm, fixed, colour_hex, marker):
 
 def draw_panel(ax, title, y_range, points, starred=None):
     """One line for each run, and an arrow with the value for each point
-    above the y range. The y range goes down to the lowest point. A point of
-    ``starred`` gets a light black asterisk."""
+    above the y range. The y range goes down to the lowest point. A point out of
+    ``starred`` (a bugged score) gets a light grey disc behind it; MPE has no rollout feedback."""
     low = y_range[0]
     for arm, label, colour_hex, marker in RUNS:
         stops = sorted(points.get(arm, {}))
@@ -299,11 +300,12 @@ def draw_panel(ax, title, y_range, points, starred=None):
                 ls=style, lw=2.2, ms=7, label=label,
                 zorder=5 if arm in FRONT else 4.5 if arm in GRID_ARMS else 4 if arm in BRANCHES
                 else 3 if arm in ON_TOP else 2)
-        # the asterisk lies under the run lines: a marker of another run near it stays visible
+        # the disc lies under the run lines: a marker of another run near it stays visible
         fixed = set(stops) & (starred or {}).get(arm, set())
-        for stop in sorted(fixed):
-            ax.plot(stop * 1000, min(points[arm][stop], y_range[1]), marker="*", ms=13,
-                    color="black", alpha=0.25, ls="none", zorder=1.9)
+        bugged = set(stops) - fixed if starred is not None and arm != MPE else set()
+        for stop in sorted(bugged):
+            ax.plot(stop * 1000, min(points[arm][stop], y_range[1]), marker="o", ms=14,
+                    color="black", alpha=0.2, ls="none", zorder=1.9)
         if starred is not None and (arm in ON_TOP or arm in GRID_FIXED):
             draw_on_top(ax, points, arm, fixed, colour_hex, marker)
         for stop, value in zip(stops, values):
@@ -407,9 +409,8 @@ def main():
     style_x(axes[-1])
     # Blank rows after the older runs: the runs of this report fill the left column.
     handles, labels = legend_entries(axes)
-    if any(starred.get(arm, set()) & set(all_points[0].get(arm, {})) for arm in starred):
-        handles.append(Line2D([], [], marker="*", ms=13, color="black", alpha=0.25, ls="none"))
-        labels.append("scored with the normalised rollout feedback (#446)")
+    handles.append(Line2D([], [], marker="o", ms=14, color="black", alpha=0.2, ls="none"))
+    labels.append("bugged score (non-normalised rollout feedback)")
     new_labels = {label for arm, label, _, _ in RUNS if arm in NEW_RUNS}
     blanks = max(0, 2 * sum(label in new_labels for label in labels) - len(handles))
     axes[0].legend(handles + [Line2D([], [], alpha=0)] * blanks, labels + [""] * blanks,

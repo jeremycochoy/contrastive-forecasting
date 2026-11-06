@@ -23,7 +23,7 @@ At 240k, blue gets 1.0512 (grey 1.0269, yellow 1.0257, violet 1.0614, all with t
 At 300k, blue gets 1.0504 (grey 1.0008, yellow 1.0245, violet 1.0684, all with the normalised rollout).
 At 360k, blue gets 1.0848 (grey 1.0279, yellow 1.0330, violet 1.0606, all with the normalised rollout).
 At 180k, with the raw rollout, grey gets 1.0421 and yellow 1.0537.
-A light asterisk marks each score with the normalised rollout.
+A light grey disc behind a point marks a bugged score, with the raw rollout.
 The forecast panel also shows one run of the 40k grid at the data it saw, S256: width 64, 1 encoder and 3 forecaster layers, batch 256, lr 1e-3, L_rep 0.1.
 The heatmap compares it with the other runs of the grid.
 With the SIGReg target at a latent norm of about √64 = 8, S256 gets 1.0656 at 20k, 1.0481 at 40k steps of batch 256 (160k on the axis) and 1.0281 at 80k (320k on the axis).
@@ -173,7 +173,7 @@ The rollout gives the raw forecaster output back to the forecaster, and L_align 
 
 ## Caveats of the forecast scores
 
-Each forecast score of this report with no asterisk comes from the eval of this time:
+Each forecast score of this report with a grey disc comes from the eval of this time:
 
 - The official eval gives the backbone 1024 context values. The backbones trained on 4096.
 - The forecast head trains on `f` only, and B4 decodes the encoder latent of the context and the rolled `f`.
@@ -228,8 +228,7 @@ With the raw rollout, the score of violet rises after 460k (1.0779, 1.0977 and 1
 With the normalised rollout, it does not rise: 1.0208 at 460k and at 600k, and 1.0175 at 665k.
 With the raw rollout, the same heads give 1.0238, 1.0779, 1.0341 and 1.0467.
 In the line of each run, the score of the normalised rollout replaces the score of the raw rollout at each rescored stop (results/best_stop_rescores.tsv).
-A light asterisk marks these points.
-At the other stops, the lines give the scores of the raw rollout.
+At the other stops, the lines give the scores of the raw rollout, and a light grey disc marks each of these points.
 A box at the lower left of the forecast panel gives the lowest score of each run with the normalised rollout.
 No value is written next to a point, because a value can hide the points near it.
 In the forecast panel, the points with the normalised rollout lie over every line, and a small core of each other point lies over them, so that two runs with almost the same score at a stop both show.
