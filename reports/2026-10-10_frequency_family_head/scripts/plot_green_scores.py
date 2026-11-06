@@ -102,10 +102,15 @@ G256_SS = "g80b_lr1em3_tau99995_bs256_rep01_sigfix_ss_rollfix"
 # results/ss256_gm_points.tsv, in the form of GRID_POINTS.
 SS256_POINTS = STUDY / "results" / "ss256_gm_points.tsv"
 SS256 = "grn_ema099995_f6_rep01_ss256"
-XSCALE = {**XSCALE, G256_SS: 4, SS256: 4}
+# S36 with the latent sphere (#453), scored with the head path of #454.
+SS256_SPHERE = "grn_ema099995_f6_rep01_ss256_sphere"
+XSCALE = {**XSCALE, G256_SS: 4, SS256: 4, SS256_SPHERE: 4}
 # The runs of the two tables: all their scores use the normalised rollout feedback. Drawn above
 # the older runs.
-TABLE_ARMS = {G256_SS, SS256}
+TABLE_ARMS = {G256_SS, SS256, SS256_SPHERE}
+# Points of a second run of the first 250 steps with other random numbers than the run (torch 2.8.0
+# on elisa, 2.9.1 on the box where the run started): open markers.
+OTHER_RANDOM = {(SS256_SPHERE, 1)}
 # The runs of this report: their forecast comes from results/scores.tsv.
 NEW_RUNS = [GRN_EMA099995, GRN_EMA099995_F6,
             GRN_EMA099995_F6_REP01, GRN_EMA099995_F6_REP01_MUP,
@@ -166,6 +171,9 @@ RUNS = [
     (SS256, r"$\mathbf{S36}$  S256 at width 384 (muP), 3 encoder and" "\n"
      "6 forecaster layers, SIGReg target: latent norm" "\n"
      "about √384 = 19.6, trains to 166k (since Nov 6)", "#006400", "X"),
+    (SS256_SPHERE, r"$\mathbf{SPH36}$  S36 with the latent sphere (e, h and f" "\n"
+     "on one sphere of radius √384 = 19.6), trains" "\n"
+     "to 166k (since Nov 6)", "#dc143c", "<"),
     (MPE, tagged(MPE, "Moirai, patch heads, EWMA, new data"), colour(MPE), "d"),
 ]
 OURS = STUDY / "results"
@@ -280,8 +288,9 @@ def draw_on_top(ax, points, arm, fixed, colour_hex, marker):
     scores = points[arm]
     for stop in sorted(fixed):
         near = later_near_runs(points, arm, stop)
+        face = "white" if (arm, stop) in OTHER_RANDOM else colour_hex
         ax.plot(stop * 1000, scores[stop], marker=marker, ms=7 + 4 * near, color=colour_hex,
-                ls="none", zorder=5.5 - 0.1 * near)
+                markerfacecolor=face, ls="none", zorder=5.5 - 0.1 * near)
     others = sorted(set(scores) - fixed)
     ax.plot([stop * 1000 for stop in others], [scores[stop] for stop in others], marker=marker,
             ms=3.5, color=colour_hex, ls="none", zorder=6)
@@ -419,6 +428,8 @@ def main():
     handles, labels = legend_entries(axes)
     handles.append(Line2D([], [], marker="o", ms=14, color="black", alpha=0.2, ls="none"))
     labels.append("bugged score (non-normalised rollout feedback)")
+    handles.append(Line2D([], [], marker="<", ms=8, color="#dc143c", markerfacecolor="white", ls="none"))
+    labels.append("a second run of the first 250 steps,\nwith other random numbers than the run")
     new_labels = {label for arm, label, _, _ in RUNS if arm in NEW_RUNS}
     blanks = max(0, 2 * sum(label in new_labels for label in labels) - len(handles))
     axes[0].legend(handles + [Line2D([], [], alpha=0)] * blanks, labels + [""] * blanks,

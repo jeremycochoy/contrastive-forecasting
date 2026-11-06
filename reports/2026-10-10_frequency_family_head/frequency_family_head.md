@@ -30,6 +30,8 @@ With the SIGReg target at a latent norm of about √64 = 8, S256 gets 1.3010 aft
 S36 is S256 at width 384 with muP: 3 encoder and 6 forecaster layers, the SIGReg target at a latent norm of about √384 = 19.6, and 166k steps of batch 256 with the EMA ramp over the 166k steps.
 It gets 1.2365 after 250 steps (1k on the axis) and 1.0345 at 10k (40k on the axis).
 At 10k, its short, medium and long scores are 0.9384, 1.1893 and 1.1616, and MPE gets 1.0247.
+SPH36 is S36 with the latent sphere, scored with the head path of #454: 1.2769 after 250 steps and 1.0856 at 10k.
+An open marker shows its point after 250 steps: it comes from a second run with other random numbers than the run.
 The scores after 250 steps come from a second run of the first 250 steps of S256 and of S36, with the same flags and seed: in each, the losses of steps 1 to 200 are equal to the losses of the run.
 With the normalised rollout, the best stops of grey (1.0269 at 240k), yellow (1.0304 at 200k) and violet (1.0208 at 460k) are below blue at 180k (1.0482).
 Grey at 200k gets 1.0215 with the normalised rollout, its lowest score.
@@ -124,7 +126,9 @@ The heatmap row gives the 40k score of the fixed head path.
 ![Forecast with and without the latent sphere](plots/sphere_compare.png)
 
 The figure compares the runs with the latent sphere and the same runs without it, at batch 256, with the scores of the fixed head path only: width 64 to 80k steps, and width 384 (S36) to 166k steps.
-The sphere run of width 384 gets 1.2769 after 250 steps, and S36 gets 1.2365.
+The sphere run of width 384 gets 1.2769 after 250 steps and 1.0856 at 10k (short 0.9513, medium 1.2997, long 1.2817).
+S36 gets 1.2365 and 1.0345 (short 0.9384, medium 1.1893, long 1.1616).
+At 10k, the sphere run is 0.0511 higher, mostly on the medium and long horizons.
 This point of the sphere run comes from a second run of its first 250 steps on elisa, with torch 2.8.0.
 The run trained on the box with torch 2.9.1, and the losses already differ at step 1 (55.33 and 55.42), so an open marker shows the point.
 The heatmap has its row.
