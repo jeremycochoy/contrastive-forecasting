@@ -158,16 +158,23 @@ RUNS = [
      GRN_EMA09998_REP003_HALVING_COLOUR, "X"),
     (GRN_EMA099995_REP003_HALVING, r"$\mathbf{BRN}$  RED with the EMA 0.99995, stopped at 345k",
      GRN_EMA099995_REP003_HALVING_COLOUR, "s"),
+    # Each grid entry says what the run is and when it trained, without another label (the user, 11-06:
+    # "I don't know what is W64, not clear to me what is this model and when it was trained").
     (G256_SS, r"$\mathbf{S256}$  width 64, batch 256, lr 1e-3, L_rep 0.1," "\n"
-     "SIGReg latent scale 1/8, trains to 80k", "#17becf", "D"),
-    (G256_SS05, r"$\mathbf{S05}$  S256 with L_rep 0.05, trains to 80k", "#006400", "<"),
-    (G256_SPHERE, r"$\mathbf{SPH}$  S256 with e, h and f on one sphere of radius 8," "\n"
-     "trains to 80k", "#008080", "o"),  # teal: TEL is out of the figure, MPE is navy
-    (G256_OLD, r"$\mathbf{O256}$  S256 with the old SIGReg window, 40k", "#ff00ff", "8"),
-    (G128, r"$\mathbf{O128}$  O256 at batch 128 and lr 4e-4," "\n"
-     "trained with the raw rollout, 40k", "#bcbd22", "h"),
-    (G64_W, r"$\mathbf{W64}$  O128 at batch 64, lr warmup and cosine," "\n"
-     "40k (bugged score)", "#000000", "x"),
+     "SIGReg latent scale 1/8, 80k steps (Nov 5 to 6)", "#17becf", "D"),
+    (G256_SS05, r"$\mathbf{S05}$  width 64, batch 256, lr 1e-3, L_rep 0.05," "\n"
+     "SIGReg latent scale 1/8, 80k steps (Nov 5 to 6)", "#006400", "<"),
+    (G256_SPHERE, r"$\mathbf{SPH}$  width 64, batch 256, lr 1e-3, L_rep 0.1," "\n"
+     "SIGReg latent scale 1/8, e, h and f on one sphere" "\n"
+     "of radius 8, trains to 80k (since Nov 5)", "#008080", "o"),  # teal: TEL is out of the figure, MPE is navy
+    (G256_OLD, r"$\mathbf{O256}$  width 64, batch 256, lr 1e-3, L_rep 0.1," "\n"
+     "the old SIGReg window, 40k steps (Nov 4 to 5)", "#ff00ff", "8"),
+    (G128, r"$\mathbf{O128}$  width 64, batch 128, lr 4e-4, L_rep 0.1," "\n"
+     "the old SIGReg window and the raw rollout," "\n"
+     "40k steps (Nov 3)", "#bcbd22", "h"),
+    (G64_W, r"$\mathbf{W64}$  width 64, batch 64, lr warmup to 1e-3" "\n"
+     "over 4k steps, then a cosine to 1e-4," "\n"
+     "40k steps (Nov 3; bugged score)", "#000000", "x"),
     (MPE, tagged(MPE, "Moirai, patch heads, EWMA, new data"), colour(MPE), "d"),
 ]
 OURS = STUDY / "results"

@@ -26,6 +26,7 @@ At 180k, with the raw rollout, grey gets 1.0421 and yellow 1.0537.
 A light asterisk marks each score with the normalised rollout.
 The forecast panel also shows six runs of the 40k grid at width 64, at the data they saw: S256, S05, SPH and O256 at batch 256, O128 at batch 128 and W64 at batch 64.
 With the SIGReg latent scale, S256 gets 1.0481 at 40k steps of batch 256 (160k on the axis) and 1.0281 at 80k (320k on the axis).
+S05 gets 1.0770 at 40k and 1.0347 at 80k.
 SPH is S256 with e, h and f on one sphere of radius 8 (`--latent-sphere`).
 At 20k, SPH gets 1.0691 and S256 gets 1.0656.
 W64 has a bugged score only.
@@ -105,6 +106,8 @@ At 20k, the 80k run with L_rep 0.1 gets 1.0656 (short 0.9844, medium 1.1831, lon
 At 40k, it gets 1.0481 (short 0.9741, medium 1.1572, long 1.1500), the lowest score of the grid.
 At 80k, it gets 1.0281 (short 0.9584, medium 1.1303, long 1.1238), in the right column of the heatmap.
 With L_rep 0.05, the other 80k run gets 1.0770 at 40k (short 0.9769, medium 1.2063, long 1.2416).
+At 80k, it gets 1.0347 (short 0.9351, medium 1.1755, long 1.1874), 0.0066 above the run with L_rep 0.1.
+Its short score is lower: 0.9351 against 0.9584.
 A third 80k run adds `--latent-sphere` to the L_rep 0.1 run (contrastive-forecasting #453): e, h and f go on one sphere of radius 8 after SIGReg.
 At 20k, it gets 1.0691 (short 0.9897, medium 1.1871, long 1.1781).
 With the fixed rollout, batch 128 at 4e-4 gets 1.2440, and 1.1842 with the raw rollout (the middle column).
