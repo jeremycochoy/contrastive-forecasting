@@ -71,6 +71,8 @@ RUNS = {
                                                         (1e-3, 1e-3, 2 * STEPS, 0), False),
     "g80b_lr1em3_tau99995_bs256_rep005_sigfix_ss_rollfix": ("80k steps, fixed SIGReg window, SIGReg target: latent norm about √64 = 8, batch 256, lr 1e-3, L_rep 0.05",
                                                          (1e-3, 1e-3, 2 * STEPS, 0), False),
+    "g80b_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_rollfix": ("80k steps, the L_rep 0.1 run above with the latent sphere (e, h and f at radius 8)",
+                                                                (1e-3, 1e-3, 2 * STEPS, 0), False),
 }
 
 

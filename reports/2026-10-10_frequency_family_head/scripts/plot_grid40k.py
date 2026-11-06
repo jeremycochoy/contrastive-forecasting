@@ -74,7 +74,9 @@ ROUND2 = {BEST: ("lr 1e-4, EMA start 0.99995\n(no change)", "1e-4"),
           "g80b_lr1em3_tau99995_bs256_rep01_sigfix_ss_rollfix": (
               "FIXED ROLLOUT, batch 256, lr 1e-3, L_rep 0.1,\nfixed SIGReg window, SIGReg target:\nlatent norm about √64 = 8, 80k steps", "1e-3"),
           "g80b_lr1em3_tau99995_bs256_rep005_sigfix_ss_rollfix": (
-              "FIXED ROLLOUT, batch 256, lr 1e-3, L_rep 0.05,\nfixed SIGReg window, SIGReg target:\nlatent norm about √64 = 8, 80k steps", "1e-3")}
+              "FIXED ROLLOUT, batch 256, lr 1e-3, L_rep 0.05,\nfixed SIGReg window, SIGReg target:\nlatent norm about √64 = 8, 80k steps", "1e-3"),
+          "g80b_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_rollfix": (
+              "FIXED ROLLOUT, batch 256, lr 1e-3, L_rep 0.1,\nfixed SIGReg window, SIGReg target:\nlatent norm about √64 = 8, 80k steps,\nLATENT SPHERE (e, h and f at radius 8)", "1e-3")}
 # The planned runs of the search, not started: (row label, when). The user (11-03 about
 # 21:05 UTC): the heatmap shows them; each one moves into ROUND2 when it starts.
 PLANNED = []
@@ -88,7 +90,8 @@ ROUND2_COLOURS = {BEST: "#d95f02", "g40b_lr1em4_tau99995_rep005h": "#1f77b4",
                   "g40b_lr1em3_tau99995_bs256_rollfix": "#ff00ff", "g40b_lr1p6em3_tau99995_bs256_rollfix": "#000000",
                   "g40b_lr1em3_tau99995_bs256_rep005_rollfix": "#8b008b",
                   "g80b_lr1em3_tau99995_bs256_rep01_sigfix_ss_rollfix": "#0000ff",
-                  "g80b_lr1em3_tau99995_bs256_rep005_sigfix_ss_rollfix": "#00ff7f"}
+                  "g80b_lr1em3_tau99995_bs256_rep005_sigfix_ss_rollfix": "#00ff7f",
+                  "g80b_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_rollfix": "#800000"}
 
 
 def run_score(run, k=40):

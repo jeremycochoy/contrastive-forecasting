@@ -21,3 +21,4 @@ g40b_lr1p6em3_tau99995_bs256_rollfix	1.6e-3	0.99995	FIXED ROLLOUT, batch 256, lr
 g40b_lr1em3_tau99995_bs256_rep005_rollfix	1e-3	0.99995	FIXED ROLLOUT, batch 256, lr 1e-3, L_rep 0.05 (scored with the fixed rollout)	1.0936	
 g80b_lr1em3_tau99995_bs256_rep01_sigfix_ss_rollfix	1e-3	0.99995	FIXED ROLLOUT, batch 256, lr 1e-3, L_rep 0.1, fixed SIGReg window, SIGReg target: latent norm about √64 = 8, 80k steps	1.0481	1.0281
 g80b_lr1em3_tau99995_bs256_rep005_sigfix_ss_rollfix	1e-3	0.99995	FIXED ROLLOUT, batch 256, lr 1e-3, L_rep 0.05, fixed SIGReg window, SIGReg target: latent norm about √64 = 8, 80k steps	1.0770	1.0347
+g80b_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_rollfix	1e-3	0.99995	FIXED ROLLOUT, batch 256, lr 1e-3, L_rep 0.1, fixed SIGReg window, SIGReg target: latent norm about √64 = 8, 80k steps, LATENT SPHERE (e, h and f at radius 8)	1.0610	

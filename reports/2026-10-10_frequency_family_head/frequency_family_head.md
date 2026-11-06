@@ -110,6 +110,9 @@ At 80k, it gets 1.0347 (short 0.9351, medium 1.1755, long 1.1874), 0.0066 above 
 Its short score is lower: 0.9351 against 0.9584.
 A third 80k run adds `--latent-sphere` to the L_rep 0.1 run (contrastive-forecasting #453): e, h and f go on one sphere of radius 8 after SIGReg.
 At 20k, it gets 1.0691 (short 0.9897, medium 1.1871, long 1.1781).
+At 40k, it gets 1.0610 (short 0.9580, medium 1.2082, long 1.2175), 0.0129 above the run without the sphere.
+With the sphere, the short score is lower (0.9580 against 0.9741), and the medium and long scores are higher (1.2082 against 1.1572, 1.2175 against 1.1500).
+The heatmap has its row.
 With the fixed rollout, batch 128 at 4e-4 gets 1.2440, and 1.1842 with the raw rollout (the middle column).
 This run trained with the raw rollout feedback.
 At 40k, the fixed rollout also gives higher scores for violet (1.1948 against 1.1430) and blue (1.2337 against 1.1944), the two muP runs with the flags of the grid.
