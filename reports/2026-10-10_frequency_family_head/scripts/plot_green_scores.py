@@ -104,10 +104,12 @@ SS256_POINTS = STUDY / "results" / "ss256_gm_points.tsv"
 SS256 = "grn_ema099995_f6_rep01_ss256"
 # S36 with the latent sphere (#453), scored with the head path of #454.
 SS256_SPHERE = "grn_ema099995_f6_rep01_ss256_sphere"
-XSCALE = {**XSCALE, G256_SS: 4, SS256: 4, SS256_SPHERE: 4}
+# S36 with 2 encoder and 4 forecaster layers (the user, 11-06: "2-4").
+SS256_E2F4 = "grn_ema099995_e2f4_rep01_ss256"
+XSCALE = {**XSCALE, G256_SS: 4, SS256: 4, SS256_SPHERE: 4, SS256_E2F4: 4}
 # The runs of the two tables: all their scores use the normalised rollout feedback. Drawn above
 # the older runs.
-TABLE_ARMS = {G256_SS, SS256, SS256_SPHERE}
+TABLE_ARMS = {G256_SS, SS256, SS256_SPHERE, SS256_E2F4}
 # Points of a second run of the first 250 steps with other random numbers than the run (torch 2.8.0
 # on elisa, 2.9.1 on the box where the run started): open markers.
 OTHER_RANDOM = {(SS256_SPHERE, 1)}
@@ -174,6 +176,8 @@ RUNS = [
     (SS256_SPHERE, r"$\mathbf{SPH36}$  S36 with the latent sphere (e, h and f" "\n"
      "on one sphere of radius √384 = 19.6), trains" "\n"
      "to 166k (since Nov 6)", "#dc143c", "<"),
+    (SS256_E2F4, r"$\mathbf{S24}$  S36 with 2 encoder and 4 forecaster" "\n"
+     "layers, trains to 166k (since Nov 6)", "#808000", "h"),
     (MPE, tagged(MPE, "Moirai, patch heads, EWMA, new data"), colour(MPE), "d"),
 ]
 OURS = STUDY / "results"
