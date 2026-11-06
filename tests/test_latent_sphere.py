@@ -7,7 +7,8 @@ import math
 import pytest
 import torch
 
-from src.forecasting_head import extract_forecaster_latents, rollout_latent
+from src.forecasting_head import (extract_encoder_latents, extract_forecaster_latents,
+                                  rollout_latent)
 from src.models import ConfigurableModel
 from tests.test_mup import trainer
 
@@ -118,3 +119,16 @@ def test_the_flag_reaches_the_training(tmp_path):
     with open(tmp_path / "sphere_losses.csv") as f:
         losses = [float(row["loss"]) for row in csv.DictReader(f)]
     assert len(losses) == 20 and all(math.isfinite(v) for v in losses)
+
+
+def test_the_head_path_reads_the_encoder_output_of_training():
+    """extract_encoder_latents (the head trainer and the B4 score) gives the h of
+    the training forward: the encoder reads e on the sphere there too, and the
+    function changes nothing without the sphere."""
+    x = torch.randn(2, 64, 1, generator=torch.Generator().manual_seed(7))
+    for sphere in (False, True):
+        net = model(latent_sphere=sphere)
+        with torch.no_grad():
+            _, h = net.transformer(encoder_input(net))
+            latents, _ = extract_encoder_latents(net, x)
+        torch.testing.assert_close(latents, h)

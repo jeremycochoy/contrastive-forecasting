@@ -728,6 +728,11 @@ def extract_encoder_latents(backbone, x, freq_ids=None, seasonality_ids=None,
             **size_kwarg)
 
         e = backbone.transformer.input_to_latent(xr)  # (B, T, C, H)
+        # --latent-sphere: the encoder reads e on the sphere, as the training forward
+        # (TransformerBlock.forward) does. A no-op without the sphere.
+        sphere = getattr(backbone.transformer, 'sphere', None)
+        if sphere is not None:
+            e = sphere(e)
         B, T, C, H = e.size()
         e_bc = e.permute(0, 2, 1, 3).reshape(B * C, T, H)
 
