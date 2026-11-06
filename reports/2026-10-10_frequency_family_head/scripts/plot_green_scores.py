@@ -97,9 +97,11 @@ G256_SS = "g80b_lr1em3_tau99995_bs256_rep01_sigfix_ss_rollfix"
 G256_OLD = "g40b_lr1em3_tau99995_bs256_rollfix"
 G128 = "g40b_lr4em4_tau99995_bs128"
 G64_W = "g40w_lr1em3_wu4k_cos"
-XSCALE = {**XSCALE, G256_SS: 4, G256_OLD: 4, G128: 2, G64_W: 1}
+G256_SS05 = "g80b_lr1em3_tau99995_bs256_rep005_sigfix_ss_rollfix"
+G256_SPHERE = "g80b_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_rollfix"
+XSCALE = {**XSCALE, G256_SS: 4, G256_SS05: 4, G256_SPHERE: 4, G256_OLD: 4, G128: 2, G64_W: 1}
 # Their scores with the normalised rollout feedback: each point except W64's (a bugged score).
-GRID_FIXED = {G256_SS, G256_OLD, G128}
+GRID_FIXED = {G256_SS, G256_SS05, G256_SPHERE, G256_OLD, G128}
 # Drawn above the runs of width 384: W64 1.1823 lies 0.0027 from ORA at 40k.
 GRID_ARMS = GRID_FIXED | {G64_W}
 # The runs of this report: their forecast comes from results/scores.tsv.
@@ -158,6 +160,9 @@ RUNS = [
      GRN_EMA099995_REP003_HALVING_COLOUR, "s"),
     (G256_SS, r"$\mathbf{S256}$  width 64, batch 256, lr 1e-3, L_rep 0.1," "\n"
      "SIGReg latent scale 1/8, trains to 80k", "#17becf", "D"),
+    (G256_SS05, r"$\mathbf{S05}$  S256 with L_rep 0.05, trains to 80k", "#006400", "<"),
+    (G256_SPHERE, r"$\mathbf{SPH}$  S256 with e, h and f on one sphere of radius 8," "\n"
+     "trains to 80k", "#008080", "o"),  # teal: TEL is out of the figure, MPE is navy
     (G256_OLD, r"$\mathbf{O256}$  S256 with the old SIGReg window, 40k", "#ff00ff", "8"),
     (G128, r"$\mathbf{O128}$  O256 at batch 128 and lr 4e-4," "\n"
      "trained with the raw rollout, 40k", "#bcbd22", "h"),
@@ -260,9 +265,10 @@ def panel_points(tables, forecast):
 
 
 def near_later_run(points, arm, stop):
-    """True when a run of ON_TOP that RUNS draws after ``arm`` has almost the same score at
-    ``stop`` (the other runs lie under every point)."""
-    names = [run for run, *_ in RUNS if run in ON_TOP]
+    """True when a run of the group of ``arm`` (ON_TOP, or the grid runs of GRID_FIXED) that RUNS
+    draws after ``arm`` has almost the same score at ``stop`` (the other runs lie under every point)."""
+    group = ON_TOP if arm in ON_TOP else GRID_FIXED
+    names = [run for run, *_ in RUNS if run in group]
     score = points[arm][stop]
     return any(abs(points.get(run, {}).get(stop, 9.0) - score) < CLOSE for run in names[names.index(arm) + 1:])
 
@@ -306,7 +312,7 @@ def draw_panel(ax, title, y_range, points, starred=None):
         for stop in sorted(fixed):
             ax.plot(stop * 1000, min(points[arm][stop], y_range[1]), marker="*", ms=13,
                     color="black", alpha=0.25, ls="none", zorder=1.9)
-        if starred is not None and arm in ON_TOP:
+        if starred is not None and (arm in ON_TOP or arm in GRID_FIXED):
             draw_on_top(ax, points, arm, fixed, colour_hex, marker)
         for stop, value in zip(stops, values):
             if value > y_range[1]:

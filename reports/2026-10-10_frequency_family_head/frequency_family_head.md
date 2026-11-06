@@ -24,8 +24,10 @@ At 300k, blue gets 1.0504 (grey 1.0008, yellow 1.0245, violet 1.0684, all with t
 At 360k, blue gets 1.0848 (grey 1.0279, yellow 1.0330, violet 1.0606, all with the normalised rollout).
 At 180k, with the raw rollout, grey gets 1.0421 and yellow 1.0537.
 A light asterisk marks each score with the normalised rollout.
-The forecast panel also shows four runs of the 40k grid at width 64, at the data they saw: S256 and O256 at batch 256, O128 at batch 128 and W64 at batch 64.
+The forecast panel also shows six runs of the 40k grid at width 64, at the data they saw: S256, S05, SPH and O256 at batch 256, O128 at batch 128 and W64 at batch 64.
 With the SIGReg latent scale, S256 gets 1.0481 at 40k steps of batch 256 (160k on the axis).
+SPH is S256 with e, h and f on one sphere of radius 8 (`--latent-sphere`).
+At 20k, SPH gets 1.0691 and S256 gets 1.0656.
 W64 has a bugged score only.
 With the normalised rollout, the best stops of grey (1.0269 at 240k), yellow (1.0304 at 200k) and violet (1.0208 at 460k) are below blue at 180k (1.0482).
 Grey at 200k gets 1.0215 with the normalised rollout, its lowest score.
@@ -102,6 +104,8 @@ In a test of 300 steps, SIGReg on the encoder output falls from 9.4 to 0.09 with
 At 20k, the 80k run with L_rep 0.1 gets 1.0656 (short 0.9844, medium 1.1831, long 1.1811).
 At 40k, it gets 1.0481 (short 0.9741, medium 1.1572, long 1.1500), the lowest score of the grid.
 With L_rep 0.05, the other 80k run gets 1.0770 at 40k (short 0.9769, medium 1.2063, long 1.2416).
+A third 80k run adds `--latent-sphere` to the L_rep 0.1 run (contrastive-forecasting #453): e, h and f go on one sphere of radius 8 after SIGReg.
+At 20k, it gets 1.0691 (short 0.9897, medium 1.1871, long 1.1781).
 With the fixed rollout, batch 128 at 4e-4 gets 1.2440, and 1.1842 with the raw rollout (the right column).
 This run trained with the raw rollout feedback.
 At 40k, the fixed rollout also gives higher scores for violet (1.1948 against 1.1430) and blue (1.2337 against 1.1944), the two muP runs with the flags of the grid.
