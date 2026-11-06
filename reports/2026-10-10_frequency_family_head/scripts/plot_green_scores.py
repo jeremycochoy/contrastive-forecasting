@@ -16,10 +16,11 @@ Writes plots/forecast_and_reconstruction.png: three panels on one x axis.
 
 A dashed vertical line joins the scores of one checkpoint in the panels. The
 legend gives each run a three-letter code (from its colour: GRY, YEL, VIO,
-BLU, ORA, LIM, PNK, RED, BRN, DGY), and for orange, lime and pink the result that
+BLU, ORA, LIM, PNK, BRN, DGY), and for orange, lime and pink the result that
 the user expected before their start. GRN+EMA 0.99995 with 3 forecaster layers
 (MAG), the same with the EMA 0.9998 (TEL) and TEL from its 100k save with the
-SIGReg window fix (TRQ) are out of the figure (the user, 11-04). In the forecast
+SIGReg window fix (TRQ) are out of the figure (the user, 11-04), and RED (GRN+EMA 0.9998,
+L_rep 0.03, depths 1/2^j) too (the user, 11-06). In the forecast
 panel, a light grey disc behind a point marks a bugged score: the eval fed the raw
 forecaster output back (the user, 11-06: the late points crowd, and most of them
 have the normalised rollout feedback of #446). A rescore with the normalised
@@ -109,8 +110,8 @@ NEW_RUNS = [GRN_EMA099995, GRN_EMA099995_F6,
             GRN_EMA0999975_F6_REP01_MUP, GRN_EMA099995_F6_REP01_MUP_HID56,
             GRN_EMA09998_REP003_HALVING, GRN_EMA099995_REP003_HALVING,
             GRN_EMA099995_F6_CD240, GRN_EMA09998, GRN_EMA09998_SIGFIX]
-# The newest runs: drawn above the others, so that their first points show. RED and BRN
-# lie under them: their points hid violet's rescore at 180k.
+# The newest runs: drawn above the others, so that their first points show. BRN
+# lies under them: their points hid violet's rescore at 180k.
 ON_TOP = {GRN_EMA099995, GRN_EMA099995_F6, GRN_EMA099995_F6_REP01,
           GRN_EMA099995_F6_REP01_MUP, GRN_EMA099995_F6_REP005_HALVING_MUP,
           GRN_EMA099995_F6_REP01_MUP_LR56, GRN_EMA0999975_F6_REP01_MUP,
@@ -151,10 +152,8 @@ RUNS = [
      r"$\mathbf{PNK}$  VIO with lr 3.36e-4 (hidden lr 5.6e-5 of YEL), input init 1.008," "\n"
      "stopped at 254k (expected: better than VIO, maybe as good as YEL)",
      GRN_EMA099995_F6_REP01_MUP_HID56_COLOUR, "*"),
-    (GRN_EMA09998_REP003_HALVING,
-     r"$\mathbf{RED}$  GRN+EMA 0.9998, L_rep 0.03, depths $1/2^j$, stopped at 212k",
-     GRN_EMA09998_REP003_HALVING_COLOUR, "X"),
-    (GRN_EMA099995_REP003_HALVING, r"$\mathbf{BRN}$  RED with the EMA 0.99995, stopped at 345k",
+    (GRN_EMA099995_REP003_HALVING,
+     r"$\mathbf{BRN}$  GRN+EMA 0.99995, L_rep 0.03, depths $1/2^j$, stopped at 345k",
      GRN_EMA099995_REP003_HALVING_COLOUR, "s"),
     # The grid entry says what the run is and when it trained, without another label (the user, 11-06:
     # "I don't know what is W64, not clear to me what is this model and when it was trained").
