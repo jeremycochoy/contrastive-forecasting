@@ -23,6 +23,7 @@ Output:
 import argparse
 import csv
 import json
+import math
 import os
 import sys
 import time
@@ -71,11 +72,13 @@ from src.forecasting_head import (
     ForecastingHeadBank,
     FORECAST_LEN,
     forecast_autoregressive,
+    forecast_B4_windows,
     forecast_with_strategy,
     head_bank_sizes,
     native_value_head,
     reconstruct_windows,
     ROLLOUT_FEEDBACKS,
+    windows_per_pass,
     ZeroReconstructionHead,
 )
 from src.freq_family import (
@@ -435,6 +438,47 @@ class ReconstructionPredictor(ContrastiveForecasterPredictor):
             yield self.to_forecast(out, item)
 
 
+class BatchedForecastPredictor(ContrastiveForecasterPredictor):
+    """``--forecast-batch-size N`` (B4 only): the windows of one config go
+    through the backbone, the rollout and the head N at a time
+    (:func:`forecast_B4_windows`). Each window is prepared as
+    :meth:`predict_item` prepares it, and gets the same forecast up to
+    floating-point noise. Fewer windows go in one pass when the horizon has
+    more patches than the context (:func:`windows_per_pass`).
+    """
+
+    def __init__(self, *args, batch_size, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.strategy != "B4":
+            raise ValueError(f"--forecast-batch-size batches strategy B4 "
+                             f"only, not {self.strategy}")
+        size = getattr(self.head, "patch_size", None) or self.backbone.W
+        self.batch_size = windows_per_pass(
+            batch_size, self.t_raw // size,
+            math.ceil(self.prediction_length / size))
+        print(f"  [eval] batched B4: {self.batch_size} windows per pass")
+
+    def predict(self, dataset: GluonTSDataset, **kwargs) -> Iterator[Forecast]:
+        items = []
+        for item in dataset:
+            items.append(item)
+            if len(items) == self.batch_size:
+                yield from self.forecast_batch(items)
+                items = []
+        if items:
+            yield from self.forecast_batch(items)
+
+    def forecast_batch(self, items) -> Iterator[QuantileForecast]:
+        contexts = torch.cat([
+            self._prepare_context(self._fill_missing(
+                np.asarray(item["target"], dtype=np.float32)))
+            for item in items])                              # (n, t_raw, 1)
+        raw = forecast_B4_windows(self.backbone, self.head, contexts,
+                                  self.prediction_length, self.device)
+        for item, out in zip(items, raw):
+            yield self.to_forecast(out, item)
+
+
 # ============================================================================
 # Dataset iteration helpers
 # ============================================================================
@@ -452,6 +496,9 @@ def build_predictor(args, backbone, head, dataset, device):
         return ReconstructionPredictor(labels=dataset.test_data.label,
                                        latent=args.reconstruction_latent,
                                        **kwargs)
+    if args.forecast_batch_size > 1:
+        return BatchedForecastPredictor(batch_size=args.forecast_batch_size,
+                                        **kwargs)
     return ContrastiveForecasterPredictor(**kwargs)
 
 def get_all_dataset_configs():
@@ -563,6 +610,15 @@ def parse_args():
                    choices=["auto", "none", "diff", "raw"],
                    help="Backbone patch-stats setting; 'auto' (default) "
                         "detects from the encoder's input width.")
+    p.add_argument("--forecast-batch-size", type=int, default=1,
+                   help="B4 only: how many windows of one config go through "
+                        "the backbone, the rollout and the head in one pass. "
+                        "1 (default) forecasts one window at a time, as "
+                        "every score so far. N > 1 gives each window the "
+                        "same forecast up to floating-point noise, faster. A "
+                        "horizon with more patches than the context gets "
+                        "fewer windows per pass, so the memory of a pass "
+                        "stays bounded.")
     p.add_argument("--config-filter", default=None,
                    help="If set, only evaluate configs whose '<dataset>/<term>' "
                         "name matches this regex. Useful for cheap screens — "
@@ -616,6 +672,10 @@ def parse_args():
             and args.head_path is None):
         p.error("--head-path is required unless --native-value-head or "
                 "--zero-head")
+    if args.forecast_batch_size < 1:
+        p.error("--forecast-batch-size must be at least 1")
+    if args.forecast_batch_size > 1 and args.strategy != "B4":
+        p.error("--forecast-batch-size batches strategy B4 only")
     return args
 
 

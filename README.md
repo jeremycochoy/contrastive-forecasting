@@ -127,6 +127,13 @@ python scripts/recover.py --device cuda --model-path model.pth --epochs 20000
   the old window to reproduce an older run, and `--sigreg-forecast`, which
   adds SIGReg on the forecaster output.
 
+### Evaluation flags
+
+- [`docs/forecast_batch_size.md`](docs/forecast_batch_size.md):
+  `--forecast-batch-size N` of the GIFT-Eval script, which forecasts the
+  windows of a config `N` at a time under strategy B4, with the same
+  numbers as one window at a time.
+
 ### How large is the model?
 
 `scripts/model_size.py` counts the backbone, at one shape or at many. Use it
