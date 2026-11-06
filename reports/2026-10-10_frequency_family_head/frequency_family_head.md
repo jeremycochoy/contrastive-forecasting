@@ -25,7 +25,7 @@ At 360k, blue gets 1.0848 (grey 1.0279, yellow 1.0330, violet 1.0606, all with t
 At 180k, with the raw rollout, grey gets 1.0421 and yellow 1.0537.
 A light asterisk marks each score with the normalised rollout.
 The forecast panel also shows six runs of the 40k grid at width 64, at the data they saw: S256, S05, SPH and O256 at batch 256, O128 at batch 128 and W64 at batch 64.
-With the SIGReg latent scale, S256 gets 1.0481 at 40k steps of batch 256 (160k on the axis).
+With the SIGReg latent scale, S256 gets 1.0481 at 40k steps of batch 256 (160k on the axis) and 1.0281 at 80k (320k on the axis).
 SPH is S256 with e, h and f on one sphere of radius 8 (`--latent-sphere`).
 At 20k, SPH gets 1.0691 and S256 gets 1.0656.
 W64 has a bugged score only.
@@ -103,10 +103,11 @@ The 80k runs now train with `--sigreg-latent-scale inv_sqrt_d`: SIGReg reads eac
 In a test of 300 steps, SIGReg on the encoder output falls from 9.4 to 0.09 with this factor.
 At 20k, the 80k run with L_rep 0.1 gets 1.0656 (short 0.9844, medium 1.1831, long 1.1811).
 At 40k, it gets 1.0481 (short 0.9741, medium 1.1572, long 1.1500), the lowest score of the grid.
+At 80k, it gets 1.0281 (short 0.9584, medium 1.1303, long 1.1238), in the right column of the heatmap.
 With L_rep 0.05, the other 80k run gets 1.0770 at 40k (short 0.9769, medium 1.2063, long 1.2416).
 A third 80k run adds `--latent-sphere` to the L_rep 0.1 run (contrastive-forecasting #453): e, h and f go on one sphere of radius 8 after SIGReg.
 At 20k, it gets 1.0691 (short 0.9897, medium 1.1871, long 1.1781).
-With the fixed rollout, batch 128 at 4e-4 gets 1.2440, and 1.1842 with the raw rollout (the right column).
+With the fixed rollout, batch 128 at 4e-4 gets 1.2440, and 1.1842 with the raw rollout (the middle column).
 This run trained with the raw rollout feedback.
 At 40k, the fixed rollout also gives higher scores for violet (1.1948 against 1.1430) and blue (1.2337 against 1.1944), the two muP runs with the flags of the grid.
 The other scores of the grid use the raw rollout feedback, so compare a batch-256 score only with the other batch-256 scores.

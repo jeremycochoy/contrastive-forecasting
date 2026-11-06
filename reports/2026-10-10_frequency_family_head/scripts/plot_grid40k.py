@@ -20,10 +20,11 @@ Each cell is the forecast GM-Relative MASE of head B4 at 40k (30k head steps,
 the lowest score of a set of rows scored the same way: the rows of the raw
 rollout feedback (bugged scores) and the batch-256 rows (fixed rollout). The
 right column of the second round holds the rescores with the fixed rollout of
-runs scored with the raw rollout (the user, 11-05: the best batch-128 run).
+runs scored with the raw rollout (the user, 11-05: the best batch-128 run). Its
+third column holds the 80k score of the 80k runs, with its own red frame.
 
 The heads of the runs trained on cf-recon (vast 56873094) or on elisa. SCORES
-holds their score files score_<run>_bb40k_h30k_control.txt (elisa) and a copy
+holds their score files score_<run>_bb<k>k_h30k_control.txt (elisa) and a copy
 of the results folder of the box. results/grid40k_rescores.tsv holds the
 rescores. Writes results/grid40k_scores.tsv and plots/grid40k_heatmap.png.
 
@@ -90,9 +91,9 @@ ROUND2_COLOURS = {BEST: "#d95f02", "g40b_lr1em4_tau99995_rep005h": "#1f77b4",
                   "g80b_lr1em3_tau99995_bs256_rep005_sigfix_ss_rollfix": "#00ff7f"}
 
 
-def run_score(run):
-    """The forecast score of a run, or None. A run with two score files stops the script."""
-    paths = [d / f"score_{run}_bb40k_h30k_control.txt" for d in SCORES]
+def run_score(run, k=40):
+    """The forecast score of a run at its ``k``k save, or None. A run with two score files stops the script."""
+    paths = [d / f"score_{run}_bb{k}k_h30k_control.txt" for d in SCORES]
     found = [p for p in paths if p.exists()]
     if len(found) > 1:
         raise SystemExit(f"{run}: a score in two places: {found}")
@@ -119,11 +120,11 @@ def rescores():
 
 
 def round2_scores():
-    """Array [run of ROUND2 and planned run, 2] of the scores and of the rescores with the
-    fixed rollout, NaN for no score."""
+    """Array [run of ROUND2 and planned run, 3] of the scores, of the rescores with the
+    fixed rollout and of the 80k scores of the 80k runs, NaN for no score."""
     fixed = rescores()
-    rows = [[as_value(run_score(run)), fixed.get(run, np.nan)] for run in ROUND2]
-    return np.array(rows + [[np.nan, np.nan]] * len(PLANNED))
+    rows = [[as_value(run_score(run)), fixed.get(run, np.nan), as_value(run_score(run, 80))] for run in ROUND2]
+    return np.array(rows + [[np.nan, np.nan, np.nan]] * len(PLANNED))
 
 
 def score_text(value):
@@ -132,14 +133,14 @@ def score_text(value):
 
 def write_table(grid, round2):
     with open(TABLE, "w") as f:
-        f.write("run\tlr\tema_tau\tchange\tforecast_gm_mase\n")
+        f.write("run\tlr\tema_tau\tchange\tforecast_gm_mase\tforecast_gm_mase_80k\n")
         for i, (lr, (_, lr_part)) in enumerate(LRS.items()):
             for j, (tau, (_, tau_part)) in enumerate(TAUS.items()):
-                f.write(f"g40_{lr_part}_{tau_part}\t{lr}\t{tau}\t\t{score_text(grid[i, j])}\n")
+                f.write(f"g40_{lr_part}_{tau_part}\t{lr}\t{tau}\t\t{score_text(grid[i, j])}\t\n")
         for k, (run, (label, lr)) in enumerate(ROUND2.items()):
             if run != BEST:
                 change = label.replace("\n", " ")
-                f.write(f"{run}\t{lr}\t0.99995\t{change}\t{score_text(round2[k, 0])}\n")
+                f.write(f"{run}\t{lr}\t0.99995\t{change}\t{score_text(round2[k, 0])}\t{score_text(round2[k, 2])}\n")
 
 
 def cell_text(ax, i, j, score, low, high, empty="no score yet"):
@@ -196,13 +197,15 @@ def draw_grid(ax, grid, low, high):
 
 
 def draw_round2(ax, round2, low, high):
+    long_runs = [k for k, run in enumerate(ROUND2) if run.startswith("g80b_")]
     empty = {(k, 1): "" for k in range(round2.shape[0])}
+    empty.update({(k, 2): "" for k in range(round2.shape[0]) if k not in long_runs})
     empty.update({(len(ROUND2) + k, 0): when for k, (_, when) in enumerate(PLANNED)})
     fixed = [(k, 0) for k, run in enumerate(ROUND2) if run.endswith("_rollfix")]
     bugged = [(k, 0) for k, run in enumerate(ROUND2) if not run.endswith("_rollfix")]
-    draw_cells(ax, round2, low, high, empty, groups=[bugged, fixed])
-    ax.set_xticks([0, 1], ["lr 1e-4, EMA start 0.99995, batch 64,\nwith the change of the row",
-                           "the same run,\nrescored with\nthe fixed rollout"])
+    draw_cells(ax, round2, low, high, empty, groups=[bugged, fixed, [(k, 2) for k in long_runs]])
+    ax.set_xticks([0, 1, 2], ["lr 1e-4, EMA start 0.99995, batch 64,\nwith the change of the row",
+                              "the same run,\nrescored with\nthe fixed rollout", "the same run\nat 80k steps"])
     labels = [label for label, _ in ROUND2.values()] + [label for label, _ in PLANNED]
     ax.set_yticks(range(len(labels)), labels, fontsize=9)
     scored = int(np.sum(~np.isnan(round2[1:len(ROUND2), 0])))
@@ -214,7 +217,7 @@ def main():
     grid, round2 = grid_scores(), round2_scores()
     write_table(grid, round2)
     low, high = color_scale(grid, round2)
-    fig, (left, right) = plt.subplots(1, 2, figsize=(19, 13), gridspec_kw={"width_ratios": [2, 2.4], "wspace": 0.75})
+    fig, (left, right) = plt.subplots(1, 2, figsize=(21, 13), gridspec_kw={"width_ratios": [2, 3.2], "wspace": 0.75})
     image = draw_grid(left, grid, low, high)
     draw_round2(right, round2, low, high)
     fig.colorbar(image, ax=[left, right], label="forecast GM-Relative MASE (lower is better)")

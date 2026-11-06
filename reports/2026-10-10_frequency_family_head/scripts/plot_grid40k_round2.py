@@ -66,9 +66,9 @@ RUNS = {
     "g40b_lr1em3_tau99995_bs256_rep005_rollfix": ("fixed rollout, batch 256, lr 1e-3, L_rep 0.05",
                                                   (1e-3, 1e-3, STEPS, 0), False),
     "g80b_lr1em3_tau99995_bs256_rep01_sigfix_ss_rollfix": ("80k steps, fixed SIGReg window, SIGReg latent scale 1/8, batch 256, lr 1e-3, L_rep 0.1",
-                                                        (1e-3, 1e-3, STEPS, 0), False),
+                                                        (1e-3, 1e-3, 2 * STEPS, 0), False),
     "g80b_lr1em3_tau99995_bs256_rep005_sigfix_ss_rollfix": ("80k steps, fixed SIGReg window, SIGReg latent scale 1/8, batch 256, lr 1e-3, L_rep 0.05",
-                                                         (1e-3, 1e-3, STEPS, 0), False),
+                                                         (1e-3, 1e-3, 2 * STEPS, 0), False),
 }
 
 
@@ -95,8 +95,8 @@ def legend_label(run):
 
 
 def draw_lr(ax):
-    steps = np.arange(0, STEPS + 1, 50)
     for run, (name, schedule, _) in RUNS.items():
+        steps = np.arange(0, schedule[2] + 1, 50)  # to the last step of the run
         if schedule != CONSTANT or run == "g40_lr1em4_tau99995":
             label = "lr 1e-4, constant (EMA start 0.99995, losses of blue, batch 128 at lr 1e-4)" \
                 if schedule == CONSTANT else name
@@ -136,7 +136,7 @@ def main():
               "Total loss (the runs at batch 64 with the loss weights of lr 1e-4, EMA start 0.99995)")
     for ax in axes:
         ax.grid(alpha=0.3)
-    axes[2].set_xlabel("training step (EMA ramp to 1.0 over the 40k steps)")
+    axes[2].set_xlabel("training step (EMA ramp to 1.0 over the steps of each run: 40k, or 80k for the 80k runs)")
     fig.suptitle("40k grid, second round: the training of lr 1e-4, EMA start 0.99995 and of the changes from it\n"
                  "(view only; decisions use the forecast)", fontsize=11)
     fig.tight_layout()
