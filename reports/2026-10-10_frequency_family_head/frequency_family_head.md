@@ -123,8 +123,10 @@ The first heads of this run read the encoder output of the raw e: contrastive-fo
 With the fixed head path, the run gets 1.0658 at 20k (short 0.9884, medium 1.1807, long 1.1724), 0.0002 above the run without the sphere.
 At 40k, it gets 1.0559 (short 0.9508, medium 1.2049, long 1.2175), 0.0078 above the run without the sphere (1.0481).
 With the sphere, the short score is lower (0.9508 against 0.9741), and the medium and long scores are higher (1.2049 against 1.1572, 1.2175 against 1.1500).
+At 80k, it gets 1.0555 (short 0.9451, medium 1.2123, long 1.2276), 0.0274 above the run without the sphere (1.0281).
+From 40k to 80k, the score of the run with the sphere changes by 0.0004, and the score of the run without it falls by 0.0200.
 With the old head path, it got 1.0691 at 20k and 1.0610 at 40k.
-The heatmap row gives the 40k score of the fixed head path.
+The heatmap row gives the 40k and 80k scores of the fixed head path.
 
 ![Forecast with and without the latent sphere](plots/sphere_compare.png)
 
