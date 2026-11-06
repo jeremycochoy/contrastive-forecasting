@@ -72,9 +72,9 @@ ROUND2 = {BEST: ("lr 1e-4, EMA start 0.99995\n(no change)", "1e-4"),
           "g40b_lr1em3_tau99995_bs256_rep005_rollfix": ("FIXED ROLLOUT, batch 256, lr 1e-3,\nL_rep 0.05 (scored with the fixed rollout)",
                                                         "1e-3"),
           "g80b_lr1em3_tau99995_bs256_rep01_sigfix_ss_rollfix": (
-              "FIXED ROLLOUT, batch 256, lr 1e-3,\nL_rep 0.1, fixed SIGReg window,\nSIGReg latent scale 1/8, 80k steps", "1e-3"),
+              "FIXED ROLLOUT, batch 256, lr 1e-3, L_rep 0.1,\nfixed SIGReg window, SIGReg target:\nlatent norm about √64 = 8, 80k steps", "1e-3"),
           "g80b_lr1em3_tau99995_bs256_rep005_sigfix_ss_rollfix": (
-              "FIXED ROLLOUT, batch 256, lr 1e-3,\nL_rep 0.05, fixed SIGReg window,\nSIGReg latent scale 1/8, 80k steps", "1e-3")}
+              "FIXED ROLLOUT, batch 256, lr 1e-3, L_rep 0.05,\nfixed SIGReg window, SIGReg target:\nlatent norm about √64 = 8, 80k steps", "1e-3")}
 # The planned runs of the search, not started: (row label, when). The user (11-03 about
 # 21:05 UTC): the heatmap shows them; each one moves into ROUND2 when it starts.
 PLANNED = []

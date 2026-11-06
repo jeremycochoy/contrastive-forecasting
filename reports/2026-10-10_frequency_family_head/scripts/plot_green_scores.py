@@ -93,17 +93,14 @@ GRN_EMA099995_REP003_HALVING_COLOUR = "#8c564b"  # no other run of this figure h
 # similar size that we had before"): their forecast in results/grid40k_gm_points.tsv (arm, own stop
 # k, score), placed at the data they saw (batch 256: 4 batch-64 steps for each step, batch 128: 2).
 GRID_POINTS = STUDY / "results" / "grid40k_gm_points.tsv"
+# The one grid run of this figure (the user, 11-06: the heatmap compares the grid runs; this figure
+# keeps the long runs, and S256 has the most stops of the grid).
 G256_SS = "g80b_lr1em3_tau99995_bs256_rep01_sigfix_ss_rollfix"
-G256_OLD = "g40b_lr1em3_tau99995_bs256_rollfix"
-G128 = "g40b_lr4em4_tau99995_bs128"
-G64_W = "g40w_lr1em3_wu4k_cos"
-G256_SS05 = "g80b_lr1em3_tau99995_bs256_rep005_sigfix_ss_rollfix"
-G256_SPHERE = "g80b_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_rollfix"
-XSCALE = {**XSCALE, G256_SS: 4, G256_SS05: 4, G256_SPHERE: 4, G256_OLD: 4, G128: 2, G64_W: 1}
-# Their scores with the normalised rollout feedback: each point except W64's (a bugged score).
-GRID_FIXED = {G256_SS, G256_SS05, G256_SPHERE, G256_OLD, G128}
-# Drawn above the runs of width 384: W64 1.1823 lies 0.0027 from ORA at 40k.
-GRID_ARMS = GRID_FIXED | {G64_W}
+XSCALE = {**XSCALE, G256_SS: 4}
+# Its scores with the normalised rollout feedback.
+GRID_FIXED = {G256_SS}
+# Drawn above the runs of width 384.
+GRID_ARMS = GRID_FIXED
 # The runs of this report: their forecast comes from results/scores.tsv.
 NEW_RUNS = [GRN_EMA099995, GRN_EMA099995_F6,
             GRN_EMA099995_F6_REP01, GRN_EMA099995_F6_REP01_MUP,
@@ -158,23 +155,11 @@ RUNS = [
      GRN_EMA09998_REP003_HALVING_COLOUR, "X"),
     (GRN_EMA099995_REP003_HALVING, r"$\mathbf{BRN}$  RED with the EMA 0.99995, stopped at 345k",
      GRN_EMA099995_REP003_HALVING_COLOUR, "s"),
-    # Each grid entry says what the run is and when it trained, without another label (the user, 11-06:
+    # The grid entry says what the run is and when it trained, without another label (the user, 11-06:
     # "I don't know what is W64, not clear to me what is this model and when it was trained").
-    (G256_SS, r"$\mathbf{S256}$  width 64, batch 256, lr 1e-3, L_rep 0.1," "\n"
-     "SIGReg latent scale 1/8, 80k steps (Nov 5 to 6)", "#17becf", "D"),
-    (G256_SS05, r"$\mathbf{S05}$  width 64, batch 256, lr 1e-3, L_rep 0.05," "\n"
-     "SIGReg latent scale 1/8, 80k steps (Nov 5 to 6)", "#006400", "<"),
-    (G256_SPHERE, r"$\mathbf{SPH}$  width 64, batch 256, lr 1e-3, L_rep 0.1," "\n"
-     "SIGReg latent scale 1/8, e, h and f on one sphere" "\n"
-     "of radius 8, trains to 80k (since Nov 5)", "#008080", "o"),  # teal: TEL is out of the figure, MPE is navy
-    (G256_OLD, r"$\mathbf{O256}$  width 64, batch 256, lr 1e-3, L_rep 0.1," "\n"
-     "the old SIGReg window, 40k steps (Nov 4 to 5)", "#ff00ff", "8"),
-    (G128, r"$\mathbf{O128}$  width 64, batch 128, lr 4e-4, L_rep 0.1," "\n"
-     "the old SIGReg window and the raw rollout," "\n"
-     "40k steps (Nov 3)", "#bcbd22", "h"),
-    (G64_W, r"$\mathbf{W64}$  width 64, batch 64, lr warmup to 1e-3" "\n"
-     "over 4k steps, then a cosine to 1e-4," "\n"
-     "40k steps (Nov 3; bugged score)", "#000000", "x"),
+    (G256_SS, r"$\mathbf{S256}$  width 64, 1 encoder and 3 forecaster layers," "\n"
+     "batch 256, lr 1e-3, L_rep 0.1, SIGReg target:" "\n"
+     "latent norm about √64 = 8, 80k steps (Nov 5 to 6)", "#17becf", "D"),
     (MPE, tagged(MPE, "Moirai, patch heads, EWMA, new data"), colour(MPE), "d"),
 ]
 OURS = STUDY / "results"

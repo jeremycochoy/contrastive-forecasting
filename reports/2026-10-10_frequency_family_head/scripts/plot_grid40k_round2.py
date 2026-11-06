@@ -8,7 +8,7 @@ batch 128 with the warmup of W, then a cosine to 4e-4, and the SIGReg gate: batc
 128 at lr 4e-4 with the SIGReg window fix of #438, and batch 256 at the lr 4e-4, 8e-4,
 1e-3 and 1.6e-3, and at lr 1e-3 with L_rep 0.05, with the fixed rollout of #446
 and #447 (the old SIGReg window), and at lr 1e-3 for 80k steps with the fixed SIGReg
-window and SIGReg reading each latent times 1/sqrt(d_model) at L_rep 0.1 and 0.05. Three panels on one step axis, means over bins
+window and SIGReg reading each latent times 1/sqrt(d_model) at L_rep 0.1 and 0.05. Four panels on one step axis, means over bins
 of 500 steps:
 
   1. The lr of each step, from the flags of the run (the formula of
@@ -17,6 +17,8 @@ of 500 steps:
      compares all runs.
   3. The total loss of the runs with the loss weights and the batch of the best
      cell (lr 1e-4 with EMA start 0.99995, C and W). The L_rep of batch 128 has more negatives.
+  4. The total loss of the 80k runs (the user, 11-06: 'I don't have the total loss for the
+     80k run'), on its own scale: batch 256 and the SIGReg target of these runs.
 
 The top of the loss panels fits the steps after the warmup (4k); a note gives
 the runs whose first steps lie above it. The legend gives the forecast
@@ -65,9 +67,9 @@ RUNS = {
                                              (1.6e-3, 1.6e-3, STEPS, 0), False),
     "g40b_lr1em3_tau99995_bs256_rep005_rollfix": ("fixed rollout, batch 256, lr 1e-3, L_rep 0.05",
                                                   (1e-3, 1e-3, STEPS, 0), False),
-    "g80b_lr1em3_tau99995_bs256_rep01_sigfix_ss_rollfix": ("80k steps, fixed SIGReg window, SIGReg latent scale 1/8, batch 256, lr 1e-3, L_rep 0.1",
+    "g80b_lr1em3_tau99995_bs256_rep01_sigfix_ss_rollfix": ("80k steps, fixed SIGReg window, SIGReg target: latent norm about √64 = 8, batch 256, lr 1e-3, L_rep 0.1",
                                                         (1e-3, 1e-3, 2 * STEPS, 0), False),
-    "g80b_lr1em3_tau99995_bs256_rep005_sigfix_ss_rollfix": ("80k steps, fixed SIGReg window, SIGReg latent scale 1/8, batch 256, lr 1e-3, L_rep 0.05",
+    "g80b_lr1em3_tau99995_bs256_rep005_sigfix_ss_rollfix": ("80k steps, fixed SIGReg window, SIGReg target: latent norm about √64 = 8, batch 256, lr 1e-3, L_rep 0.05",
                                                          (1e-3, 1e-3, 2 * STEPS, 0), False),
 }
 
@@ -110,7 +112,7 @@ def above_note(curves, top):
     """The runs with bins above `top`, each with the end step of its last such bin."""
     parts = [f"{RUNS[run][0].split(':')[0]} to {(series[series > top].index.max() + BIN / 2) / 1000:.1f}k"
              for run, series in curves.items() if (series > top).any()]
-    return textwrap.fill("above the panel: " + "; ".join(parts) + " steps", 110)
+    return textwrap.fill("above the panel: " + "; ".join(parts) + " steps", 110) if parts else ""
 
 
 def draw_loss(ax, column, runs, title):
@@ -128,15 +130,17 @@ def draw_loss(ax, column, runs, title):
 
 
 def main():
-    fig, axes = plt.subplots(3, 1, figsize=(15, 12), sharex=True)
+    fig, axes = plt.subplots(4, 1, figsize=(15, 15.5), sharex=True)
     draw_lr(axes[0])
     draw_loss(axes[1], "l_align", list(RUNS),
               "L_align at depth 0, before the depth weights. Legend: forecast GM-Relative MASE at 40k")
     draw_loss(axes[2], "loss", [r for r, v in RUNS.items() if v[2]],
               "Total loss (the runs at batch 64 with the loss weights of lr 1e-4, EMA start 0.99995)")
+    draw_loss(axes[3], "loss", [r for r in RUNS if r.startswith("g80b_")],
+              "Total loss of the 80k runs (batch 256, lr 1e-3, SIGReg target: latent norm about √64 = 8)")
     for ax in axes:
         ax.grid(alpha=0.3)
-    axes[2].set_xlabel("training step (EMA ramp to 1.0 over the steps of each run: 40k, or 80k for the 80k runs)")
+    axes[3].set_xlabel("training step (EMA ramp to 1.0 over the steps of each run: 40k, or 80k for the 80k runs)")
     fig.suptitle("40k grid, second round: the training of lr 1e-4, EMA start 0.99995 and of the changes from it\n"
                  "(view only; decisions use the forecast)", fontsize=11)
     fig.tight_layout()

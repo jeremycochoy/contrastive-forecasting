@@ -24,12 +24,9 @@ At 300k, blue gets 1.0504 (grey 1.0008, yellow 1.0245, violet 1.0684, all with t
 At 360k, blue gets 1.0848 (grey 1.0279, yellow 1.0330, violet 1.0606, all with the normalised rollout).
 At 180k, with the raw rollout, grey gets 1.0421 and yellow 1.0537.
 A light asterisk marks each score with the normalised rollout.
-The forecast panel also shows six runs of the 40k grid at width 64, at the data they saw: S256, S05, SPH and O256 at batch 256, O128 at batch 128 and W64 at batch 64.
-With the SIGReg latent scale, S256 gets 1.0481 at 40k steps of batch 256 (160k on the axis) and 1.0281 at 80k (320k on the axis).
-S05 gets 1.0770 at 40k and 1.0347 at 80k.
-SPH is S256 with e, h and f on one sphere of radius 8 (`--latent-sphere`).
-At 20k, SPH gets 1.0691 and S256 gets 1.0656.
-W64 has a bugged score only.
+The forecast panel also shows one run of the 40k grid at the data it saw, S256: width 64, 1 encoder and 3 forecaster layers, batch 256, lr 1e-3, L_rep 0.1.
+The heatmap compares it with the other runs of the grid.
+With the SIGReg target at a latent norm of about √64 = 8, S256 gets 1.0656 at 20k, 1.0481 at 40k steps of batch 256 (160k on the axis) and 1.0281 at 80k (320k on the axis).
 With the normalised rollout, the best stops of grey (1.0269 at 240k), yellow (1.0304 at 200k) and violet (1.0208 at 460k) are below blue at 180k (1.0482).
 Grey at 200k gets 1.0215 with the normalised rollout, its lowest score.
 
@@ -98,9 +95,11 @@ Compared with 8e-4, the score at 1e-3 is lower on the medium and long horizons (
 At 1e-3, L_rep 0.05 gets 1.0936 at 40k (short 1.0114, medium 1.2092, long 1.2137), above L_rep 0.1 (1.0590).
 Two runs at 1e-3 train now for 80k steps with the SIGReg window fix, with L_rep 0.1 and 0.05.
 With the SIGReg window fix, SIGReg stays at about 8.2 per term on the latents of plain muP.
-Each coordinate of a latent stays at about 1, and the target of SIGReg is a variance of 1/64 per coordinate.
-A start of the patch encoder near zero (`--mup-init-input 0.01`) and a linear ramp of the learning rate over 1k steps did not change this.
-The 80k runs now train with `--sigreg-latent-scale inv_sqrt_d`: SIGReg reads each latent times 1/8, and the model stays plain muP.
+Each coordinate of a latent stays at about 1, so a latent has a norm of about √64 = 8.
+The target of SIGReg is a variance of 1/64 per coordinate.
+A start of the patch encoder near zero (`--mup-init-input 0.01`) and a linear ramp of the learning rate over 1k steps did not lower SIGReg.
+The 80k runs now train with `--sigreg-latent-scale inv_sqrt_d`: the SIGReg target becomes a latent norm of about √64 = 8.
+Only SIGReg changes: the model uses the latents as they are, and it stays plain muP.
 In a test of 300 steps, SIGReg on the encoder output falls from 9.4 to 0.09 with this factor.
 At 20k, the 80k run with L_rep 0.1 gets 1.0656 (short 0.9844, medium 1.1831, long 1.1811).
 At 40k, it gets 1.0481 (short 0.9741, medium 1.1572, long 1.1500), the lowest score of the grid.
