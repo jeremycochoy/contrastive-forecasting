@@ -1961,6 +1961,54 @@ def forecast_B4(backbone, head, x_context, horizon, device):
     return torch.cat(preds, dim=1).T.numpy()                        # (horizon, C)
 
 
+def windows_per_pass(batch_size, n_ctx, n_horizon):
+    """How many windows of one config a batched B4 pass holds
+    (``--forecast-batch-size``): ``batch_size``, or fewer when the horizon
+    has more patches than the context. ``n_ctx`` and ``n_horizon`` count the
+    patches of the context and of the horizon. The rollout of a window holds
+    its context latents and its horizon latents. So a pass never holds more
+    latents than ``batch_size`` windows with a horizon as long as the
+    context, down to one window per pass."""
+    return max(1, min(batch_size,
+                      2 * batch_size * n_ctx // (n_ctx + n_horizon)))
+
+
+def forecast_B4_windows(backbone, head, contexts, horizon, device):
+    """:func:`forecast_B4` of ``B`` windows in one pass.
+
+    ``contexts`` is ``(B, T_ctx, C)``: windows of one context length and one
+    horizon, as the windows of one GIFT-Eval config. The normaliser, the
+    rollout scale (:func:`context_latent_norm`), the left padding (#419) and
+    the unscaling are per window. So each window gets the forecast that
+    :func:`forecast_B4` gives it alone, up to floating-point noise.
+
+    Returns ``(B, num_quantiles, horizon, C)`` for a quantile head and
+    ``(B, horizon, C)`` for a point head, as :func:`reconstruct_windows`.
+    """
+    patch_size = getattr(head, "patch_size", None)
+    W_bb = patch_size or backbone.W
+    contexts = torch.as_tensor(contexts, dtype=torch.float32).to(device)
+    B, _, C = contexts.shape
+    with torch.no_grad():
+        e_ctx, _ = extract_encoder_latents(backbone, contexts,
+                                           patch_size=patch_size)
+        rolled_f = rollout_latent(backbone, e_ctx, math.ceil(horizon / W_bb))
+        out = _b_variant_decode(head, e_ctx, rolled_f, e_ctx.size(1))
+        # (BC, m, [Q,] L): the L values of each rolled position, in order,
+        # cut to the horizon.
+        values = out.movedim(1, -2).reshape(B, C, *out.shape[2:-1], -1)
+        values = values[..., :horizon]                   # (B, C, [Q,] horizon)
+        if backbone.rev_norm is not None and backbone.rev_norm.mean is not None:
+            # The statistics at the last context value of each window.
+            shape = (B, C) + (1,) * (values.dim() - 2)
+            mean = backbone.rev_norm.mean[:, -1, :].reshape(shape)
+            stdev = backbone.rev_norm.stdev[:, -1, :].reshape(shape)
+            values = values * stdev.clamp(min=1e-5) + mean
+    if values.dim() == 4:
+        return values.permute(0, 2, 3, 1).cpu().numpy()  # (B, Q, horizon, C)
+    return values.permute(0, 2, 1).cpu().numpy()         # (B, horizon, C)
+
+
 def forecast_B3R(backbone, head, x_context, horizon, device):
     """B3R: Same as B3, kept for backward compatibility."""
     return forecast_B3(backbone, head, x_context, horizon, device)
