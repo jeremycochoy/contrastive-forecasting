@@ -118,6 +118,13 @@ The first heads of this run read the encoder output of the raw e: contrastive-fo
 With the fixed head path, the run gets 1.0658 at 20k (short 0.9884, medium 1.1807, long 1.1724), 0.0002 above the run without the sphere.
 With the old head path, it got 1.0691 at 20k and 1.0610 at 40k (short 0.9580, medium 1.2082, long 1.2175).
 The heatmap row gives the 40k score of the old head path.
+
+![Forecast with and without the latent sphere](plots/sphere_compare.png)
+
+The figure compares the runs with the latent sphere and the same runs without it, at batch 256, with the scores of the fixed head path only: width 64 to 80k steps, and width 384 (S36) to 166k steps.
+The sphere run of width 384 gets 1.2769 after 250 steps, and S36 gets 1.2365.
+This point of the sphere run comes from a second run of its first 250 steps on elisa, with torch 2.8.0.
+The run trained on the box with torch 2.9.1, and the losses already differ at step 1 (55.33 and 55.42), so an open marker shows the point.
 The heatmap has its row.
 With the fixed rollout, batch 128 at 4e-4 gets 1.2440, and 1.1842 with the raw rollout (the middle column).
 This run trained with the raw rollout feedback.
