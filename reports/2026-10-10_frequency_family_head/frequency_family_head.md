@@ -33,7 +33,7 @@ At 10k, its short, medium and long scores are 0.9384, 1.1893 and 1.1616, and MPE
 At 25k, its short, medium and long scores are 0.9008, 1.1639 and 1.1429, and MPE gets 0.9841.
 At 35k, they are 0.9086, 1.1411 and 1.1223.
 At 45k, they are 0.9013, 1.1924 and 1.1911: the medium and long scores are higher than at 35k, and the training loss of the head is lower (0.1731 against 0.1736 over its last 1k steps).
-SPH36 is S36 with the latent sphere, scored with the head path of #454: 1.2769 after 250 steps, 1.0856 at 10k and 0.9824 at 25k.
+SPH36 is S36 with the latent sphere, scored with the head path of #454: 1.2769 after 250 steps, 1.0856 at 10k, 0.9824 at 25k and 0.9856 at 35k.
 An open marker shows its point after 250 steps: it comes from a second run with other random numbers than the run.
 S24 is S36 with 2 encoder and 4 forecaster layers.
 After 250 steps, it gets 1.2359 (S36 1.2365), from a save of the run itself.
@@ -141,6 +141,7 @@ The sphere run of width 384 gets 1.2769 after 250 steps and 1.0856 at 10k (short
 S36 gets 1.2365 and 1.0345 (short 0.9384, medium 1.1893, long 1.1616), then 1.0025 at 25k, 0.9992 at 35k and 1.0172 at 45k.
 At 10k, the sphere run is 0.0511 higher, mostly on the medium and long horizons.
 At 25k, it gets 0.9824 (short 0.8810, medium 1.1481, long 1.1179): 0.0201 lower than S36 and 0.0017 lower than MPE (0.9841).
+At 35k, it gets 0.9856 (short 0.8894, medium 1.1327, long 1.1227), 0.0136 lower than S36.
 The point of the sphere run after 250 steps comes from a second run of its first 250 steps on elisa, with torch 2.8.0.
 The run trained on the box with torch 2.9.1, and the losses already differ at step 1 (55.33 and 55.42), so an open marker shows the point.
 The heatmap has its row.
