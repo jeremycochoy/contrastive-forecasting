@@ -41,6 +41,7 @@ At 10k, it gets 1.0478 (short 0.9367, medium 1.2213, long 1.2058).
 At 25k, it gets 1.0152 (short 0.9358, medium 1.1371, long 1.1218).
 At 35k, it gets 1.0298 (short 0.9261, medium 1.1822, long 1.1846).
 From 25k to 35k, the medium and long scores of S24 rise and its short score falls, as for S36 from 35k to 45k.
+At 45k, it gets 1.0294 (short 0.9219, medium 1.1811, long 1.1979).
 The scores after 250 steps come from a second run of the first 250 steps of S256 and of S36, with the same flags and seed: in each, the losses of steps 1 to 200 are equal to the losses of the run.
 With the normalised rollout, the best stops of grey (1.0269 at 240k), yellow (1.0304 at 200k) and violet (1.0208 at 460k) are below blue at 180k (1.0482).
 Grey at 200k gets 1.0215 with the normalised rollout, its lowest score.
