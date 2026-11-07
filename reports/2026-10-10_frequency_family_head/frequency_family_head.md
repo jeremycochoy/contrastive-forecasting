@@ -28,7 +28,7 @@ The forecast panel also shows one run of the 40k grid at the data it saw, S256: 
 The heatmap compares it with the other runs of the grid.
 With the SIGReg target at a latent norm of about √64 = 8, S256 gets 1.3010 after 250 steps of batch 256 (1k on the axis), 1.0656 at 20k, 1.0481 at 40k steps of batch 256 (160k on the axis), 1.0309 at 60k (240k on the axis) and 1.0281 at 80k (320k on the axis).
 S36 is S256 at width 384 with muP: 3 encoder and 6 forecaster layers, the SIGReg target at a latent norm of about √384 = 19.6, and 166k steps of batch 256 with the EMA ramp over the 166k steps.
-It gets 1.2365 after 250 steps (1k on the axis), 1.0345 at 10k (40k on the axis), 1.0025 at 25k (100k on the axis), 0.9992 at 35k (140k on the axis), 1.0172 at 45k (180k on the axis), 1.0286 at 50k (200k on the axis), 0.9886 at 60k (240k on the axis), 0.9977 at 75k (300k on the axis) and 0.9807 at 90k (360k on the axis).
+It gets 1.2365 after 250 steps (1k on the axis), 1.0345 at 10k (40k on the axis), 1.0025 at 25k (100k on the axis), 0.9992 at 35k (140k on the axis), 1.0172 at 45k (180k on the axis), 1.0286 at 50k (200k on the axis), 0.9886 at 60k (240k on the axis), 0.9977 at 75k (300k on the axis), 0.9807 at 90k (360k on the axis) and 0.9858 at 100k (400k on the axis).
 At 10k, its short, medium and long scores are 0.9384, 1.1893 and 1.1616, and MPE gets 1.0247.
 At 25k, its short, medium and long scores are 0.9008, 1.1639 and 1.1429, and MPE gets 0.9841.
 At 35k, they are 0.9086, 1.1411 and 1.1223.
@@ -39,6 +39,7 @@ At 60k, they are 0.8900, 1.1455 and 1.1233.
 Its GM, 0.9886, is lower than at 35k, and the training loss of the head falls to 0.1723.
 At 75k, they are 0.8950, 1.1572 and 1.1432, and MPE gets 0.9625.
 At 90k, they are 0.8887, 1.1238 and 1.1079: its GM, 0.9807, is the lowest score of S36.
+At 100k, they are 0.8867, 1.1418 and 1.1232, and MPE gets 0.9555.
 SPH36 is S36 with the latent sphere, scored with the head path of #454: 1.2769 after 250 steps, 1.0856 at 10k, 0.9824 at 25k, 0.9856 at 35k, 1.0013 at 45k, 0.9796 at 50k, 0.9813 at 60k and 0.9829 at 75k.
 An open marker shows its point after 250 steps: it comes from a second run with other random numbers than the run.
 S24 is S36 with 2 encoder and 4 forecaster layers.
@@ -156,7 +157,7 @@ The heatmap row gives the 40k and 80k scores of the fixed head path.
 
 The figure compares the runs with the latent sphere and the same runs without it, at batch 256, with the scores of the fixed head path only: width 64 to 80k steps, and width 384 (S36) to 166k steps.
 The sphere run of width 384 gets 1.2769 after 250 steps and 1.0856 at 10k (short 0.9513, medium 1.2997, long 1.2817).
-S36 gets 1.2365 and 1.0345 (short 0.9384, medium 1.1893, long 1.1616), then 1.0025 at 25k, 0.9992 at 35k, 1.0172 at 45k, 1.0286 at 50k, 0.9886 at 60k, 0.9977 at 75k and 0.9807 at 90k.
+S36 gets 1.2365 and 1.0345 (short 0.9384, medium 1.1893, long 1.1616), then 1.0025 at 25k, 0.9992 at 35k, 1.0172 at 45k, 1.0286 at 50k, 0.9886 at 60k, 0.9977 at 75k, 0.9807 at 90k and 0.9858 at 100k.
 At 10k, the sphere run is 0.0511 higher, mostly on the medium and long horizons.
 At 25k, it gets 0.9824 (short 0.8810, medium 1.1481, long 1.1179): 0.0201 lower than S36 and 0.0017 lower than MPE (0.9841).
 At 35k, it gets 0.9856 (short 0.8894, medium 1.1327, long 1.1227), 0.0136 lower than S36.
