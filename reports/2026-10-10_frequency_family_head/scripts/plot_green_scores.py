@@ -284,6 +284,17 @@ def later_near_runs(points, arm, stop):
     return sum(abs(points.get(run, {}).get(stop, 9.0) - score) < CLOSE for run in names[names.index(arm) + 1:])
 
 
+def draw_mpe_rings(ax, points, colour_hex, marker):
+    """MPE's points again, each one 4 points larger for each run of ON_TOP and TABLE_ARMS with almost
+    the same score at the stop, under the point of that run (SPH36 0.9824 and MPE 0.9841 at 100k)."""
+    runs = [run for run, *_ in RUNS if run in ON_TOP | TABLE_ARMS]
+    for stop, score in points[MPE].items():
+        near = sum(abs(points.get(run, {}).get(stop, 9.0) - score) < CLOSE for run in runs)
+        if near:
+            ax.plot(stop * 1000, score, marker=marker, ms=7 + 4 * near, color=colour_hex, ls="none",
+                    zorder=5.4)
+
+
 def draw_on_top(ax, points, arm, fixed, colour_hex, marker):
     """The points of ``fixed`` (normalised rollout) again over every line, each one 4 points larger
     and lower for each later run with almost the same score at the stop (grey 1.0269, yellow 1.0257
@@ -329,6 +340,8 @@ def draw_panel(ax, title, y_range, points, starred=None):
                     color="black", alpha=0.2, ls="none", zorder=1.9)
         if starred is not None and (arm in ON_TOP or arm in TABLE_ARMS):
             draw_on_top(ax, points, arm, fixed, colour_hex, marker)
+        if starred is not None and arm == MPE:
+            draw_mpe_rings(ax, points, colour_hex, marker)
         for stop, value in zip(stops, values):
             if value > y_range[1]:
                 ax.plot(stop * 1000, y_range[1], "^", ms=11, color=colour_hex, clip_on=False)
