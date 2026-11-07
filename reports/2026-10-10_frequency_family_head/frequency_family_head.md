@@ -57,6 +57,8 @@ The scores of the six configs fall from 50k, but they stay higher than at 45k.
 Without the six configs, the score changes by 0.1% from 50k.
 At 75k, it gets 1.0262 (short 0.8961, medium 1.2239, long 1.2271).
 From 60k to 75k, the score falls by 3.1%, and by 3.0% without the six configs.
+At 90k, it gets 1.0196 (short 0.8988, medium 1.1928, long 1.2125).
+From 75k to 90k, the score falls by 0.6%, and by less than 0.1% without the six configs.
 The scores after 250 steps come from a second run of the first 250 steps of S256 and of S36, with the same flags and seed: in each, the losses of steps 1 to 200 are equal to the losses of the run.
 With the normalised rollout, the best stops of grey (1.0269 at 240k), yellow (1.0304 at 200k) and violet (1.0208 at 460k) are below blue at 180k (1.0482).
 Grey at 200k gets 1.0215 with the normalised rollout, its lowest score.
