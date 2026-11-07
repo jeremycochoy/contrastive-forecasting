@@ -39,7 +39,7 @@ At 60k, they are 0.8900, 1.1455 and 1.1233.
 Its GM, 0.9886, is lower than at 35k, and the training loss of the head falls to 0.1723.
 At 75k, they are 0.8950, 1.1572 and 1.1432, and MPE gets 0.9625.
 At 90k, they are 0.8887, 1.1238 and 1.1079: its GM, 0.9807, is the lowest score of S36.
-SPH36 is S36 with the latent sphere, scored with the head path of #454: 1.2769 after 250 steps, 1.0856 at 10k, 0.9824 at 25k, 0.9856 at 35k, 1.0013 at 45k, 0.9796 at 50k and 0.9813 at 60k.
+SPH36 is S36 with the latent sphere, scored with the head path of #454: 1.2769 after 250 steps, 1.0856 at 10k, 0.9824 at 25k, 0.9856 at 35k, 1.0013 at 45k, 0.9796 at 50k, 0.9813 at 60k and 0.9829 at 75k.
 An open marker shows its point after 250 steps: it comes from a second run with other random numbers than the run.
 S24 is S36 with 2 encoder and 4 forecaster layers.
 After 250 steps, it gets 1.2359 (S36 1.2365), from a save of the run itself.
@@ -161,10 +161,11 @@ At 35k, it gets 0.9856 (short 0.8894, medium 1.1327, long 1.1227), 0.0136 lower 
 At 45k, it gets 1.0013 (short 0.9065, medium 1.1457, long 1.1353), 0.0159 lower than S36.
 At 50k, it gets 0.9796 (short 0.8787, medium 1.1304, long 1.1284): 0.0490 lower than S36 and 0.0035 lower than MPE (0.9831).
 At 60k, it gets 0.9813 (short 0.8745, medium 1.1415, long 1.1407), 0.0073 lower than S36.
+At 75k, it gets 0.9829 (short 0.8724, medium 1.1486, long 1.1496): 0.0148 lower than S36 and 0.0204 higher than MPE (0.9625).
 The linear R head of SPH36, with the head path of #454, gets 0.1705 at 25k, 0.1735 at 35k, 0.1270 at 45k, 0.1410 at 50k, 0.1433 at 60k and 0.1411 at 75k (the linear R panel).
 From 35k to 45k, its R score falls by 0.0465 and its forecast score rises by 0.0157.
 From 45k to 50k, its R score rises by 0.0140 and its forecast score falls by 0.0217.
-From 50k to 75k, its R score stays between 0.1410 and 0.1433.
+From 50k to 75k, its R score stays between 0.1410 and 0.1433, and its forecast score between 0.9796 and 0.9829.
 The point of the sphere run after 250 steps comes from a second run of its first 250 steps on elisa, with torch 2.8.0.
 The run trained on the box with torch 2.9.1, and the losses already differ at step 1 (55.33 and 55.42), so an open marker shows the point.
 The heatmap has its row.
