@@ -35,6 +35,7 @@ At 35k, they are 0.9086, 1.1411 and 1.1223.
 SPH36 is S36 with the latent sphere, scored with the head path of #454: 1.2769 after 250 steps and 1.0856 at 10k.
 An open marker shows its point after 250 steps: it comes from a second run with other random numbers than the run.
 S24 is S36 with 2 encoder and 4 forecaster layers.
+After 250 steps, it gets 1.2359 (S36 1.2365), from a save of the run itself.
 At 10k, it gets 1.0478 (short 0.9367, medium 1.2213, long 1.2058).
 The scores after 250 steps come from a second run of the first 250 steps of S256 and of S36, with the same flags and seed: in each, the losses of steps 1 to 200 are equal to the losses of the run.
 With the normalised rollout, the best stops of grey (1.0269 at 240k), yellow (1.0304 at 200k) and violet (1.0208 at 460k) are below blue at 180k (1.0482).
