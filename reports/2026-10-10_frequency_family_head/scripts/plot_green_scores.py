@@ -15,9 +15,18 @@ Writes plots/forecast_and_reconstruction.png: three panels on one x axis.
   3. The same, linear head.
 
 A dashed vertical line joins the scores of one checkpoint in the panels. The
-legend gives each run a three-letter code (from its colour: MAG, GRY, YEL, VIO,
-BLU, ORA, LIM, PNK, RED, BRN, DGY), and for orange, lime and pink the result that
-the user expected before their start.
+legend gives each run a three-letter code (from its colour: GRY, YEL, VIO,
+BLU, ORA, LIM, PNK, BRN, DGY), and for orange, lime and pink the result that
+the user expected before their start. GRN+EMA 0.99995 with 3 forecaster layers
+(MAG), the same with the EMA 0.9998 (TEL) and TEL from its 100k save with the
+SIGReg window fix (TRQ) are out of the figure (the user, 11-04), and RED (GRN+EMA 0.9998,
+L_rep 0.03, depths 1/2^j) too (the user, 11-06). In the forecast
+panel, a light grey disc behind a point marks a bugged score: the eval fed the raw
+forecaster output back (the user, 11-06: the late points crowd, and most of them
+have the normalised rollout feedback of #446). A rescore with the normalised
+feedback replaces the bugged score of its stop in the line of its run. A box at the lower left gives the lowest of these
+scores of each run. No value is written next to a point: a value can hide the
+points near it.
 
 Reads the forecast of MPE of #412 and #425
 (reports/2026-09-06_moirai_small_size/results/gm_trajectories.tsv,
@@ -36,6 +45,7 @@ thousands of steps, GM-Relative MASE, from collect_recon.py).
 Usage: python3 plot_green_scores.py
 """
 import csv
+import re
 import sys
 from pathlib import Path
 
@@ -58,6 +68,10 @@ GRN_EMA099995_COLOUR = "#ff00ff"
 GRN_EMA099995_F6 = "grn_ema099995_f6"
 GRN_EMA099995_F6_COLOUR = "#7f7f7f"  # no other run of this figure has this colour
 GRN_EMA099995_F6_CD240 = "grn_ema099995_f6_cd240"
+GRN_EMA09998 = "grn_ema09998"
+GRN_EMA09998_COLOUR = "#008080"  # teal
+GRN_EMA09998_SIGFIX = "grn_ema09998_sigfix"
+GRN_EMA09998_SIGFIX_COLOUR = "#40e0d0"  # turquoise: no other run of this figure has this colour
 GRN_EMA099995_F6_CD240_COLOUR = "#404040"  # dark grey, the cooldown of grey: no other run of this figure has this colour
 GRN_EMA099995_F6_REP01 = "grn_ema099995_f6_rep01"
 GRN_EMA099995_F6_REP01_COLOUR = "#ffb000"  # no other run of this figure has this colour
@@ -76,20 +90,48 @@ GRN_EMA09998_REP003_HALVING ="grn_ema09998_rep003_halving"
 GRN_EMA09998_REP003_HALVING_COLOUR = "#e41a1c"  # no other run of this figure has this colour
 GRN_EMA099995_REP003_HALVING = "grn_ema099995_rep003_halving"
 GRN_EMA099995_REP003_HALVING_COLOUR = "#8c564b"  # no other run of this figure has this colour
+# The width-64 runs of the 40k grid (the user, 11-05 about 22:45 UTC: "plot on the GMMase graph
+# these models of 256-batch [...] And on the GMMase graph you can bring back the best model of
+# similar size that we had before"): their forecast in results/grid40k_gm_points.tsv (arm, own stop
+# k, score), placed at the data they saw (batch 256: 4 batch-64 steps for each step, batch 128: 2).
+GRID_POINTS = STUDY / "results" / "grid40k_gm_points.tsv"
+# The one grid run of this figure (the user, 11-06: the heatmap compares the grid runs; this figure
+# keeps the long runs, and S256 has the most stops of the grid).
+G256_SS = "g80b_lr1em3_tau99995_bs256_rep01_sigfix_ss_rollfix"
+# The 166k-step run of width 384 with the flags of S256 (the user, 11-06): its forecast in
+# results/ss256_gm_points.tsv, in the form of GRID_POINTS.
+SS256_POINTS = STUDY / "results" / "ss256_gm_points.tsv"
+SS256 = "grn_ema099995_f6_rep01_ss256"
+# S36 with the latent sphere (#453), scored with the head path of #454.
+SS256_SPHERE = "grn_ema099995_f6_rep01_ss256_sphere"
+# S36 with 2 encoder and 4 forecaster layers (the user, 11-06: "2-4").
+SS256_E2F4 = "grn_ema099995_e2f4_rep01_ss256"
+XSCALE = {**XSCALE, G256_SS: 4, SS256: 4, SS256_SPHERE: 4, SS256_E2F4: 4}
+# The runs of the two tables: all their scores use the normalised rollout feedback. Drawn above
+# the older runs.
+TABLE_ARMS = {G256_SS, SS256, SS256_SPHERE, SS256_E2F4}
+# Points of a second run of the first 250 steps with other random numbers than the run (torch 2.8.0
+# on elisa, 2.9.1 on the box where the run started): open markers.
+OTHER_RANDOM = {(SS256_SPHERE, 1)}
 # The runs of this report: their forecast comes from results/scores.tsv.
 NEW_RUNS = [GRN_EMA099995, GRN_EMA099995_F6,
             GRN_EMA099995_F6_REP01, GRN_EMA099995_F6_REP01_MUP,
             GRN_EMA099995_F6_REP005_HALVING_MUP, GRN_EMA099995_F6_REP01_MUP_LR56,
             GRN_EMA0999975_F6_REP01_MUP, GRN_EMA099995_F6_REP01_MUP_HID56,
             GRN_EMA09998_REP003_HALVING, GRN_EMA099995_REP003_HALVING,
-            GRN_EMA099995_F6_CD240]
-# The newest runs: drawn above the others, so that their first points show.
+            GRN_EMA099995_F6_CD240, GRN_EMA09998, GRN_EMA09998_SIGFIX]
+# The newest runs: drawn above the others, so that their first points show. BRN
+# lies under them: their points hid violet's rescore at 180k.
 ON_TOP = {GRN_EMA099995, GRN_EMA099995_F6, GRN_EMA099995_F6_REP01,
           GRN_EMA099995_F6_REP01_MUP, GRN_EMA099995_F6_REP005_HALVING_MUP,
           GRN_EMA099995_F6_REP01_MUP_LR56, GRN_EMA0999975_F6_REP01_MUP,
           GRN_EMA099995_F6_REP01_MUP_HID56,
-          GRN_EMA09998_REP003_HALVING, GRN_EMA099995_REP003_HALVING,
-          GRN_EMA099995_F6_CD240}
+          GRN_EMA099995_F6_CD240, GRN_EMA09998, GRN_EMA09998_SIGFIX}
+# A run that resumed from another run's save: its line starts at the score of
+# that save (parent run, stop k), and it is drawn above the other runs.
+BRANCHES = {GRN_EMA099995_F6_CD240: (GRN_EMA099995_F6, 240), GRN_EMA09998_SIGFIX: (GRN_EMA09998, 100)}
+# The run that trains now: drawn above every other run.
+FRONT = {GRN_EMA099995_F6_REP005_HALVING_MUP}
 MPE = "cf421ew_moirai_native"
 # Its R (transformer head 0.12 to 0.21) lies far above the R panels.
 FORECAST_ONLY = {MPE}
@@ -99,10 +141,8 @@ OUT = STUDY / "plots" / "forecast_and_reconstruction.png"
 # setting of another run names that run by its code. "expected" gives what the
 # user expected of the run before its start (the user, 10-29 and 10-31).
 RUNS = [
-    (GRN_EMA099995, r"$\mathbf{MAG}$  GRN+EMA 0.99995, 3 forecaster layers, lr 5.6e-5, "
-     "stopped at 391k", GRN_EMA099995_COLOUR, "8"),
-    (GRN_EMA099995_F6, r"$\mathbf{GRY}$  MAG with 6 forecaster layers (the size of MPE), "
-     "stopped at 440k", GRN_EMA099995_F6_COLOUR, "H"),
+    (GRN_EMA099995_F6, r"$\mathbf{GRY}$  GRN+EMA 0.99995, 6 forecaster layers (the size of MPE), "
+     "lr 5.6e-5, stopped at 440k", GRN_EMA099995_F6_COLOUR, "H"),
     (GRN_EMA099995_F6_CD240, r"$\mathbf{DGY}$  GRY from its 240k save, the lr a cosine to 0 "
      "over 48k steps (cooldown), 288k", GRN_EMA099995_F6_CD240_COLOUR, ">"),
     (GRN_EMA099995_F6_REP01, r"$\mathbf{YEL}$  GRY with L_rep 0.1, stopped at 583k",
@@ -110,7 +150,7 @@ RUNS = [
     (GRN_EMA099995_F6_REP01_MUP, r"$\mathbf{VIO}$  YEL with muP, lr 1e-4, to 665k",
      GRN_EMA099995_F6_REP01_MUP_COLOUR, "p"),
     (GRN_EMA099995_F6_REP005_HALVING_MUP,
-     r"$\mathbf{BLU}$  VIO with L_rep 0.05, depths $1/2^j$, stopped at 100k",
+     r"$\mathbf{BLU}$  VIO with L_rep 0.05, depths $1/2^j$, trains to 665k",
      GRN_EMA099995_F6_REP005_HALVING_MUP_COLOUR, "P"),
     (GRN_EMA099995_F6_REP01_MUP_LR56,
      r"$\mathbf{ORA}$  VIO with lr 5.6e-5 (the lr of YEL), stopped at 268k" "\n"
@@ -122,11 +162,22 @@ RUNS = [
      r"$\mathbf{PNK}$  VIO with lr 3.36e-4 (hidden lr 5.6e-5 of YEL), input init 1.008," "\n"
      "stopped at 254k (expected: better than VIO, maybe as good as YEL)",
      GRN_EMA099995_F6_REP01_MUP_HID56_COLOUR, "*"),
-    (GRN_EMA09998_REP003_HALVING,
-     r"$\mathbf{RED}$  GRN+EMA 0.9998, L_rep 0.03, depths $1/2^j$, stopped at 212k",
-     GRN_EMA09998_REP003_HALVING_COLOUR, "X"),
-    (GRN_EMA099995_REP003_HALVING, r"$\mathbf{BRN}$  RED with the EMA 0.99995, stopped at 345k",
+    (GRN_EMA099995_REP003_HALVING,
+     r"$\mathbf{BRN}$  GRN+EMA 0.99995, L_rep 0.03, depths $1/2^j$, stopped at 345k",
      GRN_EMA099995_REP003_HALVING_COLOUR, "s"),
+    # The grid entry says what the run is and when it trained, without another label (the user, 11-06:
+    # "I don't know what is W64, not clear to me what is this model and when it was trained").
+    (G256_SS, r"$\mathbf{S256}$  width 64, 1 encoder and 3 forecaster layers," "\n"
+     "batch 256, lr 1e-3, L_rep 0.1, SIGReg target:" "\n"
+     "latent norm about √64 = 8, 80k steps (Nov 5 to 6)", "#17becf", "D"),
+    (SS256, r"$\mathbf{S36}$  S256 at width 384 (muP), 3 encoder and" "\n"
+     "6 forecaster layers, SIGReg target: latent norm" "\n"
+     "about √384 = 19.6, trains to 166k (since Nov 6)", "#006400", "X"),
+    (SS256_SPHERE, r"$\mathbf{SPH36}$  S36 with the latent sphere (e, h and f" "\n"
+     "on one sphere of radius √384 = 19.6), trains" "\n"
+     "to 166k (since Nov 6)", "#dc143c", "<"),
+    (SS256_E2F4, r"$\mathbf{S24}$  S36 with 2 encoder and 4 forecaster" "\n"
+     "layers, trains to 166k (since Nov 6)", "#808000", "h"),
     (MPE, tagged(MPE, "Moirai, patch heads, EWMA, new data"), colour(MPE), "d"),
 ]
 OURS = STUDY / "results"
@@ -136,12 +187,13 @@ OUR_R_TABLES = ["grn_ema099995", "grn_ema099995_f6",
                 "grn_ema099995_f6_rep005_halving_mup", "grn_ema099995_f6_rep01_mup_lr56",
                 "grn_ema0999975_f6_rep01_mup", "grn_ema099995_f6_rep01_mup_hid56",
                 "grn_ema09998_rep003_halving", "grn_ema099995_rep003_halving",
-                "grn_ema099995_f6_cd240"]
+                "grn_ema099995_f6_cd240", "grn_ema09998"]
 # panel title, y range, the score tables, and whether the forecast of the
 # runs of this report comes from results/scores.tsv
 PANELS = [
-    ("Forecast (B4)", (1.10, 1.31),
-     [MOIRAI / "results" / "gm_trajectories.tsv", RECON / "forecast_425.tsv"], True),
+    ("Forecast (B4)", (1.10, 1.34),
+     [MOIRAI / "results" / "gm_trajectories.tsv", RECON / "forecast_425.tsv", GRID_POINTS, SS256_POINTS],
+     True),
     ("Reconstruction of the encoder latent (R), transformer head", (0.02, 0.11),
      [RECON / "recon_trajectories.tsv"]
      + [OURS / f"recon_{table}_trajectories.tsv" for table in OUR_R_TABLES], False),
@@ -150,17 +202,29 @@ PANELS = [
      + [OURS / f"recon_{table}_lin_trajectories.tsv" for table in OUR_R_TABLES], False),
 ]
 TICKS_K = [1, 10, 40, 100, 200, 400, 665, 1330]
+# The forecast scores of the eval with the normalised rollout feedback (#446):
+# columns run, stop_k, tag. The other points of our runs get a light grey disc (the user, 11-06).
+NORMALISED = STUDY / "results" / "normalised_rollout_scores.tsv"
+# Stops with a bugged score (raw rollout feedback) scored again with the normalised rollout
+# feedback (#446) and their official head (rescore_normalised/ on elisa and on the box): run,
+# stop_k, gm_rel_mase. The best stop of grey, yellow, violet and DGY first (11-03), then more stops.
+# A rescore replaces the bugged score of its stop in the line of its run (the user, 11-04).
+RESCORES = STUDY / "results" / "best_stop_rescores.tsv"
+# Two scores closer than this at one stop overlap in the forecast panel: the height of a
+# 7-point marker there (12.6 pixels at dpi 130, 1537 pixels for 1.0 of score).
+CLOSE = 0.0082
 
 
 def read_table(paths):
     """``{arm: {data seen in thousands of batch-64 steps: score}}`` from
-    tables of arm, stop k and score."""
+    tables of arm, stop k and score (stop 0.25: the save at 250 steps)."""
     points = {}
     for path in paths:
         if Path(path).is_file():
             for row in open(path):
                 arm, stop_k, score = row.split()
-                points.setdefault(arm, {})[int(stop_k) * XSCALE.get(arm, 1)] = float(score)
+                seen = float(stop_k) * XSCALE.get(arm, 1)
+                points.setdefault(arm, {})[int(seen) if seen.is_integer() else seen] = float(score)
     return points
 
 
@@ -173,20 +237,84 @@ def new_run_forecast(run):
                 if r["run"] == run and r["arm"] == "control"}
 
 
+def rescores():
+    """``{run: {stop k: score}}`` of RESCORES."""
+    points = {}
+    with open(RESCORES) as fh:
+        for row in csv.DictReader(fh, delimiter="\t"):
+            points.setdefault(row["run"], {})[int(row["stop_k"])] = float(row["gm_rel_mase"])
+    return points
+
+
+def normalised_points():
+    """``{run: {stop k}}``: the forecast scores of the eval that feeds back the
+    normalised forecaster output (#446): the scores of NORMALISED and the
+    rescores. The other scores feed back the raw output."""
+    starred = {}
+    if NORMALISED.is_file():
+        with open(NORMALISED) as fh:
+            for row in csv.DictReader(fh, delimiter="\t"):
+                starred.setdefault(row["run"], set()).add(int(row["stop_k"]) * XSCALE.get(row["run"], 1))
+    for run, scores in rescores().items():
+        starred.setdefault(run, set()).update(scores)
+    for run, scores in read_table([GRID_POINTS, SS256_POINTS]).items():
+        if run in TABLE_ARMS:
+            starred.setdefault(run, set()).update(scores)
+    return starred
+
+
 def panel_points(tables, forecast):
     points = read_table(tables)
     if forecast:
+        rescored = rescores()
         for run in NEW_RUNS:
-            points[run] = new_run_forecast(run)
+            # a rescore replaces the bugged score of its stop in the line of its run (the user, 11-04)
+            points[run] = {**new_run_forecast(run), **rescored.get(run, {})}
     else:
         for arm in FORECAST_ONLY:
             points.pop(arm, None)
     return points
 
 
-def draw_panel(ax, title, y_range, points):
+def later_near_runs(points, arm, stop):
+    """The number of runs of ON_TOP and of TABLE_ARMS that RUNS draws after ``arm`` with almost
+    the same score at ``stop`` (the other runs lie under every point)."""
+    names = [run for run, *_ in RUNS if run in ON_TOP | TABLE_ARMS]
+    score = points[arm][stop]
+    return sum(abs(points.get(run, {}).get(stop, 9.0) - score) < CLOSE for run in names[names.index(arm) + 1:])
+
+
+def draw_mpe_rings(ax, points, colour_hex, marker):
+    """MPE's points again, each one 4 points larger for each run of ON_TOP and TABLE_ARMS with almost
+    the same score at the stop, under the point of that run (SPH36 0.9824 and MPE 0.9841 at 100k)."""
+    runs = [run for run, *_ in RUNS if run in ON_TOP | TABLE_ARMS]
+    for stop, score in points[MPE].items():
+        near = sum(abs(points.get(run, {}).get(stop, 9.0) - score) < CLOSE for run in runs)
+        if near:
+            ax.plot(stop * 1000, score, marker=marker, ms=7 + 4 * near, color=colour_hex, ls="none",
+                    zorder=5.4)
+
+
+def draw_on_top(ax, points, arm, fixed, colour_hex, marker):
+    """The points of ``fixed`` (normalised rollout) again over every line, each one 4 points larger
+    and lower for each later run with almost the same score at the stop (grey 1.0269, yellow 1.0257
+    and S256 1.0309 at 240k: three nested markers), then a small core of each other point over them
+    (violet 1.0606 and yellow 1.0623 at 360k): runs with almost the same score at a stop all show."""
+    scores = points[arm]
+    for stop in sorted(fixed):
+        near = later_near_runs(points, arm, stop)
+        face = "white" if (arm, stop) in OTHER_RANDOM else colour_hex
+        ax.plot(stop * 1000, scores[stop], marker=marker, ms=7 + 4 * near, color=colour_hex,
+                markerfacecolor=face, ls="none", zorder=5.5 - 0.1 * near)
+    others = sorted(set(scores) - fixed)
+    ax.plot([stop * 1000 for stop in others], [scores[stop] for stop in others], marker=marker,
+            ms=3.5, color=colour_hex, ls="none", zorder=6)
+
+
+def draw_panel(ax, title, y_range, points, starred=None):
     """One line for each run, and an arrow with the value for each point
-    above the y range. The y range goes down to the lowest point."""
+    above the y range. The y range goes down to the lowest point. A point out of
+    ``starred`` (a bugged score) gets a light grey disc behind it; MPE has no rollout feedback."""
     low = y_range[0]
     for arm, label, colour_hex, marker in RUNS:
         stops = sorted(points.get(arm, {}))
@@ -194,9 +322,26 @@ def draw_panel(ax, title, y_range, points):
             continue
         values = [points[arm][s] for s in stops]
         low = min(low, min(values) - 0.02 * (y_range[1] - y_range[0]))
+        style = line(arm) if arm in STYLE else "-"
+        parent, branch_k = BRANCHES.get(arm, (None, None))
+        start = points.get(parent, {}).get(branch_k)
+        if start is not None:
+            ax.plot([branch_k * 1000, stops[0] * 1000], [start, values[0]], color=colour_hex,
+                    ls=style, lw=2.2, zorder=4)
         ax.plot([s * 1000 for s in stops], values, color=colour_hex, marker=marker,
-                ls=line(arm) if arm in STYLE else "-", lw=2.2, ms=7, label=label,
-                zorder=3 if arm in ON_TOP else 2)
+                ls=style, lw=2.2, ms=7, label=label,
+                zorder=5 if arm in FRONT else 4.5 if arm in TABLE_ARMS else 4 if arm in BRANCHES
+                else 3 if arm in ON_TOP else 2)
+        # the disc lies under the run lines: a marker of another run near it stays visible
+        fixed = set(stops) & (starred or {}).get(arm, set())
+        bugged = set(stops) - fixed if starred is not None and arm != MPE else set()
+        for stop in sorted(bugged):
+            ax.plot(stop * 1000, min(points[arm][stop], y_range[1]), marker="o", ms=14,
+                    color="black", alpha=0.2, ls="none", zorder=1.9)
+        if starred is not None and (arm in ON_TOP or arm in TABLE_ARMS):
+            draw_on_top(ax, points, arm, fixed, colour_hex, marker)
+        if starred is not None and arm == MPE:
+            draw_mpe_rings(ax, points, colour_hex, marker)
         for stop, value in zip(stops, values):
             if value > y_range[1]:
                 ax.plot(stop * 1000, y_range[1], "^", ms=11, color=colour_hex, clip_on=False)
@@ -249,15 +394,59 @@ def legend_entries(axes):
     return [found[label] for label in labels], labels
 
 
+def run_code(label):
+    """The three-letter code that opens a legend label of RUNS."""
+    found = re.match(r"\$\\mathbf\{(\w+)\}\$", label)
+    return found.group(1) if found else label
+
+
+def normalised_scores(points, starred):
+    """``{run: {stop k: score}}``: the starred points of the run lines, the scores
+    with the normalised rollout feedback."""
+    return {arm: {stop: points[arm][stop] for stop in stops if stop in points.get(arm, {})}
+            for arm, stops in starred.items()}
+
+
+def value_label(arm, label, scores):
+    """'GRY  1.0269 at 240k': the lowest score of the run; the FRONT run also gives its last score."""
+    best = min(scores, key=scores.get)
+    text = f"{run_code(label)}  {scores[best]:.4f} at {best}k"
+    last = max(scores)
+    return text + (f" (last: {scores[last]:.4f} at {last}k)" if arm in FRONT and last != best else "")
+
+
+def draw_value_box(ax, fixed):
+    """A box in the empty lower left of the panel: the lowest score with the normalised
+    rollout feedback of each run, lowest first, with the marker of the run."""
+    rows = sorted((min(fixed[arm].values()), arm, label, colour_hex, marker)
+                  for arm, label, colour_hex, marker in RUNS if fixed.get(arm))
+    handles = [(Line2D([], [], marker="*", ms=11, color="black", alpha=0.25, ls="none"),
+                Line2D([], [], marker=marker, color=colour_hex, ls="none", ms=7))
+               for *_, colour_hex, marker in rows]
+    labels = [value_label(arm, label, fixed[arm]) for _, arm, label, _, _ in rows]
+    box = ax.legend(handles, labels, loc="lower left", bbox_to_anchor=(0.065, 0.0), fontsize=9,
+                    title="Normalised rollout: lowest score of each run",
+                    title_fontsize=9, labelspacing=0.3, borderpad=0.4, framealpha=0.95)
+    ax.add_artist(box)
+
+
 def main():
-    fig, axes = plt.subplots(3, 1, sharex=True, figsize=(11, 12))
+    # The forecast panel is twice as tall as an R panel: its late points lie close together.
+    fig, axes = plt.subplots(3, 1, sharex=True, figsize=(11, 15), gridspec_kw={"height_ratios": [2, 1, 1]})
     all_points = []
+    starred = normalised_points()
     for ax, (title, y_range, tables, forecast) in zip(axes, PANELS):
         all_points.append(panel_points(tables, forecast))
-        draw_panel(ax, title, y_range, all_points[-1])
+        draw_panel(ax, title, y_range, all_points[-1], starred if forecast else None)
+        if forecast:
+            draw_value_box(ax, normalised_scores(all_points[-1], starred))
     style_x(axes[-1])
     # Blank rows after the older runs: the runs of this report fill the left column.
     handles, labels = legend_entries(axes)
+    handles.append(Line2D([], [], marker="o", ms=14, color="black", alpha=0.2, ls="none"))
+    labels.append("bugged score (non-normalised rollout feedback)")
+    handles.append(Line2D([], [], marker="<", ms=8, color="#dc143c", markerfacecolor="white", ls="none"))
+    labels.append("a second run of the first 250 steps,\nwith other random numbers than the run")
     new_labels = {label for arm, label, _, _ in RUNS if arm in NEW_RUNS}
     blanks = max(0, 2 * sum(label in new_labels for label in labels) - len(handles))
     axes[0].legend(handles + [Line2D([], [], alpha=0)] * blanks, labels + [""] * blanks,
