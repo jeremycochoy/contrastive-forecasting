@@ -156,6 +156,9 @@ At 25k, it gets 0.9824 (short 0.8810, medium 1.1481, long 1.1179): 0.0201 lower 
 At 35k, it gets 0.9856 (short 0.8894, medium 1.1327, long 1.1227), 0.0136 lower than S36.
 At 45k, it gets 1.0013 (short 0.9065, medium 1.1457, long 1.1353), 0.0159 lower than S36.
 At 50k, it gets 0.9796 (short 0.8787, medium 1.1304, long 1.1284): 0.0490 lower than S36 and 0.0035 lower than MPE (0.9831).
+The linear R head of SPH36, with the head path of #454, gets 0.1705 at 25k, 0.1735 at 35k, 0.1270 at 45k and 0.1410 at 50k (the linear R panel).
+From 35k to 45k, its R score falls by 0.0465 and its forecast score rises by 0.0157.
+From 45k to 50k, its R score rises by 0.0140 and its forecast score falls by 0.0217.
 The point of the sphere run after 250 steps comes from a second run of its first 250 steps on elisa, with torch 2.8.0.
 The run trained on the box with torch 2.9.1, and the losses already differ at step 1 (55.33 and 55.42), so an open marker shows the point.
 The heatmap has its row.

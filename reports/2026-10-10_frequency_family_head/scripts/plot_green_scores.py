@@ -187,7 +187,7 @@ OUR_R_TABLES = ["grn_ema099995", "grn_ema099995_f6",
                 "grn_ema099995_f6_rep005_halving_mup", "grn_ema099995_f6_rep01_mup_lr56",
                 "grn_ema0999975_f6_rep01_mup", "grn_ema099995_f6_rep01_mup_hid56",
                 "grn_ema09998_rep003_halving", "grn_ema099995_rep003_halving",
-                "grn_ema099995_f6_cd240", "grn_ema09998"]
+                "grn_ema099995_f6_cd240", "grn_ema09998", "grn_ema099995_f6_rep01_ss256_sphere"]
 # panel title, y range, the score tables, and whether the forecast of the
 # runs of this report comes from results/scores.tsv
 PANELS = [
@@ -311,6 +311,17 @@ def draw_on_top(ax, points, arm, fixed, colour_hex, marker):
             ms=3.5, color=colour_hex, ls="none", zorder=6)
 
 
+def draw_rings_under_front(ax, points, arm, colour_hex, marker):
+    """The points of ``arm`` again, each one 4 points larger for each run of FRONT with almost the
+    same score at the stop, under the point of that run (SPH36 0.1410 and BLU 0.1381 at 200k in the
+    linear R panel)."""
+    for stop, score in points[arm].items():
+        near = sum(abs(points.get(run, {}).get(stop, 9.0) - score) < CLOSE for run in FRONT)
+        if near:
+            ax.plot(stop * 1000, score, marker=marker, ms=7 + 4 * near, color=colour_hex, ls="none",
+                    zorder=4.9)
+
+
 def draw_panel(ax, title, y_range, points, starred=None):
     """One line for each run, and an arrow with the value for each point
     above the y range. The y range goes down to the lowest point. A point out of
@@ -342,6 +353,8 @@ def draw_panel(ax, title, y_range, points, starred=None):
             draw_on_top(ax, points, arm, fixed, colour_hex, marker)
         if starred is not None and arm == MPE:
             draw_mpe_rings(ax, points, colour_hex, marker)
+        if starred is None and arm in TABLE_ARMS:
+            draw_rings_under_front(ax, points, arm, colour_hex, marker)
         for stop, value in zip(stops, values):
             if value > y_range[1]:
                 ax.plot(stop * 1000, y_range[1], "^", ms=11, color=colour_hex, clip_on=False)
