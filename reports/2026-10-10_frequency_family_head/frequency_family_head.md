@@ -66,6 +66,8 @@ From 90k to 100k, the score rises by 6.2%, and by 3.7% without the six configs.
 Without the six configs, the medium scores rise by 7.0%, the long scores by 9.3% and the short scores by 0.9%.
 S24 trained again from its 95k save after a restart of the box host at about 97.5k.
 From 95k to 96k, its total loss and L_align are within 1% of the values before the restart, and the training loss of the head stays at 0.1722.
+At 115k, it gets 1.0563 (short 0.8860, medium 1.2982, long 1.3622).
+From 100k to 115k, the score falls by 2.5%, with or without the six configs.
 The scores after 250 steps come from a second run of the first 250 steps of S256 and of S36, with the same flags and seed: in each, the losses of steps 1 to 200 are equal to the losses of the run.
 With the normalised rollout, the best stops of grey (1.0269 at 240k), yellow (1.0304 at 200k) and violet (1.0208 at 460k) are below blue at 180k (1.0482).
 Grey at 200k gets 1.0215 with the normalised rollout, its lowest score.
