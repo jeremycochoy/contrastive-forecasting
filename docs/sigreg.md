@@ -63,7 +63,8 @@ A test of 300 steps at batch 256, width 64 and lr 1e-3 (fixed window, weight 1.0
 ## On the forecast latent
 
 `--sigreg-forecast` adds the same statistic on the forecaster output `f`,
-the one-step forecast latent, at its real positions. The loss adds
+the one-step forecast latent, at its real positions. It reads `f` before the
+latent sphere (`--latent-sphere`), as it reads `e` and `h`. The loss adds
 `--sigreg-forecast-weight` (default 0.1) times it. The term is off by
 default. With the flag, the losses CSV gets a trailing column `sigreg_f`.
 The CSV of a run without the flag keeps its columns.

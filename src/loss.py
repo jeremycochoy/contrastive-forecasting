@@ -1207,9 +1207,29 @@ def sigreg_loss(z, sigma2=None, M=1024, T_knots=17, W=None,
     return ep_per_dir.mean()
 
 
+ALIGN_LOSS_KINDS = ('cosine', 'l2_raw')
+
+
+def align_pair_losses(forecasted_latent, target, kind):
+    """``[B, T-1, C]``: L_align of each pair (f_t, sg(target_{t+1})) in the
+    form ``kind`` names (:func:`align_loss`)."""
+    if kind == 'l2_raw':
+        diff = forecasted_latent[:, :-1] - target[:, 1:].detach()
+        return diff.pow(2).mean(dim=-1)
+    if kind != 'cosine':
+        raise ValueError(f"align loss kind must be one of {ALIGN_LOSS_KINDS}; "
+                         f"got {kind!r}.")
+    fore_norm = F.normalize(forecasted_latent, p=2, dim=-1)
+    targ_norm = F.normalize(target, p=2, dim=-1)
+    hy_hat_norm = fore_norm[:, :-1, :, :]              # f_t
+    hy_norm = targ_norm[:, 1:, :, :].detach()          # sg(target_{t+1})
+    return 2.0 - 2.0 * cosine_similarity_from_normalized(hy_hat_norm, hy_norm)
+
+
 def align_loss(forecasted_latent, original_latent, weight=1.0,
                target_latent=None, rollout_latents=None,
-               depth_reduce='sum', pad_patches=None, term_out=None):
+               depth_reduce='sum', pad_patches=None, term_out=None,
+               kind='cosine'):
     """BYOL/SimSiam alignment term, standalone (#344 follow-up arm).
 
     ``L_align = weight · (2 − 2·cos(f_t, sg(h_{t+1}))).mean()`` — pull the
@@ -1240,19 +1260,22 @@ def align_loss(forecasted_latent, original_latent, weight=1.0,
     ``term_out`` (#412): receives the unweighted depth-0 value as
     ``l_align``, as :func:`contrastive_latent_loss` records it.
 
+    ``kind`` (:data:`ALIGN_LOSS_KINDS`, --align-loss-kind): ``'cosine'``
+    (default) is the term above. ``'l2_raw'`` is
+    ``(1/K)·Σ_k (f_t,k − sg(target_{t+1,k}))²``, the mean square of the
+    difference over the K features of the vectors as they are, with no
+    normalisation. The trainer then passes f and its rollout depths before
+    the latent sphere. Each depth takes the same form.
+
     forecasted_latent, original_latent, target_latent: ``[B, T, C, H]``.
     Returns scalar.
     """
     target = original_latent if target_latent is None else target_latent
-    fore_norm = F.normalize(forecasted_latent, p=2, dim=-1)
-    targ_norm = F.normalize(target, p=2, dim=-1)
-    hy_hat_norm = fore_norm[:, :-1, :, :]              # f_t
-    hy_norm = targ_norm[:, 1:, :, :].detach()          # sg(target_{t+1})
-    cos_align = cosine_similarity_from_normalized(hy_hat_norm, hy_norm)
+    pair_losses = align_pair_losses(forecasted_latent, target, kind)
     if pad_patches is None:
-        depth0 = (2.0 - 2.0 * cos_align).mean()
+        depth0 = pair_losses.mean()
     else:
-        depth0 = masked_mean(2.0 - 2.0 * cos_align, ~pad_patches[:, :-1])
+        depth0 = masked_mean(pair_losses, ~pad_patches[:, :-1])
     _record_term(term_out, 'l_align', depth0)
     copies = [weight * depth0]
     for depth, f_depth in enumerate(rollout_latents or (), start=1):
@@ -1261,7 +1284,7 @@ def align_loss(forecasted_latent, original_latent, weight=1.0,
         copies.append(align_loss(
             f_view, o_view, weight, target_latent=target_view,
             pad_patches=(None if pad_patches is None
-                         else pad_patches[:, :f_view.shape[1]])))
+                         else pad_patches[:, :f_view.shape[1]]), kind=kind))
     return reduce_depth_terms(
         copies, resolve_rollout_reduce(depth_reduce, None))
 

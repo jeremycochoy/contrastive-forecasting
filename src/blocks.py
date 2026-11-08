@@ -831,7 +831,8 @@ class TransformerBlock(nn.Module):
         """
         return self.training and os.environ.get("BACKBONE_CKPT", "0") == "1"
 
-    def forecaster_forward(self, x, fp32_tail=True, cache_mask=True):
+    def forecaster_forward(self, x, fp32_tail=True, cache_mask=True,
+                           on_sphere=True):
         """Run the forecaster stack on a [B*C, T, H] latent sequence.
 
         `fcst_down_proj` → causal decoder layers → `fcst_up_proj`, that is the
@@ -857,6 +858,10 @@ class TransformerBlock(nn.Module):
         `cache_mask=False` keeps the causal mask off the module — see
         :meth:`causal_mask_for`. The eval rollout takes it. The callers that
         run at a fixed T keep the cache.
+
+        `on_sphere=False` returns the output before the latent sphere
+        (--latent-sphere), the raw f that SIGReg on f and the l2_raw L_align
+        read. :meth:`sphere` of it is the default output, bit for bit.
         """
         causal_mask = self.causal_mask_for(x, cache=cache_mask)
         # --latent-sphere: each input token on the sphere, the encoder output
@@ -906,8 +911,10 @@ class TransformerBlock(nn.Module):
         # Project the forecaster output back up to dimension_e so the
         # downstream contrastive loss / channel-mixing operates in the
         # same H-dim space as `x_original` (the encoder-side latent).
-        # --latent-sphere: the output f on the sphere.
-        return self.sphere(self.fcst_up_proj(x))
+        # --latent-sphere: the output f on the sphere, unless the caller asks
+        # for the raw output.
+        raw = self.fcst_up_proj(x)
+        return self.sphere(raw) if on_sphere else raw
 
     def _run_layer(self, layer, x, mask, is_causal, ckpt):
         """Run one decoder layer, optionally gradient-checkpointed (#327).
@@ -926,7 +933,8 @@ class TransformerBlock(nn.Module):
                 x, use_reentrant=False)
         return layer(x, tgt_mask=mask, tgt_is_causal=is_causal)
 
-    def forward(self, x, return_multi=False, return_embed=False):
+    def forward(self, x, return_multi=False, return_embed=False,
+                return_raw_forecast=False):
         # Apply input_to_latent if provided. Capture the patch-embedding
         # output e_t when requested (#355 SIGReg attaches a regulariser to
         # this pre-encoder latent). The captured tensor is in [B,T,C,H]
@@ -1019,9 +1027,8 @@ class TransformerBlock(nn.Module):
                 f_stack = torch.stack(
                     [head(h) for head in self.cpc_heads], dim=2)  # [B*C, T, K, H]
             f_out = f_stack if return_multi else f_stack[:, :, 0, :]
-            if return_embed:
-                return f_out, x_original, embed
-            return f_out, x_original
+            return self._outputs(f_out, x_original, embed, f_out,
+                                 return_embed, return_raw_forecast)
 
         if self.forecaster_kind == "cpc":
             with torch.amp.autocast('cuda', enabled=False):
@@ -1034,15 +1041,28 @@ class TransformerBlock(nn.Module):
                     preds.append(kup(xk))
                 f_stack = torch.stack(preds, dim=2)               # [B*C, T, K, H]
             f_out = f_stack if return_multi else f_stack[:, :, 0, :]
-            if return_embed:
-                return f_out, x_original, embed
-            return f_out, x_original
+            return self._outputs(f_out, x_original, embed, f_out,
+                                 return_embed, return_raw_forecast)
 
-        x = self.forecaster_forward(x)
+        # --latent-sphere: f on the sphere. The raw output is the f that
+        # SIGReg reads (--sigreg-forecast), as it reads e and h raw.
+        raw = self.forecaster_forward(x, on_sphere=False)
+        x = self.sphere(raw)
+        return self._outputs(x, x_original, embed, raw, return_embed,
+                             return_raw_forecast)
 
+    @staticmethod
+    def _outputs(f, h, embed, raw, return_embed, return_raw_forecast):
+        """The tuple of :meth:`forward`: ``(f, h)``, then ``e`` under
+        ``return_embed``, then the raw forecaster output under
+        ``return_raw_forecast``. The cpc kinds put no sphere on f, so their
+        raw output is f itself."""
+        out = (f, h)
         if return_embed:
-            return x, x_original, embed
-        return x, x_original
+            out += (embed,)
+        if return_raw_forecast:
+            out += (raw,)
+        return out
 
     @staticmethod
     def _generate_square_subsequent_mask(sz):

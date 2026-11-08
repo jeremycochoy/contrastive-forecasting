@@ -52,7 +52,7 @@ from src.dataloader import (
 from src.loss import (contrastive_latent_loss, rep_only_term,
                       grid_pred_term, pred_term, cpc_infonce_aux_loss,
                       cpc_infonce_all_loss, align_loss, align_moco_loss,
-                      sigreg_loss)
+                      sigreg_loss, ALIGN_LOSS_KINDS)
 from src.checkpoint import (gru_input_bound_of, load_training_state,
                             save_training_state)
 from src.dist_utils import (
@@ -674,6 +674,21 @@ def build_parser():
                         "and as the add-on inside the contrastive loss. "
                         "--align-moco-loss-weight is a separate term with a "
                         "teacher target of its own and is NOT affected.")
+    p.add_argument("--align-loss-kind", choices=ALIGN_LOSS_KINDS,
+                   default="cosine",
+                   help="Form of the L_align term (--align-loss-weight). "
+                        "'cosine' (default) is 2 − 2·cos(f_t, sg(h_{t+1})), so "
+                        "earlier runs are unchanged. 'l2_raw' is the mean "
+                        "square (1/K)·Σ_k (f_k − h_k)² over the K features of "
+                        "the raw vectors: f before the latent sphere "
+                        "(--latent-sphere) and the target as it is (the EMA "
+                        "teacher's h_{t+1} with --align-target teacher), with "
+                        "stop-gradient on the target. Each rollout depth j "
+                        "(--train-rollout-depth) reads the raw output of depth "
+                        "j against the target j + 1 patches ahead. The depths "
+                        "reduce by --train-rollout-reduce and the l_align "
+                        "column logs the depth-0 value. Needs "
+                        "--align-loss-weight.")
     p.add_argument("--align-moco-loss-weight", type=float, nargs="?",
                    const=1.0, default=0.0,
                    help="λ for a MoCo-style InfoNCE alignment (#374 arm 6): "
@@ -893,8 +908,11 @@ def build_parser():
                         "the shape of the --lr-final anneal: α = end − (end "
                         "− start)·½·(1 + cos(π·t/span)), span = "
                         "--ema-tau-ramp-steps, else --total-steps. α holds "
-                        "at --ema-tau-end after the span. Needs "
-                        "--ema-tau-end.")
+                        "at --ema-tau-end after the span. 'log' has the same "
+                        "ends and span: α = start + (end − start)·log(1 + t)/"
+                        "log(1 + span), t the step clamped to [0, span], so α "
+                        "moves fast at the first steps and slowly near the "
+                        "end. 'cosine' and 'log' need --ema-tau-end.")
     p.add_argument("--moco-negatives", action="store_true",
                    help="MoCo-style negatives (#374 arms 3+4): route the "
                         "cross-batch f↔h negatives through the EMA teacher "
@@ -985,6 +1003,8 @@ def build_parser():
                    help="SIGReg on the forecaster output f, the one-step "
                         "forecast latent, at its real positions: the "
                         "statistic of --sigreg-encoding (docs/sigreg.md). "
+                        "It reads f before the latent sphere "
+                        "(--latent-sphere), as it reads e and h. "
                         "Total loss adds --sigreg-forecast-weight · "
                         "L_sigreg_forecast. The losses CSV gets a trailing "
                         "column sigreg_f. Off by default.")
@@ -1133,18 +1153,42 @@ def group_forward(model, x_norm, labels, size, args, pad=None):
     """The latents of one forward at patch size ``size`` (#412), in the
     layout and the precision of ``forward_step``: ``f`` and ``o``, the
     teacher's ``o`` and the patch embedding ``e`` when the run reads them,
-    and the rollout depths (#373), which advance ``size`` values each."""
+    and the rollout depths (#373), which advance ``size`` values each.
+    ``f_raw`` and ``rollout_raw`` are f and its depths before the latent
+    sphere, or None when the run reads none (``wants_raw_forecast``)."""
     B, T_raw, C = x_norm.shape
     xr = model.prepare_encoder_input(x_norm, patch_size=size, **labels)
     want_embed = args.sigreg_embedding or args.sigreg_encoding
-    out = model.transformer(xr, return_embed=want_embed)
-    f, o = (t.reshape(B, C, T_raw // size, model.H).permute(0, 2, 1, 3)
-            .float() for t in out[:2])
+    want_raw = wants_raw_forecast(args)
+    out = model.transformer(xr, return_embed=want_embed,
+                            return_raw_forecast=want_raw)
+
+    def latent(t):
+        return (t.reshape(B, C, T_raw // size, model.H).permute(0, 2, 1, 3)
+                .float())
+    f, o = latent(out[0]), latent(out[1])
     teacher = (model.teacher_forward(xr).float()
                if args.ema_embedding or args.ema_encoder else None)
+    rollout, rollout_raw = raw_rollout_depths(model, f, o, args, pad)
     return SimpleNamespace(
         f=f, o=o, teacher=teacher, e=out[2].float() if want_embed else None,
-        rollout=forecaster_depths(model, f, o, args, pad))
+        rollout=rollout, f_raw=latent(out[-1]) if want_raw else None,
+        rollout_raw=rollout_raw)
+
+
+def wants_raw_forecast(args):
+    """Whether a term of the run reads f before the latent sphere: SIGReg
+    on f (--sigreg-forecast) or the l2_raw L_align."""
+    return args.sigreg_forecast or args.align_loss_kind == "l2_raw"
+
+
+def raw_rollout_depths(model, f, o, args, pad=None):
+    """``(depths, raw_depths)`` of the forward output ``f``
+    (``forecaster_depths``). ``raw_depths``, the depths before the latent
+    sphere, only under the l2_raw L_align, else None."""
+    if args.align_loss_kind != "l2_raw":
+        return forecaster_depths(model, f, o, args, pad), None
+    return forecaster_depths(model, f, o, args, pad, raw=True)
 
 
 def group_padding(pad_mask, rows, size, active, shape, start_mask=None):
@@ -1217,17 +1261,19 @@ def common_grid(lats, pads):
             pad = torch.zeros(n, T, C, dtype=torch.bool, device=lat.o.device)
         token = torch.arange(T, device=lat.o.device).repeat_interleave(r)
         parts.append([None if t is None else t.repeat_interleave(r, dim=1)
-                      for t in (lat.f, lat.o, lat.teacher, lat.e, pad)]
+                      for t in (lat.f, lat.o, lat.teacher, lat.e, pad,
+                                getattr(lat, "f_raw", None))]
                      + [token.expand(n, -1)])
-    f, o, teacher, e, pad, token = (
+    f, o, teacher, e, pad, f_raw, token = (
         None if parts[0][i] is None else torch.cat([p[i] for p in parts])
-        for i in range(6))
+        for i in range(7))
     real = (~pad).any(dim=2).any(dim=0)
     start = int(real.nonzero()[0]) if real.any() else 0
     def cut(t):
         return None if t is None else t[:, start:]
     return SimpleNamespace(f=cut(f), o=cut(o), teacher=cut(teacher),
-                           e=cut(e), pad=cut(pad), token=cut(token))
+                           e=cut(e), pad=cut(pad), token=cut(token),
+                           f_raw=cut(f_raw))
 
 
 def multi_size_contrastive_terms(model, lats, pads, counts, args, rep_w,
@@ -1261,7 +1307,7 @@ def multi_size_contrastive_terms(model, lats, pads, counts, args, rep_w,
             (args.sigreg_encoding, args.sigreg_encoding_weight, "sigreg_h",
              grid.o),
             (args.sigreg_forecast, args.sigreg_forecast_weight, "sigreg_f",
-             grid.f)):
+             raw_forecast(grid))):
         if on:
             term = sigreg_term(latent, args, grid.pad)
             loss = loss + weight * term
@@ -1318,11 +1364,12 @@ def group_align_terms(lats, pads, counts, args, values):
                              "at the loss call (#382).")
         target = lat.teacher if args.align_target == "teacher" else None
         share, part = counts[size] / n, {}
+        f, depths = align_inputs(lat, args)
         total = total + share * align_loss(
-            lat.f, lat.o, args.align_loss_weight, target_latent=target,
-            rollout_latents=lat.rollout,
+            f, lat.o, args.align_loss_weight, target_latent=target,
+            rollout_latents=depths,
             depth_reduce=args.train_rollout_reduce, pad_patches=pads[size],
-            term_out=part)
+            term_out=part, kind=args.align_loss_kind)
         logged += share * part["l_align"]
     values["terms"]["l_align"] = logged
     return total
@@ -1590,7 +1637,7 @@ def random_sign_flip(x):
 
 def forward_step(model, x, freq_ids=None, freq_embs=None,
                   seasonality_ids=None, seasonality_embs=None,
-                  want_teacher=False, want_embed=False):
+                  want_teacher=False, want_embed=False, want_raw=False):
     """Apply RevEWMNorm + transformer with optional freq + seasonality
     embeddings + optional patch-stats. Routes through
     ``model.prepare_encoder_input`` so the patching path is identical to
@@ -1607,6 +1654,9 @@ def forward_step(model, x, freq_ids=None, freq_embs=None,
     GRU patch-embed output, before the encoder transformer stack. Returned
     as the last tensor of the tuple so the existing ``f_lat, o_lat``
     (optionally ``, teacher_o_lat``) prefix is preserved.
+
+    ``want_raw=True`` appends ``f_raw``, the forecaster output before the
+    latent sphere in the layout of ``f_lat``, after every other tensor.
     """
     H = model.H
     if model.rev_norm is not None:
@@ -1617,30 +1667,35 @@ def forward_step(model, x, freq_ids=None, freq_embs=None,
         x, freq_ids=freq_ids, freq_embs=freq_embs,
         seasonality_ids=seasonality_ids, seasonality_embs=seasonality_embs)
     cpc = getattr(model, 'forecaster_kind', 'transformer') in ('cpc', 'linear_cpc')
-    out = model.transformer(xr, return_multi=cpc, return_embed=want_embed)
+    out = model.transformer(xr, return_multi=cpc, return_embed=want_embed,
+                            return_raw_forecast=want_raw)
     if want_embed:
-        f_flat, o_flat, e_in = out
+        f_flat, o_flat, e_in = out[:3]
     else:
-        f_flat, o_flat = out
+        f_flat, o_flat = out[:2]
         e_in = None
-    if cpc:
-        # f_flat is the [B*C, T, K, H] multi-step stack. Keep K as a 4th axis
-        # so the loss sees [B, T, C, K, H]. Diagnostics in main() slice k=1.
-        K = f_flat.shape[2]
-        f_lat = f_flat.reshape(B, C, T, K, H).permute(0, 2, 1, 3, 4)
-    else:
-        f_lat = f_flat.reshape(B, C, T, H).permute(0, 2, 1, 3)
+
+    def forecast_latent(flat):
+        if cpc:
+            # flat is the [B*C, T, K, H] multi-step stack. Keep K as a 4th
+            # axis so the loss sees [B, T, C, K, H]. Diagnostics in main()
+            # slice k=1.
+            K = flat.shape[2]
+            return flat.reshape(B, C, T, K, H).permute(0, 2, 1, 3, 4)
+        return flat.reshape(B, C, T, H).permute(0, 2, 1, 3)
+    f_lat = forecast_latent(f_flat)
     o_lat = o_flat.reshape(B, C, T, H).permute(0, 2, 1, 3)
     # e_in is captured PRE-permute, so it is already [B, T, C, H].
     e_lat = e_in
     teacher_o_lat = model.teacher_forward(xr) if want_teacher else None
+    raw = (forecast_latent(out[-1]),) if want_raw else ()
     if want_teacher and want_embed:
-        return f_lat, o_lat, teacher_o_lat, e_lat
+        return (f_lat, o_lat, teacher_o_lat, e_lat) + raw
     if want_teacher:
-        return f_lat, o_lat, teacher_o_lat
+        return (f_lat, o_lat, teacher_o_lat) + raw
     if want_embed:
-        return f_lat, o_lat, e_lat
-    return f_lat, o_lat
+        return (f_lat, o_lat, e_lat) + raw
+    return (f_lat, o_lat) + raw
 
 
 def maybe_mixup(x, freq_ids, seasonality_ids, model, args, info=None):
@@ -2195,18 +2250,20 @@ def contrastive_padding(model, args):
     return pad if start is None else pad | start_window_anchors(start, model.W)
 
 
-def forecaster_depths(model, f_lat, o_lat, args, pad=None):
+def forecaster_depths(model, f_lat, o_lat, args, pad=None, raw=False):
     """f^(1) .. f^(k) of the forward output ``f_lat`` (#373): the one place
     the trainer composes the forecaster on its own output, for the whole
     batch and for each patch-size group (#412). Under
     --train-rollout-feedback normalised each copy goes back in at the mean
     norm of the encoder latents ``o_lat`` of its window, over the patches
-    that ``pad`` does not mark (window_latent_norm)."""
+    that ``pad`` does not mark (window_latent_norm). ``raw`` returns
+    ``(depths, raw_depths)``, with the depths before the latent sphere."""
     scale = (window_latent_norm(o_lat, pad)
              if args.train_rollout_feedback == "normalised"
              and args.train_rollout_depth > 0 else None)
+    raw_kwarg = {"return_raw": True} if raw else {}
     return rollout_forecaster_latents(model, f_lat, args.train_rollout_depth,
-                                      scale=scale)
+                                      scale=scale, **raw_kwarg)
 
 
 def zero_padding(model):
@@ -2318,11 +2375,18 @@ def main_contrastive_term(lat, args, rep_w_now, tau, pad_patches, terms):
     if pad_patches is not None and args.loss_shape == SPLIT_SHAPE:
         return split_masked_term(lat, args, rep_w_now, tau, pad_patches,
                                  terms)
-    return contrastive_latent_loss(
+    # --align-loss-kind l2_raw: the loss reads no raw f, so its cosine
+    # add-on is off and L_align runs beside it, depths and reduction alike.
+    l2_raw = args.align_loss_kind == "l2_raw"
+    loss = contrastive_latent_loss(
         (lat.f, lat.o), validation=False, spec=LOSS_SPEC,
         tau_override=tau, teacher_original_latent=lat.teacher,
         rollout_latents=lat.rollout, rep_loss_weight=rep_w_now,
-        term_out=terms, pad_patches=pad_patches)
+        term_out=terms, pad_patches=pad_patches,
+        align_loss_weight=0.0 if l2_raw else None)
+    if l2_raw:
+        loss = loss + align_term(lat, args, pad_patches, terms)
+    return loss
 
 
 def split_masked_term(lat, args, rep_w, tau, pad_patches, terms):
@@ -2353,10 +2417,20 @@ def align_term(lat, args, pad_patches, terms=None):
                          "the loss call. Falling back to the student target "
                          "is the #382 defect this flag removes.")
     target = lat.teacher if args.align_target == "teacher" else None
+    f, depths = align_inputs(lat, args)
     return align_loss(
-        lat.f, lat.o, args.align_loss_weight, target_latent=target,
-        rollout_latents=lat.rollout, depth_reduce=args.train_rollout_reduce,
-        pad_patches=pad_patches, term_out=terms)
+        f, lat.o, args.align_loss_weight, target_latent=target,
+        rollout_latents=depths, depth_reduce=args.train_rollout_reduce,
+        pad_patches=pad_patches, term_out=terms, kind=args.align_loss_kind)
+
+
+def align_inputs(lat, args):
+    """``(f, depths)``: what L_align reads. The forecaster output and its
+    rollout depths, before the latent sphere under --align-loss-kind
+    l2_raw."""
+    if args.align_loss_kind == "l2_raw":
+        return lat.f_raw, lat.rollout_raw
+    return lat.f, lat.rollout
 
 
 def align_moco_term(lat, args, tau):
@@ -2383,6 +2457,14 @@ def cpc_aux_term(model, lat, args, pad_patches):
         lat.f, lat.o, model.cpc_w1,
         marginal_only=(args.cpc_infonce_negs == "cross"),
         rollout_latents=lat.rollout, depth_reduce=args.train_rollout_reduce)
+
+
+def raw_forecast(lat):
+    """f before the latent sphere, which SIGReg on f reads as it reads e and
+    h raw. ``lat.f`` when the latents carry no raw f: without the sphere
+    the two are the same."""
+    f_raw = getattr(lat, "f_raw", None)
+    return lat.f if f_raw is None else f_raw
 
 
 def sigreg_scale(args, size: int) -> float:
@@ -2438,7 +2520,7 @@ def contrastive_terms(model, lat, args, rep_w, tau, pad_patches):
             (args.sigreg_encoding, args.sigreg_encoding_weight, "sigreg_h",
              lat.o),
             (args.sigreg_forecast, args.sigreg_forecast_weight, "sigreg_f",
-             lat.f)):
+             raw_forecast(lat))):
         if on:
             term = sigreg_term(latent, args, pad_patches)
             loss = loss + weight * term
@@ -3080,10 +3162,11 @@ def main():
         if args.ema_tau_end is None:
             raise SystemExit("--ema-tau-ramp-steps anchors the α ramp but no "
                              "ramp is configured; pass --ema-tau-end.")
-    # The cosine shape bends the α ramp, so the ramp must have an end value.
-    if args.ema_tau_shape == "cosine" and args.ema_tau_end is None:
-        raise SystemExit("--ema-tau-shape cosine bends the α ramp but no "
-                         "ramp is configured; pass --ema-tau-end.")
+    # The cosine and log shapes bend the α ramp, so the ramp must have an
+    # end value.
+    if args.ema_tau_shape in ("cosine", "log") and args.ema_tau_end is None:
+        raise SystemExit(f"--ema-tau-shape {args.ema_tau_shape} bends the α "
+                         "ramp but no ramp is configured; pass --ema-tau-end.")
     # #409: the L_rep weight schedule. Every refusal below stops a run whose
     # command line states a decay the objective would not carry.
     if args.rep_loss_weight_end is not None:
@@ -3130,6 +3213,18 @@ def main():
             raise SystemExit(
                 "--align-target teacher picks the target of L_align, but "
                 "this run has no L_align term; pass --align-loss-weight.")
+    if args.align_loss_kind != "cosine" and args.align_loss_weight <= 0:
+        raise SystemExit(
+            f"--align-loss-kind {args.align_loss_kind} picks the form of "
+            "L_align, but this run has no L_align term; pass "
+            "--align-loss-weight.")
+    # The trainer pools each rollout depth over the ranks with one all-gather
+    # (#373). The raw depths of l2_raw have no gather of their own.
+    if (args.align_loss_kind == "l2_raw" and args.train_rollout_depth > 0
+            and int(os.environ.get("WORLD_SIZE", "1")) > 1):
+        raise SystemExit("--align-loss-kind l2_raw with --train-rollout-depth "
+                         "does not pool its raw depths over the ranks. Run "
+                         "it on one rank.")
     model_config["ema_embedding"] = bool(args.ema_embedding)
     model_config["ema_encoder"] = bool(args.ema_encoder)
     model_config["latent_sphere"] = bool(args.latent_sphere)
@@ -3648,6 +3743,9 @@ def main():
         # term so a run with only --sigreg-encoding doesn't pay for a
         # gather it never consumes (#356-P4).
         want_embed = use_sigreg
+        # f before the latent sphere, for SIGReg on f and the l2_raw L_align.
+        want_raw = wants_raw_forecast(args)
+        f_raw = None
         value_depths = None
         if row_objective:
             # #415. One reversible-norm call for the whole step: every
@@ -3749,7 +3847,9 @@ def main():
                 freq_ids=freq_ids, freq_embs=freq_embs,
                 seasonality_ids=seasonality_ids,
                 seasonality_embs=seasonality_embs,
-                want_teacher=True, want_embed=want_embed)
+                want_teacher=True, want_embed=want_embed, want_raw=want_raw)
+            if want_raw:
+                *res, f_raw = res
             if want_embed:
                 f_lat, o_lat, teacher_o_lat, e_lat = res
             else:
@@ -3761,7 +3861,9 @@ def main():
                 freq_ids=freq_ids, freq_embs=freq_embs,
                 seasonality_ids=seasonality_ids,
                 seasonality_embs=seasonality_embs,
-                want_embed=want_embed)
+                want_embed=want_embed, want_raw=want_raw)
+            if want_raw:
+                *res, f_raw = res
             if want_embed:
                 f_lat, o_lat, e_lat = res
             else:
@@ -3784,6 +3886,8 @@ def main():
             teacher_o_lat = teacher_o_lat.float()
         if e_lat is not None:
             e_lat = e_lat.float()
+        if f_raw is not None:
+            f_raw = f_raw.float()
         # #412: the contrastive objective by row returns the padding and the
         # depths of its diagnostic group.
         pad_patches = (row_extra.pad if rows_contrastive
@@ -3806,13 +3910,14 @@ def main():
         # `forecaster_forward` under the same fp32-tail policy.
         # #415 rolls the forecast out in VALUE space instead, inside
         # `value_space_objective` above, so no latent depth is built here.
+        rollout_raw = None
         if args.value_space_objective:
             rollout_lats = []
         elif rows_contrastive:
             rollout_lats = row_extra.rollout
         else:
-            rollout_lats = forecaster_depths(model, f_lat, o_lat, args,
-                                             zero_padding(model))
+            rollout_lats, rollout_raw = raw_rollout_depths(
+                model, f_lat, o_lat, args, zero_padding(model))
         # DDP: gather latents across ranks so the contrastive loss pools
         # negatives over the GLOBAL (W*B) batch — 2-GPU @ B/2 == 1-GPU @ B.
         # Strict no-op single-GPU. Done on the fp32 latents so loss,
@@ -3851,6 +3956,9 @@ def main():
                 # consumer for e_lat). The u_*_e diagnostics are per-rank
                 # marginal reads and work fine without a gather (#356-P4).
                 _dummy, e_lat = gather_latents(e_lat, e_lat)
+            if f_raw is not None:
+                # The raw f pools over the global batch, as f_lat.
+                _dummy, f_raw = gather_latents(f_raw, f_raw)
         # CPC multi-step (#316): f_lat is [B,T,C,K,H]. The loss / loss_tau_ref
         # consume the full stack. The per-batch diagnostics (compute_metrics,
         # q_*, retrieval_auc) want a single [B,T,C,H] forecaster latent, so
@@ -3883,7 +3991,8 @@ def main():
                 # the CPC auxiliary (#344) and SIGReg on e and h (#355).
                 step_lat = SimpleNamespace(
                     f=f_lat, o=o_lat, teacher=teacher_o_lat, e=e_lat,
-                    rollout=rollout_lats)
+                    rollout=rollout_lats, f_raw=f_raw,
+                    rollout_raw=rollout_raw)
                 loss, step_values = contrastive_terms(
                     model, step_lat, args, rep_w_now, tau_tensor_loss,
                     pad_patches)
