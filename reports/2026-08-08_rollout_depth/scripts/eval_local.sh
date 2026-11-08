@@ -168,6 +168,12 @@ case "$EVAL_DEVICE" in
   *) echo "ABORT: EVAL_DEVICE=$EVAL_DEVICE. Use cpu or cuda." >&2; exit 2 ;;
 esac
 
+# --forecast-batch-size N (#455): the B4 windows of a config N at a time; the
+# forecast of each window is the per-window one up to floating-point noise
+# (docs/forecast_batch_size.md). Unset, each shard forecasts one window at a time.
+FBS_ARGS=()
+[ -z "${EVAL_FORECAST_BATCH_SIZE:-}" ] || FBS_ARGS=(--forecast-batch-size "$EVAL_FORECAST_BATCH_SIZE")
+
 pids=(); tags=()
 for (( s = 0; s < EVAL_SHARDS; s++ )); do
   if [ -n "$EVAL_CONFIG_FILTER" ]; then
@@ -190,7 +196,7 @@ for (( s = 0; s < EVAL_SHARDS; s++ )); do
     --encoder-source "$ENC" --output-dir "$sdir" \
     --strategy "$PY_STRATEGY" --forecast-len 16 --resume \
     --device "$EVAL_DEVICE" \
-    --config-filter "$filt" "${ARCH[@]}" >>"$sdir/shard.log" 2>&1 &
+    --config-filter "$filt" "${ARCH[@]}" "${FBS_ARGS[@]}" >>"$sdir/shard.log" 2>&1 &
   pids+=($!); tags+=("$s")
 done
 

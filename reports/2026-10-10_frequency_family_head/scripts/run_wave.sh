@@ -87,6 +87,9 @@
 #   FF_EVAL_SHARDS, FF_EVAL_SLOTS       the shards of one score, and the
 #                                       scores that run at the same time
 #   FF_HEAD_STEPS=500                   a short test wave (tags `_h500_`)
+#   FF_EVAL_FORECAST_BATCH_SIZE=<N>     the B4 windows of a config N at a time
+#                                       (#455); the protocol of the score gets
+#                                       fbs=<N>
 #   FF_EVAL_FILTER, FF_EVAL_EXPECT      a test score on a few configs: the
 #                                       regex of the configs, and their count
 #   FF_RESCORE=1                        set a score of another protocol
@@ -118,6 +121,7 @@ FILTER="${FF_EVAL_FILTER:-}"
 if [ -n "$FILTER" ]; then EXPECT="${FF_EVAL_EXPECT:-}"; else EXPECT=97; fi
 # The protocol of the scores of this start.
 PROTOCOL="device=$DEVICE configs=$EXPECT filter=$FILTER"
+[ -z "${FF_EVAL_FORECAST_BATCH_SIZE:-}" ] || PROTOCOL+=" fbs=$FF_EVAL_FORECAST_BATCH_SIZE"
 RESCORE="${FF_RESCORE:-0}"
 SHARDS="${FF_EVAL_SHARDS:-4}"
 # On the CPU, 5 scores of 4 shards use 20 of the 32 cores of elisa. On the
@@ -149,7 +153,7 @@ SHAPE="${FF_BB_SHAPE:---d-model 384 --n-heads 8 --num-layers 3}"
 # be a family.
 unset CF_FREQ_FAMILY CF_FREQ_FAMILY_RULE CF_FREQ_FAMILY_MEMBERS \
   CF_RECONSTRUCTION CF_HEAD_ARCH CF_HEAD_ARGV_TO CF_SKIP_EVAL EVAL_STRATEGY \
-  EVAL_CONFIG_FILTER EVAL_EXPECT_CONFIGS HEAD_SEED
+  EVAL_CONFIG_FILTER EVAL_EXPECT_CONFIGS EVAL_FORECAST_BATCH_SIZE HEAD_SEED
 
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [freq_family $RUN ${STOP}k] $*"; }
 
@@ -180,6 +184,8 @@ job_env(){  # <arm>
            BB_GPU="$GPU" GPU_GATE_LOCKDIR="$LOCKS" CF_BB_SHAPE="$SHAPE")
   [ -z "${FF_HEAD_SAVE_EVERY:-}" ] || JOB_ENV+=(HEAD_SAVE_EVERY="$FF_HEAD_SAVE_EVERY")
   [ -z "${FF_HEAD_LOG_EVERY:-}" ] || JOB_ENV+=(HEAD_LOG_EVERY="$FF_HEAD_LOG_EVERY")
+  [ -z "${FF_EVAL_FORECAST_BATCH_SIZE:-}" ] \
+    || JOB_ENV+=(EVAL_FORECAST_BATCH_SIZE="$FF_EVAL_FORECAST_BATCH_SIZE")
   [ -z "$FILTER" ] || JOB_ENV+=(EVAL_CONFIG_FILTER="$FILTER"
                                 EVAL_EXPECT_CONFIGS="$EXPECT")
   JOB_ENV+=($(arm_env "$1"))

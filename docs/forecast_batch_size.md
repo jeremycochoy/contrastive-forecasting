@@ -64,6 +64,13 @@ python3 -u experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py \
   --output-dir <dir>
 ```
 
+## In the head waves
+
+`run_wave.sh` and `follow_multi.sh` of `reports/2026-10-10_frequency_family_head/scripts/` pass
+`FF_EVAL_FORECAST_BATCH_SIZE=N` to each shard of a score (`eval_local.sh` reads it as
+`EVAL_FORECAST_BATCH_SIZE`). The protocol of the score then ends with `fbs=N`, so a start with another
+value does not take the score of a tag. Unset, each shard forecasts one window at a time.
+
 ## The check
 
 One checkpoint of the grid40k runs (`grn_ema099995_f6_rep01_ss256` at 10k
