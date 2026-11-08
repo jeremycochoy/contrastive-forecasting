@@ -75,6 +75,8 @@ At 125k, it gets 1.0215 (short 0.8833, medium 1.2136, long 1.2582).
 From 115k to 125k, the score falls by 3.3%, and by 1.3% without the six configs.
 At 150k, it gets 1.0219 (short 0.8834, medium 1.2225, long 1.2506).
 From 125k to 150k, the score rises by less than 0.1%, and by 0.9% without the six configs.
+At 166k, the end of its training, it gets 0.9998 (short 0.8823, medium 1.1692, long 1.1861), its lowest score, and MPE gets 0.9362.
+From 150k to 166k, the score falls by 2.2%, and by 1.5% without the six configs: the medium and long scores fall by 3.0% and 4.0%, and the short score stays the same.
 The scores after 250 steps come from a second run of the first 250 steps of S256 and of S36, with the same flags and seed: in each, the losses of steps 1 to 200 are equal to the losses of the run.
 With the normalised rollout, the best stops of grey (1.0269 at 240k), yellow (1.0304 at 200k) and violet (1.0208 at 460k) are below blue at 180k (1.0482).
 Grey at 200k gets 1.0215 with the normalised rollout, its lowest score.
