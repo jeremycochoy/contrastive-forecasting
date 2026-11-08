@@ -168,9 +168,10 @@ From 40k to 80k, the score of the run with the sphere changes by 0.0004, and the
 With the old head path, it got 1.0691 at 20k and 1.0610 at 40k.
 The heatmap row gives the 40k and 80k scores of the fixed head path.
 
-![Forecast with and without the latent sphere](plots/sphere_compare.png)
+![Forecast of the batch-256 runs, with and without the latent sphere](plots/sphere_compare.png)
 
 The figure compares the runs with the latent sphere and the same runs without it, at batch 256, with the scores of the fixed head path only: width 64 to 80k steps, and width 384 (S36) to 166k steps.
+It also shows S24 (olive), S36 with 2 encoder and 4 forecaster layers.
 The sphere run of width 384 gets 1.2769 after 250 steps and 1.0856 at 10k (short 0.9513, medium 1.2997, long 1.2817).
 S36 gets 1.2365 and 1.0345 (short 0.9384, medium 1.1893, long 1.1616), then 1.0025 at 25k, 0.9992 at 35k, 1.0172 at 45k, 1.0286 at 50k, 0.9886 at 60k, 0.9977 at 75k, 0.9807 at 90k, 0.9858 at 100k, 0.9826 at 115k, 0.9816 at 125k and 0.9905 at 150k.
 At 10k, the sphere run is 0.0511 higher, mostly on the medium and long horizons.

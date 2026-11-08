@@ -2,7 +2,9 @@
 contrastive-forecasting #453) and of the same runs without it, at batch 256 (the user, 11-06: "the sphere and
 non-sphere and how they compare to each other"): width 64 to 80k steps and width 384 to 166k steps. The scores
 of the sphere runs use the head path of #454. The points come from results/grid40k_gm_points.tsv and
-results/ss256_gm_points.tsv (arm, stop k, score; stop 0.25: the save at 250 steps).
+results/ss256_gm_points.tsv (arm, stop k, score; stop 0.25: the save at 250 steps). S24 (S36 with 2 encoder and
+4 forecaster layers, no sphere) is in it too (the user, 11-08: "It's about seeing the specific one we're training,
+so, yeah, you need to add it here").
 
 Usage: python3 plot_sphere_compare.py
 """
@@ -23,6 +25,7 @@ RUNS = [
     ("g80b_lr1em3_tau99995_bs256_rep01_sigfix_ss_rollfix", "S256: width 64, no sphere", "#17becf", 11),
     ("g80b_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_rollfix", "Width 64 with the latent sphere", "#800000", 6),
     ("grn_ema099995_f6_rep01_ss256", "S36: width 384, no sphere", "#006400", 11),
+    ("grn_ema099995_e2f4_rep01_ss256", "S24: width 384, 2 encoder and 4 forecaster layers, no sphere", "#808000", 8),
     ("grn_ema099995_f6_rep01_ss256_sphere", "Width 384 with the latent sphere", "#dc143c", 6),
 ]
 # A point of a second run of the first 250 steps with other random numbers than the run (torch 2.8.0 on
