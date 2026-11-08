@@ -666,11 +666,37 @@ def cosine_schedule_at_step(step: int, total_steps: int, value_start: float,
         1.0 + math.cos(math.pi * t / span))
 
 
+def log_schedule_at_step(step: int, total_steps: int, value_start: float,
+                         value_end: float | None,
+                         ramp_steps: int | None = None) -> float:
+    """Logarithmic ramp from `value_start` to `value_end`, clamped at both ends.
+
+    ``start + (end − start)·log(1 + t)/log(1 + span)``, with `t` the step
+    clamped into ``[0, span]``. The value changes quickly at the first steps
+    and slowly near the end. The value at the span and after it is
+    `value_end` exactly.
+
+    The span, the clamp and ``value_end=None`` follow
+    :func:`linear_schedule_at_step`.
+    """
+    if value_end is None:
+        return float(value_start)
+    span = ramp_steps if ramp_steps else total_steps
+    if span <= 0:
+        return float(value_end)
+    t = min(max(step, 0), span)
+    if t == span:
+        return float(value_end)
+    return float(value_start) + (float(value_end) - float(value_start)) * (
+        math.log1p(t) / math.log1p(span))
+
+
 # The shapes of a ramp, by the name the training flag takes
 # (``--ema-tau-shape``).
 SCHEDULE_SHAPES = {
     "linear": linear_schedule_at_step,
     "cosine": cosine_schedule_at_step,
+    "log": log_schedule_at_step,
 }
 
 
@@ -700,7 +726,8 @@ def ema_tau_at_step(step: int, total_steps: int, tau_start: float,
 
     `shape` is a key of :data:`SCHEDULE_SHAPES`. ``"linear"`` (default) is
     the ramp above. ``"cosine"`` keeps the same ends and span and follows
-    :func:`cosine_schedule_at_step`. An unknown shape raises ValueError.
+    :func:`cosine_schedule_at_step`, ``"log"`` follows
+    :func:`log_schedule_at_step`. An unknown shape raises ValueError.
     """
     if shape not in SCHEDULE_SHAPES:
         raise ValueError(f"shape must be one of {tuple(SCHEDULE_SHAPES)}; "
