@@ -42,7 +42,7 @@ At 90k, they are 0.8887, 1.1238 and 1.1079: its GM, 0.9807, is the lowest score 
 At 100k, they are 0.8867, 1.1418 and 1.1232, and MPE gets 0.9555.
 At 115k, they are 0.8776, 1.1392 and 1.1393.
 At 125k, they are 0.8737, 1.1412 and 1.1455, and MPE gets 0.9468.
-SPH36 is S36 with the latent sphere, scored with the head path of #454: 1.2769 after 250 steps, 1.0856 at 10k, 0.9824 at 25k, 0.9856 at 35k, 1.0013 at 45k, 0.9796 at 50k, 0.9813 at 60k, 0.9829 at 75k, 0.9864 at 90k and 0.9804 at 100k.
+SPH36 is S36 with the latent sphere, scored with the head path of #454: 1.2769 after 250 steps, 1.0856 at 10k, 0.9824 at 25k, 0.9856 at 35k, 1.0013 at 45k, 0.9796 at 50k, 0.9813 at 60k, 0.9829 at 75k, 0.9864 at 90k, 0.9804 at 100k and 0.9834 at 115k.
 An open marker shows its point after 250 steps: it comes from a second run with other random numbers than the run.
 S24 is S36 with 2 encoder and 4 forecaster layers.
 After 250 steps, it gets 1.2359 (S36 1.2365), from a save of the run itself.
@@ -179,6 +179,7 @@ At 75k, it gets 0.9829 (short 0.8724, medium 1.1486, long 1.1496): 0.0148 lower 
 At 90k, it gets 0.9864 (short 0.8816, medium 1.1431, long 1.1421), 0.0057 higher than S36.
 It is the first stop after 10k where the sphere run is higher than S36.
 At 100k, it gets 0.9804 (short 0.8735, medium 1.1456, long 1.1350): 0.0054 lower than S36 and 0.0249 higher than MPE (0.9555).
+At 115k, it gets 0.9834 (short 0.8851, medium 1.1369, long 1.1205), 0.0008 higher than S36.
 The linear R head of SPH36, with the head path of #454, gets 0.1705 at 25k, 0.1735 at 35k, 0.1270 at 45k, 0.1410 at 50k, 0.1433 at 60k, 0.1411 at 75k, 0.1688 at 90k and 0.1372 at 100k (the linear R panel).
 From 35k to 45k, its R score falls by 0.0465 and its forecast score rises by 0.0157.
 From 45k to 50k, its R score rises by 0.0140 and its forecast score falls by 0.0217.
