@@ -132,6 +132,17 @@ def sigreg_scale_arg(text):
     return text if text == "inv_sqrt_d" else float(text)
 
 
+def rollout_distances_arg(text):
+    """--train-rollout-distances: the comma-separated distances as a sorted
+    list of unique ints. ``resolve_rollout_distances`` checks the values."""
+    try:
+        return sorted({int(word) for word in text.split(",")})
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"{text!r} is not a comma-separated list of integers, for "
+            "example 1,2,4,8") from None
+
+
 def build_parser():
     p = argparse.ArgumentParser(description="Contrastive + freq embedding training")
     p.add_argument("--device", default="cuda")
@@ -867,6 +878,19 @@ def build_parser():
                         "there is one copy and the three agree exactly, so "
                         "every published run reproduces under each. "
                         "docs/train_rollout_depth.md.")
+    p.add_argument("--train-rollout-distances", type=rollout_distances_arg,
+                   default=None,
+                   help="Comma-separated distances d, for example "
+                        "1,2,4,8,16,32. Distance d is the copy that ties "
+                        "f^(d-1)_t to h_{t+d}. The rollout composes every "
+                        "depth up to max(d) - 1. Only the copies at the "
+                        "listed distances enter the loss and the cos_err_d* "
+                        "columns. The list must hold 1. --train-rollout-depth "
+                        "0 (default) becomes max(d) - 1. Another depth must "
+                        "be max(d) - 1. Not with --train-rollout-reduce "
+                        "halving or --value-space-objective. Default: off, "
+                        "every depth 0..k enters. "
+                        "docs/train_rollout_depth.md.")
     p.add_argument("--multi-patch-sizes", default=None,
                    help="One GRU patch encoder per patch size, e.g. "
                         "8,16,32,64,128 (#417), and one value head per size "
@@ -1414,8 +1438,10 @@ def forward_faults(lats, groups, n_rows, device):
     row's own. The row search reads it (``search_order``)."""
     faults = torch.zeros(n_rows, dtype=torch.bool, device=device)
     for size, lat in lats.items():
-        parts = [lat.f, lat.o, *lat.rollout] + [
-            t for t in (lat.e, lat.teacher) if t is not None]
+        # A rollout depth is None when --train-rollout-distances leaves it
+        # out of the loss.
+        parts = [t for t in (lat.f, lat.o, *lat.rollout, lat.e, lat.teacher)
+                 if t is not None]
         bad = torch.stack([~torch.isfinite(t.detach()).flatten(1).all(1)
                            for t in parts]).any(0)
         rows = groups[size]
@@ -1987,6 +2013,52 @@ def main_term_depth_gap(args):
     return None
 
 
+def resolve_rollout_distances(args):
+    """Check --train-rollout-distances and set the depth that it needs.
+
+    Distance d is the copy at depth j = d - 1. The run composes the
+    forecaster to depth k = max(d) - 1, and only the listed copies enter
+    the loss (``drop_unlisted_depths``). A --train-rollout-depth of 0, the
+    default, becomes k. A bad combination raises SystemExit, and the
+    message names the problem. The flag off: nothing changes.
+    """
+    distances = args.train_rollout_distances
+    if distances is None:
+        return
+    given = ",".join(map(str, distances))
+    if distances[0] < 1:
+        raise SystemExit(f"--train-rollout-distances {given}: each distance "
+                         f"must be 1 or more. Got {distances[0]}.")
+    if distances[0] != 1:
+        raise SystemExit(f"--train-rollout-distances {given} must hold 1. "
+                         "Distance 1 is depth 0, which enters every term.")
+    depth = distances[-1] - 1
+    if args.train_rollout_depth not in (0, depth):
+        raise SystemExit(
+            f"--train-rollout-depth {args.train_rollout_depth} does not match "
+            f"--train-rollout-distances {given}: the largest distance, "
+            f"{distances[-1]}, needs depth {depth}. Drop "
+            f"--train-rollout-depth, or set it to {depth}.")
+    if args.train_rollout_reduce == "halving":
+        raise SystemExit(
+            "--train-rollout-reduce halving weighs each copy by its place in "
+            "the list. --train-rollout-distances leaves depths out of the "
+            "list, so copy j would not get 1/2^j. Use sum or mean.")
+    if args.value_space_objective:
+        raise SystemExit(
+            "--train-rollout-distances keeps the copies of the latent terms "
+            "at the listed distances, and --value-space-objective has no "
+            "latent term (#415). Drop one of the two flags.")
+    args.train_rollout_depth = depth
+
+
+def kept_rollout_depths(args):
+    """The depths j = d - 1 of --train-rollout-distances, depth 0 first, or
+    None when the flag is off and every depth 0..k enters."""
+    distances = getattr(args, "train_rollout_distances", None)
+    return None if distances is None else [d - 1 for d in distances]
+
+
 def rollout_depth_has_no_consumer(args):
     """Whether NO term of this run can consume a rollout depth (#373).
 
@@ -2278,13 +2350,30 @@ def forecaster_depths(model, f_lat, o_lat, args, pad=None, raw=False):
     --train-rollout-feedback normalised each copy goes back in at the mean
     norm of the encoder latents ``o_lat`` of its window, over the patches
     that ``pad`` does not mark (window_latent_norm). ``raw`` returns
-    ``(depths, raw_depths)``, with the depths before the latent sphere."""
+    ``(depths, raw_depths)``, with the depths before the latent sphere.
+    Under --train-rollout-distances each depth that the list leaves out is
+    None in both lists (``drop_unlisted_depths``), here and nowhere else,
+    so every term reads the same kept depths."""
     scale = (window_latent_norm(o_lat, pad)
              if args.train_rollout_feedback == "normalised"
              and args.train_rollout_depth > 0 else None)
     raw_kwarg = {"return_raw": True} if raw else {}
-    return rollout_forecaster_latents(model, f_lat, args.train_rollout_depth,
-                                      scale=scale, **raw_kwarg)
+    depths = rollout_forecaster_latents(model, f_lat, args.train_rollout_depth,
+                                        scale=scale, **raw_kwarg)
+    if raw:
+        return tuple(drop_unlisted_depths(d, args) for d in depths)
+    return drop_unlisted_depths(depths, args)
+
+
+def drop_unlisted_depths(depths, args):
+    """``depths`` (f^(1) .. f^(k)) with None in place of each f^(j) whose
+    distance j + 1 is not in --train-rollout-distances. The chain composed
+    every depth, so a kept depth carries the gradient of the whole chain.
+    The list keeps its length k. The flag off: ``depths`` as it is."""
+    kept = kept_rollout_depths(args)
+    if kept is None:
+        return depths
+    return [f if j in kept else None for j, f in enumerate(depths, start=1)]
 
 
 def zero_padding(model):
@@ -2376,6 +2465,9 @@ def configure_loss_spec(args):
     LOSS_SPEC.train_configuration["rep_loss_weight"] = args.rep_loss_weight
     LOSS_SPEC.train_configuration["train_rollout_depth"] = args.train_rollout_depth
     LOSS_SPEC.train_configuration["train_rollout_reduce"] = args.train_rollout_reduce
+    # The record of the run: the loss reads the kept depths off the None
+    # entries of its depth list (``drop_unlisted_depths``), not off this key.
+    LOSS_SPEC.train_configuration["train_rollout_distances"] = args.train_rollout_distances
     if args.tau is not None:
         LOSS_SPEC.train_configuration["contrastive_divergence_temperature"] = args.tau
     if args.tau_rep is not None:
@@ -2577,7 +2669,7 @@ class CSVLogger:
     def __init__(self, path, flush_every=100, tau_ref_column=True,
                  rollout_depth=0, depth_column_prefix="cos_err_d",
                  dropped_column=False, nan_column=False, rms_column=False,
-                 sigreg_f_column=False):
+                 sigreg_f_column=False, depth_columns=None):
         self.path = path
         # sigreg_f_column: a trailing `sigreg_f` column, the SIGReg term on
         # the forecaster output (--sigreg-forecast). Last, so the columns of
@@ -2599,6 +2691,11 @@ class CSVLogger:
         # j = 0..k, the per-depth forecast error 1 − cos(f^(j)_t, h_{t+1+j}).
         # A k = 0 run writes no such column — its depth-0 curve is 1 − ff.
         self.rollout_depth = int(rollout_depth)
+        # depth_columns: the depths j that get a column. None: every depth
+        # 0..k. --train-rollout-distances gives the kept depths d - 1 only.
+        self.depth_columns = (list(range(self.rollout_depth + 1))
+                              if depth_columns is None
+                              else list(depth_columns))
         # What the per-depth columns measure. `cos_err_d*` is #373's latent
         # error 1 - cos(f^(j)_t, h_{t+1+j}). a value-space run (#415) writes
         # `val_err_d*`, the pinball loss of depth j against the actual
@@ -2665,7 +2762,7 @@ class CSVLogger:
         # Per-depth forecast error (#373), only on --train-rollout-depth runs.
         if self.rollout_depth:
             header += [f"{self.depth_column_prefix}{j}"
-                       for j in range(self.rollout_depth + 1)]
+                       for j in self.depth_columns]
         if self.dropped_column:
             header += ["meanstd_dropped"]
         if self.nan_column:
@@ -2728,9 +2825,11 @@ class CSVLogger:
                       rep_w, l_pred, l_rep, l_align):
             row.append('' if extra is None else extra)
         if self.rollout_depth:
+            # Entry j of cos_err_depths is depth j, so a kept column reads
+            # its own depth.
             depths = cos_err_depths or []
             row += [depths[j] if j < len(depths) else ''
-                    for j in range(self.rollout_depth + 1)]
+                    for j in self.depth_columns]
         if self.dropped_column:
             row.append('' if meanstd_dropped is None else meanstd_dropped)
         if self.nan_column:
@@ -3016,6 +3115,15 @@ def main():
     # word. `shlex.quote` keeps a value with a space readable as one argument.
     print("Command line: " + " ".join(shlex.quote(a) for a in sys.argv),
           flush=True)
+
+    # --train-rollout-distances sets the depth, so it runs before every
+    # check that reads --train-rollout-depth.
+    resolve_rollout_distances(args)
+    if args.train_rollout_distances is not None:
+        print(f"Rollout distances {args.train_rollout_distances}: the "
+              f"forecaster composes to depth {args.train_rollout_depth}, and "
+              f"the copies at depths {kept_rollout_depths(args)} enter the "
+              f"loss.", flush=True)
 
     # #415: the value-space objective replaces the contrastive one outright.
     # Refuse every flag it does not read here, before the device, the model
@@ -3510,6 +3618,7 @@ def main():
     csv_logger = CSVLogger(
         csv_path, flush_every=100,
         rollout_depth=args.train_rollout_depth,
+        depth_columns=kept_rollout_depths(args),
         # #415 keeps no contrastive term, so the tau-reference curve has no
         # shape to be taken at and the per-depth columns hold a value error.
         tau_ref_column=not args.value_space_objective,
@@ -4004,7 +4113,9 @@ def main():
                 value_pad = gather_mask(value_pad)
             # Same global pooling for every rollout depth (#373). No-op
             # single-GPU, ONE all-gather per depth under torchrun (a depth is
-            # a lone tensor, so it takes the single-tensor form).
+            # a lone tensor, so it takes the single-tensor form). A depth
+            # that --train-rollout-distances leaves out is None and takes no
+            # all-gather.
             rollout_lats = [gather_latent(f_j) for f_j in rollout_lats]
             if teacher_o_lat is not None:
                 # Same global pooling as o_lat. The gather_latents call is a no-op
@@ -4221,7 +4332,8 @@ def main():
             if e_lat is not None:
                 e_lat = e_lat[keep if e_lat.shape[0] == rows
                               else clean_rows(local_pad, e_lat.shape[0])]
-            rollout_lats = [f_j[keep] for f_j in rollout_lats]
+            rollout_lats = [None if f_j is None else f_j[keep]
+                            for f_j in rollout_lats]
             val_ff, val_fp, val_tp, val_cb = compute_metrics(f1_lat, o_lat, CLD)
             # Per-batch backbone diagnostic metrics. Convention matches
             # experiments/2026-05-05_exp_qhead_improvements/scripts/eval_backbone_metrics.py:
@@ -4264,8 +4376,11 @@ def main():
                 # values. `val_err_d*` in the CSV header.
                 cos_err_depths = [v.item() for v in value_depths]
             else:
+                # A depth that --train-rollout-distances leaves out stays
+                # None, and its error too. The CSV has no column for it.
                 cos_err_depths = rollout_cos_error(
-                    f_det, o_det, [f_j.detach() for f_j in rollout_lats])
+                    f_det, o_det, [None if f_j is None else f_j.detach()
+                                   for f_j in rollout_lats])
             r2_random_val = 1.0 - q_r
             r2_naive_val = 1.0 - q_n
             auc_val = ret["auc"].item()

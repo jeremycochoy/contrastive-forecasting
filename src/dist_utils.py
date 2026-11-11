@@ -186,9 +186,13 @@ def gather_latent(latent: torch.Tensor) -> torch.Tensor:
     of #373, for instance. `gather_latents` is the pair form. Calling it with
     the same tensor twice would issue two all-gathers for one result.
 
+    None returns None with no collective: a rollout depth that
+    --train-rollout-distances leaves out. Every rank leaves out the same
+    depths, so the ranks still issue the same collectives.
+
     No-op (returns the input unchanged) when not distributed.
     """
-    if not is_distributed():
+    if latent is None or not is_distributed():
         return latent
     return DifferentiableAllGather.apply(latent)
 
