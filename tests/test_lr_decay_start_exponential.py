@@ -4,6 +4,8 @@ constant-rate run, the decay of the WSD schedule of MiniCPM (arXiv
 
 The rate holds at --lr until --lr-decay-start. From there the exponential
 shape halves it every --lr-half-life steps, down to --lr-final at the lowest.
+The sqrt shape is the 1-sqrt anneal (Hägele and others 2024, arXiv
+2405.18392): it gets to --lr-final at the end of the anneal and holds there.
 Without the new flags, `scheduled_lr` gives the same rate as before, bit for
 bit. A run resumed from a constant-rate save anneals from its own rate, and
 the checkpoint carries the decay start and the half-life.
@@ -51,6 +53,24 @@ def old_scheduled_lr(step, lr_start, lr_final, total, warmup=0,
     t = min(max(step - warmup, 0), total - warmup)
     return lr_final + 0.5 * (lr_start - lr_final) * (
         1.0 + math.cos(math.pi * t / (total - warmup)))
+
+
+def scheduled_lr_before_sqrt(step, lr_start, lr_final, total, warmup=0,
+                             shape="cosine", start=0, half_life=0):
+    """`scheduled_lr` of 3c1e4701, before the sqrt shape."""
+    if step < warmup:
+        return lr_start * step / warmup
+    begin = max(warmup, start)
+    if step < begin:
+        return lr_start
+    if shape == "exponential":
+        return max(lr_final, lr_start * 0.5 ** ((step - begin) / half_life))
+    if shape == "linear":
+        t = min(step - begin, total - begin)
+        return lr_start + (lr_final - lr_start) * t / (total - begin)
+    t = min(max(step - begin, 0), total - begin)
+    return lr_final + 0.5 * (lr_start - lr_final) * (
+        1.0 + math.cos(math.pi * t / (total - begin)))
 
 
 def test_exponential_halves_every_half_life(train_py):
@@ -103,6 +123,41 @@ def test_no_decay_start_is_bit_identical(train_py, shape, warmup):
                                     shape))
 
 
+@pytest.mark.parametrize("warmup, start", [(0, 100), (100, 0)])
+def test_sqrt_anneal_from_its_start_to_its_end(train_py, warmup, start):
+    def lr(step):
+        return train_py.scheduled_lr(step, 1e-3, 1e-4, 200, warmup, "sqrt",
+                                     start)
+    assert lr(100) == pytest.approx(1e-3)
+    assert lr(150) == pytest.approx(
+        1e-4 + (1e-3 - 1e-4) * (1 - math.sqrt(0.5)))
+    assert lr(200) == 1e-4
+    assert lr(250) == 1e-4
+    assert lr(10 ** 6) == 1e-4
+
+
+def test_sqrt_cooldown_of_a_constant_rate_run(train_py):
+    def lr(step):
+        return train_py.scheduled_lr(step, 1e-3, 0.0, 166000, 0, "sqrt",
+                                     135000)
+    for step in (1, 100000, 134999, 135000):
+        assert lr(step) == 1e-3
+    assert lr(150000) == pytest.approx(1e-3 * (1 - math.sqrt(15000 / 31000)))
+    assert lr(166000) == 0.0
+    assert lr(200000) == 0.0
+
+
+@pytest.mark.parametrize("shape", ["cosine", "linear", "exponential"])
+@pytest.mark.parametrize("warmup, start",
+                         [(0, 0), (10000, 0), (10000, 135000)])
+def test_the_other_shapes_are_bit_identical(train_py, shape, warmup, start):
+    half_life = 5000 if shape == "exponential" else 0
+    for step in range(0, 200001, 997):
+        args = (step, 1e-3, 5.6e-5, 166000, warmup, shape, start, half_life)
+        assert (train_py.scheduled_lr(*args)
+                == scheduled_lr_before_sqrt(*args))
+
+
 def _args(**changes):
     args = dict(lr_decay_shape="cosine", lr_half_life=0, lr_decay_start=0,
                 lr_final=None, lr_warmup_steps=0, lr_cosine_steps=0,
@@ -119,6 +174,10 @@ def _args(**changes):
     dict(lr_decay_start=135000, lr_final=0.0, lr_warmup_steps=140000),
     dict(lr_decay_start=170000, lr_final=0.0),
     dict(lr_decay_start=-5, lr_final=0.0),
+    dict(lr_decay_shape="sqrt", lr_half_life=5000, lr_final=0.0,
+         lr_decay_start=135000),
+    dict(lr_decay_shape="sqrt", lr_decay_start=135000),
+    dict(lr_decay_shape="sqrt", lr_final=0.0, lr_decay_start=170000),
 ])
 def test_refuses_a_schedule_that_cannot_run(train_py, changes):
     with pytest.raises(SystemExit):
@@ -133,6 +192,7 @@ def test_refuses_a_schedule_that_cannot_run(train_py, changes):
     dict(lr_decay_shape="exponential", lr_half_life=5000, lr_final=0.0,
          lr_decay_start=170000),
     dict(lr_decay_shape="linear", lr_final=0.0, lr_decay_start=135000),
+    dict(lr_decay_shape="sqrt", lr_final=0.0, lr_decay_start=135000),
 ])
 def test_accepts_a_schedule_that_runs(train_py, changes):
     train_py.check_lr_schedule(_args(**changes))
@@ -204,3 +264,19 @@ def test_a_resume_reads_the_cooldown_back(tmp_path):
     assert second.returncode == 0, second.stderr[-3000:]
     assert "resumed schedule from the checkpoint" in second.stdout
     assert _lr(_state(save_dir, 200)) == pytest.approx(LR / 4, rel=1e-6)
+
+
+def test_a_resume_reads_the_sqrt_anneal_back(tmp_path):
+    save_dir = tmp_path / "runs"
+    save_dir.mkdir()
+    sqrt = ["--lr-final", "0", "--lr-decay-shape", "sqrt",
+            "--lr-decay-start", "100", "--lr-cosine-steps", "300"]
+    first = _run(_cmd(save_dir, 150, cooldown=False) + sqrt)
+    assert first.returncode == 0, first.stderr[-3000:]
+    assert _lr(_state(save_dir, 150)) == pytest.approx(LR / 2, rel=1e-6)
+    resume = str(next(save_dir.glob("cd_step150.pth")))
+    second = _run(_cmd(save_dir, 200, resume=resume, cooldown=False))
+    assert second.returncode == 0, second.stderr[-3000:]
+    assert "shape sqrt" in second.stdout
+    assert _lr(_state(save_dir, 200)) == pytest.approx(
+        LR * (1 - math.sqrt(0.5)), rel=1e-6)

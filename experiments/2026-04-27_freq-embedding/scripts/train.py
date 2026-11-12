@@ -156,7 +156,7 @@ def build_parser():
                         "--lr-final. 0 means no warmup.")
     # #412ow2: the warmup leads into a straight line down to --lr-final.
     p.add_argument("--lr-decay-shape",
-                   choices=("cosine", "linear", "exponential"),
+                   choices=("cosine", "linear", "exponential", "sqrt"),
                    default="cosine",
                    help="Shape of the anneal from --lr to --lr-final: the "
                         "cosine, or a straight line. The rate holds at "
@@ -166,7 +166,14 @@ def build_parser():
                         "start) / half-life), the decay of the WSD "
                         "schedule of MiniCPM (arXiv 2404.06395, section "
                         "6.2: half-life 5000 steps). It never goes below "
-                        "--lr-final and has no end step.")
+                        "--lr-final and has no end step. 'sqrt' is the "
+                        "1-sqrt anneal (Hägele and others 2024, arXiv "
+                        "2405.18392): --lr-final + (--lr - --lr-final) x "
+                        "(1 - sqrt(t / T)). t is the steps since the start "
+                        "of the anneal. T is the steps from the start of "
+                        "the anneal to its end (--lr-cosine-steps, else "
+                        "--total-steps). The rate holds at --lr-final "
+                        "after it.")
     # The cooldown of a constant-rate run (the decay of a WSD schedule):
     # resume from a save and anneal from there to the end of the run.
     p.add_argument("--lr-decay-start", type=int, default=0,
@@ -2959,7 +2966,10 @@ def scheduled_lr(step, lr_start, lr_final, total, warmup=0, shape="cosine",
     `lr_start` until that step, and the anneal runs from it: the stable
     phase, then the decay, of a WSD schedule. `shape="exponential"` halves
     the rate every `half_life` steps from the start of the anneal, down to
-    `lr_final` at the lowest (MiniCPM, arXiv 2404.06395, section 6.2)."""
+    `lr_final` at the lowest (MiniCPM, arXiv 2404.06395, section 6.2).
+    `shape="sqrt"` is the 1-sqrt anneal (Hägele and others 2024, arXiv
+    2405.18392): `lr_final + (lr_start - lr_final) * (1 - sqrt(t / T))`,
+    with `t` the steps since the start of the anneal and `T` its length."""
     if step < warmup:
         return lr_start * step / warmup
     begin = max(warmup, start)
@@ -2970,6 +2980,10 @@ def scheduled_lr(step, lr_start, lr_final, total, warmup=0, shape="cosine",
     if shape == "linear":
         t = min(step - begin, total - begin)
         return lr_start + (lr_final - lr_start) * t / (total - begin)
+    if shape == "sqrt":
+        t = min(step - begin, total - begin)
+        return lr_final + (lr_start - lr_final) * (
+            1 - math.sqrt(t / (total - begin)))
     return cosine_lr(step - begin, lr_start, lr_final, total - begin)
 
 
