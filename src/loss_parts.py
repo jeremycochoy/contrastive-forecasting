@@ -23,6 +23,15 @@ def depth_columns(header) -> list:
     return [depths[d] for d in sorted(depths)]
 
 
+def parse_row(row, columns):
+    """``(step, [values])`` of one row of a losses CSV, or None for a row
+    that a crash cut (a value is missing or cannot be read)."""
+    try:
+        return int(row["step"]), [float(row[c]) for c in columns]
+    except (TypeError, ValueError):
+        return None
+
+
 def read_loss_legs(paths, columns):
     """``(steps, {column: values})`` of the losses CSVs of one run, in leg
     order. A later leg logs again from the step of its checkpoint, so its
@@ -30,8 +39,7 @@ def read_loss_legs(paths, columns):
     rows = {}
     for path in paths:
         with open(path) as f:
-            leg = [(int(r["step"]), [float(r[c]) for c in columns])
-                   for r in csv.DictReader(f)]
+            leg = [p for r in csv.DictReader(f) if (p := parse_row(r, columns))]
         if leg:
             first = leg[0][0]
             rows = {s: v for s, v in rows.items() if s < first}
@@ -46,8 +54,9 @@ def log_binned_means(steps, values: dict, first, last, bins):
     """``(centres, {name: means})``: the mean of each array of ``values``
     over each of ``bins`` log-spaced bins of steps from ``first`` to
     ``last``. The last bin holds its top edge. A bin with no logged step has
-    no point. The centre of a bin is its geometric centre, and a partial
-    last bin ends at the last logged step."""
+    no point. A non-finite value (a skipped step logs NaN) does not count.
+    The centre of a bin is its geometric centre, and a partial last bin ends
+    at the last logged step."""
     edges = np.geomspace(first, last, bins + 1)
     centres, means = [], {name: [] for name in values}
     for i, (low, high) in enumerate(zip(edges[:-1], edges[1:])):
@@ -57,5 +66,6 @@ def log_binned_means(steps, values: dict, first, last, bins):
             continue
         centres.append(np.sqrt(low * min(high, steps.max())))
         for name, column in values.items():
-            means[name].append(column[inside].mean())
+            finite = column[inside][np.isfinite(column[inside])]
+            means[name].append(finite.mean() if finite.size else np.nan)
     return np.array(centres), {n: np.array(m) for n, m in means.items()}

@@ -21,6 +21,7 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
 
 STUDY = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(STUDY.parent.parent))
@@ -70,7 +71,7 @@ def plot(out, centres, means, parts):
     ticks = [k for k in TICKS_K if FIRST <= k * 1000 <= TOTAL]
     ax.set_xticks([k * 1000 for k in ticks], [f"{k}k" for k in ticks])
     ax.minorticks_off()
-    ax.set_ylim(0, 1.05 * means["loss"].max())
+    ax.set_ylim(0, 1.05 * np.nanmax(means["loss"]))
     ax.grid(color="#e6e6e6", lw=0.8)
     ax.set_axisbelow(True)
     ax.set_xlabel("Training step (batch 256, log scale)")

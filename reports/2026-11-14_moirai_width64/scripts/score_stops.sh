@@ -10,13 +10,15 @@
 #   results/score_<name>_bb<k>k_native.txt     the GM-Relative MASE
 #   results/per_config/<name>_native<k>k.csv   the per-config table, in the
 #                                              format of all_results.csv
-# and keeps its eval in $R/eval/bb<k>k. A stop is ready when its optimizer
-# file exists: the trainer writes it after the weights. A stop with a score
-# is skipped. The eval runs the code that the run trains with ($R/code).
+# and keeps its eval in $R/eval/bb<k>k. A stop is ready when its save and
+# its optimizer file both load, from the latest leg (checkpoints.sh). A stop
+# with a score is skipped. The eval runs the code that the run trains with
+# ($R/code).
 #
 # Usage: bash score_stops.sh             # score the ready stops, then stop
 #        FOLLOW=1 bash score_stops.sh    # then wait for the next stops while
-#                                        # train.sh runs ($R/logs/train.pid)
+#                                        # train.sh runs ($R/logs/train.pid,
+#                                        # FOLLOW_WAIT s for the file)
 #        DRY_RUN=1 bash score_stops.sh   # print the stops to score
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -28,13 +30,8 @@ NAME=cf462_mpe_w64
 STOPS="${STOPS:-10 25 50 75 100 125 150 166}"
 POLL="${POLL:-600}"
 
-stop_ckpt() {  # the save of stop <k> with its optimizer file
-  local c
-  for c in "$R"/ckpt/${NAME}_"$1"k.pth "$R"/ckpt/${NAME}_r[0-9]*_"$1"k.pth; do
-    if [ -f "${c%.pth}_optimizer.pth" ]; then echo "$c"; return 0; fi
-  done
-  return 1
-}
+SAVE="$R/ckpt"
+. "$HERE/checkpoints.sh"
 
 score_stop() {  # <k> <checkpoint>: the eval, then the table and the score
   local k="$1" ckpt="$2" out="$R/eval/bb$1k"
@@ -58,7 +55,7 @@ score_ready() {  # one pass. Sets LEFT (stops with no score) and FAILED.
   LEFT=0
   for k in $STOPS; do
     [ -s "$RESULTS/score_${NAME}_bb${k}k_native.txt" ] && continue
-    if ckpt="$(stop_ckpt "$k")"; then
+    if ckpt="$(stop_save "$k")"; then
       score_stop "$k" "$ckpt" || { FAILED=1; LEFT=1; }
     else
       LEFT=1
@@ -66,8 +63,11 @@ score_ready() {  # one pass. Sets LEFT (stops with no score) and FAILED.
   done
 }
 
-trainer_runs() {
-  [ -f "$R/logs/train.pid" ] && kill -0 "$(cat "$R/logs/train.pid")" 2>/dev/null
+trainer_runs() {  # train.sh runs, or it has not written its pid file yet
+  if [ ! -f "$R/logs/train.pid" ]; then
+    [ "$SECONDS" -lt "${FOLLOW_WAIT:-3600}" ]; return
+  fi
+  kill -0 "$(cat "$R/logs/train.pid")" 2>/dev/null
 }
 
 FAILED=0

@@ -55,6 +55,23 @@ def test_a_resume_replaces_the_steps_it_logs_again(tmp_path):
                                              60, 70, 80, 90, 100]
 
 
+def test_a_row_that_a_crash_cut_is_skipped(tmp_path):
+    path = losses_csv(tmp_path / "a.csv", range(1, 4))
+    with open(path, "a") as f:
+        f.write("4,12.0,")  # the crash cut the row of step 4
+    steps, values = read_loss_legs([path], ["loss", "val_err_d1"])
+    assert steps.tolist() == [1, 2, 3]
+    assert values["val_err_d1"].tolist() == [2.0, 4.0, 6.0]
+
+
+def test_a_non_finite_value_does_not_count_in_its_bin():
+    # A skipped step logs NaN.
+    steps = np.arange(1, 10)
+    loss = np.where(steps == 5, np.nan, 1.0)
+    _, means = log_binned_means(steps, {"loss": loss}, 1, 10, 1)
+    assert means["loss"].tolist() == [1.0]
+
+
 def test_log_binned_means_of_full_bins():
     steps = np.arange(1, 1001)
     centres, means = log_binned_means(steps, {"v": steps * 1.0}, 1, 1000, 3)

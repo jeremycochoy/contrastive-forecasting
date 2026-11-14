@@ -12,6 +12,7 @@ from __future__ import annotations
 import os
 import shlex
 import subprocess
+import time
 from pathlib import Path
 
 import torch
@@ -106,6 +107,16 @@ def test_the_run_trains_nothing_after_its_last_stop(tmp_path):
     assert f"{NAME}_r2_166k.pth" in out
 
 
+def test_a_cut_optimizer_file_of_the_last_stop_trains_again(tmp_path):
+    ckpt = tmp_path / "ckpt"
+    ckpt.mkdir()
+    checkpoint(ckpt / f"{NAME}_165k.pth")
+    checkpoint(ckpt / f"{NAME}_166k.pth", optimizer=False)
+    (ckpt / f"{NAME}_166k_optimizer.pth").write_bytes(b"cut")
+    run = trainer_flags(dry_run(TRAIN_SH, tmp_path))
+    assert run["--resume"] == str(ckpt / f"{NAME}_165k.pth")
+
+
 def test_the_smoke_run_trains_in_its_own_folder(tmp_path):
     run = trainer_flags(dry_run(TRAIN_SH, tmp_path, SMOKE_STEPS="300"))
     assert (run["--total-steps"], run["--extra-save-steps"]) == ("300", "300")
@@ -127,3 +138,29 @@ def test_the_score_script_scores_each_saved_stop_once(tmp_path):
         == [f"score 25k {ckpt / f'{NAME}_r2_25k.pth'} -> "
             f"{results / f'score_{NAME}_bb25k_native.txt'} "
             f"{results / 'per_config' / f'{NAME}_native25k.csv'}"]
+
+
+def test_the_score_script_skips_a_save_that_does_not_load(tmp_path):
+    # A crash cut the optimizer file of 75k. The run trained 75k again from
+    # an earlier save, as r2: the score reads that save.
+    ckpt = tmp_path / "ckpt"
+    ckpt.mkdir()
+    checkpoint(ckpt / f"{NAME}_75k.pth", optimizer=False)
+    (ckpt / f"{NAME}_75k_optimizer.pth").write_bytes(b"cut")
+    checkpoint(ckpt / f"{NAME}_r2_75k.pth")
+    out = dry_run(SCORE_SH, tmp_path, RESULTS=str(tmp_path / "results"))
+    assert [line.split()[2] for line in out.splitlines()
+            if line.startswith("score ")] == [str(ckpt / f"{NAME}_r2_75k.pth")]
+
+
+def test_the_follower_waits_for_the_trainer_to_start(tmp_path):
+    """FOLLOW=1 before train.sh writes its pid file: the follower waits for
+    the file, up to FOLLOW_WAIT seconds, and does not stop at once."""
+    start = time.monotonic()
+    r = subprocess.run(
+        ["bash", str(SCORE_SH)], capture_output=True, text=True, timeout=120,
+        env=dict(os.environ, CF462_ROOT=str(tmp_path), FOLLOW="1", POLL="1",
+                 FOLLOW_WAIT="3", RESULTS=str(tmp_path / "results")))
+    assert r.returncode == 0, r.stdout + r.stderr
+    # bash SECONDS counts whole seconds of the clock: 3 can come after 2.x s.
+    assert time.monotonic() - start >= 2

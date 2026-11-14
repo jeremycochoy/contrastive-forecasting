@@ -64,30 +64,10 @@ ARGS=(
   --keep-start-window-targets
 )
 
-loads() {  # the checkpoint and its optimizer file both load
-  python3 - "$1" <<'PY' >/dev/null 2>&1
-import sys
-import torch
-path = sys.argv[1]
-torch.load(path, map_location="cpu", weights_only=False)
-torch.load(path[:-4] + "_optimizer.pth", map_location="cpu", weights_only=False)
-PY
-}
+. "$HERE/checkpoints.sh"
 
-last_checkpoint() {  # the numbered checkpoint of the highest step that loads
-  ls "$SAVE"/${NAME}_[0-9]*k.pth "$SAVE"/${NAME}_r[0-9]*_[0-9]*k.pth \
-      2>/dev/null | grep -v _optimizer |
-    sed -E 's/.*_([0-9]+)k\.pth$/\1 &/' | sort -rn | cut -d' ' -f2 |
-    while read -r ckpt; do
-      if loads "$ckpt"; then echo "$ckpt"; break; fi
-    done
-}
-
-last_stop() {  # the save of the last step with its optimizer file, if any
-  local k=$((TOTAL / 1000)) c
-  for c in "$SAVE"/${NAME}_"$k"k.pth "$SAVE"/${NAME}_r[0-9]*_"$k"k.pth; do
-    if [ -f "${c%.pth}_optimizer.pth" ]; then echo "$c"; return; fi
-  done
+last_stop() {  # the save of the last step that loads, if any
+  stop_save $((TOTAL / 1000))
 }
 
 pick_gpu() {  # the GPU with the most free memory
@@ -139,8 +119,9 @@ if [ -z "${DRY_RUN:-}" ]; then
   token="$(hf_token_file)"
   [ -n "$token" ] || { echo "ABORT: no experiments/hf_token.txt" >&2; exit 2; }
   export HF_TOKEN="$(cat "$token")" HUGGING_FACE_HUB_TOKEN="$(cat "$token")"
-  mkdir -p "$SAVE" "$LOGS" && snapshot_code || { echo "ABORT: no code copy" >&2; exit 2; }
+  mkdir -p "$SAVE" "$LOGS" || exit 2
   echo $$ > "$LOGS/train.pid"
+  snapshot_code || { echo "ABORT: no code copy" >&2; exit 2; }
 fi
 for n in $(seq 1 "$MAX_STARTS"); do
   done_ckpt="$(last_stop)"
