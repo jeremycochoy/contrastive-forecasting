@@ -23,7 +23,6 @@ Output:
 import argparse
 import csv
 import json
-import math
 import os
 import sys
 import time
@@ -78,6 +77,7 @@ from src.forecasting_head import (
     native_value_head,
     reconstruct_windows,
     ROLLOUT_FEEDBACKS,
+    rollout_steps,
     windows_per_pass,
     ZeroReconstructionHead,
 )
@@ -87,6 +87,7 @@ from src.freq_family import (
     family_member,
     family_member_state,
 )
+from src.block_head import BlockSizeHead, block_head_sizes, block_trunk_state
 
 
 # ============================================================================
@@ -455,7 +456,7 @@ class BatchedForecastPredictor(ContrastiveForecasterPredictor):
         size = getattr(self.head, "patch_size", None) or self.backbone.W
         self.batch_size = windows_per_pass(
             batch_size, self.t_raw // size,
-            math.ceil(self.prediction_length / size))
+            rollout_steps(self.head, self.prediction_length, size))
         print(f"  [eval] batched B4: {self.batch_size} windows per pass")
 
     def predict(self, dataset: GluonTSDataset, **kwargs) -> Iterator[Forecast]:
@@ -733,6 +734,30 @@ def family_config_head(family, config_name, freq):
     return family.member(key)
 
 
+def build_block_head(head_sd, sizes, args):
+    """The block head of a checkpoint with ``block_out.<P>.*`` keys
+    (:mod:`src.block_head`): the trunk of a transformer quantile head, and
+    one output layer per block size P. B4 only: the other strategies decode
+    one latent at a time."""
+    if args.strategy != "B4":
+        raise SystemExit(f"a block head scores under --strategy B4, not "
+                         f"{args.strategy}")
+    trunk = build_eval_head(block_trunk_state(head_sd), BACKBONE_CONFIG["W"],
+                            args)
+    print(f"  [eval] block head: one trunk, one output layer per block size "
+          f"{sizes}")
+    return BlockSizeHead(trunk, sizes)
+
+
+def block_config_head(blocks, config_name, freq):
+    """The head of one eval config: the block size of its frequency. The
+    log names the size and the latents per block of each config."""
+    head = blocks.for_frequency(freq)
+    print(f"  [eval] {config_name}: frequency {freq}, block size "
+          f"{head.block_size} ({head.latents_per_block} latents per block)")
+    return head
+
+
 def build_eval_head(head_sd, forecast_len, args):
     """An empty head of the kind ``head_sd`` holds, decoding
     ``forecast_len`` values: GRU, linear probe or transformer, point,
@@ -856,6 +881,8 @@ def load_models(args, device):
     bank_sizes = head_bank_sizes(head_sd) if head_sd is not None else ()
     # A frequency family names its body and its members with its own keys.
     family = family_layout_of(head_sd) if head_sd is not None else None
+    # A block head names its block sizes with its own keys.
+    block_sizes = block_head_sizes(head_sd) if head_sd is not None else ()
     if patch_sizes and not no_head_file and not bank_sizes:
         raise SystemExit(f"{args.backbone_path} has one patch encoder per "
                          f"patch size {patch_sizes}; score it with its head "
@@ -1044,6 +1071,8 @@ def load_models(args, device):
     if bank_sizes:
         head = build_head_bank(head_sd, bank_sizes,
                                patch_sizes or (BACKBONE_CONFIG["W"],), args)
+    elif block_sizes:
+        head = build_block_head(head_sd, block_sizes, args)
     elif family is not None:
         head = build_family_head(head_sd, family, args)
     else:
@@ -1066,6 +1095,8 @@ def main():
     bank = head if isinstance(head, ForecastingHeadBank) else None
     # A frequency family hands each config the decoder of its frequency.
     family = head if isinstance(head, FrequencyFamilyHead) else None
+    # A block head hands each config the head of its frequency's block size.
+    blocks = head if isinstance(head, BlockSizeHead) else None
     print(f"  Backbone: {args.backbone_path}")
     print(f"  Head: {args.head_path}")
     print(f"  Strategy: {args.strategy} (forecast_len={args.forecast_len})")
@@ -1160,6 +1191,9 @@ def main():
                 elif family is not None:
                     head = family_config_head(family, config_name,
                                               dataset.freq)
+                elif blocks is not None:
+                    head = block_config_head(blocks, config_name,
+                                             dataset.freq)
 
                 test_data = dataset.test_data
                 predictor = build_predictor(args, backbone, head, dataset,

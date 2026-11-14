@@ -292,3 +292,81 @@ script scores a family under B4 only.
 The tag must end in `_ff_<body>_<rule>`. For a member list, `_m` and the
 keys follow, with `-` between the keys: `_ff_shared_strict_m16`. So a family
 head and a standard head of one checkpoint share no file.
+
+## `--head-block-sizes P1,P2,...`
+
+Default: off, the one standard head. A flag of `train_forecasting_head.py`,
+and of each job of `train_forecasting_heads_shared.py`. Code:
+`src/block_head.py`.
+
+A forecast head of a backbone with one patch size decodes each rolled
+latent into the 16 values of the next patch. Moirai has one output head per
+patch size P, and the frequency of a series picks P. The flag gives our head
+the same bank, with the backbone unchanged. The bank is in the output layer
+only:
+
+- The trunk of the head (the transformer and the norm of the transformer
+  quantile head) is shared by every block size.
+- Head P reads the trunk outputs at k = P / 16 consecutive latents,
+  concatenated (k x H), and gives the 9 quantiles of the P values of their
+  block. For P = 16, head P is the output layer of the standard head.
+
+The block size of a row is the inference patch size of its Moirai frequency
+class (`src/patch_size.py`), with a floor at 16: a latent holds 16 values.
+
+| Block size | Frequency classes |
+|---|---|
+| 128 | S |
+| 64 | T |
+| 32 | H |
+| 16 | D, B, W, M, Q, Y, and a series with no label |
+
+A class whose size is not in the list uses 16. So `--head-block-sizes 16`
+trains one head of 16 on every row: the standard head.
+
+Training: the trunk runs once on the input layout of every row
+(`--head-train-input`). Then the rows of each block size P decode their
+blocks with head P. Block b reads the latents of the patches b k to
+b k + k - 1 and decodes the next k patches. The pinball loss counts the real
+values, as the standard head does. The last block whose target reaches past
+the window counts in no term. The loss of each size counts with its share of
+the rows, as the head bank of #412 does. The data, the steps, the learning
+rate and the batch stay those of the standard head. The layers are built in
+increasing order of P. So with one seed, the trunk and head 16 start from
+the weights of the standard head. The trainer prints the count of rows of
+each block size at its end.
+
+The trainer refuses the flag in these cases:
+
+- A backbone with patch sizes or the mean/std scaling: it trains a head
+  bank (#412).
+- `--freq-family`, `--reconstruction` or `--mixed-rollout`.
+- A head other than `--head-arch transformer` with `--quantile-head`.
+- A `--forecast-len` other than 16.
+- A stream with no frequency labels.
+- A size other than 16, 32, 64 and 128, or a list without 16.
+
+The head file names the trunk and the output layers with its own keys:
+`block_body.*` and `block_out.<P>.*`. So the code of a head bank
+(`heads.<P>.*`) and of a frequency family (`freq_*`) does not read it.
+`eval_gift_eval_official.py` reads the bank off these keys and needs no
+flag. It gives each config the head of the block size of its frequency, and
+its log names it: `[eval] ett1/15T/short: frequency 15T, block size 64 (4
+latents per block)`. Strategy B4 rolls out the latents as for the standard
+head (normalised feedback), in whole blocks: ceil(h / P) blocks of k latents
+for a horizon of h values. Head P decodes each block, and the forecast is
+cut to h. The per-window path and `--forecast-batch-size N` give the same
+numbers. The script scores a block head under B4 only.
+
+Example:
+
+```bash
+python3 experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py \
+  --backbone-path <backbone .pth> --device cuda:0 \
+  --quantile-head --head-arch transformer --head-num-layers 2 --head-nhead 8 \
+  --head-ffn-mult 4.0 --head-causal true --head-train-input e_then_f \
+  --head-dropout 0.1 --forecast-len 16 --head-block-sizes 16,32,64,128 \
+  --t-raw 4096 --n-channels 1 --d-model 384 --n-heads 8 --num-layers 6 \
+  --encoder-type gru --rev-norm-kind ewma --rev-norm-span 128 \
+  --save-dir <dir> --run-name <tag>
+```

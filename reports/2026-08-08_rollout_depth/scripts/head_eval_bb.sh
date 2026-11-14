@@ -32,6 +32,11 @@
 #                              (`train_forecasting_heads_shared.py`) then
 #                              trains this head with others on one data
 #                              stream. A head that exists adds no line.
+#   CF_HEAD_BLOCK_SIZES=16,32,64,128
+#                              a bank of output layers by block size on the
+#                              trunk of the transformer head (--head-block-sizes):
+#                              head P decodes P / 16 rolled latents together.
+#                              The tag must end in `_ff_blocks`.
 #   CF_HEAD_ARCH=linear        the head is one linear map from each encoder
 #                              latent to the quantiles of the values of its
 #                              patch, in place of the transformer head. Each
@@ -125,6 +130,18 @@ else
     echo "ABORT: this frequency family needs a tag that ends in $FAMILY_SUFFIX, not $TAG" >&2
     exit 2 ;; esac
   FAMILY_NOTE=" freq-family=${FAMILY_SUFFIX#_ff_}"
+fi
+
+# A bank of output layers by block size (--head-block-sizes). It is a forecast
+# head of its own kind, so it takes no family and no reconstruction.
+BLOCK_ARGS=(); BLOCK_NOTE=""
+if [ -n "${CF_HEAD_BLOCK_SIZES:-}" ]; then
+  [ -z "$FAMILY$RECON" ] || {
+    echo "ABORT: CF_HEAD_BLOCK_SIZES takes no CF_FREQ_FAMILY and no CF_RECONSTRUCTION." >&2; exit 2; }
+  case "$TAG" in *_ff_blocks) ;; *)
+    echo "ABORT: a block-size head needs a tag that ends in _ff_blocks, not $TAG" >&2; exit 2 ;; esac
+  BLOCK_ARGS=(--head-block-sizes "$CF_HEAD_BLOCK_SIZES")
+  BLOCK_NOTE=" head-block-sizes=$CF_HEAD_BLOCK_SIZES"
 fi
 
 HEAD_SEED="${HEAD_SEED:-20260722}"
@@ -226,7 +243,7 @@ HEAD_ARGS=(--backbone-path "$BB"
            --save-dir "$OUT" --run-name "$HEAD_NAME" --seed "$HEAD_SEED"
            --hf-repo jeremycochoy/gift-pretrain-full-4096 --hf-path small_v1
            "${ARCH_ARGS[@]}" "${RECON_ARGS[@]}"
-           "${ARCH_HEAD[@]}" "${FAMILY_ARGS[@]}")
+           "${ARCH_HEAD[@]}" "${FAMILY_ARGS[@]}" "${BLOCK_ARGS[@]}")
 
 if [ -n "${CF_HEAD_ARGV_TO:-}" ]; then
   if [ -f "$HEAD_CKPT" ]; then
@@ -234,7 +251,7 @@ if [ -n "${CF_HEAD_ARGV_TO:-}" ]; then
   fi
   python3 -c 'import json, sys; print(json.dumps(sys.argv[1:]))' \
     "${HEAD_ARGS[@]}" >>"$CF_HEAD_ARGV_TO" || exit 1
-  log "head argv -> $CF_HEAD_ARGV_TO${RECON:+ reconstruction=$RECON}$ARCH_NOTE$FAMILY_NOTE"
+  log "head argv -> $CF_HEAD_ARGV_TO${RECON:+ reconstruction=$RECON}$ARCH_NOTE$FAMILY_NOTE$BLOCK_NOTE"
   exit 0
 fi
 

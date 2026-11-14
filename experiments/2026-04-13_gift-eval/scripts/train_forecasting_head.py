@@ -70,6 +70,8 @@ from src.forecasting_head import (
 from src.freq_family import (FAMILY_BODIES, FAMILY_MEMBERS, FAMILY_RULES,
                              FrequencyFamilyHead, check_family_members,
                              family_row_members)
+from src.block_head import (BLOCK_SIZES, BlockSizeHead, block_head_loss,
+                            check_block_sizes, row_block_sizes)
 
 
 def lr_multiplier(step: int, total_steps: int, schedule: str,
@@ -344,6 +346,21 @@ def parse_args(argv=None):
                         "class whose key is not in the list uses the member "
                         "16. So '16' gives a family of one member, which "
                         "trains as the standard head.")
+    # -- Block sizes (src/block_head.py) --------------------------------------
+    p.add_argument("--head-block-sizes", default=None,
+                   help="Train a bank of forecast heads by block size on "
+                        "one trunk, as a comma list of sizes among "
+                        f"{','.join(map(str, BLOCK_SIZES))}, with {W}. "
+                        "Default: none, the one standard head. The "
+                        "frequency of a row selects its block size P, as "
+                        "Moirai picks its inference patch size (S 128, T "
+                        "64, H 32, else 16). Head P decodes P / 16 "
+                        "consecutive latents together into the P values of "
+                        "their block. The trunk is the transformer quantile "
+                        "head, so the flag needs --head-arch transformer "
+                        "--quantile-head --forecast-len 16, a backbone "
+                        "with one patch size and the EWMA, and a stream "
+                        "with frequency labels.")
     p.add_argument("--amp-dtype", default="none",
                    choices=["none", "bf16", "fp16"],
                    help="Mixed-precision dtype for backbone fwd + head fwd + "
@@ -497,6 +514,50 @@ def family_of_flags(args, use_bank, emit_labels):
     except ValueError as error:
         raise SystemExit(f"--freq-family-members: {error}")
     return args.freq_family, args.freq_family_rule or "strict", members
+
+
+def block_sizes_of_flags(args, use_bank, emit_labels):
+    """The block sizes that --head-block-sizes asks for
+    (:mod:`src.block_head`), or None for the standard head. SystemExit for
+    a bank that this run cannot train: each of these cases would train one
+    head only, or another target, with no error."""
+    if args.head_block_sizes is None:
+        return None
+    if use_bank:
+        raise SystemExit("--head-block-sizes reads a backbone with one patch "
+                         "size and the EWMA. This checkpoint trains a head "
+                         "bank (#412): it has patch sizes or the mean/std "
+                         "scaling.")
+    if args.freq_family:
+        raise SystemExit("--head-block-sizes and --freq-family are two banks "
+                         "of decoders: pass one of them.")
+    if args.reconstruction or args.mixed_rollout > 0:
+        raise SystemExit("--head-block-sizes trains the prediction branch. "
+                         "Drop --reconstruction / --mixed-rollout.")
+    if not args.quantile_head or args.head_arch != "transformer":
+        raise SystemExit("The trunk of a block head is the transformer "
+                         "quantile head: pass --head-arch transformer and "
+                         "--quantile-head.")
+    if args.forecast_len != W:
+        raise SystemExit(f"A block head decodes blocks of latents of {W} "
+                         f"values: pass --forecast-len {W}, not "
+                         f"{args.forecast_len}.")
+    if not emit_labels:
+        raise SystemExit("--head-block-sizes needs the frequency label of "
+                         "each row. The stream of this backbone gives none: "
+                         "the backbone has no label embedding.")
+    try:
+        return check_block_sizes(args.head_block_sizes.split(","))
+    except ValueError as error:
+        raise SystemExit(f"--head-block-sizes: {error}")
+
+
+def share_line(counter, keys):
+    """``'16: 20 (62.5%), 32: 12 (37.5%)'``: the count of each key and its
+    share of the total."""
+    total = max(sum(counter.values()), 1)
+    return ", ".join(f"{k}: {counter[k]} ({100 * counter[k] / total:.1f}%)"
+                     for k in keys)
 
 
 def seed_everything(seed):
@@ -716,10 +777,17 @@ def load_frozen_backbone(args, config, sd, device):
 
 
 def build_job_head(args, config, head_config, use_bank, device,
-                   family=None):
+                   family=None, block_sizes=None):
     """``(head, kind)``: the head of one run, on ``device``. ``family``
-    (:func:`family_of_flags`) asks for a frequency family."""
-    if family is not None:
+    (:func:`family_of_flags`) asks for a frequency family, ``block_sizes``
+    (:func:`block_sizes_of_flags`) for a block head."""
+    if block_sizes is not None:
+        body, _ = build_head(args, head_config, W)
+        head = BlockSizeHead(body, block_sizes).to(device)
+        head_kind = (f"block head, sizes {block_sizes}: the trunk of a "
+                     f"transformer quantile head, and one output layer per "
+                     f"size P decoding P / {W} latents into P values")
+    elif family is not None:
         body, _, members = family
         try:
             head = FrequencyFamilyHead(
@@ -778,9 +846,13 @@ class HeadJob:
         # trained.
         self.family = family_of_flags(args, self.use_bank, self.emit_labels)
         self.member_rows = collections.Counter()
+        # The block sizes of the run, and the rows that each size trained.
+        self.block_sizes = block_sizes_of_flags(args, self.use_bank,
+                                                self.emit_labels)
+        self.size_rows = collections.Counter()
         self.backbone = load_frozen_backbone(args, config, sd, device)
         head, _ = build_job_head(args, config, head_config, self.use_bank,
-                                 device, self.family)
+                                 device, self.family, self.block_sizes)
         optimizer = optim.AdamW(
             head.parameters(),
             lr=args.lr,
@@ -913,6 +985,11 @@ class HeadJob:
                   f"decoder that it trains. Each decoder reads the latents "
                   f"at patch size {W} and decodes the next "
                   f"{args.forecast_len} values.")
+        if self.block_sizes is not None:
+            print(f"Block head: sizes {self.block_sizes}. The frequency of "
+                  f"each row selects the block size P that it trains. Head "
+                  f"P decodes P / {W} consecutive latents into the P values "
+                  f"of their block.")
         if args.reconstruction:
             print(f"RECONSTRUCTION mode: {args.reconstruction} "
                   f"(head decodes what latent represents, not future)")
@@ -936,6 +1013,14 @@ class HeadJob:
         drawn = family_row_members(freq_ids, n, rule, members)
         self.member_rows.update(drawn.tolist())
         return drawn.repeat_interleave(self.C)
+
+    def row_sizes(self, freq_ids, n):
+        """The block size of each latent row of a batch of ``n`` samples
+        (:func:`src.block_head.row_block_sizes`), one for each channel of
+        each sample. Counts the samples of each size."""
+        sizes = row_block_sizes(freq_ids, n, self.block_sizes)
+        self.size_rows.update(sizes.tolist())
+        return sizes.repeat_interleave(self.C)
 
     def train_step(self, step, batch):
         """One optimizer step on one batch of the stream."""
@@ -989,6 +1074,20 @@ class HeadJob:
                     freq_ids=freq_ids, seasonality_ids=seasonality_ids,
                     reconstruction=args.reconstruction == "encoder",
                     latent=self.recon_latent, layout=args.head_train_input)
+            elif self.block_sizes is not None:
+                # A block head: the trunk runs once on the layout of every
+                # row. Then the rows of each block size P decode their
+                # blocks of P / W latents with the output layer of P.
+                f_bc, x_norm = extract_forecaster_latents(
+                    backbone, x, freq_ids=freq_ids,
+                    seasonality_ids=seasonality_ids)
+                seq, mask, start = forecast_head_input(
+                    backbone, x, f_bc, args.head_train_input,
+                    freq_ids=freq_ids, seasonality_ids=seasonality_ids)
+                keep = ~backbone.rev_norm.pad_mask if zero_pad else None
+                loss = block_head_loss(
+                    head, head.features(seq, mask)[:, start:],
+                    self.row_sizes(freq_ids, x.shape[0]), x_norm, keep)
             elif args.mixed_rollout > 0:
                 # Mixed training: use first 48 patches as context, roll out N tokens
                 N_roll = args.mixed_rollout
@@ -1185,15 +1284,14 @@ class HeadJob:
         _save_head(head, optimizer, path, args.total_steps, self.best_loss,
                    self.best_loss_step, args.encoder_source)
         self.csv_logger.close()
+        steps = f"steps {self.start_step + 1} to {args.total_steps}"
         if self.family:
-            rows = sum(self.member_rows.values())
-            counts = ", ".join(
-                f"{m}: {self.member_rows[m]} "
-                f"({100 * self.member_rows[m] / max(rows, 1):.1f}%)"
-                for m in self.family[2])
-            print(f"Frequency family: rule {self.family[1]}, steps "
-                  f"{self.start_step + 1} to {args.total_steps}, rows of "
-                  f"each member: {counts}")
+            print(f"Frequency family: rule {self.family[1]}, {steps}, rows "
+                  f"of each member: "
+                  f"{share_line(self.member_rows, self.family[2])}")
+        if self.block_sizes is not None:
+            print(f"Block head: {steps}, rows of each block size: "
+                  f"{share_line(self.size_rows, self.block_sizes)}")
 
         total = time.time() - self.t0
         print(f"\nDone in {total / 3600:.1f}h. "
