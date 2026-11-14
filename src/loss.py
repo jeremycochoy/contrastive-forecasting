@@ -50,15 +50,21 @@ _NORMALIZED_FORM_SHAPES = (
 #   'halving' adds copy j at the weight 1 / 2^j: 1, 1/2, 1/4, 1/8 at k = 3.
 #          Depth 0 keeps its weight, so the f-side carries 2 - 1/2^k times
 #          its k = 0 weight, and the nearest depths weigh the most.
-# At k = 0 there is one copy and the three reductions agree exactly. The mean
-# and the halving weigh the f-bearing copies ONLY: the terms that carry no f
-# enter once, at their configured weight, under every reduction.
+#   'harmonic' adds copy j at the weight 1 / (j + 1), so the copy at the
+#          distance d = j + 1 gets 1/d: 1, 1/2, 1/3, 1/4 at k = 3. Depth 0
+#          keeps its weight, so the f-side carries 1 + 1/2 + ... + 1/(k + 1)
+#          times its k = 0 weight (4.06 at k = 31).
+# At k = 0 there is one copy and the four reductions agree exactly. The mean,
+# the halving and the harmonic weights weigh the f-bearing copies ONLY: the
+# terms that carry no f enter once, at their configured weight, under every
+# reduction.
 #
 # A None entry in the list f^(1)..f^(k) is a depth that the run leaves out
 # (`--train-rollout-distances`). Each copy loop skips it and keeps the true
 # depth j of the other entries. The sum adds the copies that enter, and the
-# mean divides by their count. The halving weighs a copy by its place in the
-# list, so a list with a None entry refuses it (`resolve_rollout_reduce`).
+# mean divides by their count. The halving and the harmonic weights weigh a
+# copy by its place in the list, so a list with a None entry refuses them
+# (`resolve_rollout_reduce`).
 #
 # Every copy runs the SAME code path as depth 0, on views where every h index
 # has shifted by j — so f^(j) lands wherever f^(0) lands, in the same role,
@@ -139,7 +145,9 @@ def resolve_rollout_depth(depth_override, config_depth, rollout_latents,
     return depth
 
 
-ROLLOUT_REDUCTIONS = ('sum', 'mean', 'halving')
+ROLLOUT_REDUCTIONS = ('sum', 'mean', 'halving', 'harmonic')
+# The reductions that weigh copy j by its place j in the list.
+PLACE_WEIGHTED_REDUCTIONS = ('halving', 'harmonic')
 
 
 def resolve_rollout_reduce(reduce_override, config_reduce,
@@ -148,16 +156,18 @@ def resolve_rollout_reduce(reduce_override, config_reduce,
 
     `'sum'` (default) is #373's objective. `'mean'` divides the copies by
     k + 1, so the f-side holds its k = 0 weight at every depth. `'halving'`
-    weighs copy j by 1 / 2^j, depth 0 included at 1. The function
-    argument wins over the training-config key `train_rollout_reduce`, the
-    precedence every other run-level knob here uses.
+    weighs copy j by 1 / 2^j and `'harmonic'` by 1 / (j + 1), depth 0
+    included at 1. The function argument wins over the training-config key
+    `train_rollout_reduce`, the precedence every other run-level knob here
+    uses.
 
     An unknown word raises: a run that asked for a reduction this code does
     not have would otherwise train on the sum and say nothing.
 
     `rollout_latents` is the list f^(1)..f^(k) of the call. A None entry is
     a depth that the run leaves out (`--train-rollout-distances`). The
-    halving weighs a copy by its place in the list, so it raises then.
+    halving and the harmonic weights weigh a copy by its place in the list,
+    so they raise then.
     """
     reduce = config_reduce if reduce_override is None else reduce_override
     if reduce is None:
@@ -166,11 +176,13 @@ def resolve_rollout_reduce(reduce_override, config_reduce,
         raise ValueError(
             f"train_rollout_reduce={reduce!r} is not a reduction over the "
             f"k + 1 rollout-depth copies; use one of {ROLLOUT_REDUCTIONS}.")
-    if reduce == 'halving' and any(f is None for f in rollout_latents or ()):
+    if (reduce in PLACE_WEIGHTED_REDUCTIONS
+            and any(f is None for f in rollout_latents or ())):
         raise ValueError(
-            "train_rollout_reduce='halving' weighs each copy by its place in "
-            "the list, so it is not defined when the list leaves a depth out "
-            "(a None entry, --train-rollout-distances). Use 'sum' or 'mean'.")
+            f"train_rollout_reduce={reduce!r} weighs each copy by its place "
+            "in the list, so it is not defined when the list leaves a depth "
+            "out (a None entry, --train-rollout-distances). Use 'sum' or "
+            "'mean'.")
     return reduce
 
 
@@ -178,15 +190,20 @@ def reduce_depth_terms(terms, reduce):
     """Combine the k + 1 copies of an f-bearing term (#401).
 
     `terms[0]` is the depth-0 copy. One copy returns itself, so k = 0 is
-    unchanged under every reduction. `'halving'` adds copy j at 1 / 2^j.
+    unchanged under every reduction. `'halving'` adds copy j at 1 / 2^j,
+    and `'harmonic'` at 1 / (j + 1).
     `terms` holds only the copies that enter: a depth that the run leaves
     out (`--train-rollout-distances`) has no entry, and the mean divides by
     the count of the entries.
     """
     total = terms[0]
     for depth, term in enumerate(terms[1:], start=1):
-        total = total + (term * 0.5 ** depth if reduce == 'halving' else term)
-    if reduce in ('sum', 'halving') or len(terms) == 1:
+        if reduce == 'halving':
+            term = term * 0.5 ** depth
+        elif reduce == 'harmonic':
+            term = term / (depth + 1)
+        total = total + term
+    if reduce in ('sum', *PLACE_WEIGHTED_REDUCTIONS) or len(terms) == 1:
         return total
     return total / len(terms)
 
@@ -3550,10 +3567,11 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             pad_patches=(None if pad_patches is None
                          else pad_patches[:, :f_view.shape[1]])))
 
-    if depth_copies and reduce in ('sum', 'halving'):
+    if depth_copies and reduce in ('sum', *PLACE_WEIGHTED_REDUCTIONS):
         # #373's objective, byte for byte: the copies are added to a `loss`
-        # that already holds both sides. The halving adds them at 1 / 2^j,
-        # and depth 0 keeps the weight 1 of both sides, so it needs no probe.
+        # that already holds both sides. The halving adds them at 1 / 2^j and
+        # the harmonic weights at 1 / (j + 1). Depth 0 keeps the weight 1 of
+        # both sides, so they need no probe.
         loss = reduce_depth_terms([loss] + depth_copies, reduce)
     elif depth_copies:
         # #401 `mean`. The division covers the f-bearing copies only, so the
