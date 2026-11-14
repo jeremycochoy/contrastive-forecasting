@@ -103,11 +103,12 @@ hf_token_file() {  # the read-only HF token (gitignored): this checkout's, else 
   done
 }
 
-snapshot_code() {  # the code of HEAD in $CODE, made once
+snapshot_code() {  # the code of HEAD in $CODE, made once: the trainer and the eval
   [ -d "$CODE" ] && return 0
   rm -rf "$CODE.tmp" && mkdir -p "$CODE.tmp" &&
     git -C "$REPO" archive HEAD src experiments/2026-04-27_freq-embedding \
-        experiments/2026-04-13_gift-eval reports/2026-08-08_rollout_depth/scripts |
+        experiments/2026-04-13_gift-eval reports/2026-08-08_rollout_depth/scripts \
+        reports/2026-08-08_rollout_depth/results/config_costs.csv |
       tar -x -C "$CODE.tmp" &&
     git -C "$REPO" rev-parse HEAD > "$CODE.tmp/CODE_COMMIT" &&
     mv "$CODE.tmp" "$CODE"
