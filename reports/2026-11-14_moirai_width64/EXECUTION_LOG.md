@@ -33,6 +33,10 @@
   (relative) or less.
 - `src/gift_scores.py` on the MPE tables gives 1.0247 at 10k and 0.9362 at
   166k, the values of `summary.txt`.
+- The eval reads the number of encoder layers from the keys of the save
+  (`experiments/2026-04-13_gift-eval/scripts/eval_gift_eval_official.py:887-900`)
+  and loads the weights with `strict=True` (line 1004). Each of the 8 shard
+  logs of the smoke eval shows `auto-detected num_encoder_layers=1`.
 
 ## The smoke (`run.sh smoke`)
 
@@ -51,7 +55,6 @@
   MPE after 10k.
 - `run.sh train` resumes after a crash. `FOLLOW=1 run.sh score` scores each
   stop when its save and its optimizer file load (`scripts/checkpoints.sh`).
-- The orchestrator launches the run from the frozen worktree
-  `/home/jupyter/cf_runs/cf462/launch_0f4a7e97`. The audit fixes of
-  `05cb7c6d` do not change the training, so the score uses the fixed scripts
-  of the branch.
+- The orchestrator moves the first-try `$R/code` and `$R/logs` aside. Then it
+  launches the run from a frozen copy of the reviewed head. The audit fixes
+  of `05cb7c6d` do not change the training.
