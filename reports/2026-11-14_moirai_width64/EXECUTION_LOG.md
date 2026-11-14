@@ -5,9 +5,11 @@
 - The MPE command is line 1 of `run_cf421ew_moirai_k3.log` in
   `s3://model.artifacts/manual/checkpoints_backup/cf-412/vast_lr100x_results/cf-421ew/`.
   `results/mpe_command.txt` holds a copy.
-- No file records the commit of MPE. Its 10k leg started on 10-01. Then the
-  branch of the #412 runs, `feature/contrastive-forecasting-412-ours-moirai`,
-  was at `5e258487`, the first code with each flag of the command.
+- No file records the commit of MPE. Its first try (09-29) and the try that
+  trained (10-01) ran `3d57bf9a` (#421) or `5e258487` (#412, the branch of
+  the #412 runs on 10-01). Their value paths are the same: `5e258487` only
+  moves a part of `value_objective` into `inert_inputs`. The checks below
+  use `5e258487`.
 - Later commits that reach the MPE flags:
   - `289b2fc8` (10-06) drops each value target in the first window of the
     EWMA. This acts at each step. `--keep-start-window-targets` keeps these
