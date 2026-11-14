@@ -930,3 +930,69 @@ def test_the_eval_of_the_other_heads_is_unchanged(tmp_path, backbone_path,
                      "--head-path", str(tmp_path / "family.pth"))
     _, head = module.load_models(args, CPU)
     assert isinstance(head, FrequencyFamilyHead) and head.members == (16, 64)
+
+
+# ---------------------------------------------------------------------------
+# The scripts of the wave: the arm `blocks` of run_wave.sh and the knob
+# CF_HEAD_BLOCK_SIZES of head_eval_bb.sh
+# ---------------------------------------------------------------------------
+
+from tests.test_freq_family import (  # noqa: E402
+    calls, head_eval, recorded, run_wave, stub_checkout, tag_of, wave_box,
+    without_names)
+
+BLOCK_FLAGS = ["--head-block-sizes", "16,32,64,128"]
+
+
+def test_the_block_knob_adds_only_the_block_flag(stub_checkout):
+    """Each flag of the standard B4 head stays. The block flag comes after
+    them, and the score is B4."""
+    tmp_path = stub_checkout[0]
+    r = head_eval(stub_checkout, "run_bb200k_h30k_control")
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    control = recorded(tmp_path / "root" / "eval" / "run_bb200k_h30k_control"
+                       / "head_argv.json")
+    assert "--head-block-sizes" not in control
+    tag = "run_bb200k_h30k_ff_blocks"
+    r = head_eval(stub_checkout, tag, CF_HEAD_BLOCK_SIZES="16,32,64,128")
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    out = tmp_path / "root" / "eval" / tag
+    assert without_names(recorded(out / "head_argv.json")) == (
+        without_names(control) + BLOCK_FLAGS)
+    shard = recorded(out / "gift" / "shard_0" / "argv.json")
+    assert shard[shard.index("--strategy") + 1] == "B4"
+
+
+@pytest.mark.parametrize("tag,knobs", [
+    # A block head with the tag of a standard head would take its files.
+    ("run_bb200k_h30k_control", dict(CF_HEAD_BLOCK_SIZES="16,32,64,128")),
+    ("run_bb200k_h30k_ff_blocks",
+     dict(CF_HEAD_BLOCK_SIZES="16,32,64,128", CF_FREQ_FAMILY="heads")),
+    ("run_bb200k_h30k_ff_blocks",
+     dict(CF_HEAD_BLOCK_SIZES="16,32,64,128", CF_RECONSTRUCTION="encoder"))])
+def test_a_wrong_block_call_is_refused(stub_checkout, tag, knobs):
+    tmp_path = stub_checkout[0]
+    r = head_eval(stub_checkout, tag, **knobs)
+    assert r.returncode != 0, r.stdout[-2000:]
+    assert "ABORT" in r.stdout + r.stderr
+    assert not (tmp_path / "root" / "eval" / tag / "head_argv.json").exists()
+
+
+def test_a_wave_trains_the_block_arm_beside_the_control(wave_box):
+    base = wave_box[1]
+    r = run_wave(wave_box, "control", "blocks", FF_SCORE="0")
+    assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-3000:]
+    (wave,) = [c for c in calls(base) if c[0] == "wave"]
+    assert wave[3:] == [tag_of("control"), tag_of("blocks")]
+
+
+def test_the_block_arm_sets_the_block_knob():
+    """arm_env of run_wave.sh gives the arm `blocks` the four block sizes,
+    and the control no knob."""
+    script = (Path(__file__).resolve().parents[1] / "reports"
+              / "2026-10-10_frequency_family_head" / "scripts" / "run_wave.sh")
+    body = script.read_text()
+    func = body[body.index("arm_env(){"):body.index("\n}\n", body.index("arm_env(){")) + 3]
+    for arm, want in (("blocks", "CF_HEAD_BLOCK_SIZES=16,32,64,128"), ("control", "")):
+        r = subprocess.run(["bash", "-c", func + f"arm_env {arm}"], capture_output=True, text=True)
+        assert r.returncode == 0 and r.stdout.strip() == want, (arm, r.stdout, r.stderr)

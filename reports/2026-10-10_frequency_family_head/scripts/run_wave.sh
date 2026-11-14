@@ -11,6 +11,9 @@
 #   <body>_<rule>_m<keys>  the same with another member list, the keys
 #                          joined with `-`. `heads_strict_m16` has one
 #                          member, so it trains as the control.
+#   blocks                 a bank of output layers by block size 16, 32, 64
+#                          and 128 on the trunk of the B4 head
+#                          (`--head-block-sizes`, `src/block_head.py`)
 # With no arm, the wave holds the control and the 4 family arms.
 #
 # Each arm keeps the flags of the standard B4 head of a GiftEvalPretrain
@@ -163,6 +166,7 @@ if [ $(( HEAD_STEPS % 1000 )) -eq 0 ]; then HK="$(( HEAD_STEPS / 1000 ))k"; else
 # The family knobs of head_eval_bb.sh for an arm, or 1 for an unknown arm.
 arm_env(){  # <arm>
   [ "$1" = control ] && return 0
+  [ "$1" = blocks ] && { echo "CF_HEAD_BLOCK_SIZES=16,32,64,128"; return 0; }
   [[ "$1" =~ ^(shared|heads)_(strict|draw)(_m([0-9]+(-[0-9]+)*))?$ ]] || return 1
   echo "CF_FREQ_FAMILY=${BASH_REMATCH[1]} CF_FREQ_FAMILY_RULE=${BASH_REMATCH[2]}"
   [ -z "${BASH_REMATCH[4]}" ] || echo "CF_FREQ_FAMILY_MEMBERS=${BASH_REMATCH[4]//-/,}"
@@ -207,7 +211,7 @@ check_inputs(){
   [[ "$RUN" =~ ^[a-z0-9_]+$ ]] || { log "ABORT: the run name '$RUN' must hold a-z, 0-9 and _ only"; return 1; }
   [[ "$STOP" =~ ^[0-9]+$ ]] || { log "ABORT: the stop '$STOP' is not a number of thousands of steps"; return 1; }
   for arm in "${ARMS[@]}"; do
-    arm_env "$arm" >/dev/null || { log "ABORT: unknown arm '$arm'. Use control, or <shared|heads>_<strict|draw>[_m<keys>]."; return 1; }
+    arm_env "$arm" >/dev/null || { log "ABORT: unknown arm '$arm'. Use control, blocks, or <shared|heads>_<strict|draw>[_m<keys>]."; return 1; }
     [ "$arm" = control ] || family=1
   done
   case "$DEVICE" in cpu|cuda) ;; *) log "ABORT: FF_EVAL_DEVICE=$DEVICE. Use cpu or cuda."; return 1 ;; esac
