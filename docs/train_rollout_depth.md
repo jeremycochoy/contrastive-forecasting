@@ -96,6 +96,74 @@ Two limits:
 - `--value-space-objective` takes `sum` and `mean` only. `halving` raises at
   its first step and names itself.
 
+## `--train-rollout-distances`
+
+Flag: `--train-rollout-distances 1,2,4,8,16,32`, a list of integers with
+commas. Config key: `train_rollout_distances` on `spec.train_configuration`.
+Default: off. Then every depth `0..k` enters, as above.
+
+The flag keeps the copies at the listed distances only. Distance `d` is the
+copy that ties `f^(d-1)_t` to `h_{t+d}`, so `d = j + 1`:
+
+| distance `d` | copy | ties |
+|---|---|---|
+| 1 | depth 0 | `f^(0)_t` to `h_{t+1}` |
+| 2 | depth 1 | `f^(1)_t` to `h_{t+2}` |
+| 4 | depth 3 | `f^(3)_t` to `h_{t+4}` |
+| 32 | depth 31 | `f^(31)_t` to `h_{t+32}` |
+
+The rollout composes every depth from 1 to `max(d) - 1`, because each depth
+is the input of the next one. Gradient flows through the whole chain, as
+above. Then the trainer puts `None` in place of each depth with a distance
+that is not in the list. One function does this, `forecaster_depths` in
+`train.py`, for the whole batch, for each patch-size group and for the raw
+depths of the `l2_raw` `L_align`. So every term skips the same depths.
+
+Each distance averages its pair losses over its own `T - d` pairs, the
+anchors `t = 0 .. T-1-d`. At `T = 256` patches, distance 32 averages 224
+pairs and distance 16 averages 240. For `L_align` the pair loss is
+`2 - 2·cos(f^(d-1)_t, h_{t+d})`.
+
+The reduction reads the copies at the listed distances only:
+
+| reduction | f-side total |
+|---|---|
+| `sum` (default) | the sum of the copies at the listed distances |
+| `mean` | that sum divided by the number of distances |
+
+The `L_align` add-on of a `cosine_similarity_batch_rep_only` run with
+`--align-loss-weight w` and the sum is `w` times a sum. The sum adds, for
+each distance, the mean of `2 - 2·cos` at that distance. `L_rep` enters
+once.
+
+The losses CSV gets a `cos_err_d<j>` column for each listed distance only,
+with `j = d - 1`. The list `1,2,4,8,16,32` writes `cos_err_d0`, `cos_err_d1`,
+`cos_err_d3`, `cos_err_d7`, `cos_err_d15` and `cos_err_d31`.
+
+### Checks
+
+The trainer refuses these command lines before step 1, and the message
+names the problem. The parse of the flag refuses a word that is not an
+integer, and `resolve_rollout_distances` in `train.py` refuses the rest:
+
+| command line | reason |
+|---|---|
+| a distance below 1, or a word that is not an integer | a distance is a positive integer |
+| a list without 1 | distance 1 is depth 0, which enters every term |
+| `--train-rollout-depth` other than 0 and `max(d) - 1` | the two flags give two different depths |
+| `--train-rollout-reduce halving` | the halving weighs a copy by its place in the list, and the list leaves depths out |
+| `--value-space-objective` | the value objective has no latent term |
+
+`--train-rollout-depth 0`, the default, becomes `max(d) - 1`. Each check of
+`--train-rollout-depth` then applies to that depth, `k + 2 ≤ T` included.
+
+### Cost
+
+The forecaster runs `max(d)` passes for each step: the forward pass and the
+`max(d) - 1` rollout passes. The list `1,2,4,8,16,32` costs 32 passes, as
+`--train-rollout-depth 31` does. The loss terms run once for each listed
+distance, 6 times for this list.
+
 ## Where it applies
 
 Every shape the `contrastive_latent_loss` dispatch accepts, plus `align_loss`,
@@ -176,7 +244,8 @@ behind them.
 
 A `k = 0` run writes no such column. The extra columns change the CSV
 schema, so a `k = 0` run cannot resume into a `k > 0` CSV: the logger refuses
-and asks for a fresh run name.
+and asks for a fresh run name. Under `--train-rollout-distances` only the
+listed distances get a column (see that section).
 
 `loss_tau_ref` stays a depth-0 reference at every `k`, so that curve stays
 comparable across runs.
