@@ -50,4 +50,8 @@
   before it. This run trains in one process, so its data order differs from
   MPE after 10k.
 - `run.sh train` resumes after a crash. `FOLLOW=1 run.sh score` scores each
-  stop when its optimizer file is on disk.
+  stop when its save and its optimizer file load (`scripts/checkpoints.sh`).
+- The orchestrator launches the run from the frozen worktree
+  `/home/jupyter/cf_runs/cf462/launch_0f4a7e97`. The audit fixes of
+  `05cb7c6d` do not change the training, so the score uses the fixed scripts
+  of the branch.
