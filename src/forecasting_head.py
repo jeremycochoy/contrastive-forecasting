@@ -190,8 +190,10 @@ class TransformerQuantileForecastingHead(nn.Module):
         self.forecast_head = nn.Linear(
             H, forecast_len * self.num_quantiles)
 
-    def forward(self, x, src_mask=None):
-        """Run the head's transformer + output projection.
+    def features(self, x, src_mask=None):
+        """The trunk of the head: the transformer and the norm, ``(B*C, T,
+        H)``. The output layer reads it. A block head (:mod:`src.block_head`)
+        shares this trunk between its output layers.
 
         ``src_mask``: optional `(T, T)` bool mask (True = block). When
         provided, overrides ``self.causal`` and is used as-is. Used by
@@ -209,8 +211,11 @@ class TransformerQuantileForecastingHead(nn.Module):
             x = self.transformer(x, mask=causal, is_causal=True)
         else:
             x = self.transformer(x)
-        x = self.norm(x)
-        flat = self.forecast_head(x)
+        return self.norm(x)
+
+    def forward(self, x, src_mask=None):
+        """Run the head's transformer + output projection."""
+        flat = self.forecast_head(self.features(x, src_mask))
         BC, T_out, _ = flat.shape
         return flat.view(BC, T_out, self.num_quantiles, self.forecast_len)
 
@@ -1788,12 +1793,25 @@ def _b_variant_setup(backbone, x_context, device, patch_size=None):
     return e_ctx, mean_c, stdev_c, n_ctx, C
 
 
+def rollout_steps(head, horizon, patch_values):
+    """How many latents the B4 rollout makes for ``horizon`` values: one per
+    patch of ``patch_values`` values. A block head (:mod:`src.block_head`)
+    decodes ``head.latents_per_block`` = k consecutive latents at a time, so
+    its count is a multiple of k: the last block is decoded whole, and the
+    forecast is cut to the horizon. Every other head has k = 1."""
+    k = getattr(head, "latents_per_block", 1)
+    return math.ceil(horizon / (k * patch_values)) * k
+
+
 def _b_variant_decode(head, e_ctx, rolled_f, n_ctx):
     """Feed [e[0], ..., e[k], f[k+1], ..., f[k+m]] to the head.
 
     The head is a content-based decoder (bidirectional GRU, no position
     encoding). It reconstructs the patch each latent represents:
     output at position i → values of p[i].
+
+    A block head (:mod:`src.block_head`) decodes the rolled latents in
+    blocks of k (``decode_from``): ``(BC, m / k, Q, P)``.
 
     Args:
         head: ForecastingHead
@@ -1805,6 +1823,9 @@ def _b_variant_decode(head, e_ctx, rolled_f, n_ctx):
         rolled_out: (BC, m, forecast_len) head output at rolled positions
     """
     seq = torch.cat([e_ctx, rolled_f], dim=1)   # (BC, n_ctx+m, H)
+    decode_from = getattr(head, "decode_from", None)
+    if decode_from is not None:
+        return decode_from(seq, n_ctx)
     all_out = head(seq)
     # Gaussian heads return (mu, log_var). Convert to quantile shape so
     # downstream forecast_* code can treat them like quantile heads.
@@ -1925,6 +1946,11 @@ def forecast_B4(backbone, head, x_context, horizon, device):
     each rolled position then decodes that many values. The forecast is
     unscaled with the context's statistics: for the mean/std scaling (#421),
     the loc and the scale of the whole context.
+
+    The head of one block size P of a block head (:mod:`src.block_head`)
+    decodes each block of k = P / W rolled latents into P values. The rollout
+    makes whole blocks (:func:`rollout_steps`), and the forecast is cut to
+    the horizon.
     """
     patch_size = getattr(head, "patch_size", None)
     W_bb = patch_size or backbone.W
@@ -1938,11 +1964,12 @@ def forecast_B4(backbone, head, x_context, horizon, device):
                TransformerGaussianForecastingHead))
 
     with torch.no_grad():
-        n_tokens = math.ceil(horizon / W_bb)                        # m
+        n_tokens = rollout_steps(head, horizon, W_bb)               # m
         rolled_f = rollout_latent(backbone, e_ctx, n_tokens)        # (BC, m, H)
         rolled_out = _b_variant_decode(head, e_ctx, rolled_f, n_ctx)
         # MSE head     : rolled_out = (BC, m, L)
         # Quantile head: rolled_out = (BC, m, Q, L)
+        # Block head   : rolled_out = (BC, m / k, Q, P)
 
         preds = []
         remaining = horizon
@@ -2005,10 +2032,12 @@ def forecast_B4_windows(backbone, head, contexts, horizon, device):
     with torch.no_grad():
         e_ctx, _ = extract_encoder_latents(backbone, contexts,
                                            patch_size=patch_size)
-        rolled_f = rollout_latent(backbone, e_ctx, math.ceil(horizon / W_bb))
+        rolled_f = rollout_latent(backbone, e_ctx,
+                                  rollout_steps(head, horizon, W_bb))
         out = _b_variant_decode(head, e_ctx, rolled_f, e_ctx.size(1))
         # (BC, m, [Q,] L): the L values of each rolled position, in order,
-        # cut to the horizon.
+        # cut to the horizon. A block head gives (BC, m / k, Q, P): the P
+        # values of each block, in order.
         values = out.movedim(1, -2).reshape(B, C, *out.shape[2:-1], -1)
         values = values[..., :horizon]                   # (B, C, [Q,] horizon)
         if backbone.rev_norm is not None and backbone.rev_norm.mean is not None:
