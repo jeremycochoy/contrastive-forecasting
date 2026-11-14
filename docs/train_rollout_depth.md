@@ -52,9 +52,9 @@ weight against the h-side terms. Watch `u_batchtime` on `h_t` and the loss
 curve. `--train-rollout-reduce mean` removes that weight change — see the
 next section.
 
-## `--train-rollout-reduce {sum,mean,halving}`
+## `--train-rollout-reduce {sum,mean,halving,harmonic}`
 
-Flag: `--train-rollout-reduce sum|mean|halving`. Config key: `train_rollout_reduce`.
+Flag: `--train-rollout-reduce sum|mean|halving|harmonic`. Config key: `train_rollout_reduce`.
 Default: `sum`. Issue:
 [#401](https://github.com/jeremycochoy/contrastive-forecasting/issues/401).
 
@@ -63,13 +63,14 @@ Default: `sum`. Issue:
 | `sum` (default) | `H + Σ_{j=0..k} F_j` | `k + 1` times its `k = 0` weight |
 | `mean` | `H + (Σ_{j=0..k} F_j) / (k + 1)` | its `k = 0` weight, at every `k` |
 | `halving` | `H + Σ_{j=0..k} F_j / 2^j` | `2 − 1/2^k` times its `k = 0` weight |
+| `harmonic` | `H + Σ_{j=0..k} F_j / (j + 1)` | `Σ_{d=1..k+1} 1/d` times its `k = 0` weight (4.06 at `k = 31`) |
 
 `F_j` is the depth-`j` copy of the terms that tie `f` to `h`. `H` is every
 term that carries no `f`. The mean covers the copies only, so `H` enters
 once at its configured weight under both reductions. The depth then changes
 what the model trains on, and not how much the f-side outweighs the rest.
 
-At `k = 0` there is one copy, so the three reductions return the same
+At `k = 0` there is one copy, so the four reductions return the same
 number. Every published `k = 0` run reproduces under each word, and #373's
 `k > 0` numbers reproduce under `sum`.
 
@@ -77,6 +78,11 @@ number. Every published `k = 0` run reproduces under each word, and #373's
 nearest depths weigh the most. Depth 0 keeps the weight 1 of both sides, so
 the halving needs no f-side pass: the copies of depths 1 to `k` are added to
 the depth-0 total at their weights.
+
+`harmonic` gives the copy at the distance `d = j + 1` the weight `1/d`: 1,
+1/2, 1/3, ..., 1/32 at `k = 31`. Its weights fall slower than the halving's,
+so the far depths keep more weight. Depth 0 keeps the weight 1 of both
+sides, so it needs no f-side pass either.
 
 The mean costs one more pass over the f-bearing terms at depth 0. The
 depth-0 call returns `H + F_0` added together, and the two sides must be
@@ -86,15 +92,83 @@ views. On a `cosine_similarity_batch_rep_only` cell that pass is the
 `L_align` add-on alone, because the shape body returns zeros for an f-only
 call.
 
-Two limits:
+Three limits:
 
 - `contrastive_latent_noise` with `mean` raises. The f-side pass would draw
   its own noise, so `loss − F_0` would not be the h-side. No trainer sets
   that key.
-- A word that is not `sum`, `mean` or `halving` raises and names itself, at
+- A word that is not `sum`, `mean`, `halving` or `harmonic` raises and names itself, at
   the CLI and in `resolve_rollout_reduce`.
-- `--value-space-objective` takes `sum` and `mean` only. `halving` raises at
-  its first step and names itself.
+- `--value-space-objective` takes `sum` and `mean` only. `halving` and
+  `harmonic` raise at its first step and name themselves.
+
+## `--train-rollout-distances`
+
+Flag: `--train-rollout-distances 1,2,4,8,16,32`, a list of integers with
+commas. Config key: `train_rollout_distances` on `spec.train_configuration`.
+Default: off. Then every depth `0..k` enters, as above.
+
+The flag keeps the copies at the listed distances only. Distance `d` is the
+copy that ties `f^(d-1)_t` to `h_{t+d}`, so `d = j + 1`:
+
+| distance `d` | copy | ties |
+|---|---|---|
+| 1 | depth 0 | `f^(0)_t` to `h_{t+1}` |
+| 2 | depth 1 | `f^(1)_t` to `h_{t+2}` |
+| 4 | depth 3 | `f^(3)_t` to `h_{t+4}` |
+| 32 | depth 31 | `f^(31)_t` to `h_{t+32}` |
+
+The rollout composes every depth from 1 to `max(d) - 1`, because each depth
+is the input of the next one. Gradient flows through the whole chain, as
+above. Then the trainer puts `None` in place of each depth with a distance
+that is not in the list. One function does this, `forecaster_depths` in
+`train.py`, for the whole batch, for each patch-size group and for the raw
+depths of the `l2_raw` `L_align`. So every term skips the same depths.
+
+Each distance averages its pair losses over its own `T - d` pairs, the
+anchors `t = 0 .. T-1-d`. At `T = 256` patches, distance 32 averages 224
+pairs and distance 16 averages 240. For `L_align` the pair loss is
+`2 - 2·cos(f^(d-1)_t, h_{t+d})`.
+
+The reduction reads the copies at the listed distances only:
+
+| reduction | f-side total |
+|---|---|
+| `sum` (default) | the sum of the copies at the listed distances |
+| `mean` | that sum divided by the number of distances |
+
+The `L_align` add-on of a `cosine_similarity_batch_rep_only` run with
+`--align-loss-weight w` and the sum is `w` times a sum. The sum adds, for
+each distance, the mean of `2 - 2·cos` at that distance. `L_rep` enters
+once.
+
+The losses CSV gets a `cos_err_d<j>` column for each listed distance only,
+with `j = d - 1`. The list `1,2,4,8,16,32` writes `cos_err_d0`, `cos_err_d1`,
+`cos_err_d3`, `cos_err_d7`, `cos_err_d15` and `cos_err_d31`.
+
+### Checks
+
+The trainer refuses these command lines before step 1, and the message
+names the problem. The parse of the flag refuses a word that is not an
+integer, and `resolve_rollout_distances` in `train.py` refuses the rest:
+
+| command line | reason |
+|---|---|
+| a distance below 1, or a word that is not an integer | a distance is a positive integer |
+| a list without 1 | distance 1 is depth 0, which enters every term |
+| `--train-rollout-depth` other than 0 and `max(d) - 1` | the two flags give two different depths |
+| `--train-rollout-reduce halving` or `harmonic` | the two weigh a copy by its place in the list, and the list leaves depths out |
+| `--value-space-objective` | the value objective has no latent term |
+
+`--train-rollout-depth 0`, the default, becomes `max(d) - 1`. Each check of
+`--train-rollout-depth` then applies to that depth, `k + 2 ≤ T` included.
+
+### Cost
+
+The forecaster runs `max(d)` passes for each step: the forward pass and the
+`max(d) - 1` rollout passes. The list `1,2,4,8,16,32` costs 32 passes, as
+`--train-rollout-depth 31` does. The loss terms run once for each listed
+distance, 6 times for this list.
 
 ## Where it applies
 
@@ -155,8 +229,8 @@ one all-gather on the gathered path.
 `align_loss` and the CPC auxiliary instead of the main term. Those three
 functions take the reduction as the `depth_reduce` argument, because they
 read no training config. They carry no h-only half, so their mean is the
-plain mean of the `k + 1` copies, and their halving adds copy `j` at
-`1 / 2^j`. The trainer passes
+plain mean of the `k + 1` copies. Their halving adds copy `j` at
+`1 / 2^j`, and their harmonic weights at `1 / (j + 1)`. The trainer passes
 `--train-rollout-reduce` to each of them.
 
 `--align-loss-weight` on the main arm is a third path, and the one 12 of the
@@ -176,7 +250,8 @@ behind them.
 
 A `k = 0` run writes no such column. The extra columns change the CSV
 schema, so a `k = 0` run cannot resume into a `k > 0` CSV: the logger refuses
-and asks for a fresh run name.
+and asks for a fresh run name. Under `--train-rollout-distances` only the
+listed distances get a column (see that section).
 
 `loss_tau_ref` stays a depth-0 reference at every `k`, so that curve stays
 comparable across runs.
