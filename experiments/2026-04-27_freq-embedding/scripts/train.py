@@ -841,7 +841,8 @@ def build_parser():
                         "latent. 'raw': the copy as it is, as every run "
                         "before this flag. Resume an older run with raw, or "
                         "its objective changes at the resume.")
-    p.add_argument("--train-rollout-reduce", choices=["sum", "mean", "halving"],
+    p.add_argument("--train-rollout-reduce",
+                   choices=["sum", "mean", "halving", "harmonic"],
                    default="sum",
                    help="How the k + 1 copies of every f-bearing term combine "
                         "(#401). 'sum' (default) is #373's objective: the "
@@ -854,8 +855,10 @@ def build_parser():
                         "mean covers the f-bearing copies only. 'halving' "
                         "adds copy j at the weight 1 / 2^j (1, 1/2, 1/4, 1/8 "
                         "at k = 3), depth 0 included at 1, so the nearest "
-                        "depths weigh the most. At k = 0 "
-                        "there is one copy and the three agree exactly, so "
+                        "depths weigh the most. 'harmonic' adds copy j at the "
+                        "weight 1 / (j + 1), so the distance d = j + 1 gets "
+                        "1/d (1, 1/2, 1/3, ..., 1/32 at k = 31). At k = 0 "
+                        "there is one copy and the four agree exactly, so "
                         "every published run reproduces under each. "
                         "docs/train_rollout_depth.md.")
     p.add_argument("--train-rollout-distances", type=rollout_distances_arg,
@@ -868,7 +871,8 @@ def build_parser():
                         "columns. The list must hold 1. --train-rollout-depth "
                         "0 (default) becomes max(d) - 1. Another depth must "
                         "be max(d) - 1. Not with --train-rollout-reduce "
-                        "halving or --value-space-objective. Default: off, "
+                        "halving or harmonic, or --value-space-objective. "
+                        "Default: off, "
                         "every depth 0..k enters. "
                         "docs/train_rollout_depth.md.")
     p.add_argument("--multi-patch-sizes", default=None,
@@ -2019,11 +2023,12 @@ def resolve_rollout_distances(args):
             f"--train-rollout-distances {given}: the largest distance, "
             f"{distances[-1]}, needs depth {depth}. Drop "
             f"--train-rollout-depth, or set it to {depth}.")
-    if args.train_rollout_reduce == "halving":
+    if args.train_rollout_reduce in ("halving", "harmonic"):
         raise SystemExit(
-            "--train-rollout-reduce halving weighs each copy by its place in "
-            "the list. --train-rollout-distances leaves depths out of the "
-            "list, so copy j would not get 1/2^j. Use sum or mean.")
+            f"--train-rollout-reduce {args.train_rollout_reduce} weighs each "
+            "copy by its place in the list. --train-rollout-distances leaves "
+            "depths out of the list, so copy j would not get its weight. Use "
+            "sum or mean.")
     if args.value_space_objective:
         raise SystemExit(
             "--train-rollout-distances keeps the copies of the latent terms "

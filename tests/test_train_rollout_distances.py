@@ -10,15 +10,15 @@ What this file pins:
 
 * **The parse and every refusal.** The flag gives a sorted list of unique
   integers. A distance below 1, a list without 1, a depth other than 0 and
-  max(d) - 1, the halving and the value-space objective each stop the run,
-  and the message names the problem.
+  max(d) - 1, the halving, the harmonic weights and the value-space
+  objective each stop the run, and the message names the problem.
 * **One function makes the None entries**, for the depths and for the raw
   depths of l2_raw. The chain still composes every depth.
 * **The terms read the kept copies only.** align_loss and the L_align add-on
   of contrastive_latent_loss equal the sum of the kept copies, each built one
   by one, and the mean divides by their count. L_pred, the main shapes and
   the CPC terms drop the left-out copy and nothing else. A library call with
-  a None entry refuses the halving.
+  a None entry refuses the halving and the harmonic weights.
 * **A copy at depth j averages over its own T - 1 - j pairs**, also with a
   left padding.
 * **Without the flag, a k = 3 run is unchanged.** The loss values of
@@ -168,6 +168,8 @@ class TestTheChecks:
                      id="other_depth"),
         pytest.param(dict(train_rollout_reduce="halving"),
                      "--train-rollout-reduce halving", id="halving"),
+        pytest.param(dict(train_rollout_reduce="harmonic"),
+                     "--train-rollout-reduce harmonic", id="harmonic"),
         pytest.param(dict(value_space_objective=True),
                      "--value-space-objective", id="value_space"),
     ])
@@ -185,6 +187,9 @@ class TestTheChecks:
         pytest.param(("--train-rollout-distances", "1,2,4",
                       "--train-rollout-reduce", "halving"),
                      "--train-rollout-reduce halving", id="halving"),
+        pytest.param(("--train-rollout-distances", "1,2,4",
+                      "--train-rollout-reduce", "harmonic"),
+                     "--train-rollout-reduce harmonic", id="harmonic"),
         pytest.param(("--train-rollout-distances", "1,2",
                       "--value-space-objective"),
                      "--value-space-objective", id="value_space"),
@@ -302,11 +307,12 @@ class TestAlignLossKeepsTheListedCopies:
         assert float(got) == pytest.approx(float(sum(copies)) / 3, rel=0,
                                            abs=1e-12)
 
-    def test_the_halving_with_a_left_out_depth_is_refused(self):
+    @pytest.mark.parametrize("reduce", ["halving", "harmonic"])
+    def test_a_place_weight_with_a_left_out_depth_is_refused(self, reduce):
         f, o, _, roll = _latents(_REP_ONLY, seed=13, depth=K)
-        with pytest.raises(ValueError, match="halving"):
+        with pytest.raises(ValueError, match=reduce):
             align_loss(f, o, 1.0, rollout_latents=keep(roll, KEPT),
-                       depth_reduce="halving")
+                       depth_reduce=reduce)
 
 
 def rep_only_add_on(f, o, rollouts, reduce="sum", pad=None, weight=1.0):
@@ -353,10 +359,12 @@ class TestTheAddOnKeepsTheListedCopies:
             contrastive_latent_loss((f, o), validation=False, spec=spec,
                                     rollout_latents=[roll[0], roll[2]])
 
-    def test_the_config_halving_with_a_left_out_depth_is_refused(self):
+    @pytest.mark.parametrize("reduce", ["halving", "harmonic"])
+    def test_a_config_place_weight_with_a_left_out_depth_is_refused(
+            self, reduce):
         f, o, _, roll = _latents(_REP_ONLY, seed=24, depth=K)
-        with pytest.raises(ValueError, match="halving"):
-            rep_only_add_on(f, o, keep(roll, KEPT), reduce="halving")
+        with pytest.raises(ValueError, match=reduce):
+            rep_only_add_on(f, o, keep(roll, KEPT), reduce=reduce)
 
 
 def every_f_bearing_term():
