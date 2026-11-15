@@ -996,3 +996,50 @@ def test_the_block_arm_sets_the_block_knob():
     for arm, want in (("blocks", "CF_HEAD_BLOCK_SIZES=16,32,64,128"), ("control", "")):
         r = subprocess.run(["bash", "-c", func + f"arm_env {arm}"], capture_output=True, text=True)
         assert r.returncode == 0 and r.stdout.strip() == want, (arm, r.stdout, r.stderr)
+
+
+# ---------------------------------------------------------------------------
+# The score tables: collect_scores.py takes the arm `blocks`
+# ---------------------------------------------------------------------------
+
+from tests.test_freq_family import (  # noqa: E402
+    config_names, load_collect, read_tsv, write_eval)
+
+
+def write_block_lines(base, run, stop, names, wrong=None):
+    """The block-size line of the eval of each config, as the eval of a block
+    head logs it."""
+    log = (base / "heads" / "eval" / tag_of("blocks", run, str(stop)) / "gift"
+           / "shard_0" / "shard.log")
+    with open(log, "w") as f:
+        for name in names:
+            freq = name.split("/")[1]
+            size = (wrong or {}).get(name, block_size_of(freq))
+            f.write(f"  [eval] {name}: frequency {freq}, block size {size} "
+                    f"({size // 16} latents per block)\n")
+
+
+def test_collect_scores_the_block_arm_against_its_control(tmp_path):
+    names = config_names()
+    base = tmp_path / "base"
+    write_eval(base, "blk", 200, "control", "1.0000", names, 2.0)
+    write_eval(base, "blk", 200, "blocks", "1.0500", names, 2.1, members=False)
+    write_block_lines(base, "blk", 200, names)
+    assert load_collect().main(["--base", str(base)]) == 0
+    rows = {r["arm"]: r for r in read_tsv(base / "results" / "scores.tsv")}
+    assert rows["blocks"]["ratio_to_control"] == "1.0500"
+    assert rows["blocks"]["members"] == "16:30 32:31 64:30 128:6"
+    per_config = read_tsv(base / "results" / "config_mase.tsv")
+    one = [r for r in per_config if r["arm"] == "blocks"
+           and r["config"] == "ett1/15T/short"]
+    assert [r["member"] for r in one] == ["64"]
+
+
+def test_collect_refuses_a_block_score_with_another_block_size(tmp_path, capsys):
+    names = config_names()
+    base = tmp_path / "base"
+    write_eval(base, "blk", 200, "blocks", "1.0500", names, 2.1, members=False)
+    write_block_lines(base, "blk", 200, names, wrong={"ett1/15T/short": 16})
+    assert load_collect().main(["--base", str(base)]) != 0
+    out = capsys.readouterr().out
+    assert "blocks" in out and "block size of their frequency" in out
