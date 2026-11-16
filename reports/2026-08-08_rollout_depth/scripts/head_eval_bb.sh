@@ -37,6 +37,11 @@
 #                              trunk of the transformer head (--head-block-sizes):
 #                              head P decodes P / 16 rolled latents together.
 #                              The tag must end in `_ff_blocks`.
+#   CF_HEAD_BLOCK_TRUNKS=separate
+#                              with CF_HEAD_BLOCK_SIZES: one full head per
+#                              block size, with no shared trunk
+#                              (--head-block-trunks). The tag must end in
+#                              `_ff_blocks_sep`.
 #   CF_HEAD_ARCH=linear        the head is one linear map from each encoder
 #                              latent to the quantiles of the values of its
 #                              patch, in place of the transformer head. Each
@@ -134,14 +139,25 @@ fi
 
 # A bank of output layers by block size (--head-block-sizes). It is a forecast
 # head of its own kind, so it takes no family and no reconstruction.
+# CF_HEAD_BLOCK_TRUNKS=separate gives each block size a trunk of its own
+# (--head-block-trunks), under a tag of its own.
 BLOCK_ARGS=(); BLOCK_NOTE=""
+BLOCK_TRUNKS="${CF_HEAD_BLOCK_TRUNKS:-shared}"
+case "$BLOCK_TRUNKS" in shared) BLOCK_SUFFIX=_ff_blocks ;; separate) BLOCK_SUFFIX=_ff_blocks_sep ;; *)
+  echo "ABORT: CF_HEAD_BLOCK_TRUNKS is shared or separate, not $BLOCK_TRUNKS" >&2; exit 2 ;; esac
+[ "$BLOCK_TRUNKS" = shared ] || [ -n "${CF_HEAD_BLOCK_SIZES:-}" ] || {
+  echo "ABORT: CF_HEAD_BLOCK_TRUNKS=$BLOCK_TRUNKS needs CF_HEAD_BLOCK_SIZES." >&2; exit 2; }
 if [ -n "${CF_HEAD_BLOCK_SIZES:-}" ]; then
   [ -z "$FAMILY$RECON" ] || {
     echo "ABORT: CF_HEAD_BLOCK_SIZES takes no CF_FREQ_FAMILY and no CF_RECONSTRUCTION." >&2; exit 2; }
-  case "$TAG" in *_ff_blocks) ;; *)
-    echo "ABORT: a block-size head needs a tag that ends in _ff_blocks, not $TAG" >&2; exit 2 ;; esac
+  case "$TAG" in *"$BLOCK_SUFFIX") ;; *)
+    echo "ABORT: a block-size head with $BLOCK_TRUNKS trunks needs a tag that ends in $BLOCK_SUFFIX, not $TAG" >&2; exit 2 ;; esac
   BLOCK_ARGS=(--head-block-sizes "$CF_HEAD_BLOCK_SIZES")
   BLOCK_NOTE=" head-block-sizes=$CF_HEAD_BLOCK_SIZES"
+  if [ "$BLOCK_TRUNKS" = separate ]; then
+    BLOCK_ARGS+=(--head-block-trunks separate)
+    BLOCK_NOTE="$BLOCK_NOTE head-block-trunks=separate"
+  fi
 fi
 
 HEAD_SEED="${HEAD_SEED:-20260722}"

@@ -51,9 +51,10 @@ from src.freq_family import FAMILY_MEMBERS, family_member
 BASE = "/home/jupyter/cf_runs/freq_family"
 MASE = "eval_metrics/MASE[0.5]"
 ARM_ORDER = ("control", "shared_strict", "shared_draw", "heads_strict",
-             "heads_draw", "blocks")
-# The arm of the bank of output layers by block size (--head-block-sizes).
-BLOCK_ARM = "blocks"
+             "heads_draw", "blocks", "blocks_sep")
+# The arms of the bank of heads by block size (--head-block-sizes): with
+# one shared trunk, and with one trunk per size (--head-block-trunks).
+BLOCK_ARMS = ("blocks", "blocks_sep")
 MEMBER_LINE = re.compile(
     r"^\s*\[eval\] (\S+): frequency \S+, family member (\d+)\s*$")
 # The line of the eval of a block head: the block size of each config.
@@ -96,7 +97,7 @@ def config_mase(gift):
 
 def config_members(gift):
     """``{config: member key}`` from the shard logs of one eval: the family
-    member of a config, or its block size for the arm `blocks`."""
+    member of a config, or its block size for a block arm."""
     members = {}
     for name in sorted(os.listdir(gift)):
         log = os.path.join(gift, name, "shard.log")
@@ -138,10 +139,11 @@ def logged_devices(gift):
 
 def arm_members(arm):
     """The member keys of a family arm (`<body>_<rule>[_m<keys>]`), the
-    block sizes of the arm `blocks`, or None for the control."""
+    block sizes of a block arm (`blocks`, `blocks_sep`), or None for the
+    control."""
     if arm == "control":
         return None
-    if arm == BLOCK_ARM:
+    if arm in BLOCK_ARMS:
         return BLOCK_SIZES
     keys = re.search(r"_m([0-9-]+)$", arm)
     if keys is None:
@@ -151,11 +153,11 @@ def arm_members(arm):
 
 def wrong_members(arm, configs, logged):
     """The configs of a family arm whose logged member is not the member of
-    their frequency, or of the arm `blocks` whose logged block size is not
-    the block size of their frequency. The frequency is the second part of a
+    their frequency, or of a block arm whose logged block size is not the
+    block size of their frequency. The frequency is the second part of a
     config name."""
     family = arm_members(arm)
-    if arm == BLOCK_ARM:
+    if arm in BLOCK_ARMS:
         return [c for c in configs
                 if logged.get(c) != block_size_of(c.split("/")[1])]
     return [c for c in configs
@@ -177,7 +179,7 @@ def score_errors(arm, mase, logged, protocol):
     family = arm_members(arm) is not None
     wrong = wrong_members(arm, mase, logged) if family else []
     if wrong:
-        what = "block size" if arm == BLOCK_ARM else "member"
+        what = "block size" if arm in BLOCK_ARMS else "member"
         errors.append(f"{len(wrong)} of {len(mase)} configs have no log line "
                       f"with the {what} of their frequency: "
                       f"{', '.join(wrong[:5])}")

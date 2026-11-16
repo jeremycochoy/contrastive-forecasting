@@ -87,7 +87,8 @@ from src.freq_family import (
     family_member,
     family_member_state,
 )
-from src.block_head import BlockSizeHead, block_head_sizes, block_trunk_state
+from src.block_head import (BlockSizeHead, block_head_sizes, block_trunk_mode,
+                            block_trunk_state)
 
 
 # ============================================================================
@@ -737,16 +738,19 @@ def family_config_head(family, config_name, freq):
 def build_block_head(head_sd, sizes, args):
     """The block head of a checkpoint with ``block_out.<P>.*`` keys
     (:mod:`src.block_head`): the trunk of a transformer quantile head, and
-    one output layer per block size P. B4 only: the other strategies decode
+    one output layer per block size P. A checkpoint with ``block_body.<P>.*``
+    keys has one trunk per block size. B4 only: the other strategies decode
     one latent at a time."""
     if args.strategy != "B4":
         raise SystemExit(f"a block head scores under --strategy B4, not "
                          f"{args.strategy}")
     trunk = build_eval_head(block_trunk_state(head_sd), BACKBONE_CONFIG["W"],
                             args)
-    print(f"  [eval] block head: one trunk, one output layer per block size "
+    trunks = block_trunk_mode(head_sd)
+    count = "one trunk" if trunks == "shared" else "one trunk per block size"
+    print(f"  [eval] block head: {count}, one output layer per block size "
           f"{sizes}")
-    return BlockSizeHead(trunk, sizes)
+    return BlockSizeHead(trunk, sizes, trunks)
 
 
 def block_config_head(blocks, config_name, freq):
