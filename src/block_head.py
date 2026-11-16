@@ -24,9 +24,24 @@ The state dict has its own keys, ``block_body.*`` and ``block_out.<P>.*``.
 So the code of a head bank (#412, ``heads.<P>.*``) and of a frequency
 family (``freq_*``) does not read it, and the eval reads the bank off the
 keys with no flag.
+
+``--head-block-trunks separate`` shares nothing between the sizes: the bank
+then holds one full head per block size, a trunk of its own and the output
+layer of P.
+
+* Each trunk is a copy of the given trunk, so the trunks start from the
+  same weights. The output layers are those of the shared bank.
+* In training, a row goes through the trunk of its own P only. The batches,
+  the steps and the loss are those of the shared bank.
+* The keys of the trunks are ``block_body.<P>.*``. The eval reads the mode
+  off them (:func:`block_trunk_mode`), and the member of P uses the trunk
+  of P.
 """
 
 from __future__ import annotations
+
+import copy
+import re
 
 import torch
 import torch.nn as nn
@@ -37,6 +52,9 @@ from .forecasting_head import (W, TransformerQuantileForecastingHead,
 from .patch_size import INFERENCE_SIZE, frequency_class
 
 BLOCK_SIZES = (16, 32, 64, 128)
+# The trunks of a bank: one for every size, or one per size.
+TRUNK_MODES = ("shared", "separate")
+SEPARATE_TRUNK_KEY = re.compile(r"block_body\.\d+\.")
 
 
 def check_block_sizes(sizes) -> tuple:
@@ -112,10 +130,17 @@ class BlockSizeHead(nn.Module):
     is the head of W. The output layer of a larger P is ``nn.Linear(k H,
     P Q)``. The layers are built in increasing order of P. So with one seed,
     the trunk and the head of W have the weights of the standard head.
+
+    ``trunks`` ``'separate'`` gives each P a trunk of its own: ``body`` for
+    W and a copy of it for each larger P. A copy draws no random number, so
+    the output layers have the weights of the shared bank of the same seed.
     """
 
-    def __init__(self, body, sizes=BLOCK_SIZES):
+    def __init__(self, body, sizes=BLOCK_SIZES, trunks="shared"):
         super().__init__()
+        if trunks not in TRUNK_MODES:
+            raise ValueError(f"the trunks of a block head are one of "
+                             f"{TRUNK_MODES}, not {trunks!r}")
         if not isinstance(body, TransformerQuantileForecastingHead):
             raise ValueError("the trunk of a block head is the transformer "
                              "quantile head, not a "
@@ -126,18 +151,43 @@ class BlockSizeHead(nn.Module):
         self.sizes = check_block_sizes(sizes)
         self.quantile_levels = body.quantile_levels
         self.num_quantiles = body.num_quantiles
+        self.trunks = trunks
         first = body.forecast_head
         body.forecast_head = None
-        self.block_body = body
+        self.block_body = body if trunks == "shared" else nn.ModuleDict({
+            str(p): body if p == W else copy.deepcopy(body)
+            for p in self.sizes})
         self.block_out = nn.ModuleDict({
             str(p): first if p == W else nn.Linear(
                 p // W * first.in_features, p * self.num_quantiles)
             for p in self.sizes})
 
-    def features(self, seq, src_mask=None):
+    def trunk(self, size):
+        """The trunk that the rows of the block size ``size`` read."""
+        if self.trunks == "shared":
+            return self.block_body
+        return self.block_body[str(int(size))]
+
+    def features(self, seq, src_mask=None, row_sizes=None):
         """The trunk outputs ``(B*C, T, H)`` of ``seq``, under ``src_mask``
-        (:meth:`TransformerQuantileForecastingHead.features`)."""
-        return self.block_body.features(seq, src_mask)
+        (:meth:`TransformerQuantileForecastingHead.features`).
+
+        ``row_sizes`` ``(B*C,)`` holds the block size of each row. Separate
+        trunks need it: the features of a row come from the trunk of its own
+        size. The shared trunk reads every row and ignores it. ``src_mask``
+        is one ``(T, T)`` mask over the positions, the same for every row,
+        so each group of rows keeps it whole.
+        """
+        if self.trunks == "shared":
+            return self.block_body.features(seq, src_mask)
+        if row_sizes is None:
+            raise ValueError("separate trunks need the block size of each "
+                             "row: pass row_sizes")
+        groups = patch_size_groups(row_sizes)
+        parts = [self.trunk(size).features(seq[rows.to(seq.device)], src_mask)
+                 for size, rows in groups.items()]
+        order = torch.cat(list(groups.values())).argsort().to(seq.device)
+        return torch.cat(parts)[order]
 
     def decode_blocks(self, features, size):
         """The blocks of ``features`` decoded by the output layer of
@@ -149,8 +199,8 @@ class BlockSizeHead(nn.Module):
         """``(B*C, (T - start) // k, Q, P)``: the blocks of k latents from
         position ``start`` of ``seq``, each decoded into P = ``size``
         values."""
-        return self.decode_blocks(self.features(seq, src_mask)[:, start:],
-                                  size)
+        features = self.trunk(size).features(seq, src_mask)
+        return self.decode_blocks(features[:, start:], size)
 
     def member(self, size):
         """The head of the block size ``size``, as a standard head."""
@@ -163,7 +213,8 @@ class BlockSizeHead(nn.Module):
 
 class BlockHeadMember(TransformerQuantileForecastingHead):
     """The head of one block size P of a :class:`BlockSizeHead`, for the
-    eval: the trunk and the output layer of P, as a standard head with
+    eval: the trunk of P (the one trunk of a shared bank) and the output
+    layer of P, as a standard head with
     ``forecast_len`` P that reads ``latents_per_block`` = k latents per
     output. It owns no weight, so the bank makes one for each call.
 
@@ -175,7 +226,7 @@ class BlockHeadMember(TransformerQuantileForecastingHead):
 
     def __init__(self, bank, size):
         nn.Module.__init__(self)
-        body = bank.block_body
+        body = bank.trunk(size)
         self.block_size = self.forecast_len = int(size)
         self.latents_per_block = self.block_size // W
         self.causal = body.causal
@@ -202,7 +253,9 @@ def block_head_loss(head, features, row_sizes, x_norm, keep=None):
     """The pinball loss of a block head on one batch.
 
     ``features`` ``(B*C, T, H)`` are the trunk outputs at the forecaster
-    positions: the trunk runs once on every row. ``row_sizes`` ``(B*C,)``
+    positions (:meth:`BlockSizeHead.features`): the shared trunk runs once
+    on every row, and separate trunks run each on the rows of their size.
+    ``row_sizes`` ``(B*C,)``
     holds the block size of each row. The rows of one size decode their
     blocks with the head of that size, over the targets of
     :func:`block_targets`. ``keep`` (bool, the shape of ``x_norm``) marks
@@ -232,11 +285,21 @@ def block_head_sizes(state_dict) -> tuple:
     return tuple(sorted({int(p) for p in found if p.isdigit()}))
 
 
+def block_trunk_mode(state_dict) -> str:
+    """``'separate'`` for a block-head checkpoint with one trunk per block
+    size (keys ``block_body.<P>.*``), else ``'shared'``."""
+    separate = any(SEPARATE_TRUNK_KEY.match(k) for k in state_dict)
+    return "separate" if separate else "shared"
+
+
 def block_trunk_state(state_dict) -> dict:
     """The state dict of a standard head from a block-head checkpoint: the
     trunk and the output layer of W, under the keys of
     :class:`TransformerQuantileForecastingHead`. The eval builds the trunk
-    from it."""
-    renames = {"block_body.": "", f"block_out.{W}.": "forecast_head."}
+    from it. With one trunk per block size, it is the trunk of W: every
+    trunk has its architecture."""
+    separate = block_trunk_mode(state_dict) == "separate"
+    body = f"block_body.{W}." if separate else "block_body."
+    renames = {body: "", f"block_out.{W}.": "forecast_head."}
     return {new + k[len(old):]: v for k, v in state_dict.items()
             for old, new in renames.items() if k.startswith(old)}

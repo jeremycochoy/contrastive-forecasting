@@ -70,8 +70,9 @@ from src.forecasting_head import (
 from src.freq_family import (FAMILY_BODIES, FAMILY_MEMBERS, FAMILY_RULES,
                              FrequencyFamilyHead, check_family_members,
                              family_row_members)
-from src.block_head import (BLOCK_SIZES, BlockSizeHead, block_head_loss,
-                            check_block_sizes, row_block_sizes)
+from src.block_head import (BLOCK_SIZES, TRUNK_MODES, BlockSizeHead,
+                            block_head_loss, check_block_sizes,
+                            row_block_sizes)
 
 
 def lr_multiplier(step: int, total_steps: int, schedule: str,
@@ -361,6 +362,18 @@ def parse_args(argv=None):
                         "--quantile-head --forecast-len 16, a backbone "
                         "with one patch size and the EWMA, and a stream "
                         "with frequency labels.")
+    p.add_argument("--head-block-trunks", default="shared",
+                   choices=TRUNK_MODES,
+                   help="The trunks of the bank of --head-block-sizes. "
+                        "'shared' (default): one trunk for every block "
+                        "size, and one output layer per size. 'separate': "
+                        "one full head per block size, with no shared "
+                        "weight. Each trunk starts from the same weights, "
+                        "and a row trains the trunk and the output layer "
+                        "of its own size only. The batches, the steps and "
+                        "the loss stay those of the shared bank. The head "
+                        "file names the trunks block_body.<P>.*, and the "
+                        "eval reads the mode off these keys.")
     p.add_argument("--amp-dtype", default="none",
                    choices=["none", "bf16", "fp16"],
                    help="Mixed-precision dtype for backbone fwd + head fwd + "
@@ -522,6 +535,9 @@ def block_sizes_of_flags(args, use_bank, emit_labels):
     a bank that this run cannot train: each of these cases would train one
     head only, or another target, with no error."""
     if args.head_block_sizes is None:
+        if args.head_block_trunks != "shared":
+            raise SystemExit("--head-block-trunks sets the trunks of a "
+                             "block head: pass --head-block-sizes too.")
         return None
     if use_bank:
         raise SystemExit("--head-block-sizes reads a backbone with one patch "
@@ -783,10 +799,15 @@ def build_job_head(args, config, head_config, use_bank, device,
     (:func:`block_sizes_of_flags`) for a block head."""
     if block_sizes is not None:
         body, _ = build_head(args, head_config, W)
-        head = BlockSizeHead(body, block_sizes).to(device)
-        head_kind = (f"block head, sizes {block_sizes}: the trunk of a "
-                     f"transformer quantile head, and one output layer per "
-                     f"size P decoding P / {W} latents into P values")
+        trunks = args.head_block_trunks
+        head = BlockSizeHead(body, block_sizes, trunks).to(device)
+        shared = ("the trunk of a transformer quantile head, and one "
+                  "output layer per size P")
+        separate = ("one trunk of a transformer quantile head and one "
+                    "output layer per size P, with no shared weight, each")
+        head_kind = (f"block head, sizes {block_sizes}: "
+                     f"{shared if trunks == 'shared' else separate} "
+                     f"decoding P / {W} latents into P values")
     elif family is not None:
         body, _, members = family
         try:
@@ -1077,7 +1098,8 @@ class HeadJob:
             elif self.block_sizes is not None:
                 # A block head: the trunk runs once on the layout of every
                 # row. Then the rows of each block size P decode their
-                # blocks of P / W latents with the output layer of P.
+                # blocks of P / W latents with the output layer of P. With
+                # separate trunks, the rows of P read the trunk of P.
                 f_bc, x_norm = extract_forecaster_latents(
                     backbone, x, freq_ids=freq_ids,
                     seasonality_ids=seasonality_ids)
@@ -1085,9 +1107,10 @@ class HeadJob:
                     backbone, x, f_bc, args.head_train_input,
                     freq_ids=freq_ids, seasonality_ids=seasonality_ids)
                 keep = ~backbone.rev_norm.pad_mask if zero_pad else None
+                row_sizes = self.row_sizes(freq_ids, x.shape[0])
                 loss = block_head_loss(
-                    head, head.features(seq, mask)[:, start:],
-                    self.row_sizes(freq_ids, x.shape[0]), x_norm, keep)
+                    head, head.features(seq, mask, row_sizes)[:, start:],
+                    row_sizes, x_norm, keep)
             elif args.mixed_rollout > 0:
                 # Mixed training: use first 48 patches as context, roll out N tokens
                 N_roll = args.mixed_rollout

@@ -14,6 +14,9 @@
 #   blocks                 a bank of output layers by block size 16, 32, 64
 #                          and 128 on the trunk of the B4 head
 #                          (`--head-block-sizes`, `src/block_head.py`)
+#   blocks_sep             the arm `blocks` with one full head per block
+#                          size, with no shared trunk
+#                          (`--head-block-trunks separate`)
 # With no arm, the wave holds the control and the 4 family arms.
 #
 # Each arm keeps the flags of the standard B4 head of a GiftEvalPretrain
@@ -155,6 +158,7 @@ SHAPE="${FF_BB_SHAPE:---d-model 384 --n-heads 8 --num-layers 3}"
 # of the caller must not reach an arm: a control with CF_FREQ_FAMILY would
 # be a family.
 unset CF_FREQ_FAMILY CF_FREQ_FAMILY_RULE CF_FREQ_FAMILY_MEMBERS \
+  CF_HEAD_BLOCK_SIZES CF_HEAD_BLOCK_TRUNKS \
   CF_RECONSTRUCTION CF_HEAD_ARCH CF_HEAD_ARGV_TO CF_SKIP_EVAL EVAL_STRATEGY \
   EVAL_CONFIG_FILTER EVAL_EXPECT_CONFIGS EVAL_FORECAST_BATCH_SIZE HEAD_SEED
 
@@ -167,6 +171,7 @@ if [ $(( HEAD_STEPS % 1000 )) -eq 0 ]; then HK="$(( HEAD_STEPS / 1000 ))k"; else
 arm_env(){  # <arm>
   [ "$1" = control ] && return 0
   [ "$1" = blocks ] && { echo "CF_HEAD_BLOCK_SIZES=16,32,64,128"; return 0; }
+  [ "$1" = blocks_sep ] && { echo "CF_HEAD_BLOCK_SIZES=16,32,64,128 CF_HEAD_BLOCK_TRUNKS=separate"; return 0; }
   [[ "$1" =~ ^(shared|heads)_(strict|draw)(_m([0-9]+(-[0-9]+)*))?$ ]] || return 1
   echo "CF_FREQ_FAMILY=${BASH_REMATCH[1]} CF_FREQ_FAMILY_RULE=${BASH_REMATCH[2]}"
   [ -z "${BASH_REMATCH[4]}" ] || echo "CF_FREQ_FAMILY_MEMBERS=${BASH_REMATCH[4]//-/,}"
@@ -211,7 +216,7 @@ check_inputs(){
   [[ "$RUN" =~ ^[a-z0-9_]+$ ]] || { log "ABORT: the run name '$RUN' must hold a-z, 0-9 and _ only"; return 1; }
   [[ "$STOP" =~ ^[0-9]+$ ]] || { log "ABORT: the stop '$STOP' is not a number of thousands of steps"; return 1; }
   for arm in "${ARMS[@]}"; do
-    arm_env "$arm" >/dev/null || { log "ABORT: unknown arm '$arm'. Use control, blocks, or <shared|heads>_<strict|draw>[_m<keys>]."; return 1; }
+    arm_env "$arm" >/dev/null || { log "ABORT: unknown arm '$arm'. Use control, blocks, blocks_sep, or <shared|heads>_<strict|draw>[_m<keys>]."; return 1; }
     [ "$arm" = control ] || family=1
   done
   case "$DEVICE" in cpu|cuda) ;; *) log "ABORT: FF_EVAL_DEVICE=$DEVICE. Use cpu or cuda."; return 1 ;; esac

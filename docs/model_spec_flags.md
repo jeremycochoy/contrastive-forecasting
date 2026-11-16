@@ -370,3 +370,40 @@ python3 experiments/2026-04-13_gift-eval/scripts/train_forecasting_head.py \
   --encoder-type gru --rev-norm-kind ewma --rev-norm-span 128 \
   --save-dir <dir> --run-name <tag>
 ```
+
+## `--head-block-trunks shared|separate`
+
+Default: `shared`. A flag of `train_forecasting_head.py`, and of each job of
+`train_forecasting_heads_shared.py`. It sets the trunks of the bank of
+`--head-block-sizes`. Code: `src/block_head.py`.
+
+- `shared`: one trunk for every block size, and one output layer per size.
+  The head file and each output are those of `--head-block-sizes` alone.
+- `separate`: one full head per block size. Each size has a trunk of its
+  own and its output layer, and the sizes share no weight.
+
+With `separate`:
+
+- Each trunk is a copy of the trunk of the shared bank. So with one seed,
+  each trunk starts from the weights of the standard head, and the output
+  layers start from the weights of the shared bank.
+- A row goes through the trunk of its own block size only. So a row trains
+  the trunk and the output layer of its size, and no other weight.
+- The batches, the steps, the learning rate and the loss stay those of the
+  shared bank. The trunk of a size reads only the rows of that size, so it
+  gets fewer rows per step than the shared trunk.
+- The head has one trunk for each size: 4 trunks for 16, 32, 64 and 128.
+
+The head file names the trunks `block_body.<P>.*`. The output layers keep
+the keys `block_out.<P>.*`. `eval_gift_eval_official.py` reads the mode off
+these keys and needs no flag. The head of a config uses the trunk and the
+output layer of the block size of its frequency. The log of the load names
+the mode: `[eval] block head: one trunk per block size, one output layer per
+block size (16, 32, 64, 128)`.
+
+The trainer refuses `--head-block-trunks separate` with no
+`--head-block-sizes`.
+
+In the wave scripts, `CF_HEAD_BLOCK_TRUNKS=separate` of `head_eval_bb.sh`
+adds the flag, and the tag must end in `_ff_blocks_sep`. The arm
+`blocks_sep` of `run_wave.sh` is the arm `blocks` with this knob.
