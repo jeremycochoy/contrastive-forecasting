@@ -1,12 +1,12 @@
 # Our copy of Moirai at the width-64 size on GIFT-Eval
 
-One run of our width-64 Moirai copy (MPE, 1 seed, 1 encoder layer, 3 forecaster layers) scores 0.053 to 0.073 higher GM-Relative MASE than MPE at width 384. This run is in the range of the contrastive width-64 runs up to 75k, below each run from 100k, and above only the two 10-L-ALIGN cooldowns (150k and 166k).
-
 ![width64_gm_mase](plots/width64_gm_mase.png)
 
-The total loss decreases from 1.12 to 0.87, with almost equal contributions from the 4 rollout depths.
+One run of our width-64 Moirai copy (MPE, 1 seed, 1 encoder layer, 3 forecaster layers) scores 0.053 to 0.073 higher GM-Relative MASE than MPE at width 384. This run is in the range of the contrastive width-64 runs (1 seed each) up to 75k, below each run from 100k, and above only the two 10-L-ALIGN cooldowns (150k and 166k).
 
 ![loss_composition](plots/loss_composition.png)
+
+The total loss decreases from 1.12 to 0.87, with almost equal contributions from the 4 rollout depths.
 
 | Stop | MPE, width 64 | MPE, width 384 | Difference |
 |---|---|---|---|
