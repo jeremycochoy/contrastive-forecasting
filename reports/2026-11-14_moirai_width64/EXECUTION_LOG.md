@@ -58,3 +58,17 @@
 - The orchestrator moves the first-try `$R/code` and `$R/logs` aside. Then it
   launches the run from a frozen copy of the reviewed head. The audit fixes
   of `05cb7c6d` do not change the training.
+
+## The run
+
+- The run started from step 0 on GPU 1 at 01:56 UTC on 11-15, from the
+  frozen copy of `c80d7309`.
+- Elisa rebooted at 21:55 UTC on 11-15, at step ~98,400. At 10:21 UTC on
+  11-16, the run resumed from its 95k save and its optimizer file (the
+  files `cf462_mpe_w64_r2_*`). So the run has 2 legs, and steps 95k to
+  ~98.4k trained two times.
+- The run ended at 00:20 UTC on 11-17 with code 0. Each leg ran at
+  1.38 step/s. `results/logs/supervise.log` and `results/logs/score.log`
+  record each start and each score.
+- `s3://model.artifacts/cf462_mpe_w64/` holds 76 files: the 34 saves with
+  their optimizer files, 6 CSV logs, `train.log` and `CODE_COMMIT`.
