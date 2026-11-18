@@ -52,7 +52,8 @@ from src.dataloader import (
 from src.loss import (contrastive_latent_loss, rep_only_term,
                       grid_pred_term, pred_term, cpc_infonce_aux_loss,
                       cpc_infonce_all_loss, align_loss, align_moco_loss,
-                      sigreg_loss, ALIGN_LOSS_KINDS)
+                      sigreg_loss, ALIGN_LOSS_KINDS, JOINT_TEACHER_SHAPE,
+                      joint_teacher_term)
 from src.checkpoint import (gru_input_bound_of, load_training_state,
                             save_training_state)
 from src.dist_utils import (
@@ -122,7 +123,8 @@ REP_WEIGHT_SHAPES = ("cosine_similarity_batch_split_pred_rep",
 # The main shapes that take a row mask (#419, #412): no padded position and
 # no inert row enters their terms.
 SPLIT_SHAPE = "cosine_similarity_batch_split_pred_rep"
-ROW_MASK_SHAPES = ("cosine_similarity_batch_rep_only", SPLIT_SHAPE)
+ROW_MASK_SHAPES = ("cosine_similarity_batch_rep_only", SPLIT_SHAPE,
+                   JOINT_TEACHER_SHAPE)
 
 T_RAW = 1024  # Default. Overridden by --t-raw CLI flag.
 
@@ -657,6 +659,7 @@ def build_parser():
                             "cosine_similarity_batch_full_hh_negs_xshh_allt",
                             "cosine_similarity_batch_split_pred_rep",
                             "cosine_similarity_batch_rep_only",
+                            JOINT_TEACHER_SHAPE,
                             "cpc_multistep",
                             "cpc_multistep_cpcnegs",
                             "cosine_similarity",
@@ -666,8 +669,15 @@ def build_parser():
                         "is the paper-described loss with cross-time negatives "
                         "(h[b,t-1,c] <-> h[b,t,c] and cross-channel time terms) "
                         "— re-introduced after being dropped during ARMA-era tuning. "
-                        "Only 'cosine_similarity_batch_rep_only' and "
-                        "'cosine_similarity_batch_split_pred_rep' take a row "
+                        f"'{JOINT_TEACHER_SHAPE}' replaces L_align and L_rep "
+                        "with one InfoNCE fraction per rollout depth: the "
+                        "forecast pair and the representation pair are both "
+                        "in the numerator and in the denominator, and every "
+                        "h key and target comes from the EMA teacher "
+                        "(docs/joint_teacher_loss.md). "
+                        "Only 'cosine_similarity_batch_rep_only', "
+                        "'cosine_similarity_batch_split_pred_rep' and "
+                        f"'{JOINT_TEACHER_SHAPE}' take a row "
                         "mask, which --gift-pretrain and the contrastive "
                         "objective by row (#419, #412) need.")
     p.add_argument("--pos-in-denominator", action="store_true",
@@ -2216,8 +2226,8 @@ def gift_contrastive_gap(args):
     """The first contrastive setting of this run that cannot skip the zero
     padding (#419), or None. Masked: the rep_only L_rep with or without MoCo
     keys, L_pred and L_rep of the split shape with or without MoCo
-    negatives and keys (#412), L_align (in the loss or alone), the matched
-    CPC auxiliary and both SIGReg terms."""
+    negatives and keys (#412), the joint teacher fraction, L_align (in the
+    loss or alone), the matched CPC auxiliary and both SIGReg terms."""
     if (not args.no_main_contrastive_loss
             and args.loss_shape not in ROW_MASK_SHAPES):
         return f"--loss-shape {args.loss_shape}"
@@ -2246,8 +2256,8 @@ def row_mask_refusal(flag, args):
     The value-space objective reads each row on its own. The contrastive
     objective takes the Moirai parts by row, through the masks of #419, so
     each of its terms must take one: L_rep of the rep_only shape, with or
-    without MoCo keys, L_pred and L_rep of the split shape, L_align, the
-    matched CPC auxiliary and SIGReg.
+    without MoCo keys, L_pred and L_rep of the split shape, the joint
+    teacher fraction, L_align, the matched CPC auxiliary and SIGReg.
     """
     if args.value_space_objective:
         return None
@@ -2257,8 +2267,7 @@ def row_mask_refusal(flag, args):
     return (f"{flag} reaches the contrastive objective by row (#412), and "
             f"{gap} takes no row mask. Use --value-space-objective, or the "
             f"contrastive terms that take one: --loss-shape "
-            f"cosine_similarity_batch_rep_only or "
-            f"cosine_similarity_batch_split_pred_rep, with their add-ons.")
+            f"{' or '.join(ROW_MASK_SHAPES)}, with their add-ons.")
 
 
 def check_patch_stats(args):
@@ -2360,6 +2369,57 @@ def check_mean_std(args):
                          "encoder. Use --encoder-type gru, or drop it.")
 
 
+def run_tau(args):
+    """The tau of the run: --tau, else the 0.07 of LOSS_SPEC."""
+    return 0.07 if args.tau is None else args.tau
+
+
+# The refusals of the joint teacher fraction: each reason, and the test of
+# the command line that sets it off.
+JOINT_TEACHER_REFUSALS = (
+    ("no EMA teacher. Every h key and target comes from the teacher: add "
+     "--ema-embedding and/or --ema-encoder",
+     lambda a: not (a.ema_embedding or a.ema_encoder)),
+    ("--multi-patch-sizes. The fraction runs on one patch size",
+     lambda a: a.multi_patch_sizes is not None),
+    ("WORLD_SIZE > 1. The fraction runs in one process",
+     lambda a: int(os.environ.get("WORLD_SIZE", "1")) > 1),
+    ("--subtract-contrastive-floor. The fraction has no floor",
+     lambda a: a.subtract_contrastive_floor),
+    ("--pos-in-denominator. The positives are always in the denominator",
+     lambda a: a.pos_in_denominator),
+    ("--moco-negatives or --moco-rep-keys. The keys always come from the "
+     "teacher",
+     lambda a: a.moco_negatives or a.moco_rep_keys),
+    ("--rep-loss-weight other than 1, or --rep-loss-weight-end. The "
+     "fraction has weight 1 and reads no rep weight",
+     lambda a: a.rep_loss_weight != 1.0 or a.rep_loss_weight_end is not None),
+    ("--pred-loss-weight other than 1. The fraction has weight 1",
+     lambda a: a.pred_loss_weight != 1.0),
+    ("--tau-rep with a value other than --tau. One tau divides every pair",
+     lambda a: a.tau_rep is not None and a.tau_rep != run_tau(a)),
+    ("--forecaster-kind other than transformer. The fraction reads one "
+     "forecast per position",
+     lambda a: a.forecaster_kind != "transformer"),
+    ("XSHH_ALLT_FUSED=1 or XSHH_ALLT_SHARD=1. These kernels take no "
+     "padding mask",
+     lambda a: "1" in (os.environ.get("XSHH_ALLT_FUSED"),
+                       os.environ.get("XSHH_ALLT_SHARD"))),
+)
+
+
+def check_joint_teacher(args):
+    """Refuse at start-up a command line that the joint teacher fraction
+    cannot run. The message lists every clash."""
+    if args.loss_shape != JOINT_TEACHER_SHAPE:
+        return
+    clashes = [why for why, test in JOINT_TEACHER_REFUSALS if test(args)]
+    if clashes:
+        raise SystemExit(f"--loss-shape {JOINT_TEACHER_SHAPE} does not run "
+                         "with this command line:\n  - "
+                         + "\n  - ".join(clashes))
+
+
 def contrastive_padding(model, args):
     """``[B, T, C]``: the patches of the batch the model has just normalised
     which no contrastive term may read: the zero padding (#419), and the
@@ -2443,7 +2503,7 @@ def real_positions(latent, pad_patches):
 
 
 @torch.no_grad()
-def tau_reference(f_lat, o_lat, pad_patches, args):
+def tau_reference(f_lat, o_lat, pad_patches, args, teacher=None):
     """The ``loss_tau_ref`` column: the main contrastive loss at a fixed
     τ = 0.07, with no gradient. Comparable across runs whatever --tau or
     --learnable-tau says.
@@ -2457,9 +2517,14 @@ def tau_reference(f_lat, o_lat, pad_patches, args):
     keys or negatives. Depth 0 only, on a --train-rollout-depth run too
     (#373), so one curve compares across k. It skips the padding as the
     loss does, where its shape can (#419). The split shape takes its masked
-    terms for that (#412).
+    terms for that (#412). The joint teacher fraction has teacher keys by
+    definition, so its reference is its depth-0 fraction on ``teacher``.
     """
     tau = torch.tensor(0.07, device=f_lat.device, dtype=f_lat.dtype)
+    if args.loss_shape == JOINT_TEACHER_SHAPE:
+        return joint_teacher_term(
+            f_lat.detach(), o_lat.detach(), LOSS_SPEC, pad_patches,
+            teacher_original_latent=teacher, tau_override=tau).item()
     if pad_patches is not None and args.loss_shape == SPLIT_SHAPE:
         ref = (pred_term(f_lat.detach(), o_lat.detach(), LOSS_SPEC,
                          pad_patches, tau_override=tau, moco_negatives=False)
@@ -2512,9 +2577,12 @@ def main_contrastive_term(lat, args, rep_w_now, tau, pad_patches, terms):
     """The main contrastive loss of one forward, or L_align alone under
     --no-main-contrastive-loss. ``rep_w_now`` is the L_rep weight of the
     step (#409). ``terms`` receives the unweighted terms the loss computes.
-    The split shape on a padded batch runs its masked terms (#412)."""
+    The split shape on a padded batch runs its masked terms (#412). The
+    joint teacher fraction runs its own function, padding or not."""
     if args.no_main_contrastive_loss:
         return lat.f.new_zeros(()) + align_term(lat, args, pad_patches)
+    if args.loss_shape == JOINT_TEACHER_SHAPE:
+        return joint_term(lat, args, tau, pad_patches, terms)
     if pad_patches is not None and args.loss_shape == SPLIT_SHAPE:
         return split_masked_term(lat, args, rep_w_now, tau, pad_patches,
                                  terms)
@@ -2544,6 +2612,18 @@ def split_masked_term(lat, args, rep_w, tau, pad_patches, terms):
     loss = loss + rep_only_term(
         lat.o, LOSS_SPEC, pad_patches, tau_override=tau,
         teacher_original_latent=lat.teacher, rep_loss_weight=rep_w,
+        term_out=terms)
+    return loss + align_term(lat, args, pad_patches, terms)
+
+
+def joint_term(lat, args, tau, pad_patches, terms):
+    """The joint teacher fraction of one forward with its rollout depths
+    (``joint_teacher_term``), at weight 1, and L_align when it is on.
+    ``contrastive_latent_loss`` does not take the shape."""
+    loss = joint_teacher_term(
+        lat.f, lat.o, LOSS_SPEC, pad_patches,
+        teacher_original_latent=lat.teacher, rollout_latents=lat.rollout,
+        tau_override=tau, depth_reduce=args.train_rollout_reduce,
         term_out=terms)
     return loss + align_term(lat, args, pad_patches, terms)
 
@@ -2699,12 +2779,17 @@ class CSVLogger:
     def __init__(self, path, flush_every=100, tau_ref_column=True,
                  rollout_depth=0, depth_column_prefix="cos_err_d",
                  dropped_column=False, nan_column=False, rms_column=False,
-                 sigreg_f_column=False, depth_columns=None):
+                 sigreg_f_column=False, depth_columns=None,
+                 joint_column=False):
         self.path = path
         # sigreg_f_column: a trailing `sigreg_f` column, the SIGReg term on
         # the forecaster output (--sigreg-forecast). Last, so the columns of
         # every other run keep their place.
         self.sigreg_f_column = bool(sigreg_f_column)
+        # joint_column: a trailing `l_joint` column, the depth-0 copy of the
+        # joint teacher fraction, unweighted. Only a run of that shape
+        # writes it, so every other CSV keeps its schema.
+        self.joint_column = bool(joint_column)
         # dropped_column (#421): a trailing `meanstd_dropped` column, the
         # share of the step's windows the mean/std filter dropped. Only a
         # run with --meanstd-z-max on writes it, so every other CSV keeps
@@ -2801,6 +2886,8 @@ class CSVLogger:
             header += ["patch_rms"]
         if self.sigreg_f_column:
             header += ["sigreg_f"]
+        if self.joint_column:
+            header += ["l_joint"]
         if os.path.getsize(path) == 0:
             self._writer.writerow(header)
             self._file.flush()
@@ -2837,7 +2924,7 @@ class CSVLogger:
             rep_w=None, l_pred=None, l_rep=None, l_align=None,
             cos_err_depths=None, meanstd_dropped=None, nan_dropped=None,
             spike_dropped=None, grad_norm=None, patch_rms=None,
-            sigreg_f=None):
+            sigreg_f=None, l_joint=None):
         if not self._enabled:
             return
         row = [step, loss]
@@ -2869,6 +2956,8 @@ class CSVLogger:
             row.append('' if patch_rms is None else patch_rms)
         if self.sigreg_f_column:
             row.append('' if sigreg_f is None else sigreg_f)
+        if self.joint_column:
+            row.append('' if l_joint is None else l_joint)
         self._buffer.append(row)
         if len(self._buffer) >= self.flush_every:
             self.flush()
@@ -3179,6 +3268,8 @@ def main():
             raise SystemExit(
                 "--value-space-objective needs the single-step transformer "
                 f"forecaster; got --forecaster-kind {args.forecaster_kind}.")
+    # Before the patch sizes, so a joint run names its own clashes first.
+    check_joint_teacher(args)
     multi_patch_sizes = parse_multi_patch_sizes(args)
 
     check_gift_pretrain(args)
@@ -3321,6 +3412,7 @@ def main():
         "cosine_similarity_batch_full_hh_negs_xshh_allt",
         "cosine_similarity_batch_split_pred_rep",
         "cosine_similarity_batch_rep_only",
+        JOINT_TEACHER_SHAPE,
     )
     # The shape restriction is about the teacher's h_{t+1} REPLACING the
     # student's positive inside contrastive_latent_loss. Under
@@ -3666,7 +3758,8 @@ def main():
                         and args.meanstd_z_max > 0),
         nan_column=args.skip_nan_samples,
         rms_column=args.patch_rms_weight > 0,
-        sigreg_f_column=args.sigreg_forecast)
+        sigreg_f_column=args.sigreg_forecast,
+        joint_column=args.loss_shape == JOINT_TEACHER_SHAPE)
     print(f"Loss CSV: {csv_path}")
 
     # Latent-drift probe (rank-0 only). Fixed ARMA batch drawn once and
@@ -4219,7 +4312,8 @@ def main():
         # latents, which is what tells whether a value-trained cell separates
         # futures from pasts.
         loss_tau_ref_val = (None if args.value_space_objective
-                            else tau_reference(f_lat, o_lat, pad_patches, args))
+                            else tau_reference(f_lat, o_lat, pad_patches, args,
+                                               teacher_o_lat))
         t_fwd_end = time.perf_counter()
 
         if nan_debug is not None:
@@ -4313,7 +4407,7 @@ def main():
                 sigreg_h_val = step_values["sigreg_h"]
                 sigreg_f_val = step_values["sigreg_f"]
                 loss_tau_ref_val = tau_reference(f_lat, o_lat, pad_patches,
-                                                 args)
+                                                 args, row_extra.teacher)
             else:
                 value_depths = row_extra
         if step_skipped and not far_skipped:
@@ -4472,7 +4566,8 @@ def main():
                                       if args.skip_spike_samples > 0 else None),
                        grad_norm=step_grad_norm,
                        patch_rms=(getattr(model, "last_patch_rms", None)
-                                  if args.patch_rms_weight > 0 else None))
+                                  if args.patch_rms_weight > 0 else None),
+                       l_joint=loss_terms.get('l_joint'))
 
         if step % args.log_every == 0 and is_main_process():
             elapsed = time.time() - t0

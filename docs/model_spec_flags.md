@@ -27,6 +27,7 @@ The run needs terms that take a row mask:
 |---|---|
 | `L_rep`, with or without MoCo keys | `--loss-shape cosine_similarity_batch_rep_only`, `--moco-rep-keys` |
 | `L_pred` and `L_rep`, with or without MoCo negatives and keys | `--loss-shape cosine_similarity_batch_split_pred_rep`, `--moco-negatives`, `--moco-rep-keys` |
+| the joint teacher fraction, on one patch size ([`joint_teacher_loss.md`](joint_teacher_loss.md)) | `--loss-shape cosine_similarity_batch_joint_teacher` |
 | `L_align`, in the loss or alone | `--align-loss-weight` |
 | the CPC auxiliary | `--cpc-infonce-weight` with `--cpc-infonce-negs matched` |
 | SIGReg | `--sigreg-embedding`, `--sigreg-encoding` |

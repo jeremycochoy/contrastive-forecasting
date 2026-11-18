@@ -126,6 +126,10 @@ python scripts/recover.py --device cuda --model-path model.pth --epochs 20000
   `W = 6/σ` since the window fix, `--sigreg-legacy-window`, which restores
   the old window to reproduce an older run, and `--sigreg-forecast`, which
   adds SIGReg on the forecaster output.
+- [`docs/joint_teacher_loss.md`](docs/joint_teacher_loss.md) —
+  `--loss-shape cosine_similarity_batch_joint_teacher`, which replaces
+  `L_align` and `L_rep` with one InfoNCE fraction for each rollout depth.
+  Every h key and target of the fraction comes from the EMA teacher.
 
 ### Evaluation flags
 
