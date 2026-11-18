@@ -56,6 +56,6 @@ with a causal transformer, as TimesFM~\citep{das2024timesfm} does. Its
 forecast is a latent, as in CPC and JEPA, and it must match an EMA
 target, as in JEPA. A contrastive loss with negatives, as in CPC, and
 the SIGReg regulariser of LeJEPA keep the latents away from collapse.
-Unlike CPC and TS-JEPA, it trains one model on many datasets for
-forecasting, and we score it with a forecast error on the GIFT-Eval
-benchmark~\citep{aksu2024gifteval}.
+Unlike CPC and TS-JEPA, it trains one model on the $152$ sources of
+the GIFT-Eval pretraining corpus~\citep{aksu2024gifteval}, and we
+score it with a forecast error on the GIFT-Eval benchmark.

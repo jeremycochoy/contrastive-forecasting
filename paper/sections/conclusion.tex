@@ -4,8 +4,9 @@
 Inspired by the JEPA principle of learning an abstract representation
 rather than the raw values of the input (the pixels of an image, the
 samples of a time series), we have trained a forecasting model
-directly in latent space, in an unsupervised manner
-(Section~\ref{sec:method}). A small head, trained on the frozen model,
+directly in latent space, in an unsupervised manner, on the
+pretraining corpus of GIFT-Eval (Sections~\ref{sec:method}
+and~\ref{sec:data}). A small head, trained on the frozen model,
 maps its latent forecasts back to values.
 
 Section~\ref{sec:results} gives a first evaluation of this model on
