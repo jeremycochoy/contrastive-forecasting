@@ -835,6 +835,14 @@ def build_parser():
                         "the contrastive loss and its knobs, the teacher and "
                         "its EMA, SIGReg and the CPC auxiliary. "
                         "VALUE_SPACE_FLAGS lists what the run reads.")
+    p.add_argument("--keep-start-window-targets", action="store_true",
+                   help="The value objective keeps the targets in the first "
+                        "window of the EWMA, as MPE (#421ew) trained before "
+                        "289b2fc8. The input before such a target reads its "
+                        "values through the start statistics of the EWMA. "
+                        "Default: no term reads these targets "
+                        "(start_window_anchors). Needs "
+                        "--value-space-objective (#462).")
     p.add_argument("--train-rollout-depth", type=int, default=0,
                    help="k — train the COMPOSED forecaster, not just one step "
                         "(#373). Every loss term that ties f to h is duplicated "
@@ -1160,7 +1168,8 @@ def value_objective(model, inputs, args, multi_patch_sizes, active=None):
     """
     x_norm, labels = inert_inputs(inputs, active)
     target = inputs["target_mask"]
-    start = inputs.get("start_mask")
+    start = (None if getattr(args, "keep_start_window_targets", False)
+             else inputs.get("start_mask"))
     if start is not None:
         # No term predicts a value of the EWMA's first window: every input
         # before it reads that window's mean and variance.
@@ -2150,6 +2159,7 @@ VALUE_SPACE_FLAGS = frozenset((
     "patch_rms_weight",
     # The objective.
     "value_space_objective", "train_rollout_depth", "train_rollout_reduce",
+    "keep_start_window_targets",
     # One patch encoder and one value head per patch size (#417).
     "multi_patch_sizes",
 ))
@@ -2295,6 +2305,14 @@ def check_patch_rms(args):
                          "channel (#421). Add --value-space-objective, "
                          "--multi-patch-sizes, --encoder-type gru and "
                          "--n-channels 1.")
+
+
+def check_start_window_targets(args):
+    """Refuse --keep-start-window-targets where no value objective runs."""
+    if args.keep_start_window_targets and not args.value_space_objective:
+        raise SystemExit("--keep-start-window-targets keeps targets of the "
+                         "value objective (#462). Add "
+                         "--value-space-objective.")
 
 
 def check_skip_nan(args):
@@ -3167,6 +3185,7 @@ def main():
     check_mean_std(args)
     check_skip_nan(args)
     check_patch_rms(args)
+    check_start_window_targets(args)
     check_contrastive_rows(args)
     check_patch_stats(args)
     # #412: the Moirai parts reach the contrastive objective by row. The

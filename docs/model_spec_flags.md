@@ -131,6 +131,16 @@ A row with only a non-finite input gradient ranks high, and the search
 checks it on its own before it drops it. Every pass of the search runs the
 forward of each group, so a NaN step costs one full step per pass.
 
+## `--keep-start-window-targets`
+
+Default: off. The EWMA starts from the mean and variance of the first 16 real
+values of a window. So the input before a target in that window reads the
+values of the target. Since 289b2fc8, no term reads such a target
+(`start_window_anchors`). MPE (#421ew) trained before that commit, with these
+targets in its value objective. The flag keeps them, so a value-space run
+trains the objective of MPE (#462). The trainer refuses the flag without
+`--value-space-objective`.
+
 ## `--patch-stats none|diff|raw`
 
 Default: `none`. The statistics come from the normaliser of the whole batch.
