@@ -1,4 +1,4 @@
-"""Tests for the Semicolon rule of the ASD-STE100 checker in .vale/."""
+"""Tests for the Semicolon rule of the ASD-STE100 checker in .vale/, and for the files that it checks."""
 import json
 import shutil
 import subprocess
@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 VALE_CONFIG = Path(__file__).resolve().parents[1] / ".vale" / ".vale.ini"
+LINT_SCRIPT = VALE_CONFIG.with_name("ste-lint.sh")
 SEMICOLON_CHECK = "ASD-STE100.Semicolon"
 
 # Each text holds one semicolon that rule 8.1 does not permit.
@@ -61,3 +62,31 @@ class TestSemicolonRule(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def changed_list(repo, names):
+    """The files that `ste-lint.sh --changed HEAD~1 --list` gives in a new git repository `repo` with one commit that
+    adds the Python files `names`."""
+    def git(*args):
+        subprocess.run(["git", "-C", str(repo), "-c", "user.name=test", "-c", "user.email=test@example.com", *args],
+                       check=True, capture_output=True)
+    git("init", "-q")
+    git("commit", "-q", "--allow-empty", "-m", "base")
+    for name in names:
+        (repo / name).write_text("# A comment.\n", encoding="utf-8")
+    git("add", ".")
+    git("commit", "-q", "-m", "files")
+    result = subprocess.run([str(LINT_SCRIPT), "--changed", "HEAD~1", "--list"], cwd=repo, capture_output=True,
+                            text=True, check=True)
+    return result.stdout.split()
+
+
+@unittest.skipUnless(shutil.which("vale"), "vale is not installed")
+class TestChangedFiles(unittest.TestCase):
+
+    # The list of the changed files is larger than a pipe buffer (64 KiB): the check of each file must not stop the
+    # write of that list.
+    def test_each_changed_file_is_in_the_list(self):
+        names = [f"module_{index:04d}_{'x' * 60}.py" for index in range(1500)]
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(sorted(changed_list(Path(tmp), names)), names)
