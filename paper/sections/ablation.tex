@@ -1,0 +1,46 @@
+\section{Ablation}
+\label{sec:ablation}
+
+Our recipe changes several parts of a standard time-series foundation
+model. Table~\ref{tab:ablation} lists these changes. Each ablation
+starts from our best configuration, the model of
+Section~\ref{sec:experiments}, and replaces one change with its standard
+counterpart. The other settings stay the same. Each run trains for
+$166{,}000$ steps, then a new forecast head trains on its backbone
+(Section~\ref{sec:forecast-head}). The scores of the ablations will
+come in a later version of this report.
+
+% The reference row is the run "grey" at 166k (Section experiments).
+\begin{table}[!htb]
+  \centering
+  \caption{Ablations of our recipe. Each row replaces one change of
+    our best configuration with its standard counterpart. GM-MASE on
+    the $97$ configurations of GIFT-Eval after $166{,}000$ steps; lower
+    is better.}
+  \label{tab:ablation}
+  \small
+  \begin{tabular}{llll}
+    \toprule
+    Part & Our recipe & Replaced by & GM-MASE \\
+    \midrule
+    None & Our best configuration & & $1.0164$ \\
+    \midrule
+    Data & Forked ARMA series (Sec.~\ref{sec:data}) & No synthetic series & \\
+    Data & Crossfade series (Sec.~\ref{sec:data}) & No crossfade series & \\
+    Data & Mixup, $p = 0.3$ (Sec.~\ref{sec:data}) & No mixup & \\
+    \midrule
+    Input & EWMA normalisation & Instance normalisation & \\
+    Input & Time-scale embedding & No time-scale embedding & \\
+    Input & GRU patch embedding & Residual block of TimesFM & \\
+    \midrule
+    Model & Latent sphere after each stage & No sphere & \\
+    Model & Depthwise causal convolution & No convolution & \\
+    Model & DropKey in the encoder, $p = 0.7$ & No DropKey & \\
+    \midrule
+    Loss & SIGReg on $e$ & No SIGReg on $e$ & \\
+    Loss & SIGReg on $h$ & No SIGReg on $h$ & \\
+    Loss & $\mathcal{L}_{\mathrm{rep}}$ & No $\mathcal{L}_{\mathrm{rep}}$ & \\
+    Loss & $\mathcal{L}_{\mathrm{align}}$ at distances $1$ to $32$, weight $1/d$ & Distance $1$ only & \\
+    \bottomrule
+  \end{tabular}
+\end{table}

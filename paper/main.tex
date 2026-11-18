@@ -15,7 +15,7 @@
 \usepackage{microtype}
 \usepackage{xcolor}
 \usepackage{graphicx}
-\usepackage{float}
+\usepackage{placeins}
 
 
 \title{Contrastive Forecasting: Initial Technical Report}
@@ -44,12 +44,19 @@
 \input{sections/method}
 
 
+\input{sections/data}
+
+
 \input{sections/experiments}
 
 
 \input{sections/results}
 
 
+\input{sections/ablation}
+
+
+\FloatBarrier
 \input{sections/conclusion}
 
 
@@ -58,20 +65,6 @@
 
 \bibliographystyle{plainnat}
 \bibliography{references}
-
-
-\appendix
-
-\input{sections/appendix_graphs}
-
-
-\input{sections/appendix_correlation}
-
-
-\input{sections/appendix_head_search}
-
-
-\input{sections/appendix_backbone_search}
 
 
 \end{document}

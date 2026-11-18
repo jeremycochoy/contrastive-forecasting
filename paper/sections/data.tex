@@ -1,0 +1,72 @@
+\section{Data}
+\label{sec:data}
+
+We train on the pretraining corpus of GIFT-Eval~\citep{aksu2024gifteval}
+and we evaluate on the GIFT-Eval benchmark. The authors of GIFT-Eval
+built this corpus with no overlap with the test split of the
+benchmark. Each batch also holds a few synthetic series, and a mixup
+step mixes the series of some batches.
+
+\paragraph{Benchmark.}
+GIFT-Eval has $23$ datasets with frequencies from $10$ seconds to one
+year. A configuration is one dataset at one frequency and one forecast
+term. The benchmark has $97$ configurations: $55$ short-term, $21$
+medium-term and $21$ long-term.
+
+\paragraph{Real series.}
+The pretraining corpus, GiftEvalPretrain, has $152$ sources,
+$3.3$ million rows and $231$ billion values. We sample it with the
+method of Moirai~\citep{woo2024moirai}. A source is drawn with a
+probability proportional to its number of rows times the weight of the
+source in the Moirai training mix. A row is drawn with a probability
+proportional to its length, and a window of $1024$ values starts at a
+uniform position in the row. Each variate of a row becomes a separate
+univariate series. A series shorter than the window gets zeros on its
+left, and the normalisation of Section~\ref{sec:normalisation} treats
+these zeros as padding. A run of $166{,}000$ steps reads $254$ real
+windows at each step: $42$ million windows, or $43$ billion values.
+This is $18.7\%$ of the values of the corpus.
+
+\paragraph{Synthetic series.}
+Each batch holds two synthetic series, a \emph{forked ARMA} pair. The
+two series share one past and have two different futures. We draw the
+orders $p, q$ uniformly in $\{1, \ldots, 8\}$ and the coefficients
+from a standard normal distribution, then we rescale each coefficient
+set to an $\ell_1$ norm of at most $0.95$. This bound is a
+sufficient condition for a stationary AR part and an invertible MA
+part. The two series follow the same ARMA path
+with unit Gaussian noise up to a fork point, drawn uniformly between
+one quarter and three quarters of the window. After the fork, each
+series continues from the shared state with its own noise, and with
+its own copy of the coefficients plus a Gaussian perturbation of
+standard deviation $0.05$. Each series is the cumulative sum of its
+ARMA path, so it is an ARIMA$(p, 1, q)$ series.
+
+\paragraph{Crossfade series.}
+Each batch also holds three series built from two real windows $A$ and
+$B$ of the batch: $A$ and $B$, each normalised to zero mean and unit
+variance, and their crossfade
+\[
+  C_t \;=\; (1 - s_t)\, A_t \;+\; s_t\, B_t .
+\]
+The weight $s_t$ goes linearly from $0$ to $1$ over a transition
+around a midpoint. The midpoint is uniform in the window, and the
+width of the transition is log-uniform between $1/128$ of the window
+and the full window. With the forked ARMA pair, a batch holds
+$254 + 2 + 3 = 259$ series.
+
+\paragraph{Mixup.}
+At each step, with probability $0.3$, we mix the whole batch with the
+mixup of~\citet{zhang2018mixup}. We draw one weight
+$a \sim \mathrm{Beta}(0.2, 0.2)$ and one random permutation $\pi$ of
+the batch, and each series $x_b$ becomes
+\[
+  \tilde{x}_b \;=\; a\, x_b \;+\; (1 - a)\, x_{\pi(b)} .
+\]
+The frequency and seasonality embeddings of
+Section~\ref{sec:scale-embedding} mix with the same weight. The mixup
+acts on the raw values, before the normalisation. A mixed series keeps
+the longer zero padding of its two series. The TSMixup of
+Chronos~\citep{ansari2024chronos} mixes up to $k$ series after a
+scaling of each series; our mixup mixes two raw series. Before the
+mixup, each series changes sign with probability $0.5$.
