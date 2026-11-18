@@ -14,6 +14,10 @@ The synthetic distribution is the main limit of these results.
 ARMA processes capture only one slice of what real time series can
 look like, so the recovery numbers do not say anything about how the
 same backbone behaves on real-world data, such as electricity
-consumption, oil prices, monthly sales, or road traffic. The natural
-next step is to evaluate it on a general time-series forecasting
-benchmark.
+consumption, oil prices, monthly sales, or road traffic.
+Section~\ref{sec:results-gift} gives a first evaluation of the current
+model on the GIFT-Eval benchmark. After $166{,}000$ steps, our model
+scores a GM-MASE of $1.0164$, and a Moirai-style value-space model of
+the same width scores $1.0090$. The ablations of
+Section~\ref{sec:ablation} will measure the effect of each part of
+our recipe.

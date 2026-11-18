@@ -1,17 +1,76 @@
 \section{Experiments}
 \label{sec:experiments}
 
-We want to verify whether the backbone of Section~\ref{sec:method},
-trained with the contrastive loss of Section~\ref{sec:loss}, learns
-information about the process that generated the data and, in
-particular, whether the underlying parameters can be recovered from
-the latents. We do this with two controlled synthetic experiments where
-the generating parameters are known.\footnote{Code, training scripts
+We run two kinds of experiments. On GIFT-Eval, we compare our model
+with value-space models trained with the rest of our recipe
+(Section~\ref{sec:exp-gift}). On synthetic data, we test whether the
+latents of the first version of the backbone encode the parameters of
+the process that generated the data (Sections~\ref{sec:exp-arma}
+and~\ref{sec:exp-corr}).\footnote{Code, training scripts
 and experiment notebooks are available at
 \url{https://github.com/jeremycochoy/contrastive-forecasting}.}
 
+\subsection{GIFT-Eval}
+\label{sec:exp-gift}
+
+% Our model is the run "grey" of the width-64 search:
+% g166b_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10harm_rollfix
+% (experiments/2026-11-08_width64_search). The value-space models are the
+% runs MPE: cf462_mpe_w64 (width 64) and cf421ew_moirai_k3 (width 384).
+
+\paragraph{Our model.}
+Our model is the model of Section~\ref{sec:method} with $K = 64$,
+$1$ encoder layer and $3$ forecaster layers, trained with the loss of
+Equation~\eqref{eq:loss-total} on the data of Section~\ref{sec:data}.
+It trains for $166{,}000$ steps at batch size $256$ with AdamW
+($\beta_1 = 0.9$, $\beta_2 = 0.98$), a constant learning rate of
+$10^{-3}$ and a weight decay of $0.1$. The forecast head of
+Section~\ref{sec:forecast-head} then trains on the frozen backbone.
+
+\paragraph{Moirai-style models.}
+To measure the effect of the latent-space objective, we train
+value-space models with the rest of our recipe: the same data,
+normalisation, time-scale embedding, GRU patch embedding and
+transformer blocks. Their patches come from
+Moirai~\citep{woo2024moirai}: they have one patch embedding and one
+output head for each of the patch sizes $8$, $16$, $32$, $64$ and
+$128$, and each series draws its patch size from the range of its
+frequency.
+Each output head predicts the $9$ quantiles of the next patch, and the
+loss is the pinball loss on the normalised values. Like our model,
+they also run on their own forecasts: the model reads its median
+forecast up to $3$ times, and the loss adds the pinball loss of each
+depth. The learning rate rises to $10^{-3}$ over $10{,}000$ steps,
+then a cosine takes it to $0$ at step $166{,}000$. We train one model
+of the size of ours, at width $64$ with $1$ encoder layer and $3$
+forecaster layers. We train a bigger one at width $384$ with $3$
+encoder layers and $3$ forecaster layers. It has $14.4$ million
+parameters, the size of Moirai small.
+
+\paragraph{Training budget.}
+All three models train for $166{,}000$ steps at batch size $256$. They
+read $42$ million windows of the pretraining corpus, or $18.7\%$ of
+its values (Section~\ref{sec:data}).
+
+\paragraph{Metric.}
+For each of the $97$ configurations, we compute the MASE of the median
+forecast, with the seasonal period of the frequency, and we divide it
+by the MASE of the seasonal naive forecast. The GM-MASE is the
+geometric mean of this ratio over the $97$ configurations. Lower is
+better, and the seasonal naive forecast scores $1$. Each score comes
+from one training run.
+
 \subsection{ARMA}
 \label{sec:exp-arma}
+
+We want to verify whether the first version of the backbone,
+trained with the InfoNCE loss of
+Appendix~\ref{sec:appendix-first-loss}, learns information about the
+process that generated the data and, in particular, whether the
+underlying parameters can be recovered from the latents. We do this
+with two controlled synthetic experiments where the generating
+parameters are known: ARMA processes, and random walks with
+correlated increments (Section~\ref{sec:exp-corr}).
 
 \paragraph{Training data.}
 For each training sample we draw orders $p, q$ uniformly from
@@ -43,8 +102,8 @@ draw of orders, coefficients and noise, and there is no fixed dataset
 of finite size.
 
 \paragraph{Loss.}
-Section~\ref{sec:loss} defines three negative families. In the present
-setting two of them simplify away.
+Appendix~\ref{sec:appendix-first-loss} defines three negative
+families. In the present setting two of them simplify away.
 \begin{itemize}
 \item The cross-channel term $\mathcal{N}_{\mathrm{cc}}$ vanishes
   because $C = 1$: there is no other channel to draw negatives from.
@@ -68,18 +127,19 @@ the loss is
 with
 \[
   \mathcal{P}_+(b, t)
-  \;=\; \sigma_\tau\!\big(f[b, t],\, h[b, t+1]\big),
+  \;=\; \sigma_\tau\!\big(f[b, t],\, e[b, t+1]\big),
   \qquad
   \mathcal{N}_{\mathrm{cb}}(t)
   \;=\; \sum_{b \neq b'}
-    \sigma_\tau\!\big(h[b, t+1],\, f[b', t]\big).
+    \sigma_\tau\!\big(e[b, t+1],\, f[b', t]\big).
 \]
 We use $\tau = 0.07$.
 
 \paragraph{Backbone.}
-We use the backbone of Section~\ref{sec:method} with $L = 12$
-transformer layers and hidden width $H = 1024$. The encoder is the
-bidirectional GRU described in Section~\ref{sec:encoder}. Training
+We use the first version of the backbone
+(Appendix~\ref{sec:appendix-first-loss}): the bidirectional GRU patch
+embedding of Section~\ref{sec:patch-embedding}, then a forecaster
+with $L = 12$ transformer layers and hidden width $H = 1024$. Training
 runs for $2$M steps with AdamW, learning rate $7 \times 10^{-5}$,
 batch size $8$. The architecture-search history that motivates these
 choices is reported in Appendix~\ref{sec:appendix-backbone-search}.
@@ -88,9 +148,9 @@ We monitor backbone training with the \emph{contrastive gap}, defined
 as
 \[
   \mathrm{gap} \;=\; \mathbb{E}_{b, t} \big[
-    \langle f[b, t],\, h[b, t+1] \rangle
+    \langle f[b, t],\, e[b, t+1] \rangle
     \;-\;
-    \langle f[b, t],\, h[b, t] \rangle
+    \langle f[b, t],\, e[b, t] \rangle
   \big],
 \]
 the difference between the mean forecast-future and forecast-past
@@ -105,8 +165,8 @@ Appendix~\ref{sec:appendix-backbone-search}.
 \label{sec:exp-head}
 To probe whether the backbone latents encode the ARMA parameters, we
 freeze the backbone after training and fit a small \emph{recovery
-head} on top of it. The head receives the per-patch latent
-$h[b, t] \in \mathbb{R}^H$ produced by the frozen backbone and returns
+head} on top of it. The head receives the per-patch embedding
+$e[b, t] \in \mathbb{R}^H$ produced by the frozen backbone and returns
 a per-patch coefficient prediction
 $\hat{\theta}[b, t] \in \mathbb{R}^{2P}$.
 

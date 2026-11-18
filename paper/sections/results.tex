@@ -1,6 +1,50 @@
 \section{Results}
 \label{sec:results}
 
+\subsection{GIFT-Eval}
+\label{sec:results-gift}
+
+Table~\ref{tab:gift-eval} gives the GM-MASE of the three models of
+Section~\ref{sec:exp-gift} after $166{,}000$ steps. At width $64$, the
+Moirai-style model scores $1.0090$ and our model scores $1.0164$. The
+Moirai-style model at width $384$ scores $0.9362$. The Moirai-style
+model at width $64$ has one patch embedding and one output head for
+each of its five patch sizes, so it has $3.3$ times the parameters of
+our model. Its learning rate decays to $0$ at the last step, and ours
+stays at $10^{-3}$. Figure~\ref{fig:gift-radar} gives the relative
+MASE of each GIFT-Eval dataset.
+
+\begin{table}[t]
+  \centering
+  \caption{GM-MASE on the $97$ configurations of GIFT-Eval after
+    $166{,}000$ training steps. Lower is better, and seasonal naive
+    scores $1$. The layers are the encoder layers plus the forecaster
+    layers. Our parameter count includes the forecast head ($0.11$M)
+    and leaves out the EMA teacher, which the forecast does not use.}
+  \label{tab:gift-eval}
+  \begin{tabular}{lcccc}
+    \toprule
+    Model & Width & Layers & Parameters & GM-MASE \\
+    \midrule
+    Contrastive Forecasting (ours) & $64$ & $1 + 3$ & $0.73$M & $1.0164$ \\
+    Moirai-style, value space & $64$ & $1 + 3$ & $2.4$M & $1.0090$ \\
+    Moirai-style, value space & $384$ & $3 + 3$ & $14.4$M & $0.9362$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.92\linewidth]{figures/gift_eval_radar.png}
+  \caption{Relative MASE of each GIFT-Eval dataset after $166{,}000$
+    steps: the geometric mean, over the configurations of the dataset,
+    of the MASE of the model divided by the MASE of seasonal naive. The
+    dotted ring is seasonal naive. Inside the ring is better. The
+    hardest datasets are at the top. The legend gives the GM-MASE over
+    the $97$ configurations.}
+  \label{fig:gift-radar}
+\end{figure}
+
 \subsection{ARMA}
 
 The recovery head reaches $r = 8.34$ on the smaller 2x2 configuration
