@@ -32,8 +32,9 @@ Each batch holds two synthetic series, a \emph{forked ARMA} pair. The
 two series share one past and have two different futures. We draw the
 orders $p, q$ uniformly in $\{1, \ldots, 8\}$ and the coefficients
 from a standard normal distribution, then we rescale each coefficient
-set to an $\ell_1$ norm of at most $0.95$, as in
-Section~\ref{sec:exp-arma}. The two series follow the same ARMA path
+set to an $\ell_1$ norm of at most $0.95$. This bound is a
+sufficient condition for a stationary AR part and an invertible MA
+part. The two series follow the same ARMA path
 with unit Gaussian noise up to a fork point, drawn uniformly between
 one quarter and three quarters of the window. After the fork, each
 series continues from the shared state with its own noise, and with

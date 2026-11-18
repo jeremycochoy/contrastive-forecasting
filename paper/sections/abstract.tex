@@ -4,12 +4,16 @@
   Because the observed series is one realisation of a stochastic
   process, a value-space loss asks the model to reproduce intrinsic
   noise that no model can predict. We propose \emph{Contrastive
-  Forecasting}, a training framework in which an encoder and a causal
-  forecaster are trained jointly to predict the next patch in latent
-  space through contrastive learning, with negatives drawn along the
-  cross-temporal, cross-channel and cross-batch axes. The framework
-  is decoupled from the choice of encoder and forecaster
-  architecture. On synthetic stationary ARMA processes, the latents
-  produced by the backbone carry enough information about the
-  generating process for a small head to recover its parameters.
+  Forecasting}, a training framework in which a patch embedding, an
+  encoder and a causal forecaster are trained jointly to predict the
+  next patch in latent space. The forecasts align with the latents of
+  an EMA teacher, a contrastive loss separates the latents of
+  different patches and series, and the SIGReg regulariser prevents
+  the collapse of the latents. The framework is decoupled from the
+  choice of encoder and forecaster architecture. A small head, trained
+  on the frozen model, maps the latent forecasts back to values. On
+  the GIFT-Eval benchmark, after $166{,}000$ training steps, our model
+  scores a GM-MASE of $1.0164$ with $0.73$ million parameters. A
+  value-space model of the same width, trained with the rest of our
+  recipe, scores $1.0090$ with $2.4$ million parameters.
 \end{abstract}

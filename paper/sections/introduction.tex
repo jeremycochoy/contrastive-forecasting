@@ -39,13 +39,11 @@ knowledge no published time-series foundation model uses it as a
 primary forecasting objective.
 
 We ask whether a time-series forecasting model can be trained
-directly in latent space with an explicit contrastive objective, in
-such a way that the latent it learns encodes the underlying
-data-generating process. The rest of the paper proposes a candidate
-architecture, evaluates it on the GIFT-Eval benchmark, and tests
-this question on a controlled synthetic distribution, where the
-generating parameters are known and recoverability can be checked
-directly.
+directly in latent space with an explicit contrastive objective, and
+how its forecasts compare with those of a value-space model. The rest
+of the paper proposes a candidate architecture and evaluates it on
+the GIFT-Eval benchmark, against value-space models trained with the
+same data and the same budget.
 
 The contributions of the paper are the following.
 \begin{itemize}
@@ -58,14 +56,6 @@ The contributions of the paper are the following.
   choice of encoder and forecaster architecture.
 \item A comparison on GIFT-Eval with Moirai-style value-space models
   trained with the same data and the same budget
-  (Section~\ref{sec:results-gift}), and the plan of the ablations of
+  (Section~\ref{sec:results}), and the plan of the ablations of
   our recipe (Section~\ref{sec:ablation}).
-\item Empirical evidence that the latents of the first version of the
-  model encode the parameters of the data-generating process. On synthetic ARMA, a
-  frozen-backbone recovery head retrieves the AR and MA coefficients
-  with an improvement ratio well above the all-zero baseline
-  (Sections~\ref{sec:experiments} and~\ref{sec:results}).
-\item An architecture-search trail for both the encoder and the
-  forecaster, with the design decisions reported in
-  Appendix~\ref{sec:appendix-backbone-search}.
 \end{itemize}

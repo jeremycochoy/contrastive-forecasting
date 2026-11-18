@@ -4,13 +4,13 @@
 Our recipe changes several parts of a standard time-series foundation
 model. Table~\ref{tab:ablation} lists these changes. Each ablation
 starts from our best configuration, the model of
-Section~\ref{sec:exp-gift}, and replaces one change with its standard
+Section~\ref{sec:experiments}, and replaces one change with its standard
 counterpart. The other settings stay the same. Each run trains for
 $166{,}000$ steps, then a new forecast head trains on its backbone
 (Section~\ref{sec:forecast-head}). The scores of the ablations will
 come in a later version of this report.
 
-% The reference row is the run "grey" at 166k (Section exp-gift).
+% The reference row is the run "grey" at 166k (Section experiments).
 \begin{table}[!htb]
   \centering
   \caption{Ablations of our recipe. Each row replaces one change of
