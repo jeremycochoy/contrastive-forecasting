@@ -4,7 +4,7 @@ against sig reg? I think at 5k sig reg should force the same spread of dimension
 
 From the losses CSV of each run (one row per step): SIGReg on e and on h (the values in the loss, weight 1), the
 dimension usage U of e and of h over batch x time (U = 1 / (d x mean cos^2 of two samples): 1 = isotropic, 1/d = all
-samples on one line; the pooling of SIGReg), and L_align x 10 at 1 patch ahead and at the deeper depths (the rest of
+samples on one line. SIGReg pools the same way), and L_align x 10 at 1 patch ahead and at the deeper depths (the rest of
 the total, as in plot_loss_stack_384.py). Each curve is a mean over WINDOW steps, on a log step axis.
 
 Usage: python3 plot_spread_384.py <output png>
