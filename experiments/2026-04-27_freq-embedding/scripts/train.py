@@ -889,7 +889,7 @@ def build_parser():
                         "before this flag. Resume an older run with raw, or "
                         "its objective changes at the resume.")
     p.add_argument("--train-rollout-reduce",
-                   choices=["sum", "mean", "halving", "harmonic"],
+                   choices=["sum", "mean", "halving", "harmonic", "hill"],
                    default="sum",
                    help="How the k + 1 copies of every f-bearing term combine "
                         "(#401). 'sum' (default) is #373's objective: the "
@@ -904,10 +904,24 @@ def build_parser():
                         "at k = 3), depth 0 included at 1, so the nearest "
                         "depths weigh the most. 'harmonic' adds copy j at the "
                         "weight 1 / (j + 1), so the distance d = j + 1 gets "
-                        "1/d (1, 1/2, 1/3, ..., 1/32 at k = 31). At k = 0 "
-                        "there is one copy and the four agree exactly, so "
+                        "1/d (1, 1/2, 1/3, ..., 1/32 at k = 31). 'hill' adds "
+                        "copy j at the weight 1 / (1 + (j / s)^p), with s and "
+                        "p from --train-rollout-hill-scale and "
+                        "--train-rollout-hill-power: 1 at depth 0, 1/2 at "
+                        "depth s. At k = 0 "
+                        "there is one copy and the five agree exactly, so "
                         "every published run reproduces under each. "
                         "docs/train_rollout_depth.md.")
+    p.add_argument("--train-rollout-hill-scale", type=float, default=None,
+                   help="s of --train-rollout-reduce hill, a number above 0: "
+                        "the depth j whose copy gets the weight 1/2. "
+                        "Required with hill, refused with any other "
+                        "reduction. docs/train_rollout_depth.md.")
+    p.add_argument("--train-rollout-hill-power", type=float, default=None,
+                   help="p of --train-rollout-reduce hill, a number above 0: "
+                        "how fast the weight 1 / (1 + (j / s)^p) falls past "
+                        "depth s. Required with hill, refused with any other "
+                        "reduction. docs/train_rollout_depth.md.")
     p.add_argument("--train-rollout-distances", type=rollout_distances_arg,
                    default=None,
                    help="Comma-separated distances d, for example "
@@ -918,7 +932,8 @@ def build_parser():
                         "columns. The list must hold 1. --train-rollout-depth "
                         "0 (default) becomes max(d) - 1. Another depth must "
                         "be max(d) - 1. Not with --train-rollout-reduce "
-                        "halving or harmonic, or --value-space-objective. "
+                        "halving, harmonic or hill, or "
+                        "--value-space-objective. "
                         "Default: off, "
                         "every depth 0..k enters. "
                         "docs/train_rollout_depth.md.")
@@ -1452,7 +1467,8 @@ def group_align_terms(lats, pads, counts, args, values):
         total = total + share * align_loss(
             f, lat.o, args.align_loss_weight, target_latent=target,
             rollout_latents=depths,
-            depth_reduce=args.train_rollout_reduce, pad_patches=pads[size],
+            depth_reduce=args.train_rollout_reduce,
+            depth_hill=rollout_hill(args), pad_patches=pads[size],
             term_out=part, kind=args.align_loss_kind)
         add_terms(logged, part, share)
     values["terms"].update(logged)
@@ -2079,7 +2095,7 @@ def resolve_rollout_distances(args):
             f"--train-rollout-distances {given}: the largest distance, "
             f"{distances[-1]}, needs depth {depth}. Drop "
             f"--train-rollout-depth, or set it to {depth}.")
-    if args.train_rollout_reduce in ("halving", "harmonic"):
+    if args.train_rollout_reduce in ("halving", "harmonic", "hill"):
         raise SystemExit(
             f"--train-rollout-reduce {args.train_rollout_reduce} weighs each "
             "copy by its place in the list. --train-rollout-distances leaves "
@@ -2091,6 +2107,36 @@ def resolve_rollout_distances(args):
             "at the listed distances, and --value-space-objective has no "
             "latent term (#415). Drop one of the two flags.")
     args.train_rollout_depth = depth
+
+
+def check_rollout_hill(args):
+    """Refuse --train-rollout-hill-scale and --train-rollout-hill-power
+    without --train-rollout-reduce hill, and hill without both of them above
+    0. A bad line raises SystemExit, and the message names the flag."""
+    hill = args.train_rollout_reduce == "hill"
+    for flag, value in (("--train-rollout-hill-scale",
+                         args.train_rollout_hill_scale),
+                        ("--train-rollout-hill-power",
+                         args.train_rollout_hill_power)):
+        if not hill and value is not None:
+            raise SystemExit(
+                f"{flag} sets a weight of --train-rollout-reduce hill, and "
+                f"this run uses --train-rollout-reduce "
+                f"{args.train_rollout_reduce}. Add --train-rollout-reduce "
+                f"hill, or drop {flag}.")
+        if hill and (value is None or not value > 0):
+            raise SystemExit(
+                f"--train-rollout-reduce hill needs {flag} above 0. Got "
+                f"{value}. Copy j gets the weight 1 / (1 + (j / s)^p), and "
+                "s and p have no default.")
+
+
+def rollout_hill(args):
+    """``(s, p)`` of --train-rollout-reduce hill, for the loss functions
+    that read no training config (their argument ``depth_hill``). Both are
+    None on a run of another reduction."""
+    return (getattr(args, "train_rollout_hill_scale", None),
+            getattr(args, "train_rollout_hill_power", None))
 
 
 def kept_rollout_depths(args):
@@ -2586,6 +2632,8 @@ def configure_loss_spec(args):
     LOSS_SPEC.train_configuration["rep_loss_weight"] = args.rep_loss_weight
     LOSS_SPEC.train_configuration["train_rollout_depth"] = args.train_rollout_depth
     LOSS_SPEC.train_configuration["train_rollout_reduce"] = args.train_rollout_reduce
+    LOSS_SPEC.train_configuration["train_rollout_hill_scale"] = args.train_rollout_hill_scale
+    LOSS_SPEC.train_configuration["train_rollout_hill_power"] = args.train_rollout_hill_power
     # The record of the run: the loss reads the kept depths off the None
     # entries of its depth list (``drop_unlisted_depths``), not off this key.
     LOSS_SPEC.train_configuration["train_rollout_distances"] = args.train_rollout_distances
@@ -2670,7 +2718,8 @@ def align_term(lat, args, pad_patches, terms=None):
     return align_loss(
         f, lat.o, args.align_loss_weight, target_latent=target,
         rollout_latents=depths, depth_reduce=args.train_rollout_reduce,
-        pad_patches=pad_patches, term_out=terms, kind=args.align_loss_kind)
+        depth_hill=rollout_hill(args), pad_patches=pad_patches,
+        term_out=terms, kind=args.align_loss_kind)
 
 
 def align_inputs(lat, args):
@@ -2701,11 +2750,13 @@ def cpc_aux_term(model, lat, args, pad_patches):
     if args.cpc_infonce_negs == "matched":
         return cpc_infonce_aux_loss(
             lat.f, lat.o, model.cpc_w1, rollout_latents=lat.rollout,
-            depth_reduce=args.train_rollout_reduce, pad_patches=pad_patches)
+            depth_reduce=args.train_rollout_reduce,
+            depth_hill=rollout_hill(args), pad_patches=pad_patches)
     return cpc_infonce_all_loss(
         lat.f, lat.o, model.cpc_w1,
         marginal_only=(args.cpc_infonce_negs == "cross"),
-        rollout_latents=lat.rollout, depth_reduce=args.train_rollout_reduce)
+        rollout_latents=lat.rollout, depth_reduce=args.train_rollout_reduce,
+        depth_hill=rollout_hill(args))
 
 
 def raw_forecast(lat):
@@ -3300,6 +3351,7 @@ def main():
               f"forecaster composes to depth {args.train_rollout_depth}, and "
               f"the copies at depths {kept_rollout_depths(args)} enter the "
               f"loss.", flush=True)
+    check_rollout_hill(args)
 
     # #415: the value-space objective replaces the contrastive one outright.
     # Refuse every flag it does not read here, before the device, the model

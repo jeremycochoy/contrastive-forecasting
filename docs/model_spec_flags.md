@@ -420,3 +420,61 @@ The trainer refuses `--head-block-trunks separate` with no
 In the wave scripts, `CF_HEAD_BLOCK_TRUNKS=separate` of `head_eval_bb.sh`
 adds the flag, and the tag must end in `_ff_blocks_sep`. The arm
 `blocks_sep` of `run_wave.sh` is the arm `blocks` with this knob.
+
+## `--train-rollout-reduce hill`, `--train-rollout-hill-scale S` and `--train-rollout-hill-power P`
+
+Flags of `train.py`. Config keys: `train_rollout_reduce`,
+`train_rollout_hill_scale` and `train_rollout_hill_power`. The full
+reference of the rollout depth is
+[`train_rollout_depth.md`](train_rollout_depth.md).
+
+| flag | type | default | values |
+|---|---|---|---|
+| `--train-rollout-reduce` | word | `sum` | `sum`, `mean`, `halving`, `harmonic`, `hill` |
+| `--train-rollout-hill-scale S` | float | none | above 0 |
+| `--train-rollout-hill-power P` | float | none | above 0 |
+
+`--train-rollout-depth k` makes `k + 1` copies of each term that ties the
+forecast f to the latent h. `hill` gives the copy of depth j the weight
+`w_j = 1 / (1 + (j / S)^P)`. Copy 0 is the forecast 1 patch ahead, and its
+weight is 1. The weight is 1/2 at depth S. P sets how fast the weight falls
+after depth S. With S = 4 and P = 4, the depths 0 to 4 get the weights 1,
+0.996, 0.941, 0.760 and 0.5. Depth 31 gets 0.0003.
+
+The weights apply to each f-bearing term:
+
+- `L_align`, in the loss or alone
+- `L_pred` of the split shape
+- the joint teacher fraction
+- the CPC auxiliary
+- the other f-bearing terms of the main loss
+
+The terms that carry no f (`L_rep`, SIGReg, `align_moco`) enter once, at
+their weight.
+
+The trainer refuses these command lines before step 1, and the message
+names the flag:
+
+- `hill` without `--train-rollout-hill-scale` or without
+  `--train-rollout-hill-power`. Neither number has a default.
+- A scale or a power that is not above 0.
+- One of the two flags with another reduction.
+- `hill` with `--train-rollout-distances`: the weight follows the place of
+  a copy in the list, and that list leaves depths out.
+- The two flags with `--value-space-objective`, which reads neither.
+
+Interactions:
+
+- At `--train-rollout-depth 0` there is one copy, so `hill` gives the loss
+  of `sum`.
+- The columns `l_align_d<j>`, `l_pred_d<j>` and `l_joint_d<j>` of the losses
+  CSV hold the copies without a weight. The loss holds copy j at `w_j`
+  times the weight of its term.
+
+Example: the copies of depths 0 to 31, with S = 4 and P = 4.
+
+```bash
+python3 experiments/2026-04-27_freq-embedding/scripts/train.py ... \
+  --train-rollout-depth 31 --train-rollout-reduce hill \
+  --train-rollout-hill-scale 4 --train-rollout-hill-power 4
+```

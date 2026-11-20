@@ -59,8 +59,8 @@ most, so the loss computes it once for each step.
 ## The rollout depths
 
 `--train-rollout-depth k` builds the k + 1 copies L_0 .. L_k.
-`--train-rollout-reduce` combines them: `sum`, `mean`, `halving` or
-`harmonic` ([`train_rollout_depth.md`](train_rollout_depth.md)). Each copy
+`--train-rollout-reduce` combines them: `sum`, `mean`, `halving`,
+`harmonic` or `hill` ([`train_rollout_depth.md`](train_rollout_depth.md)). Each copy
 holds both positives, so a reduction weighs whole copies.
 `--train-rollout-distances` keeps the copies of the listed distances.
 

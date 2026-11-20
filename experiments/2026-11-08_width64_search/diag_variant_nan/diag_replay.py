@@ -60,12 +60,12 @@ def group_norms(tensors):
 orig_reduce = loss_mod.reduce_depth_terms
 
 
-def reduce_depth_terms(terms, reduce):
+def reduce_depth_terms(terms, reduce, hill=None):
     row = S["row"]
     if (row is not None and "align" not in row and len(terms) == 1 + len(DISTANCES)
             and torch.is_grad_enabled() and terms[1].requires_grad):
         row["align"] = [t.detach().float() for t in terms[1:]]
-    return orig_reduce(terms, reduce)
+    return orig_reduce(terms, reduce, hill)
 
 
 loss_mod.reduce_depth_terms = reduce_depth_terms
