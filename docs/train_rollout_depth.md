@@ -258,6 +258,43 @@ listed distances get a column (see that section).
 `loss_tau_ref` stays a depth-0 reference at every `k`, so that curve stays
 comparable across runs.
 
+### The terms at each depth
+
+`k > 0` also adds the unweighted copy of each f-bearing term at each depth j,
+as the last columns of the CSV. A run gets the columns of the terms that it
+builds:
+
+| column | value | the run has it with |
+|---|---|---|
+| `l_pred_dj` | `L_pred` of depth j | `--loss-shape cosine_similarity_batch_split_pred_rep`, `--pred-loss-weight` other than 0 |
+| `l_align_dj` | `L_align` of depth j | `--align-loss-weight` above 0 |
+| `l_joint_dj` | `L_j`, the joint fraction of depth j | `--loss-shape cosine_similarity_batch_joint_teacher` |
+
+The columns come term by term, depth 0 first. A split run with
+`--align-loss-weight` at `k = 3` ends with `l_pred_d0` .. `l_pred_d3`, then
+`l_align_d0` .. `l_align_d3`. The depth-0 columns hold the values of
+`l_pred`, `l_align` and `l_joint`. `--train-rollout-reduce` weighs the
+copies. With `w` = `--align-loss-weight`, the `L_align` part of the loss is:
+
+```
+sum        w * (l_align_d0 + l_align_d1 + ... + l_align_dk)
+mean       the sum divided by the number of copies
+halving    w * (l_align_d0 + l_align_d1 / 2 + ... + l_align_dk / 2^k)
+harmonic   w * (l_align_d0 + l_align_d1 / 2 + ... + l_align_dk / (k + 1))
+```
+
+The other two terms have the same form. Their `w` is `--pred-loss-weight`
+for `L_pred`, and 1 for the joint fraction.
+
+- Under `--train-rollout-distances`, only the listed distances get a column.
+- `cos_err_dj` reads the student latent. Under `--align-target teacher`,
+  `l_align_dj` reads the teacher latent, so the two do not agree.
+- `--no-main-contrastive-loss` builds no main term, so the run has no
+  `l_pred_dj` and no `l_joint_dj` column. On one patch size, `l_align_dj`
+  is then blank, as `l_align` is.
+- A resume keeps the header of its CSV. A CSV from before these columns
+  gets none of them, and the run resumes into it.
+
 ## Cost
 
 Each depth costs one forecaster forward and backward over `[B·C, T, H]`, plus

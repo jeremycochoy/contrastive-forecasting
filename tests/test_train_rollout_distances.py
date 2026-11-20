@@ -33,6 +33,7 @@ from __future__ import annotations
 import argparse
 import ast
 import csv
+import io
 import os
 import subprocess
 import sys
@@ -47,6 +48,7 @@ from src.loss import (align_loss, contrastive_latent_loss,
                       rollout_depth_views)
 from src.metrics import rollout_cos_error
 
+from tests.losses_csv import TERM_DEPTH_COLUMN
 from tests.test_373_train_rollout_depth import (B, C, H, REPO_ROOT, T,
                                                 TRAIN_PY, _REP_ONLY, _SPLIT,
                                                 _XSHH_ALLT, _calls_named,
@@ -699,12 +701,21 @@ def losses_csv(root, save_dir, *flags):
 ])
 def test_a_k3_run_writes_the_losses_csv_of_the_base_commit(tmp_path, arm):
     """The real trainer at k = 3 without the flag, three steps, from the base
-    commit and from this tree. Every column of every row is the same, byte
-    for byte: the loss, the terms and the cos_err_d0..d3 curves."""
+    commit and from this tree. Every column of the base commit is the same
+    in every row, byte for byte: the loss, the terms and the cos_err_d0..d3
+    curves. This tree adds only the term copies of each depth after them."""
     old = losses_csv(base_tree(tmp_path), tmp_path / "old", *arm)
     new = losses_csv(REPO_ROOT, tmp_path / "new", *arm)
     assert old.decode().count("\n") == 4
-    assert new == old
+    old_rows, new_rows = csv_rows(old), csv_rows(new)
+    width = len(old_rows[0])
+    assert [row[:width] for row in new_rows] == old_rows
+    assert all(TERM_DEPTH_COLUMN.match(name) for name in new_rows[0][width:])
+
+
+def csv_rows(data):
+    """The rows of a losses CSV from its bytes, header first."""
+    return list(csv.reader(io.StringIO(data.decode())))
 
 
 # ---------------------------------------------------------------------------

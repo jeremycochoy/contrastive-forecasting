@@ -72,7 +72,9 @@ On the contrastive objective:
   at the horizon of the anchor. The two agree when all the rows have one
   size.
 - In the losses CSV, `l_pred`, `l_rep` and `sigreg_*` come from the whole
-  step, and `l_align` adds up by the share of the rows.
+  step, and `l_align` adds up by the share of the rows. The copies at each
+  rollout depth do the same: `l_pred_d*` from the whole step, `l_align_d*`
+  by the share of the rows.
 - A step whose rows all read one size runs the whole objective on that
   group, as a single-size run does.
 - Up to 10-01, every term ran on the rows of its group only. So L_rep, its

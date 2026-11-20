@@ -442,24 +442,32 @@ def gift_corpus(root):
             "--gift-pretrain-index", str(write_index(root, index)))
 
 
+JOINT_COPIES = ["l_joint_d0", "l_joint_d1", "l_joint_d2"]
+
+
 def joint_rows(save_dir):
+    """The rows of the joint run. ``l_joint`` comes last before the copy of
+    each depth."""
     with open(save_dir / "r_losses.csv", newline="") as fh:
         reader = csv.DictReader(fh)
-        assert reader.fieldnames[-1] == "l_joint"
+        assert reader.fieldnames[-4:] == ["l_joint", *JOINT_COPIES]
         return list(reader)
 
 
 def check_joint_rows(rows):
-    """Three steps of the joint run: the term, the reference and the
-    per-depth errors are finite, and the other term columns are blank."""
+    """Three steps of the joint run: the term, its copies, the reference and
+    the per-depth errors are finite, and the other term columns are blank."""
     assert [r["step"] for r in rows] == ["1", "2", "3"]
     for r in rows:
         values = [float(r[k]) for k in ("loss", "l_joint", "loss_tau_ref",
                                         "cos_err_d0", "cos_err_d1",
-                                        "cos_err_d2")]
+                                        "cos_err_d2", *JOINT_COPIES)]
         assert all(math.isfinite(v) for v in values)
         # The sum of three copies, each 0 or more, holds the depth-0 copy.
         assert float(r["loss"]) >= float(r["l_joint"]) > 0.0
+        assert r["l_joint"] == r["l_joint_d0"]
+        assert float(r["loss"]) == pytest.approx(
+            sum(float(r[c]) for c in JOINT_COPIES), rel=1e-5)
         assert r["l_rep"] == r["l_pred"] == r["l_align"] == r["rep_w"] == ""
 
 

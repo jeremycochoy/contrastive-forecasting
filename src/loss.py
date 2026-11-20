@@ -101,6 +101,18 @@ def _record_term(term_out, name, value):
             else float(value)
 
 
+def _record_depth_term(term_out, name, depth, value):
+    """Write the UNWEIGHTED copy ``depth`` of an f-bearing term as
+    ``<name>_d<depth>`` (#373). Copy 0 also keeps the key ``<name>``.
+
+    A depth that the run leaves out (--train-rollout-distances) builds no
+    copy, so it gets no key.
+    """
+    _record_term(term_out, f'{name}_d{depth}', value)
+    if depth == 0 and term_out is not None:
+        term_out[name] = term_out[f'{name}_d0']
+
+
 def rollout_depth_views(forecasted_latent, original_latent, depth,
                         teacher_original_latent=None):
     """Depth-`j` views of the latents, for an unchanged loss body.
@@ -508,7 +520,8 @@ def grid_pred_term(groups, spec, *, tau_override=None, moco_negatives=None,
     ``groups``: see :func:`pred_pairs` and :func:`grid_pairs`. Each depth
     copy runs on one grid. ``depth_reduce`` (else the config key) combines
     the copies (:func:`reduce_depth_terms`). ``term_out`` receives the
-    unweighted depth-0 copy as ``l_pred``. Weight 0: a zero and no key.
+    unweighted copy of each depth j as ``l_pred_d<j>``, and the depth-0
+    copy also as ``l_pred``. Weight 0: a zero and no key.
     A depth that is None in the ``rollout`` of the groups enters no copy
     (--train-rollout-distances). The groups of one step leave out the same
     depths.
@@ -525,8 +538,7 @@ def grid_pred_term(groups, spec, *, tau_override=None, moco_negatives=None,
             continue
         pairs = grid_pairs(groups, depth, moco, stopgrad)
         copy = masked_mean(*pred_anchor_losses(pairs, tau))
-        if depth == 0:
-            _record_term(term_out, 'l_pred', copy)
+        _record_depth_term(term_out, 'l_pred', depth, copy)
         copies.append(weight * copy)
     return reduce_depth_terms(copies, resolve_rollout_reduce(
         depth_reduce, train_config.get('train_rollout_reduce'),
@@ -666,8 +678,8 @@ def _joint_depth_copy(pairs, log_rep, log_neg_h, tau):
 
 def _joint_copies(group, h_terms, tau, term_out):
     """L_j of each depth that enters, depth 0 first. A None entry of the
-    rollout builds no copy. ``term_out`` receives the depth-0 copy as
-    ``l_joint``."""
+    rollout builds no copy. ``term_out`` receives the copy of each depth j
+    as ``l_joint_d<j>``, and the depth-0 copy also as ``l_joint``."""
     copies = []
     for depth in range(len(group.rollout) + 1):
         if depth and group.rollout[depth - 1] is None:
@@ -675,7 +687,7 @@ def _joint_copies(group, h_terms, tau, term_out):
         pairs = pred_pairs(group, depth, moco_negatives=True,
                            stopgrad_positive=False)
         copies.append(_joint_depth_copy(pairs, *h_terms, tau))
-    _record_term(term_out, 'l_joint', copies[0])
+        _record_depth_term(term_out, 'l_joint', depth, copies[-1])
     return copies
 
 
@@ -691,9 +703,9 @@ def joint_teacher_term(forecasted_latent, original_latent, spec, pad_patches,
     combines the copies (:func:`reduce_depth_terms`). ``pad_patches``
     (#419): ``[B, T, C]`` bool, True on a padded patch. No padded position
     enters as an anchor, a key or a positive. None: no padding. ``term_out``
-    receives the depth-0 copy as ``l_joint``. The shape reads no
-    ``rep_loss_weight`` and no ``pred_loss_weight``. The trainer adds
-    L_align and the other add-ons.
+    receives the copy of each depth j as ``l_joint_d<j>``, and the depth-0
+    copy also as ``l_joint``. The shape reads no ``rep_loss_weight`` and no
+    ``pred_loss_weight``. The trainer adds L_align and the other add-ons.
     """
     train_config = spec.train_configuration
     tau = joint_teacher_tau(train_config, tau_override)
@@ -1429,7 +1441,7 @@ def align_pair_losses(forecasted_latent, target, kind):
 def align_loss(forecasted_latent, original_latent, weight=1.0,
                target_latent=None, rollout_latents=None,
                depth_reduce='sum', pad_patches=None, term_out=None,
-               kind='cosine'):
+               kind='cosine', depth_index=0):
     """BYOL/SimSiam alignment term, standalone (#344 follow-up arm).
 
     ``L_align = weight · (2 − 2·cos(f_t, sg(h_{t+1}))).mean()`` — pull the
@@ -1459,8 +1471,11 @@ def align_loss(forecasted_latent, original_latent, weight=1.0,
     the positions of ``forecasted_latent``. Given, the mean runs over the
     pairs with a real anchor f_t only. None: every pair, as before.
 
-    ``term_out`` (#412): receives the unweighted depth-0 value as
-    ``l_align``, as :func:`contrastive_latent_loss` records it.
+    ``term_out`` (#412): receives the unweighted copy of each depth j as
+    ``l_align_d<j>``, and the depth-0 copy also as ``l_align``, as
+    :func:`contrastive_latent_loss` records them. ``depth_index`` is the
+    depth of the copy that this call computes. The loop over the depths
+    below sets it. A caller leaves it at 0.
 
     ``kind`` (:data:`ALIGN_LOSS_KINDS`, --align-loss-kind): ``'cosine'``
     (default) is the term above. ``'l2_raw'`` is
@@ -1478,7 +1493,7 @@ def align_loss(forecasted_latent, original_latent, weight=1.0,
         depth0 = pair_losses.mean()
     else:
         depth0 = masked_mean(pair_losses, ~pad_patches[:, :-1])
-    _record_term(term_out, 'l_align', depth0)
+    _record_depth_term(term_out, 'l_align', depth_index, depth0)
     copies = [weight * depth0]
     for depth, f_depth in enumerate(rollout_latents or (), start=1):
         if f_depth is None:         # left out (--train-rollout-distances)
@@ -1488,7 +1503,8 @@ def align_loss(forecasted_latent, original_latent, weight=1.0,
         copies.append(align_loss(
             f_view, o_view, weight, target_latent=target_view,
             pad_patches=(None if pad_patches is None
-                         else pad_patches[:, :f_view.shape[1]]), kind=kind))
+                         else pad_patches[:, :f_view.shape[1]]),
+            term_out=term_out, kind=kind, depth_index=depth))
     return reduce_depth_terms(
         copies, resolve_rollout_reduce(depth_reduce, None, rollout_latents))
 
@@ -1845,10 +1861,11 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     ``l_align`` — as plain floats. A term the call skips leaves NO key, so a
     reader tells "the term was off" from "the term read 0". The training
     script writes the three to ``<run>_losses.csv``, where the total loss
-    alone cannot say which term moves. Only the outermost call fills it: a
-    rollout-depth copy (``depth_index > 0``) and the ``mean``-reduction
-    f-side probe both pass None, so ``l_align`` is the depth-0 copy's value
-    and the ``cos_err_d*`` columns carry the rest of the depths.
+    alone cannot say which term moves. ``l_pred`` and ``l_align`` are the
+    depth-0 copies. A rollout-depth copy (``depth_index = j``) writes its
+    own copies of the two as ``l_pred_d<j>`` and ``l_align_d<j>``, and the
+    depth-0 call writes them as ``l_pred_d0`` and ``l_align_d0`` too. The
+    ``mean``-reduction f-side probe passes None.
 
     Rollout depth (#373. Config key ``train_rollout_depth``, default 0 →
     historical objective unchanged). ``rollout_latents`` carries
@@ -2812,7 +2829,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
                 dim=0,
             )
             loss_pred = (log_denom_pred - log_pos).mean()
-            _record_term(term_out, 'l_pred', loss_pred)
+            _record_depth_term(term_out, 'l_pred', depth_index, loss_pred)
         else:
             loss_pred = zero_scalar
 
@@ -3657,7 +3674,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             # #419: the pairs with a real anchor f_t. Their targets are real.
             loss_align = masked_mean(2.0 - 2.0 * cos_align,
                                      ~pad_patches[:, :-1])
-        _record_term(term_out, 'l_align', loss_align)
+        _record_depth_term(term_out, 'l_align', depth_index, loss_align)
         loss = loss + align_w * loss_align
 
     if sub_floor and pad_patches is not None:
@@ -3701,8 +3718,10 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     # branch, same modifiers, same add-ons — on views where f is f^(j) and
     # every h index has shifted by j, so the copy cannot silently keep a
     # depth-0 tensor. `depth_index=j` drops the terms that carry no f, which
-    # the call above already counted once. A None entry is a depth that the
-    # run leaves out (--train-rollout-distances): it makes no copy.
+    # the call above already counted once. The copy writes its f-bearing
+    # terms to `term_out` as `l_pred_d<j>` and `l_align_d<j>`. A None entry
+    # is a depth that the run leaves out (--train-rollout-distances): it
+    # makes no copy.
     depth_copies = []
     for j, f_depth in enumerate(rollout_latents or (), start=1):
         if f_depth is None:
@@ -3722,6 +3741,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
             train_rollout_depth=0,
             depth_index=j,
             rep_loss_weight=rep_loss_weight,
+            term_out=term_out,
             pad_patches=(None if pad_patches is None
                          else pad_patches[:, :f_view.shape[1]])))
 

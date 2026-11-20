@@ -873,8 +873,10 @@ def build_parser():
                         "Not defined for --forecaster-kind cpc/linear_cpc. "
                         "Refused when NO term of the run ties f to h, since "
                         "every depth would then add exactly zero. Adds "
-                        "cos_err_d0..dk to the losses CSV. Full reference: "
-                        "docs/train_rollout_depth.md.")
+                        "cos_err_d0..dk to the losses CSV, and the "
+                        "unweighted copies l_pred_d0..dk, l_align_d0..dk "
+                        "and l_joint_d0..dk of the terms the run builds. "
+                        "Full reference: docs/train_rollout_depth.md.")
     p.add_argument("--train-rollout-feedback", choices=list(ROLLOUT_FEEDBACKS),
                    default="normalised",
                    help="How --train-rollout-depth feeds each copy of the "
@@ -1286,13 +1288,19 @@ def group_padding(pad_mask, rows, size, active, shape, start_mask=None):
     return pad | inert
 
 
+def add_terms(total, part, share):
+    """Add one group's unweighted terms to ``total``, weighted by its share
+    of the rows (#412). A term starts at 0.0."""
+    for name, term in part.items():
+        total[name] = total.get(name, 0.0) + share * term
+
+
 def add_values(total, part, share):
     """Add one group's term values to the step's, weighted by its share
     (#412). A value stays NaN until a group computes it."""
     for key, value in part.items():
         if key == "terms":
-            for name, term in value.items():
-                total[key][name] = total[key].get(name, 0.0) + share * term
+            add_terms(total[key], value, share)
         elif not math.isnan(value):
             base = 0.0 if math.isnan(total[key]) else total[key]
             total[key] = base + share * value
@@ -1425,11 +1433,13 @@ def pred_groups(lats, pads, live):
 def group_align_terms(lats, pads, counts, args, values):
     """L_align of each group on its own grid (#412), with its rollout
     depths, weighted by the group's share of the active rows. Writes the
-    unweighted depth-0 value to ``values["terms"]["l_align"]``."""
+    unweighted values to ``values["terms"]``: ``l_align``, the depth-0
+    copy, and ``l_align_d<j>``, the copy of each depth j. Each one adds up
+    by the share of the group."""
     if args.align_loss_weight <= 0:
         return 0.0
     n = sum(counts.values())
-    total, logged = 0.0, 0.0
+    total, logged = 0.0, {}
     for size, lat in lats.items():
         if not counts[size]:
             continue
@@ -1444,8 +1454,8 @@ def group_align_terms(lats, pads, counts, args, values):
             rollout_latents=depths,
             depth_reduce=args.train_rollout_reduce, pad_patches=pads[size],
             term_out=part, kind=args.align_loss_kind)
-        logged += share * part["l_align"]
-    values["terms"]["l_align"] = logged
+        add_terms(logged, part, share)
+    values["terms"].update(logged)
     return total
 
 
@@ -2090,6 +2100,22 @@ def kept_rollout_depths(args):
     return None if distances is None else [d - 1 for d in distances]
 
 
+def term_depth_columns(args):
+    """The losses CSV columns of the unweighted terms at each rollout
+    depth: ``<term>_d<j>`` for each f-bearing term the run builds and each
+    depth j that enters, term by term. A k = 0 run writes none: its one
+    copy is the ``<term>`` column."""
+    if not args.train_rollout_depth:
+        return []
+    depths = kept_rollout_depths(args) or range(args.train_rollout_depth + 1)
+    main = not args.no_main_contrastive_loss
+    built = (("l_pred", main and args.loss_shape == SPLIT_SHAPE
+              and args.pred_loss_weight != 0),
+             ("l_align", args.align_loss_weight > 0),
+             ("l_joint", main and args.loss_shape == JOINT_TEACHER_SHAPE))
+    return [f"{term}_d{j}" for term, on in built if on for j in depths]
+
+
 def rollout_depth_has_no_consumer(args):
     """Whether NO term of this run can consume a rollout depth (#373).
 
@@ -2723,8 +2749,8 @@ def contrastive_terms(model, lat, args, rep_w, tau, pad_patches):
     ``lat`` holds the latents ``f``, ``o``, ``teacher``, ``e`` and
     ``rollout``. ``tau`` is the learnable temperature, None for the spec's.
     Returns ``(loss, values)``: ``values["terms"]`` holds the unweighted
-    L_pred / L_rep / L_align the loss computed, and each add-on its value
-    (NaN when it is off).
+    L_pred / L_rep / L_align the loss computed, with the copy of each
+    rollout depth, and each add-on its value (NaN when it is off).
     """
     values = no_contrastive_values()
     loss = main_contrastive_term(lat, args, rep_w, tau, pad_patches,
@@ -2780,8 +2806,13 @@ class CSVLogger:
                  rollout_depth=0, depth_column_prefix="cos_err_d",
                  dropped_column=False, nan_column=False, rms_column=False,
                  sigreg_f_column=False, depth_columns=None,
-                 joint_column=False):
+                 joint_column=False, term_depth_columns=()):
         self.path = path
+        # term_depth_columns: the names of the trailing columns of the
+        # unweighted terms at each rollout depth (the function
+        # `term_depth_columns`). The last columns, so the columns of every
+        # other run keep their place.
+        self.term_depth_columns = list(term_depth_columns)
         # sigreg_f_column: a trailing `sigreg_f` column, the SIGReg term on
         # the forecaster output (--sigreg-forecast). Last, so the columns of
         # every other run keep their place.
@@ -2870,9 +2901,10 @@ class CSVLogger:
         # term the loss computed this step, blank for a term it skipped.
         # Before #409 the CSV carried the total alone, so a report had to
         # read L_rep as the residual of every other term. l_align is the
-        # depth-0 copy: the `cos_err_d*` columns carry the other depths,
-        # and the column is blank under --no-main-contrastive-loss, where
-        # L_align is added outside the main loss.
+        # depth-0 copy, and the `l_align_d*` columns of a
+        # --train-rollout-depth run hold every copy. The column is blank
+        # under --no-main-contrastive-loss on one patch size, where L_align
+        # is added outside the main loss.
         header += ["rep_w", "l_pred", "l_rep", "l_align"]
         # Per-depth forecast error (#373), only on --train-rollout-depth runs.
         if self.rollout_depth:
@@ -2888,6 +2920,7 @@ class CSVLogger:
             header += ["sigreg_f"]
         if self.joint_column:
             header += ["l_joint"]
+        header += self._term_depth_header(path, len(header))
         if os.path.getsize(path) == 0:
             self._writer.writerow(header)
             self._file.flush()
@@ -2914,6 +2947,19 @@ class CSVLogger:
                     f"corrupt the file). Pick a fresh --run-name or "
                     f"move the old CSV aside.")
 
+    def _term_depth_header(self, path, base_length):
+        """The term-depth columns this logger writes. A resume keeps the
+        header of its CSV: when the CSV does not end with these columns, the
+        logger writes none of them. A CSV from before these columns then
+        takes the rows of the resume. The column count check still applies.
+        """
+        if os.path.getsize(path):
+            with open(path, newline="") as f:
+                existing = next(csv.reader(f), [])
+            if existing[base_length:] != self.term_depth_columns:
+                self.term_depth_columns = []
+        return self.term_depth_columns
+
     def log(self, step, loss, gap, gap_ratio, ff, fp, tp, cross_batch,
             hf_rows_consumed, synth_rows_consumed, mixup_applied,
             r2_random, r2_naive, u_temporal, u_batch, auc, top1, top3,
@@ -2924,7 +2970,9 @@ class CSVLogger:
             rep_w=None, l_pred=None, l_rep=None, l_align=None,
             cos_err_depths=None, meanstd_dropped=None, nan_dropped=None,
             spike_dropped=None, grad_norm=None, patch_rms=None,
-            sigreg_f=None, l_joint=None):
+            sigreg_f=None, l_joint=None, terms=None):
+        """Buffer one row. ``terms``: the unweighted terms of the step by
+        name, which the term-depth columns read. A missing term is blank."""
         if not self._enabled:
             return
         row = [step, loss]
@@ -2958,6 +3006,8 @@ class CSVLogger:
             row.append('' if sigreg_f is None else sigreg_f)
         if self.joint_column:
             row.append('' if l_joint is None else l_joint)
+        row += [(terms or {}).get(name, '')
+                for name in self.term_depth_columns]
         self._buffer.append(row)
         if len(self._buffer) >= self.flush_every:
             self.flush()
@@ -3759,7 +3809,8 @@ def main():
         nan_column=args.skip_nan_samples,
         rms_column=args.patch_rms_weight > 0,
         sigreg_f_column=args.sigreg_forecast,
-        joint_column=args.loss_shape == JOINT_TEACHER_SHAPE)
+        joint_column=args.loss_shape == JOINT_TEACHER_SHAPE,
+        term_depth_columns=term_depth_columns(args))
     print(f"Loss CSV: {csv_path}")
 
     # Latent-drift probe (rank-0 only). Fixed ARMA batch drawn once and
@@ -4567,7 +4618,7 @@ def main():
                        grad_norm=step_grad_norm,
                        patch_rms=(getattr(model, "last_patch_rms", None)
                                   if args.patch_rms_weight > 0 else None),
-                       l_joint=loss_terms.get('l_joint'))
+                       l_joint=loss_terms.get('l_joint'), terms=loss_terms)
 
         if step % args.log_every == 0 and is_main_process():
             elapsed = time.time() - t0
