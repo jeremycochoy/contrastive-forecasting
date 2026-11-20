@@ -84,6 +84,7 @@ Other paths have an environment variable. `SEASONAL_NAIVE_CSV` has the elisa def
 | `plot_w384_scores.py <png>` | Draws the GM-Relative MASE (all configs, short, medium, long) of green-384 and grey-384 against the step, with MPE. Prints one table per stop. |
 | `plot_gm_overview.py <png>` | Draws the GM-Relative MASE of the current runs as curves on a linear step axis. Row 1: green-384, grey-384 and MPE. Row 2: the joint teacher run with tau 1.0, green, grey and the MPE recipe at width 64. |
 | `plot_loss_stack_384.py <png>` | Draws the parts of the training loss of green-384 and grey-384. The parts are SIGReg on e and on h, L_rep, and L_align at depth 0 and at the deeper depths. Row 1 has a stack plot per run, row 2 a panel per part. |
+| `plot_spread_384.py <png>` | Draws the spread of the latents of green-384 and grey-384 on a log step axis: SIGReg on e and on h, the dimension usage U of e and of h over batch x time (1 = isotropic), and L_align at depth 0 and at the deeper depths. Prints the means of some step ranges. |
 | `probe_raw_forecast_norm.py <png> <tsv> [--redraw]` | Loads each save of green and grey at widths 64 and 384 on the CPU. On a fixed batch, it writes the mean norm of the raw forecast f (before the latent sphere) at each rollout depth to the tsv. A value of 1 is the sphere radius. Then it draws the png. `--redraw` loads no save and draws the png from the tsv. |
 
 ## diag_variant_nan/
