@@ -37,7 +37,7 @@ import torch
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
-from tests.losses_csv import rows_without_q_random  # noqa: E402
+from tests.losses_csv import rows_to_compare  # noqa: E402
 
 import src.forecasting_head as fh  # noqa: E402
 from src.checkpoint import load_backbone_from_checkpoint  # noqa: E402
@@ -1137,4 +1137,4 @@ def test_the_flag_off_writes_the_losses_csv_of_the_421_commit(case, tmp_path):
     old = losses_csv(old_root, tmp_path / "old", flags)
     new = losses_csv(REPO_ROOT, tmp_path / "new",
                      flags + ["--meanstd-z-max", "0"])
-    assert rows_without_q_random(new) == rows_without_q_random(old)
+    assert rows_to_compare(new) == rows_to_compare(old)

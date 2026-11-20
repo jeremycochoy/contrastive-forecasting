@@ -265,7 +265,7 @@ def test_l2_raw_runs_beside_the_main_loss_on_the_raw_latents(train, monkeypatch)
 
 
 def test_a_default_run_writes_the_losses_of_the_base_commit(tmp_path):
-    from tests.losses_csv import rows_without_q_random
+    from tests.losses_csv import rows_to_compare
     from tests.test_412_ours_moirai import git_tree, run
     flags = ("--total-steps", "3", "--batch-size", "2", "--lr", "1e-3",
              "--weight-decay", "0.1", "--mix-ratio", "1.0", "--synth-kind",
@@ -283,6 +283,6 @@ def test_a_default_run_writes_the_losses_of_the_base_commit(tmp_path):
     new = run(REPO_ROOT, tmp_path / "new", *flags)
     assert old.returncode == 0, old.stderr[-2000:]
     assert new.returncode == 0, new.stderr[-2000:]
-    assert (rows_without_q_random(tmp_path / "new" / "r_losses.csv")
-            == rows_without_q_random(tmp_path / "old" / "r_losses.csv"))
+    assert (rows_to_compare(tmp_path / "new" / "r_losses.csv")
+            == rows_to_compare(tmp_path / "old" / "r_losses.csv"))
     assert len(list(csv.reader(open(tmp_path / "new" / "r_losses.csv")))) == 4

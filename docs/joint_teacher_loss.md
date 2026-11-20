@@ -100,13 +100,16 @@ message lists each clash.
 
 | column of `<run>_losses.csv` | value |
 |---|---|
-| `l_joint` | L_0, the depth-0 copy, unweighted. The last column, only on a run of this shape |
+| `l_joint` | L_0, the depth-0 copy, unweighted. Only on a run of this shape |
+| `l_joint_d0` .. `l_joint_dk` | L_0 .. L_k, unweighted. The last columns, only at `--train-rollout-depth k` above 0 ([`train_rollout_depth.md`](train_rollout_depth.md#the-terms-at-each-depth)) |
 | `loss_tau_ref` | L_0 at τ = 0.07, with no gradient |
 | `cos_err_d*` | 1 − cos(f^(j)_t, h_{t+1+j}) of each depth. They read the latents, so they also work at `--align-loss-weight 0` |
 | `l_pred`, `l_rep`, `rep_w` | blank |
 | `l_align` | blank at `--align-loss-weight 0` |
 
-At depth 0 with no add-on, `loss` equals `l_joint`.
+At depth 0 with no add-on, `loss` equals `l_joint`. At depth k with
+`--train-rollout-reduce sum` and no add-on, `loss` equals
+`l_joint_d0 + ... + l_joint_dk`.
 
 ## The xx family
 

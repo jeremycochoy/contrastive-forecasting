@@ -81,16 +81,20 @@ loss = rep_w * l_rep + align_w * l_align + w_e * sigreg_e + w_h * sigreg_h + cpc
 
 **On a `--train-rollout-depth k` run that formula under-counts `L_align`.**
 `l_align` is the depth-0 copy, and the loss holds `k + 1` copies of the term,
-one for each depth. Read the other depths off the `cos_err_d*` columns. Under
-`--align-target student` each copy is `2 * cos_err_dj`, so the align part of
-the total is:
+one for each depth. The columns `l_align_d0` .. `l_align_dk` hold each copy
+([`train_rollout_depth.md`](train_rollout_depth.md#the-terms-at-each-depth)),
+so the align part of the total is:
 
 ```
---train-rollout-reduce sum    align_w * 2 * (cos_err_d0 + ... + cos_err_dk)
+--train-rollout-reduce sum    align_w * (l_align_d0 + ... + l_align_dk)
 --train-rollout-reduce mean   the same, divided by k + 1
 ```
 
 At k = 3 with `sum` the align part sums four copies, not one.
+
+A CSV from before these columns has the depth-0 copy only. Read the other
+depths off the `cos_err_d*` columns. Under `--align-target student` each
+copy is `2 * cos_err_dj`, so `l_align_dj` above becomes `2 * cos_err_dj`.
 
 **Under `--align-target teacher` the `cos_err_d*` columns cannot rebuild the
 term at all.** The align term reads the teacher's next latent and `cos_err_dj`
@@ -106,8 +110,9 @@ align_w * mean(L_align_d0 .. L_align_dk)
 #409's own arms are such runs, at k = 32 under `mean` against the teacher. See
 `reports/2026-08-22_rep_weight_decay/notes/loss_decomposition.md`.
 
-The column is blank under `--no-main-contrastive-loss`, where the training
-script adds `L_align` outside the main loss.
+`l_align` and the `l_align_d*` columns are blank under
+`--no-main-contrastive-loss` on one patch size, where the training script
+adds `L_align` outside the main loss.
 
 Before #409 the CSV held the total alone. A report had to read `L_rep` as the
 residual of every other term, which put the error of all of them into one
