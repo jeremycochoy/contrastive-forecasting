@@ -5,11 +5,14 @@
 # again with BB_GPU (its run script resumes from the last save that loads). Looks every 15 s, at most <max wait> s
 # (default 3 h).
 #   setsid nohup bash pause_after_save.sh <run dir> <pid> <k> [max wait] [stop text] >> <run dir>/logs/pause.log 2>&1 < /dev/null &
-# The stop text goes into <run dir>/stop (default: 'paused after the <k>k save').
+# The stop text goes into <run dir>/stop (default: 'paused after the <k>k save'). In place of <k>, give the full path
+# of the save: a resume branch writes <run>_r<n>_<k>k.pth.
 set -uo pipefail
-DIR="${1:?run dir}"; PID="${2:?trainer pid}"; K="${3:?save step in thousands}"; MAX_WAIT="${4:-10800}"
-TEXT="${5:-paused after the ${K}k save}"
-CKPT="$DIR/ckpt/$(basename "$DIR")_${K}k.pth"
+DIR="${1:?run dir}"; PID="${2:?trainer pid}"; K="${3:?save step in thousands, or the save path}"; MAX_WAIT="${4:-10800}"
+case "$K" in
+  *.pth) CKPT="$K"; TEXT="${5:-paused after the save $(basename "$K")}" ;;
+  *) CKPT="$DIR/ckpt/$(basename "$DIR")_${K}k.pth"; TEXT="${5:-paused after the ${K}k save}" ;;
+esac
 OPT="${CKPT%.pth}_optimizer.pth"
 END=$((SECONDS + MAX_WAIT))
 echo "$(date -u +%FT%TZ) waits for $CKPT, then stops $PID and writes $DIR/stop"
