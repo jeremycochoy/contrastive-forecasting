@@ -173,7 +173,9 @@ distance, 6 times for this list.
 ## Where it applies
 
 Every shape the `contrastive_latent_loss` dispatch accepts, plus `align_loss`,
-`cpc_infonce_aux_loss` and `cpc_infonce_all_loss`.
+`cpc_infonce_aux_loss` and `cpc_infonce_all_loss`. The joint teacher fraction
+(`joint_teacher_term`, [`joint_teacher_loss.md`](joint_teacher_loss.md))
+builds one fraction for each depth.
 
 One exception: `cpc_multistep` and `cpc_multistep_cpcnegs` raise
 `NotImplementedError` at any `k > 0`. Their forecaster is `K` parallel linear

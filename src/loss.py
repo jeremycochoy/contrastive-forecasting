@@ -555,6 +555,157 @@ def pred_term(forecasted_latent, original_latent, spec, pad_patches, *,
                           depth_reduce=depth_reduce, term_out=term_out)
 
 
+# --- The joint teacher fraction ---------------------------------------------
+#
+# ``cosine_similarity_batch_joint_teacher`` replaces L_align and L_rep with
+# one InfoNCE fraction for each rollout depth j. The anchor (b, t, c) holds
+# two positives, the forecast pair and the representation pair:
+#
+#   F_j = cos(f^(j)_t, hT_{t+1+j}) / tau        R = cos(h_t, hT_t) / tau
+#
+# hT is the EMA teacher. It gives every h key and every h target, and it
+# takes no gradient. One tau divides every pair. Both positives are in the
+# numerator and in the denominator. The denominator also holds the negatives
+# of every real anchor of the batch at (t, c): the h families of L_rep (xx,
+# hh_all, xs_allt) and the f families of L_pred (cross-batch, next forecast).
+#
+#   L_j = mean over the real anchors of
+#         logsumexp(F_j, R, total_j[t, c]) - logsumexp(F_j, R)
+#
+# The h families do not change with j. They are computed once, for the
+# anchors t = 0..T-2, and depth j reads the first T-1-j of them.
+
+JOINT_TEACHER_SHAPE = 'cosine_similarity_batch_joint_teacher'
+
+
+def joint_teacher_tau(train_config, tau_override=None):
+    """The one tau of the joint fraction: ``tau_override``, else the config
+    key ``contrastive_divergence_temperature``. The shape has no second tau,
+    so a config with another ``contrastive_divergence_temperature_rep``
+    raises."""
+    tau = train_config.get('contrastive_divergence_temperature', 1.0)
+    tau_rep = train_config.get('contrastive_divergence_temperature_rep')
+    if tau_rep is not None and float(tau_rep) != float(tau):
+        raise ValueError(
+            f"{JOINT_TEACHER_SHAPE} divides every pair by one tau. Got "
+            f"contrastive_divergence_temperature={tau} and "
+            f"contrastive_divergence_temperature_rep={tau_rep}. Drop "
+            "--tau-rep, or give it the value of --tau.")
+    return tau if tau_override is None else tau_override
+
+
+def _joint_group(forecasted_latent, original_latent, teacher_original_latent,
+                 rollout_latents, pad_patches):
+    """The latents of the joint fraction as one group of :func:`pred_pairs`.
+    The teacher takes no gradient. No padding gives an all-False mask."""
+    if teacher_original_latent is None:
+        raise ValueError(
+            f"{JOINT_TEACHER_SHAPE} needs an EMA teacher: pass "
+            "teacher_original_latent (--ema-embedding / --ema-encoder at "
+            "training time).")
+    rollout = list(rollout_latents or ())
+    steps = original_latent.shape[1]
+    if len(rollout) + 2 > steps:
+        raise ValueError(
+            f"train_rollout_depth={len(rollout)} needs at least "
+            f"{len(rollout) + 2} time steps to keep one anchor. Got {steps}.")
+    pad = pad_patches if pad_patches is not None else torch.zeros(
+        original_latent.shape[:3], dtype=torch.bool,
+        device=original_latent.device)
+    return SimpleNamespace(f=forecasted_latent, o=original_latent,
+                           teacher=teacher_original_latent.detach(),
+                           rollout=rollout, pad=pad)
+
+
+def _joint_h_terms(group, tau):
+    """``(log_rep, log_neg)``, each ``[B, T-1, C]``, for the anchors h_t,
+    t = 0..T-2: R, and the h families of each anchor with teacher keys. The
+    teacher goes first in the xx family, so that family sums over the keys
+    of each student anchor."""
+    h = F.normalize(group.o, p=2, dim=-1)
+    teacher = F.normalize(group.teacher, p=2, dim=-1)
+    anchor, pad_x = h[:, :-1], group.pad[:, :-1]
+    negs = torch.stack([
+        _xx_lse_masked(teacher[:, :-1], anchor, pad_x, tau),
+        _hh_all_lse_masked(anchor, teacher, group.pad, tau),
+        _xs_allt_lse_masked(anchor, teacher, group.pad, tau,
+                            _xs_allt_chunk_for_mask())])
+    log_rep = cosine_similarity_from_normalized(anchor, teacher[:, :-1]) / tau
+    return log_rep, torch.logsumexp(negs, dim=0)
+
+
+def _joint_pooled_negatives(pairs, log_neg_h, tau):
+    """``[1, L, C]``: the negatives of every real anchor at (t, c), pooled
+    over the batch. ``log_neg_h`` holds the h families of each anchor h_t.
+    The cross-batch and next-forecast families of its forecast come from
+    ``pairs``."""
+    negs = torch.stack([
+        log_neg_h,
+        _zy_lse_masked(pairs['zy'], pairs['anchor'], pairs['zy_drop'], tau),
+        _cross_batch_lse_masked(pairs['anchor'], pairs['key'],
+                                pairs['key_drop'], tau)])
+    per_anchor = torch.logsumexp(negs, dim=0).masked_fill(
+        pairs['drop'], NEG_INF)
+    return torch.logsumexp(per_anchor, dim=0, keepdim=True)
+
+
+def _joint_depth_copy(pairs, log_rep, log_neg_h, tau):
+    """L_j, the joint fraction of one depth, as the mean over its real
+    anchors. ``pairs`` holds the forecast pairs of the depth
+    (:func:`pred_pairs`), and the h terms come from :func:`_joint_h_terms`."""
+    steps = pairs['anchor'].shape[1]
+    log_f = cosine_similarity_from_normalized(
+        pairs['pos'], pairs['anchor']) / tau
+    pos = torch.stack([log_f, log_rep[:, :steps]])
+    total = _joint_pooled_negatives(pairs, log_neg_h[:, :steps], tau)
+    log_denom = torch.logsumexp(
+        torch.cat([pos, total.expand_as(log_f).unsqueeze(0)]), dim=0)
+    return masked_mean(log_denom - torch.logsumexp(pos, dim=0),
+                       ~pairs['drop'])
+
+
+def _joint_copies(group, h_terms, tau, term_out):
+    """L_j of each depth that enters, depth 0 first. A None entry of the
+    rollout builds no copy. ``term_out`` receives the depth-0 copy as
+    ``l_joint``."""
+    copies = []
+    for depth in range(len(group.rollout) + 1):
+        if depth and group.rollout[depth - 1] is None:
+            continue
+        pairs = pred_pairs(group, depth, moco_negatives=True,
+                           stopgrad_positive=False)
+        copies.append(_joint_depth_copy(pairs, *h_terms, tau))
+    _record_term(term_out, 'l_joint', copies[0])
+    return copies
+
+
+def joint_teacher_term(forecasted_latent, original_latent, spec, pad_patches,
+                       *, teacher_original_latent, rollout_latents=None,
+                       tau_override=None, depth_reduce=None, term_out=None):
+    """The loss of ``cosine_similarity_batch_joint_teacher``, at weight 1:
+    one joint fraction for each rollout depth (see the section comment).
+
+    ``rollout_latents``: f^(1)..f^(k). A None entry is a depth that the run
+    leaves out (--train-rollout-distances), and it builds no copy.
+    ``depth_reduce`` (else the config key ``train_rollout_reduce``)
+    combines the copies (:func:`reduce_depth_terms`). ``pad_patches``
+    (#419): ``[B, T, C]`` bool, True on a padded patch. No padded position
+    enters as an anchor, a key or a positive. None: no padding. ``term_out``
+    receives the depth-0 copy as ``l_joint``. The shape reads no
+    ``rep_loss_weight`` and no ``pred_loss_weight``. The trainer adds
+    L_align and the other add-ons.
+    """
+    train_config = spec.train_configuration
+    tau = joint_teacher_tau(train_config, tau_override)
+    reduce = resolve_rollout_reduce(
+        depth_reduce, train_config.get('train_rollout_reduce'),
+        rollout_latents)
+    group = _joint_group(forecasted_latent, original_latent,
+                         teacher_original_latent, rollout_latents, pad_patches)
+    copies = _joint_copies(group, _joint_h_terms(group, tau), tau, term_out)
+    return reduce_depth_terms(copies, reduce)
+
+
 def _cpc_time_lse_masked(q_a, e, pad_e):
     """The CPC auxiliary's cross-time negatives, padded keys dropped."""
     T = e.shape[1]
@@ -1760,6 +1911,13 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     # every rollout-depth copy (depth_index > 0), and the depth-0 f-side the
     # `mean` reduction subtracts before it divides (#401).
     f_only = bool(depth_index) or bool(f_terms_only)
+
+    # The joint teacher fraction has its own function, which the trainer
+    # calls. This dispatch does not take the shape.
+    if train_config.get('loss_shape') == JOINT_TEACHER_SHAPE:
+        raise NotImplementedError(
+            f"loss_shape={JOINT_TEACHER_SHAPE!r} has its own function, "
+            "joint_teacher_term. contrastive_latent_loss does not take it.")
 
     # #419: the padding mask is wired into the rep_only shape alone. Any
     # other shape would train on the padding and say nothing, so it raises.
