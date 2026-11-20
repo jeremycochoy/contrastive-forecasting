@@ -54,17 +54,22 @@ _NORMALIZED_FORM_SHAPES = (
 #          distance d = j + 1 gets 1/d: 1, 1/2, 1/3, 1/4 at k = 3. Depth 0
 #          keeps its weight, so the f-side carries 1 + 1/2 + ... + 1/(k + 1)
 #          times its k = 0 weight (4.06 at k = 31).
-# At k = 0 there is one copy and the four reductions agree exactly. The mean,
-# the halving and the harmonic weights weigh the f-bearing copies ONLY: the
-# terms that carry no f enter once, at their configured weight, under every
-# reduction.
+#   'hill' adds copy j at the weight 1 / (1 + (j / s)^p), with the scale s
+#          (`train_rollout_hill_scale`) and the power p
+#          (`train_rollout_hill_power`). The weight is 1 at depth 0 and 1/2
+#          at depth s, and p sets how fast it falls past s: 1, 0.996, 0.941,
+#          0.760, 0.5, ..., 0.0003 at k = 31 with s = p = 4.
+# At k = 0 there is one copy and the five reductions agree exactly. The mean
+# and the weights of the halving, the harmonic and the hill reductions weigh
+# the f-bearing copies ONLY: the terms that carry no f enter once, at their
+# configured weight, under every reduction.
 #
 # A None entry in the list f^(1)..f^(k) is a depth that the run leaves out
 # (`--train-rollout-distances`). Each copy loop skips it and keeps the true
 # depth j of the other entries. The sum adds the copies that enter, and the
-# mean divides by their count. The halving and the harmonic weights weigh a
-# copy by its place in the list, so a list with a None entry refuses them
-# (`resolve_rollout_reduce`).
+# mean divides by their count. The halving, the harmonic and the hill
+# weights weigh a copy by its place in the list, so a list with a None entry
+# refuses them (`resolve_rollout_reduce`).
 #
 # Every copy runs the SAME code path as depth 0, on views where every h index
 # has shifted by j — so f^(j) lands wherever f^(0) lands, in the same role,
@@ -157,9 +162,9 @@ def resolve_rollout_depth(depth_override, config_depth, rollout_latents,
     return depth
 
 
-ROLLOUT_REDUCTIONS = ('sum', 'mean', 'halving', 'harmonic')
+ROLLOUT_REDUCTIONS = ('sum', 'mean', 'halving', 'harmonic', 'hill')
 # The reductions that weigh copy j by its place j in the list.
-PLACE_WEIGHTED_REDUCTIONS = ('halving', 'harmonic')
+PLACE_WEIGHTED_REDUCTIONS = ('halving', 'harmonic', 'hill')
 
 
 def resolve_rollout_reduce(reduce_override, config_reduce,
@@ -168,8 +173,9 @@ def resolve_rollout_reduce(reduce_override, config_reduce,
 
     `'sum'` (default) is #373's objective. `'mean'` divides the copies by
     k + 1, so the f-side holds its k = 0 weight at every depth. `'halving'`
-    weighs copy j by 1 / 2^j and `'harmonic'` by 1 / (j + 1), depth 0
-    included at 1. The function argument wins over the training-config key
+    weighs copy j by 1 / 2^j, `'harmonic'` by 1 / (j + 1) and `'hill'` by
+    1 / (1 + (j / s)^p) (:func:`resolve_rollout_hill`), depth 0 included at
+    1. The function argument wins over the training-config key
     `train_rollout_reduce`, the precedence every other run-level knob here
     uses.
 
@@ -178,8 +184,8 @@ def resolve_rollout_reduce(reduce_override, config_reduce,
 
     `rollout_latents` is the list f^(1)..f^(k) of the call. A None entry is
     a depth that the run leaves out (`--train-rollout-distances`). The
-    halving and the harmonic weights weigh a copy by its place in the list,
-    so they raise then.
+    halving, the harmonic and the hill weights weigh a copy by its place in
+    the list, so they raise then.
     """
     reduce = config_reduce if reduce_override is None else reduce_override
     if reduce is None:
@@ -198,22 +204,67 @@ def resolve_rollout_reduce(reduce_override, config_reduce,
     return reduce
 
 
-def reduce_depth_terms(terms, reduce):
+# The config keys of the scale s and the power p of the 'hill' reduction.
+HILL_KEYS = ('train_rollout_hill_scale', 'train_rollout_hill_power')
+
+
+def config_rollout_hill(train_config):
+    """``(s, p)`` of the 'hill' reduction from the training config. A key
+    that the config does not set gives None."""
+    return tuple(train_config.get(key) for key in HILL_KEYS)
+
+
+def resolve_rollout_hill(reduce, hill):
+    """The checked ``(s, p)`` of the 'hill' reduction, or None under another
+    reduction, which reads neither number.
+
+    ``hill`` is the pair of the call: the config keys
+    (:func:`config_rollout_hill`), or the argument ``depth_hill`` of a loss
+    function that reads no training config. 'hill' has no default: a
+    missing number, or a number that is not above 0, raises and names
+    itself.
+    """
+    if reduce != 'hill':
+        return None
+    scale, power = (None, None) if hill is None else hill
+    for key, value in zip(HILL_KEYS, (scale, power)):
+        if value is None or not value > 0:
+            raise ValueError(
+                f"train_rollout_reduce='hill' needs {key} above 0 (flag "
+                f"--{key.replace('_', '-')}). Got {value!r}.")
+    return float(scale), float(power)
+
+
+def hill_weight(depth, scale, power):
+    """The weight 1 / (1 + (j / s)^p) of copy j under 'hill'. It is 1 at
+    depth 0 and 1/2 at depth s. The power p sets how fast it falls past s.
+    """
+    try:
+        return 1.0 / (1.0 + (depth / scale) ** power)
+    except OverflowError:       # (j / s)^p is above the float range
+        return 0.0
+
+
+def reduce_depth_terms(terms, reduce, hill=None):
     """Combine the k + 1 copies of an f-bearing term (#401).
 
     `terms[0]` is the depth-0 copy. One copy returns itself, so k = 0 is
     unchanged under every reduction. `'halving'` adds copy j at 1 / 2^j,
-    and `'harmonic'` at 1 / (j + 1).
+    `'harmonic'` at 1 / (j + 1), and `'hill'` at :func:`hill_weight`, with
+    ``hill = (s, p)`` (:func:`resolve_rollout_hill` checks it).
     `terms` holds only the copies that enter: a depth that the run leaves
     out (`--train-rollout-distances`) has no entry, and the mean divides by
     the count of the entries.
     """
+    hill = resolve_rollout_hill(reduce, hill)
     total = terms[0]
     for depth, term in enumerate(terms[1:], start=1):
         if reduce == 'halving':
             term = term * 0.5 ** depth
         elif reduce == 'harmonic':
             term = term / (depth + 1)
+        elif reduce == 'hill':
+            term = term * hill_weight(depth, *hill)
         total = total + term
     if reduce in ('sum', *PLACE_WEIGHTED_REDUCTIONS) or len(terms) == 1:
         return total
@@ -519,7 +570,8 @@ def grid_pred_term(groups, spec, *, tau_override=None, moco_negatives=None,
 
     ``groups``: see :func:`pred_pairs` and :func:`grid_pairs`. Each depth
     copy runs on one grid. ``depth_reduce`` (else the config key) combines
-    the copies (:func:`reduce_depth_terms`). ``term_out`` receives the
+    the copies (:func:`reduce_depth_terms`). The 'hill' reduction reads its
+    scale and power from the config keys. ``term_out`` receives the
     unweighted copy of each depth j as ``l_pred_d<j>``, and the depth-0
     copy also as ``l_pred``. Weight 0: a zero and no key.
     A depth that is None in the ``rollout`` of the groups enters no copy
@@ -542,7 +594,7 @@ def grid_pred_term(groups, spec, *, tau_override=None, moco_negatives=None,
         copies.append(weight * copy)
     return reduce_depth_terms(copies, resolve_rollout_reduce(
         depth_reduce, train_config.get('train_rollout_reduce'),
-        groups[0].rollout))
+        groups[0].rollout), config_rollout_hill(train_config))
 
 
 def pred_term(forecasted_latent, original_latent, spec, pad_patches, *,
@@ -700,7 +752,8 @@ def joint_teacher_term(forecasted_latent, original_latent, spec, pad_patches,
     ``rollout_latents``: f^(1)..f^(k). A None entry is a depth that the run
     leaves out (--train-rollout-distances), and it builds no copy.
     ``depth_reduce`` (else the config key ``train_rollout_reduce``)
-    combines the copies (:func:`reduce_depth_terms`). ``pad_patches``
+    combines the copies (:func:`reduce_depth_terms`). The 'hill' reduction
+    reads its scale and power from the config keys. ``pad_patches``
     (#419): ``[B, T, C]`` bool, True on a padded patch. No padded position
     enters as an anchor, a key or a positive. None: no padding. ``term_out``
     receives the copy of each depth j as ``l_joint_d<j>``, and the depth-0
@@ -715,7 +768,8 @@ def joint_teacher_term(forecasted_latent, original_latent, spec, pad_patches,
     group = _joint_group(forecasted_latent, original_latent,
                          teacher_original_latent, rollout_latents, pad_patches)
     copies = _joint_copies(group, _joint_h_terms(group, tau), tau, term_out)
-    return reduce_depth_terms(copies, reduce)
+    return reduce_depth_terms(copies, reduce,
+                              config_rollout_hill(train_config))
 
 
 def _cpc_time_lse_masked(q_a, e, pad_e):
@@ -1033,7 +1087,8 @@ def cpc_multistep_cpcnegs_loss(forecasted_multi, original_latent, tau,
 
 def cpc_infonce_aux_loss(forecasted_latent, original_latent, w1,
                          cross_batch_chunk=256, rollout_latents=None,
-                         depth_reduce='sum', pad_patches=None):
+                         depth_reduce='sum', pad_patches=None,
+                         depth_hill=None):
     """CPC InfoNCE auxiliary term (van den Oord and others 2018, Eq. 4, k=1), #344.
 
     Predict the next-step encoder embedding ``e_{t+1}`` from the
@@ -1092,6 +1147,8 @@ def cpc_infonce_aux_loss(forecasted_latent, original_latent, w1,
         pad_patches: ``[B, T, C]`` bool, the zero-padded patches (#419).
             Given, no padded position enters as an anchor, a positive or a
             negative (:func:`cpc_infonce_aux_masked`). None: unchanged.
+        depth_hill: ``(s, p)`` of ``depth_reduce='hill'``
+            (:func:`resolve_rollout_hill`). Another reduction reads none.
 
     Returns: scalar loss (mean over B, C, t).
     """
@@ -1108,7 +1165,7 @@ def cpc_infonce_aux_loss(forecasted_latent, original_latent, w1,
         return _cpc_aux_masked_copies(
             forecasted_latent, original_latent, w1, pad_patches,
             int(os.environ.get('CPC_CB_CHUNK', str(cross_batch_chunk))),
-            rollout_latents, depth_reduce)
+            rollout_latents, depth_reduce, depth_hill)
     neg_inf = float('-inf')
     e = F.normalize(original_latent, p=2, dim=-1)        # [B,T,C,H] unit embeddings e_j
     q = w1(forecasted_latent)                            # [B,T,C,H] W_1 h_t (raw scale)
@@ -1167,11 +1224,12 @@ def cpc_infonce_aux_loss(forecasted_latent, original_latent, w1,
         copies.append(cpc_infonce_aux_loss(
             f_view, e_view, w1, cross_batch_chunk=cross_batch_chunk))
     return reduce_depth_terms(
-        copies, resolve_rollout_reduce(depth_reduce, None, rollout_latents))
+        copies, resolve_rollout_reduce(depth_reduce, None, rollout_latents),
+        depth_hill)
 
 
 def _cpc_aux_masked_copies(forecasted_latent, original_latent, w1, pad,
-                           chunk, rollout_latents, depth_reduce):
+                           chunk, rollout_latents, depth_reduce, depth_hill):
     """The k + 1 rollout copies of :func:`cpc_infonce_aux_masked` (#419)."""
     copies = [cpc_infonce_aux_masked(forecasted_latent, original_latent, w1,
                                      pad, 0, chunk)]
@@ -1183,12 +1241,13 @@ def _cpc_aux_masked_copies(forecasted_latent, original_latent, w1, pad,
         copies.append(cpc_infonce_aux_masked(f_view, e_view, w1, pad, depth,
                                              chunk))
     return reduce_depth_terms(
-        copies, resolve_rollout_reduce(depth_reduce, None, rollout_latents))
+        copies, resolve_rollout_reduce(depth_reduce, None, rollout_latents),
+        depth_hill)
 
 
 def cpc_infonce_all_loss(forecasted_latent, original_latent, w1, source_chunk=8,
                          marginal_only=True, rollout_latents=None,
-                         depth_reduce='sum'):
+                         depth_reduce='sum', depth_hill=None):
     """CPC InfoNCE with the FULL marginal-proposal negative set (#348).
 
     The paper-faithful CPC InfoNCE (van den Oord and others 2018, Eq. 4): predict
@@ -1217,10 +1276,11 @@ def cpc_infonce_all_loss(forecasted_latent, original_latent, w1, source_chunk=8,
     exact and chunk-size independent (chunk size only trades memory for kernel
     launches). Env override: ``CPC_ALL_CHUNK``.
 
-    Args mirror :func:`cpc_infonce_aux_loss`, ``rollout_latents`` (#373) and
-    ``depth_reduce`` (#401) included: each depth rebuilds the whole term from
-    ``W_1 c^(j)_t`` against ``z_{t+1+j}``, and the k + 1 copies combine by the
-    sum (default) or by the mean. Returns a scalar (mean over B, C, t).
+    Args mirror :func:`cpc_infonce_aux_loss`, ``rollout_latents`` (#373),
+    ``depth_reduce`` (#401) and ``depth_hill`` included: each depth rebuilds
+    the whole term from ``W_1 c^(j)_t`` against ``z_{t+1+j}``, and the k + 1
+    copies combine by the sum (default) or by the mean. Returns a scalar
+    (mean over B, C, t).
     """
     if forecasted_latent.dim() != 4:
         raise ValueError(
@@ -1296,7 +1356,8 @@ def cpc_infonce_all_loss(forecasted_latent, original_latent, w1, source_chunk=8,
             f_view, e_view, w1, source_chunk=source_chunk,
             marginal_only=marginal_only))
     return reduce_depth_terms(
-        copies, resolve_rollout_reduce(depth_reduce, None, rollout_latents))
+        copies, resolve_rollout_reduce(depth_reduce, None, rollout_latents),
+        depth_hill)
 
 
 def sigreg_loss(z, sigma2=None, M=1024, T_knots=17, W=None,
@@ -1441,7 +1502,7 @@ def align_pair_losses(forecasted_latent, target, kind):
 def align_loss(forecasted_latent, original_latent, weight=1.0,
                target_latent=None, rollout_latents=None,
                depth_reduce='sum', pad_patches=None, term_out=None,
-               kind='cosine', depth_index=0):
+               kind='cosine', depth_index=0, depth_hill=None):
     """BYOL/SimSiam alignment term, standalone (#344 follow-up arm).
 
     ``L_align = weight · (2 − 2·cos(f_t, sg(h_{t+1}))).mean()`` — pull the
@@ -1466,6 +1527,8 @@ def align_loss(forecasted_latent, original_latent, weight=1.0,
     which holds the term at its k = 0 weight at every depth. A None entry
     is a depth that the run leaves out (--train-rollout-distances): it
     builds no copy, and the reduction reads the other copies only.
+    ``depth_hill``: ``(s, p)`` of ``depth_reduce='hill'``
+    (:func:`resolve_rollout_hill`). Another reduction reads none.
 
     ``pad_patches`` (#419): ``[B, T, C]`` bool, the zero-padded patches of
     the positions of ``forecasted_latent``. Given, the mean runs over the
@@ -1506,7 +1569,8 @@ def align_loss(forecasted_latent, original_latent, weight=1.0,
                          else pad_patches[:, :f_view.shape[1]]),
             term_out=term_out, kind=kind, depth_index=depth))
     return reduce_depth_terms(
-        copies, resolve_rollout_reduce(depth_reduce, None, rollout_latents))
+        copies, resolve_rollout_reduce(depth_reduce, None, rollout_latents),
+        depth_hill)
 
 
 def align_moco_loss(original_latent, teacher_original_latent, tau=0.10, weight=1.0):
@@ -1889,6 +1953,8 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     The mean covers the f-bearing copies only: the terms that carry no ``f``
     enter once at their configured weight under both reductions.
     ``train_rollout_reduce`` is the function-arg override of the config key.
+    ``'hill'`` reads its scale and power from the config keys
+    ``train_rollout_hill_scale`` and ``train_rollout_hill_power``.
 
     ``f_terms_only``: return the f-bearing part of THIS call alone, the part
     a depth copy carries. It is what the mean divides — the depth-0 call
@@ -1923,6 +1989,7 @@ def contrastive_latent_loss(predicted_position, validation, spec,
     reduce = resolve_rollout_reduce(
         train_rollout_reduce, train_config.get('train_rollout_reduce'),
         rollout_latents)
+    hill = resolve_rollout_hill(reduce, config_rollout_hill(train_config))
 
     # True when this call must carry the f-bearing terms and nothing else:
     # every rollout-depth copy (depth_index > 0), and the depth-0 f-side the
@@ -3747,10 +3814,11 @@ def contrastive_latent_loss(predicted_position, validation, spec,
 
     if depth_copies and reduce in ('sum', *PLACE_WEIGHTED_REDUCTIONS):
         # #373's objective, byte for byte: the copies are added to a `loss`
-        # that already holds both sides. The halving adds them at 1 / 2^j and
-        # the harmonic weights at 1 / (j + 1). Depth 0 keeps the weight 1 of
-        # both sides, so they need no probe.
-        loss = reduce_depth_terms([loss] + depth_copies, reduce)
+        # that already holds both sides. The halving adds them at 1 / 2^j,
+        # the harmonic weights at 1 / (j + 1) and the hill weights at
+        # 1 / (1 + (j / s)^p). Depth 0 keeps the weight 1 of both sides, so
+        # they need no probe.
+        loss = reduce_depth_terms([loss] + depth_copies, reduce, hill)
     elif depth_copies:
         # #401 `mean`. The division covers the f-bearing copies only, so the
         # f-side of depth 0 has to be told apart from the h-side it is added

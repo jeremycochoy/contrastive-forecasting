@@ -52,9 +52,9 @@ weight against the h-side terms. Watch `u_batchtime` on `h_t` and the loss
 curve. `--train-rollout-reduce mean` removes that weight change — see the
 next section.
 
-## `--train-rollout-reduce {sum,mean,halving,harmonic}`
+## `--train-rollout-reduce {sum,mean,halving,harmonic,hill}`
 
-Flag: `--train-rollout-reduce sum|mean|halving|harmonic`. Config key: `train_rollout_reduce`.
+Flag: `--train-rollout-reduce sum|mean|halving|harmonic|hill`. Config key: `train_rollout_reduce`.
 Default: `sum`. Issue:
 [#401](https://github.com/jeremycochoy/contrastive-forecasting/issues/401).
 
@@ -64,13 +64,14 @@ Default: `sum`. Issue:
 | `mean` | `H + (Σ_{j=0..k} F_j) / (k + 1)` | its `k = 0` weight, at every `k` |
 | `halving` | `H + Σ_{j=0..k} F_j / 2^j` | `2 − 1/2^k` times its `k = 0` weight |
 | `harmonic` | `H + Σ_{j=0..k} F_j / (j + 1)` | `Σ_{d=1..k+1} 1/d` times its `k = 0` weight (4.06 at `k = 31`) |
+| `hill` | `H + Σ_{j=0..k} F_j / (1 + (j / s)^p)` | `Σ_{j=0..k} 1 / (1 + (j / s)^p)` times its `k = 0` weight (4.94 at `k = 31`, `s = p = 4`) |
 
 `F_j` is the depth-`j` copy of the terms that tie `f` to `h`. `H` is every
 term that carries no `f`. The mean covers the copies only, so `H` enters
 once at its configured weight under both reductions. The depth then changes
 what the model trains on, and not how much the f-side outweighs the rest.
 
-At `k = 0` there is one copy, so the four reductions return the same
+At `k = 0` there is one copy, so the five reductions return the same
 number. Every published `k = 0` run reproduces under each word, and #373's
 `k > 0` numbers reproduce under `sum`.
 
@@ -83,6 +84,20 @@ the depth-0 total at their weights.
 1/2, 1/3, ..., 1/32 at `k = 31`. Its weights fall slower than the halving's,
 so the far depths keep more weight. Depth 0 keeps the weight 1 of both
 sides, so it needs no f-side pass either.
+
+`hill` gives the copy of depth `j` the weight `w_j = 1 / (1 + (j / s)^p)`.
+Copy 0 is the forecast 1 patch ahead, and its weight is 1. Two flags give
+the two numbers, and neither has a default:
+
+| flag | config key | number |
+|---|---|---|
+| `--train-rollout-hill-scale S` | `train_rollout_hill_scale` | `s`, the depth whose copy gets the weight 1/2 |
+| `--train-rollout-hill-power P` | `train_rollout_hill_power` | `p`, how fast the weight falls after depth `s` |
+
+With `s = p = 4` the depths 0 to 4 get the weights 1, 0.996, 0.941, 0.760
+and 0.5. Depth 8 gets 1/17, and depth 31 gets 0.0003. The near depths
+keep almost all of their weight, and the far depths keep almost none. Depth
+0 keeps the weight 1 of both sides, so `hill` needs no f-side pass either.
 
 The mean costs one more pass over the f-bearing terms at depth 0. The
 depth-0 call returns `H + F_0` added together, and the two sides must be
@@ -97,10 +112,25 @@ Three limits:
 - `contrastive_latent_noise` with `mean` raises. The f-side pass would draw
   its own noise, so `loss − F_0` would not be the h-side. No trainer sets
   that key.
-- A word that is not `sum`, `mean`, `halving` or `harmonic` raises and names itself, at
-  the CLI and in `resolve_rollout_reduce`.
+- A word that is not `sum`, `mean`, `halving`, `harmonic` or `hill` raises
+  and names itself, at the CLI and in `resolve_rollout_reduce`.
 - `--value-space-objective` takes `sum` and `mean` only. `halving` and
-  `harmonic` raise at its first step and name themselves.
+  `harmonic` raise at its first step and name themselves. The value-space
+  run refuses `--train-rollout-hill-scale` and `--train-rollout-hill-power`
+  before step 1.
+
+The trainer refuses these `hill` command lines before step 1, and the
+message names the flag:
+
+- `hill` without `--train-rollout-hill-scale` or without
+  `--train-rollout-hill-power`.
+- A scale or a power that is not above 0.
+- `--train-rollout-hill-scale` or `--train-rollout-hill-power` with another
+  reduction.
+
+The loss functions apply the same rule to the config keys and to the
+argument `depth_hill`: a `hill` call without a number above 0 for each of
+the two raises.
 
 ## `--train-rollout-distances`
 
@@ -157,7 +187,7 @@ integer, and `resolve_rollout_distances` in `train.py` refuses the rest:
 | a distance below 1, or a word that is not an integer | a distance is a positive integer |
 | a list without 1 | distance 1 is depth 0, which enters every term |
 | `--train-rollout-depth` other than 0 and `max(d) - 1` | the two flags give two different depths |
-| `--train-rollout-reduce halving` or `harmonic` | the two weigh a copy by its place in the list, and the list leaves depths out |
+| `--train-rollout-reduce halving`, `harmonic` or `hill` | the three weigh a copy by its place in the list, and the list leaves depths out |
 | `--value-space-objective` | the value objective has no latent term |
 
 `--train-rollout-depth 0`, the default, becomes `max(d) - 1`. Each check of
@@ -232,8 +262,11 @@ one all-gather on the gathered path.
 functions take the reduction as the `depth_reduce` argument, because they
 read no training config. They carry no h-only half, so their mean is the
 plain mean of the `k + 1` copies. Their halving adds copy `j` at
-`1 / 2^j`, and their harmonic weights at `1 / (j + 1)`. The trainer passes
-`--train-rollout-reduce` to each of them.
+`1 / 2^j`, their harmonic weights at `1 / (j + 1)`, and their hill weights
+at `1 / (1 + (j / s)^p)`. The trainer passes `--train-rollout-reduce` to
+each of them. For `hill` it also passes the pair `(s, p)` as the argument
+`depth_hill`. The other loss functions read `s` and `p` from the config
+keys.
 
 `--align-loss-weight` on the main arm is a third path, and the one 12 of the
 14 cells run: the shape body of a `rep_only` depth copy returns zeros, so the
@@ -281,6 +314,7 @@ sum        w * (l_align_d0 + l_align_d1 + ... + l_align_dk)
 mean       the sum divided by the number of copies
 halving    w * (l_align_d0 + l_align_d1 / 2 + ... + l_align_dk / 2^k)
 harmonic   w * (l_align_d0 + l_align_d1 / 2 + ... + l_align_dk / (k + 1))
+hill       w * (l_align_d0 + l_align_d1 / (1 + (1/s)^p) + ... + l_align_dk / (1 + (k/s)^p))
 ```
 
 The other two terms have the same form. Their `w` is `--pred-loss-weight`
