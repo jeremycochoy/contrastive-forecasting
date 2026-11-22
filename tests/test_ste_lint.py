@@ -60,10 +60,6 @@ class TestSemicolonRule(unittest.TestCase):
         self.assertEqual(semicolon_alerts(text, ".py"), expected)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 def changed_list(repo, names):
     """The files that `ste-lint.sh --changed HEAD~1 --list` gives in a new git repository `repo` with one commit that
     adds the Python files `names`."""
@@ -90,3 +86,7 @@ class TestChangedFiles(unittest.TestCase):
         names = [f"module_{index:04d}_{'x' * 60}.py" for index in range(1500)]
         with tempfile.TemporaryDirectory() as tmp:
             self.assertEqual(sorted(changed_list(Path(tmp), names)), names)
+
+
+if __name__ == "__main__":
+    unittest.main()
