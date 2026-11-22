@@ -90,6 +90,9 @@ select_defaults() {
 }
 
 # Keep only the files that changed since a reference, when one is given.
+# grep reads the list from a here-string: in a pipe, grep -q ends at the first
+# match, and with pipefail the write of a long list then fails, and the file
+# goes out of the set.
 filter_changed() {
   if [ -z "$CHANGED_REF" ]; then
     cat
@@ -97,7 +100,7 @@ filter_changed() {
   fi
   changed=$(git diff --name-only --diff-filter=d "$CHANGED_REF"...HEAD 2>/dev/null || true)
   while IFS= read -r f; do
-    printf '%s\n' "$changed" | grep -qxF "$f" && printf '%s\n' "$f"
+    grep -qxF -- "$f" <<< "$changed" && printf '%s\n' "$f"
   done
 }
 
