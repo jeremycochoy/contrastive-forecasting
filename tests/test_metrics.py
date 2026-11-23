@@ -110,16 +110,28 @@ def test_dim_usage_collinear_is_one_over_d():
     assert u == pytest.approx(1.0 / d, abs=1e-3)
 
 
-def test_dim_usage_chunked_equals_unchunked(monkeypatch):
-    # The chunked accumulation path (#369, DIM_USAGE_CHUNK < n) must be
-    # numerically identical to the one-shot matmul path.
+def pairwise_dim_usage(z, axis):
+    """U from the explicit n x n matrix of the cosines of each slice."""
+    z = torch.nn.functional.normalize(z.movedim(axis, 0), dim=-1)
+    n, d = z.shape[0], z.shape[-1]
+    flat = z.reshape(n, -1, d).permute(1, 0, 2)
+    sq = (flat @ flat.transpose(-1, -2)).pow(2)
+    off = (sq.sum(dim=(-1, -2))
+           - torch.diagonal(sq, dim1=-2, dim2=-1).sum(dim=-1)) / (n * (n - 1))
+    return (1.0 / (d * off.clamp_min(1e-12))).clamp_max(1.0).mean()
+
+
+@pytest.mark.parametrize("shape,axis", [((64, 3, 16), 0), ((10, 3, 16), 0),
+                                        ((5, 40, 2, 8), 1)])
+def test_dim_usage_equals_the_pairwise_sum(shape, axis):
+    # On both sides of n = d: the d x d Gram matrix (n > d) and the n x n
+    # matrix (n <= d) give the sum of the cos² of all pairs (#425). A zero
+    # row stays a zero vector on both paths.
     torch.manual_seed(0)
-    z = torch.randn(64, 3, 16)  # (n=64, fixed=3, d=16)
-    monkeypatch.setenv("DIM_USAGE_CHUNK", "0")   # one-shot path
-    u_full = dim_usage(z, axis=0).item()
-    monkeypatch.setenv("DIM_USAGE_CHUNK", "7")   # chunked path, n % chunk != 0
-    u_chunked = dim_usage(z, axis=0).item()
-    assert u_chunked == pytest.approx(u_full, abs=1e-6)
+    z = torch.randn(*shape)
+    z.reshape(-1, shape[-1])[:2] = 0.0
+    assert dim_usage(z, axis=axis).item() == pytest.approx(
+        pairwise_dim_usage(z, axis).item(), rel=1e-5)
 
 
 def test_u_batch_isotropic_near_one():
