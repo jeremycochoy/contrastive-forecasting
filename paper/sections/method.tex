@@ -61,11 +61,13 @@ step $t$ read only the values up to $t$:
 We set $\alpha = 2 / (s + 1)$ with the span $s = 128$. This gives
 $\alpha \approx 0.0155$ and a half-life of about $44$ values. The mean
 and the variance of the first $16$ values, one patch, start the
-recursion. When a series starts with zero padding
-(Section~\ref{sec:data}), the statistics start at the first real value
-and the padding stays at $0$. The losses skip each anchor whose next
-patch starts in the first $16$ real values, where the statistics have
-read few values. At test time, the statistics of the last value of the
+recursion, so the statistics inside the first patch read the whole
+first patch. When a series starts with zero padding
+(Section~\ref{sec:data}), the statistics start at the first value that
+is not zero (a real zero at the start counts as padding) and the
+padding stays at $0$. The losses skip each anchor whose next patch
+starts in the first $16$ real values: the statistics of its input read
+into the target patch. At test time, the statistics of the last value of the
 context map the whole forecast back to values:
 $\hat{y}\, \max(\sqrt{v_T}, 10^{-5}) + m_T$.
 
@@ -121,22 +123,33 @@ of Elhage et al.~\citep{elhage2021circuits} that a short-range
 depthwise convolution lets induction-head-like circuits form without
 the second attention layer that the canonical induction circuit
 requires. Our model has $1$ encoder layer and $3$ forecaster layers.
+The initialisation follows muP~\citep{yang2022mup}, with a base width
+of $64$ and a base depth of $3$ layers for each stack. The width rules
+are neutral at the base width. The projections of the patch embedding
+start at $0.3$ times the PyTorch init. The weights that write the
+output of the last layer of each stack start at $0$. The residual
+branches of the encoder layer are multiplied by $3$, because the
+encoder has $1$ layer and the base has $3$.
 
 During training, the encoder drops each attention edge to a past patch
 with probability $0.7$ (DropKey~\citep{li2023dropkey}), with one random
 mask for each series, shared by all heads and layers. The latent $h_t$
-always attends to its own patch. The forecaster drops no edge.
+always attends to its own patch. The forecaster has no DropKey. Both
+stacks also use a standard dropout of $0.1$ in each block: on the
+attention weights, on the attention output, in the hidden layer of the
+feed-forward network, and on the output of the feed-forward network.
 
 \subsection{Loss function}
 \label{sec:loss}
 
 The targets of the loss come from a teacher: a copy of the patch
 embedding and of the encoder, whose weights are an exponential moving
-average (EMA) of the weights of the model. After each step, the
+average (EMA) of the weights of the model. The teacher shares the live
+time-scale embeddings of the model, with no EMA. After each step, the
 teacher weights become $\theta_T \leftarrow \alpha\,\theta_T +
 (1 - \alpha)\,\theta$, and $\alpha$ rises linearly from $0.99995$ to
 $1$ over the run. The teacher reads the full context, with no dropped
-edge, and no gradient flows through it. We write $h^T_t$ for its
+edge and no dropout, and no gradient flows through it. We write $h^T_t$ for its
 encoder latent of patch $t$. The loss has four terms:
 \begin{equation}
   \mathcal{L} \;=\;
@@ -155,7 +168,7 @@ from it. SIGReg projects the latents of the batch on random unit
 directions and compares the distribution of each projection with a
 Gaussian through their characteristic functions. For the latents
 $z_1, \ldots, z_N \in \mathbb{R}^K$ of all the real patches of the
-batch, and $M = 1024$ unit directions $a_1, \ldots, a_M$ drawn again
+batch, with the anchor skips of Section~\ref{sec:normalisation}, and $M = 1024$ unit directions $a_1, \ldots, a_M$ drawn again
 at each step,
 \begin{equation*}
   \mathrm{SIGReg}(z) \;=\; \frac{1}{M} \sum_{m=1}^{M}
@@ -189,7 +202,8 @@ queries $q$ of all the anchors at time $t$ and over their negative keys
 $k$. All the anchors at time $t$ share this sum.
 $\mathcal{L}_{\mathrm{rep}}$ makes the latent of a patch closer to the
 teacher latent of the same patch than to the latents of the other
-patches and of the other series.
+patches and of the other series. Every patch of the window is an
+anchor, except the last one.
 
 \paragraph{Alignment of the forecasts.}
 $\mathcal{L}_{\mathrm{align}}$ ties each forecast to the teacher latent
@@ -233,7 +247,8 @@ parameters.
 \paragraph{Training.}
 For a window of $T = 1024$ values, the frozen backbone gives the
 encoder latents $h_0, \ldots, h_{T_p - 1}$ of the full context and the
-one-step forecasts $f_0, \ldots, f_{T_p - 1}$. The head reads a sequence
+one-step forecasts $f_0, \ldots, f_{T_p - 1}$. The latents come before
+the sphere, and the forecasts are on it. The head reads a sequence
 of $2 T_p$ tokens: the encoder latents, then the forecasts. The time
 axis is repeated, so the forecast block starts again at patch $0$.
 Figure~\ref{fig:head-mask} gives the attention mask for $T_p = 4$. The
@@ -248,10 +263,14 @@ would read it at the second layer. The loss is the pinball loss of the
 $9$ quantiles against the values of patch $t + 1$, each value
 normalised with the EWMA statistics of its own step. The loss is
 averaged over the levels, the values and the forecast tokens, and the
-outputs at the latent tokens get no loss. The head trains for
-$30{,}000$ steps at batch size $256$ with AdamW, a constant learning
-rate of $10^{-3}$, a weight decay of $0.01$ and a gradient norm
-clipped at $1$.
+outputs at the latent tokens get no loss. The padded targets get no
+loss, and the head keeps the early anchors that the backbone losses
+skip (Section~\ref{sec:normalisation}). A dropout of $0.1$ applies
+in its blocks during training, at the same places as in the backbone
+(Section~\ref{sec:forecaster}). The head trains for
+$30{,}000$ steps at batch size $256$ with AdamW ($\beta_1 = 0.9$,
+$\beta_2 = 0.999$), a constant learning rate of $10^{-3}$, a weight
+decay of $0.01$ and a gradient norm clipped at $1$.
 
 \begin{figure}[t]
   \centering

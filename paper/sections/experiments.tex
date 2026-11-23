@@ -38,11 +38,19 @@ then a cosine takes it to $0$ at step $166{,}000$. We train one model
 of the size of ours, at width $64$ with $1$ encoder layer and $3$
 forecaster layers. We train a bigger one at width $384$ with $3$
 encoder layers and $3$ forecaster layers. It has $14.4$ million
-parameters, the size of Moirai small.
+parameters, the size of Moirai small. The baselines differ from our
+run in a few more ways: they clip the gradient norm at $1$, they skip
+the windows with NaN values or extreme spikes, and they run the
+attention, the feed-forward network and the convolution in fp32,
+where our model runs them in fp16. The width-64 baseline also keeps
+the early targets that our losses skip
+(Section~\ref{sec:normalisation}).
 
 \paragraph{Training budget.}
-All three models train for $166{,}000$ steps at batch size $256$. They
-read $42$ million windows of the pretraining corpus, or $18.7\%$ of
+All three models train for $166{,}000$ steps at batch size $256$: the
+$254$ real windows and the forked pair. The crossfade triplet brings
+each step to $259$ series (Section~\ref{sec:data}). The models read
+$42$ million windows of the pretraining corpus, or $18.7\%$ of
 its values (Section~\ref{sec:data}).
 
 \paragraph{Metric.}

@@ -43,7 +43,8 @@ recipe to time series. It cuts each series into $10$ patches, masks
 $70\%$ of them, and trains with an $L^1$ loss in latent space. It
 trains one model for each dataset and evaluates it on classification
 and on forecasting. In its short-term forecast experiment, the
-autoregressive baseline of the paper has a lower error than TS-JEPA.
+autoregressive baseline of the paper has a lower error than TS-JEPA on
+two of the three datasets.
 LaT-PFN~\citep{verdenius2024latpfn} combines JEPA with a prior-data
 fitted network for zero-shot forecasting in context.
 LeJEPA~\citep{balestriero2025lejepa} removes the EMA teacher and the

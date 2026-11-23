@@ -1,13 +1,20 @@
 \section{Introduction}
 \label{sec:introduction}
 
-Time-series forecasting has converged on a foundation-model recipe
-inherited from language modelling: patched inputs, a transformer
-backbone, and a head that forecasts the next patch in value space.
+Deep learning improved forecasting in steps:
+DeepAR~\citep{salinas2020deepar} trains one probabilistic recurrent
+network on many related series, N-BEATS~\citep{oreshkin2020nbeats}
+forecasts with deep stacks of simple blocks, and
+PatchTST~\citep{nie2023patchtst} cuts the series into patches that a
+transformer reads. Time-series forecasting has converged on a
+foundation-model recipe inherited from language modelling: patched
+inputs, a transformer backbone, and a head that forecasts the next
+patch in value space.
 TimesFM~\citep{das2024timesfm} is the canonical example, and recent
-successors~\citep{ansari2024chronos, woo2024moirai, shi2024timemoe,
-liu2025sundial, liu2026timers1} extend the recipe along various axes
-while keeping the value-space target. As Ilya Sutskever has
+successors~\citep{ansari2024chronos, goswami2024moment, woo2024moirai,
+shi2024timemoe, liu2025sundial, liu2026timers1, mistral2026timestral}
+extend the recipe along various axes while keeping the value-space
+target. As Ilya Sutskever has
 argued for large language models, next-token prediction is far less
 narrow than it looks: it forces
 the model to encode grammar, style, world knowledge and arithmetic,
@@ -51,7 +58,7 @@ The contributions of the paper are the following.
   a patch embedding, an encoder and a causal forecaster are trained
   jointly in latent space. The forecasts align with the latents of an
   EMA teacher, an InfoNCE objective contrasts the latents of different
-  patches and series, and SIGReg prevents the collapse
+  patches and series, while SIGReg prevents the collapse
   (Section~\ref{sec:method}). The framework is decoupled from the
   choice of encoder and forecaster architecture.
 \item A comparison on GIFT-Eval with Moirai-style value-space models

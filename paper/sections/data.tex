@@ -19,13 +19,18 @@ $3.3$ million rows and $231$ billion values. We sample it with the
 method of Moirai~\citep{woo2024moirai}. A source is drawn with a
 probability proportional to its number of rows times the weight of the
 source in the Moirai training mix. A row is drawn with a probability
-proportional to its length, and a window of $1024$ values starts at a
-uniform position in the row. Each variate of a row becomes a separate
-univariate series. A series shorter than the window gets zeros on its
+proportional to its length (the ERA5 and CMIP6 sources draw their rows
+uniformly, as in Moirai), and a window of $1024$ values starts at a
+uniform position in the row. A draw keeps a random subset of the
+variates of the row, as in Moirai, and each kept variate becomes a
+separate univariate series. The covariates of a row train like its
+target variates. A series shorter than the window gets zeros on its
 left, and the normalisation of Section~\ref{sec:normalisation} treats
 these zeros as padding. A run of $166{,}000$ steps reads $254$ real
-windows at each step: $42$ million windows, or $43$ billion values.
-This is $18.7\%$ of the values of the corpus.
+windows at each step: $42$ million windows, or $43$ billion window
+values. This is $18.7\%$ of the values of the corpus. The zero padding
+is about a tenth of the window values, so the run reads about $39$
+billion real values.
 
 \paragraph{Synthetic series.}
 Each batch holds two synthetic series, a \emph{forked ARMA} pair. The
@@ -39,7 +44,9 @@ with unit Gaussian noise up to a fork point, drawn uniformly between
 one quarter and three quarters of the window. After the fork, each
 series continues from the shared state with its own noise, and with
 its own copy of the coefficients plus a Gaussian perturbation of
-standard deviation $0.05$. Each series is the cumulative sum of its
+standard deviation $0.05$. The perturbed coefficients are clipped to
+the same $\ell_1$ bound, and the shared path starts after a burn-in of
+$200$ steps. Each series is the cumulative sum of its
 ARMA path, so it is an ARIMA$(p, 1, q)$ series.
 
 \paragraph{Crossfade series.}
