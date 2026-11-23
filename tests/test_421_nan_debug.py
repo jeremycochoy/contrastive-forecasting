@@ -191,14 +191,16 @@ def test_a_nan_gradient_stops_the_run_before_the_step(grad_dump):
 def test_the_dump_holds_the_batch_after_every_transform(grad_dump):
     batch = torch.load(grad_dump[2], weights_only=False)["batch"]
     B, T, C = batch["values"].shape
-    assert (B, T, C) == (8 + 3, 1024, 1)
+    # --batch-size counts every row (#425): 4 real rows, 1 synthetic row and
+    # the 3 rows of the triplet make the 8 rows of the batch.
+    assert (B, T, C) == (8, 1024, 1)
     for key in ("x_norm", "padding", "loc", "scale", "loaded"):
         assert batch[key].shape[0] == B
     for key in ("patch_size", "max_z", "freq_ids", "seasonality_ids", "kept"):
         assert batch[key].shape == (B,)
     assert batch["split"].shape == (B, C)
     assert batch["sign_flipped"].shape == (B, C)
-    assert batch["row_kind"] == (["real"] * 6 + ["forked-arma"] * 2
+    assert batch["row_kind"] == (["real"] * 4 + ["forked-arma"] * 1
                                  + ["triplet A", "triplet B", "triplet C"])
     assert set(batch["mixup"]) == {"weight", "partner"}
     assert sorted(batch["mixup"]["partner"].tolist()) == list(range(B))
