@@ -134,7 +134,7 @@ encoder has $1$ layer and the base has $3$.
 During training, the encoder drops each attention edge to a past patch
 with probability $0.7$ (DropKey~\citep{li2023dropkey}), with one random
 mask for each series, shared by all heads and layers. The latent $h_t$
-always attends to its own patch. The forecaster has no DropKey. Both
+always attends to its own patch. Both
 stacks also use a standard dropout of $0.1$ in each block: on the
 attention weights, on the attention output, in the hidden layer of the
 feed-forward network, and on the output of the feed-forward network.
