@@ -47,7 +47,7 @@ def geometric_mean(logs):
 
 
 def per_dataset(logs):
-    """{dataset: geometric mean over its configs}; the dataset is the part
+    """{dataset: geometric mean over its configs}. The dataset is the part
     of the config name before the first '/'."""
     groups = defaultdict(list)
     for cfg, value in logs.items():
@@ -65,7 +65,7 @@ def difficulty_order(per_model):
 
 
 def style_axes(ax, labels, angles):
-    """Dataset names round the rim, clockwise from the top; log radius."""
+    """Dataset names round the rim, clockwise from the top. Log radius."""
     ax.set_theta_offset(math.pi / 2)
     ax.set_theta_direction(-1)
     ax.set_xticks(angles[:-1])

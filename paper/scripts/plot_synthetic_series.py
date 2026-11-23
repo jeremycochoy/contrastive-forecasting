@@ -2,7 +2,7 @@
 
 (a) A forked ARMA pair: one shared ARIMA(p, 1, q) past, then two futures.
 (b) A crossfade C of two series A and B, each at zero mean and unit
-    variance. In training A and B are real windows of the batch; here they
+    variance. In training A and B are real windows of the batch. Here they
     are two ARIMA series, so that the figure needs no data file.
 
 The draws follow the text of the Data section: orders uniform in 1..8,
@@ -83,7 +83,7 @@ def _wide(rng):
 def main():
     rng = np.random.default_rng(7)
     (s1, s2), fork = forked_arma(rng)
-    # A is the first future of panel (a); B is one more draw of the same
+    # A is the first future of panel (a). B is one more draw of the same
     # generator. Both at zero mean and unit variance, as in training.
     a = zscore(s1)
     b = zscore(forked_arma(np.random.default_rng(11))[0][0])

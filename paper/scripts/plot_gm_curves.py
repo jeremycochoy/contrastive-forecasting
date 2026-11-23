@@ -20,8 +20,8 @@ PAPER = Path(__file__).resolve().parent.parent
 DATA = PAPER / "data" / "gm_curves" / "gm_mase_by_step.csv"
 OUT = PAPER / "figures" / "gm_curves.pdf"
 INK, MUTED = "#222222", "#888888"
-# Okabe-Ito: blues for ours, oranges for the Moirai-style models; the lighter
-# pair at width 64, as in the radar of Figure fig:gift-radar.
+# Okabe-Ito: blues for ours, oranges for the Moirai-style models. The lighter
+# pair is width 64, as in the radar of Figure fig:gift-radar.
 OURS = {64: "#56B4E9", 384: "#0072B2"}
 MOIRAI = {64: "#E69F00", 384: "#D55E00"}
 COOLDOWN_START = {64: 135, 384: 125}  # the save each cooldown starts from (k)
