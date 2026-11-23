@@ -1,50 +1,62 @@
 \section{Results}
 \label{sec:results}
 
-\subsection{ARMA}
+Table~\ref{tab:gift-eval} gives the GM-MASE of the four models of
+Section~\ref{sec:experiments} after $166{,}000$ steps. At width $64$,
+our model scores $1.0057$ and the Moirai-style model scores $1.0090$.
+At width $384$, our model scores $0.9401$ and the Moirai-style model
+scores $0.9362$. The Moirai-style model at width $64$ has one patch
+embedding and one output head for each of its five patch sizes, so it
+has $3.3$ times the parameters of our model.
 
-The recovery head reaches $r = 8.34$ on the smaller 2x2 configuration
-and $r = 6.96$ on the larger 2x4 configuration. Both numbers are well
-above $1$, the threshold above which the head's predictions improve
-on the all-zero baseline.
+Figure~\ref{fig:gm-curves} gives the GM-MASE along training. Our
+learning rate is constant, then cools down; the Moirai-style models
+follow a cosine schedule to $0$. At both widths, our model stays close
+to the Moirai-style model. After the cooldown it is below it at width
+$64$, and within $0.004$ of it at width $384$. Figure~\ref{fig:gift-radar} gives the
+relative MASE of each GIFT-Eval dataset.
+
+\begin{table}[t]
+  \centering
+  \caption{GM-MASE on the $97$ configurations of GIFT-Eval after
+    $166{,}000$ training steps. Lower is better, and seasonal naive
+    scores $1$. The layers are the encoder layers plus the forecaster
+    layers. Our parameter counts include the forecast head and leave out
+    the EMA teacher, which the forecast does not use.}
+  \label{tab:gift-eval}
+  \begin{tabular}{lcccc}
+    \toprule
+    Model & Width & Layers & Parameters & GM-MASE \\
+    \midrule
+    Contrastive Forecasting (ours) & $64$ & $1 + 3$ & $0.73$M & $1.0057$ \\
+    Moirai-style, value space & $64$ & $1 + 3$ & $2.4$M & $1.0090$ \\
+    \midrule
+    Contrastive Forecasting (ours) & $384$ & $1 + 5$ & $15.0$M & $0.9401$ \\
+    Moirai-style, value space & $384$ & $3 + 3$ & $14.4$M & $0.9362$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=0.78\linewidth]{figures/recovery_scatter_main.png}
-  \caption{Recovery quality on the 2x4 (ARMA(4, 4)) configuration:
-    predicted vs ground-truth coefficient for the four extreme
-    positions AR$_0$, AR$_3$, MA$_0$, MA$_3$. Each subplot is a scatter
-    of $300$ test samples, with the identity reference line and the
-    Pearson correlation $r$ between predicted and true coefficients.}
-  \label{fig:recovery-main}
+  \includegraphics[width=\linewidth]{figures/gm_curves.pdf}
+  \caption{GM-MASE over the $97$ configurations at each scored save,
+    for width $64$ (left) and width $384$ (right). The dotted line marks
+    the step from which our learning rate cools down. The dashed line is
+    seasonal naive.}
+  \label{fig:gm-curves}
 \end{figure}
-
-Figure~\ref{fig:recovery-main} shows the predicted vs ground-truth
-coefficient on the 2x4 setup for the four extreme positions: AR$_0$,
-AR$_3$, MA$_0$, MA$_3$. The Pearson correlation $r$ between predicted
-and true coefficients sits between $0.91$ and $0.96$ on these four
-positions.
-
-The full 8-coefficient scatter for 2x4, the equivalent for 2x2, the
-per-sample error distributions, and the per-coefficient table are
-reported in Appendix~\ref{sec:appendix-graphs}.
-
-\subsection{Random-walk correlations}
-
-The recovery head achieves a mean Pearson $r = 0.962$ across all six
-pairwise correlations on an 800-sample test set.
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=\linewidth]{figures/corr_scatter_per_pair.png}
-  \caption{Per-pair recovery for the random-walk correlation experiment:
-    predicted vs.\ true correlation for each of the six off-diagonal
-    entries of $\Sigma$. Each subplot is a scatter of $800$ test
-    samples with the identity reference line and Pearson $r$. All six
-    pairs lie in $r \in [0.958, 0.964]$.}
-  \label{fig:corr-scatter}
+  \includegraphics[width=0.92\linewidth]{figures/gift_eval_radar.png}
+  \caption{Relative MASE of each GIFT-Eval dataset after $166{,}000$
+    steps, with M4 split by frequency: the geometric mean, over the
+    configurations of the dataset,
+    of the MASE of the model divided by the MASE of seasonal naive. The
+    dotted ring is seasonal naive. Inside the ring is better. The
+    hardest datasets are at the top. The legend gives the GM-MASE over
+    the $97$ configurations.}
+  \label{fig:gift-radar}
 \end{figure}
 
-Figure~\ref{fig:corr-scatter} shows the per-pair scatter; all six pairs
-lie in $r \in [0.958, 0.964]$. Full results are in
-Appendix~\ref{sec:appendix-corr}.

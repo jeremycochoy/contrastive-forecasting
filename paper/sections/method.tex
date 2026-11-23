@@ -1,187 +1,375 @@
 \section{Contrastive Forecasting}
 \label{sec:method}
 
-Contrastive Forecasting consists of a per-patch encoder and a causal
-forecaster, trained jointly with a contrastive loss in latent space.
-The subsections below define the patching, the encoder, the
-forecaster, and the loss in turn.
+Contrastive Forecasting predicts the next patch of a series in latent
+space. The model has three stages: a patch embedding, an encoder and a
+forecaster. A small head, trained after the model, maps the latent
+forecasts back to values. The subsections below define each part, then
+the loss and the head.
 
 \subsection{Architecture}
 \label{sec:architecture}
 
-We work with a multivariate time series of shape $T \times C \times F$,
-where $T$ is the number of raw timesteps, $C$ is the number of
-channels, and $F$ is the number of features per timestep. In the
-experiments reported here $F = 1$, but the formalism does not change
-when $F > 1$. The series is cut into non-overlapping patches of width
-$W$ along the time axis, so that the patched input has shape
-$T_p \times C \times W \times F$ with $T_p = T / W$. Each patch is
-encoded independently into a latent $h[t, c] \in \mathbb{R}^H$, and we
-project it onto the Euclidean unit sphere by $L^2$-normalising, so
-that $\|h[t, c]\| = 1$.
+We work with univariate series: each variate of a multivariate series
+is a separate series. A training window has $T = 1024$ values. We
+normalise it (Section~\ref{sec:normalisation}) and cut it into
+$T_p = T / W = 64$ non-overlapping patches of $W = 16$ values. Each
+stage of the model writes one latent of size $\dmodel$ for each patch.
+\begin{itemize}
+\item The patch embedding maps patch $t$ to the embedding $e_t$
+  (Section~\ref{sec:patch-embedding}).
+\item The encoder, a causal transformer, maps $e_0, \ldots, e_t$ to
+  the encoder latent $h_t$.
+\item The forecaster, a causal transformer, maps $h_0, \ldots, h_t$ to
+  $f_t$, the forecast of the latent of patch $t + 1$.
+\end{itemize}
 
-The choice of $W$ is dataset-dependent. Values in $\{16, 32, 64, 128\}$
-all appear in the recent foundation-model literature. We use $W = 32$
-in the experiments reported here, following the patch size used by
-TimesFM~\citep{das2024timesfm}. To minimise compute, we set the stride between
-consecutive patches to the patch width, giving non-overlapping windows
-that cover the full sequence. A stride of $1$ is also of interest,
-since it gives one latent per timestep, provided the loss is adjusted
-to align each forecast with the correct future patch.
+After each stage, we put the latent on the sphere of radius
+$\sqrt{\dmodel}$. The encoder reads $e_t$ on the sphere, the forecaster
+reads $h_t$ on the sphere, and the forecast $f_t$ is on the sphere. We
+preferred a sphere of radius $\sqrt{\dmodel}$ because a vector on it has a
+root mean square of $1$ for each coordinate, which is the scale of the
+output of a layer normalisation. During a \emph{latent rollout}, the
+forecaster also reads its own forecasts in latent space
+(Sections~\ref{sec:loss} and~\ref{sec:forecast-head}), and the sphere
+fixes the norm of these inputs too.
 
-Our architecture has two models: an encoder and a forecaster. The
-encoder maps a patch to a latent; the forecaster maps the sequence of
-past latents to a forecast of the next latent. We write $f[t, c]$ for the forecaster's output at
-position $t$ and channel $c$. The training objective is to make
-$f[t, c]$ as close as possible to $h[t+1, c]$ under some dissimilarity
-$D$,
+\subsection{Normalisation}
+\label{sec:normalisation}
+
+The series of a pretraining corpus have levels and amplitudes that
+differ by orders of magnitude, so a foundation model normalises each
+series before it reads it. A standard method is instance
+normalisation, as in RevIN~\citep{kim2022revin}. It computes one mean
+$\mu$ and one standard deviation $\sigma$ over the observed values of
+the context, and the model reads $(x_t - \mu) / \sigma$. The forecast
+$\hat{y}$ goes back to values as $\hat{y}\,\sigma + \mu$.
+Moirai~\citep{woo2024moirai} uses this method, and computes $\sigma$ as
+the square root of the unbiased variance plus $10^{-5}$.
+
+Our forecaster predicts the next patch at every position of the window
+in one pass, so the window also holds the targets. One mean and one
+standard deviation over the whole window would put information from
+these targets into the inputs. We use an
+exponentially weighted moving average (EWMA), whose statistics at
+step $t$ read the values up to $t$:
+\begin{align*}
+  m_t &= (1 - \alpha)\, m_{t-1} + \alpha\, x_t, \\
+  v_t &= (1 - \alpha)\, v_{t-1} + \alpha\, (x_t - m_t)^2, \\
+  z_t &= \frac{x_t - m_t}{\max\big(\sqrt{v_t},\, 10^{-5}\big)}.
+\end{align*}
+We set $\alpha = 2 / (s + 1)$ with the span $s = 128$. This gives
+$\alpha \approx 0.0155$ and a half-life of about $44$ values. The
+recursion starts at $t = 0$ from $m_{-1}$ and $v_{-1}$, the mean and
+the variance of the first $16$ values, so the statistics inside the
+first patch read the whole patch. When a series starts with zero padding
+(Section~\ref{sec:data}), the statistics start at the first value that
+is not zero (a real zero at the start counts as padding) and the
+padding stays at $0$. If the padding ends inside a patch, the first
+$16$ real values extend into the next patch, and $m_{-1}$ and
+$v_{-1}$ include values from the target of the patch that holds the
+first real value. The losses therefore skip this patch.
+
+At test time, the future values are unknown, so the statistics stop at
+the last value of the context. The forecast $\hat{y}$ of every future
+step goes back to values as $\hat{y}\,\sigma + \mu$, with $\mu = m_t$
+and $\sigma = \max(\sqrt{v_t}, 10^{-5})$ at this last value.
+
+\subsection{Embedding of the time scale}
+\label{sec:scale-embedding}
+
+The normalisation removes the mean and the standard deviation of the
+series, and the model gets no input about them. The model reads the time scale
+of the series: its sampling frequency and its seasonal period. The
+frequency has $15$ classes:
 \[
-  D\big(f[t, c],\, h[t+1, c]\big) \to 0.
+  \{4, 10\}\,\mathrm{s}, \quad
+  \{1, 5, 10, 15, 30\}\,\mathrm{min}, \quad
+  \{1, 6\}\,\mathrm{h}, \quad
+  \{\text{day}, \text{week}, \text{month}, \text{quarter}, \text{year}\}, \quad
+  \text{unknown}.
 \]
-Placing the latents on the unit sphere is a deliberate choice: it lets
-us take $D$ to be the angular distance, measured through its proxy
-the inner product (Section~\ref{sec:loss}). The representation also
-benefits from living on a closed surface.
+The seasonal period $p$ is the number of steps in one season, as
+GluonTS defines it for the frequency, for example $p = 24$ for hourly
+data. The bucket of $p$ is its smallest upper bound in
+\[
+  \{1, 4, 8, 16, 32, 64, 128, 256, 512, \infty\},
+\]
+so there are $10$ buckets, and an unknown period goes to the bucket of
+$1$. Each frequency class and each bucket has a
+learned embedding of size $3$. We append the two embeddings to the $W$
+values of each patch, so the patch embedding reads $W' = W + 6 = 22$
+numbers.
 
-\subsection{Encoder}
-\label{sec:encoder}
+\subsection{Patch embedding}
+\label{sec:patch-embedding}
 
-The first encoder we tried is the residual block used by
-TiDE~\citep{das2023tide} and TimesFM~\citep{das2024timesfm}: a small
-MLP (linear, ReLU, dropout, linear) summed with a linear skip from
-the input, followed by a layer normalisation. The input dimension is
-$W$ and the output dimension is $H$.
+TimesFM~\citep{das2024timesfm} embeds a patch with the residual block of
+TiDE~\citep{das2023tide}: a small MLP (linear, activation, linear) of
+the patch values, summed with a linear map of the same values, then a
+layer normalisation. The first layer of the MLP reads the patch as one
+vector of $W$ values.
 
-The encoder we currently use is a bidirectional GRU. Each patch is
-read as a sequence of $W$ scalar timesteps, which gives the encoder a
-chance to model the local temporal structure that an MLP collapses
-into a single linear projection. The forward and backward final hidden
-states ($128$ units each in our setup) are concatenated to a $256$-dim
-vector and projected to $H$, summed with a linear skip from the raw
-patch, and passed through a layer normalisation.
+Our patch embedding is a bidirectional GRU. It reads the $W'$ numbers
+of a patch as a sequence of $W'$ scalar steps: the $W$ values in time
+order, then the $6$ numbers of the time-scale embeddings. This gives
+the patch embedding a chance to model the local temporal structure
+that an MLP collapses into a single linear projection. The GRU has
+$2$ layers with $128$ units in each direction. A linear map takes the
+final hidden states of the two directions ($256$ numbers) to
+$\mathbb{R}^{\dmodel}$. We add a linear map of the $W'$ input numbers, and a
+layer normalisation gives $e_t$.
 
-The encoder design space remains largely unexplored. In theory the
-encoder could be as complex as a transformer, if encoding a patch into
-a useful latent turns out to be a hard problem in its own right.
-Finding the proper encoder is a potential future-work axis.
-
-\subsection{Forecaster}
+\subsection{Encoder and forecaster}
 \label{sec:forecaster}
 
-The forecaster is a causal transformer decoder. It has $L$ layers and
-hidden width $H$, with $L$ and $H$ controlling the depth and the
-capacity. Each layer first applies a small depthwise causal
-convolution (kernel size $3$) directly to the stream, then a
-self-attention block, then a feed-forward network. The attention and
-feed-forward sub-layers follow the standard pre-norm pattern with
-residual connections; the depthwise convolution is applied without a
-residual wrap.
+The encoder and the forecaster are causal transformers with the same
+block (Figure~\ref{fig:block}), of width $\dmodel$ and with
+$n_{\mathrm{head}} = 8$ attention heads. In each block, a depthwise causal convolution of kernel size
+$k_{\mathrm{conv}} = 3$ reads the stream, a
+layer normalisation follows, and the self-attention reads the result.
+The residual connection adds the attention output to the stream as it
+was before the convolution. An RMSNorm normalises the queries and the
+keys of each head, and another one normalises the attention output. A
+feed-forward network of hidden width $4\dmodel$ with a GELU follows, with a
+pre-norm residual connection. The convolution follows the observation
+of Elhage et al.~\citep{elhage2021circuits} that a short-range
+depthwise convolution lets induction-head-like circuits form without
+the second attention layer that the canonical induction circuit
+requires. Our models have $1$ encoder layer and $3$ or $5$ forecaster
+layers (Section~\ref{sec:experiments}).
+The initialisation follows muP~\citep{yang2022mup}. The base model has
+width $64$ and $3$ layers in each stack, so at our width the muP width
+rules change nothing. Each weight starts at the PyTorch initialisation
+times a factor that depends on its class:
+\[
+  \text{input}\ \times 0.3, \qquad
+  \text{hidden}\ \times 1, \qquad
+  \text{output}\ \times 0.
+\]
+The input weights are the projections of the patch embedding, and the
+output weights write the output of the last layer of each stack. The
+residual branches of a stack of $L$ layers are multiplied by $3 / L$:
+$3$ in the encoder, and $1$ in a forecaster of $3$ layers.
 
-The convolution follows the observation of Elhage et
-al.~\citep{elhage2021circuits} that a short-range depthwise
-convolution lets induction-head-like circuits form without the second
-attention layer that the canonical induction circuit requires. This
-significantly improves the performance of small transformers, the
-regime we operate in.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figures/arch_block.pdf}
+  \caption{The block of the encoder and of the forecaster. LN is a layer
+    normalisation. A stack repeats the block $L$ times ($1$ in the
+    encoder, $3$ or $5$ in the forecaster), then puts its output on the sphere
+    of radius $\sqrt{\dmodel}$. A dashed box marks a dropout of $0.1$.
+    DropKey and dropout act only during training.}
+  \label{fig:block}
+\end{figure}
+\paragraph{DropKey and dropout.}
+During training, DropKey~\citep{li2023dropkey} hides past patches from
+the attention of the encoder: for each patch $t$ and each past patch
+$j < t$, patch $t$ cannot attend to patch $j$ with probability $0.7$.
+One random mask serves each series, for all heads and layers, and a
+patch always attends to itself. DropKey removes keys before the
+softmax, so the weights of the other keys still sum to $1$. The teacher
+hides no patch (Section~\ref{sec:loss}), so the query and the positive
+key of the loss term $\mathcal{L}_{\mathrm{rep}}$ read two different views of the
+same past. Both
+stacks also use a standard dropout of $0.1$ in each block: on the
+attention weights, on the attention output, in the hidden layer of the
+feed-forward network, and on the output of the feed-forward network.
 
 
 \subsection{Loss function}
 \label{sec:loss}
 
-For two unit-norm latents we score their similarity by their inner
-product, which is the cosine of the angle between them and is
-convenient to compute.
-
-We index each latent and each forecast by the batch element
-$b \in B$, the patch position $t \in T_p$, and the channel $c \in C$.
-For every anchor $(b, t, c)$, the positive pair is the forecast
-$f[b, t, c]$ paired with the future latent $h[b, t+1, c]$.
-
-The negative set is built by varying anchors along three independent
-axes: cross-temporal ($t \neq t'$), cross-channel ($c \neq c'$), and
-cross-batch ($b \neq b'$). Each axis can be combined with the others,
-and each pair can mix encoded latents $h$ and forecasts $f$. The loss
-uses three specific pair families.
-\begin{itemize}
-\item \textbf{Cross-temporal} ($\mathcal{N}_{\mathrm{ct}}$): two
-  encoded latents from the same series and channel at consecutive
-  times, $\big(h[b, t, c],\, h[b, t+1, c]\big)$. Per anchor, $1$
-  candidate.
-\item \textbf{Cross-channel} ($\mathcal{N}_{\mathrm{cc}}$): two
-  encoded latents from the same series at the same time, with
-  different channels, $\big(h[b, t, c],\, h[b, t, c']\big)$ for
-  $c' \neq c$. Per anchor, $C - 1$ candidates.
-\item \textbf{Cross-batch} ($\mathcal{N}_{\mathrm{cb}}$): the future
-  latent of one series paired with the forecast of a different series
-  at the same prediction position,
-  $\big(h[b, t+1, c],\, f[b', t, c]\big)$ for $b' \neq b$. Per anchor,
-  $B - 1$ candidates.
-\end{itemize}
-
-Many other pairings are conceivable. The cross-temporal axis can also
-be applied to $\big(h[b, t, c],\, f[b, t, c]\big)$ or
-$\big(f[b, t, c],\, f[b, t+1, c]\big)$. The cross-batch axis can also
-be applied to $\big(h[b, t, c],\, h[b', t, c]\big)$,
-$\big(f[b, t, c],\, f[b', t, c]\big)$, or
-$\big(h[b, t, c],\, f[b', t, c]\big)$. Any of these can be combined
-with a channel difference. In general, adding more terms to the
-denominator gives a faster loss decrease per backward pass at the cost
-of slower loss computation, and the trade-off is not always
-favourable; we specify the subset used in our experiments in
-Section~\ref{sec:experiments}.
-
-Cross-channel candidates are computed by a $C \times C$ inner-product
-grid per batch element (diagonal masked), cross-batch candidates by a
-$B \times B$ grid over the whole batch (diagonal masked), and
-cross-temporal candidates by a single elementwise dot product over the
-encoded tensor. At every position $(t, c)$, the candidates are aggregated
-into three sums of size $B$ ($\mathcal{N}_{\mathrm{ct}}$), $B(C-1)$
-($\mathcal{N}_{\mathrm{cc}}$), and $B(B-1)$
-($\mathcal{N}_{\mathrm{cb}}$), and the same denominator is used for
-every anchor at that position. The cross-batch set is therefore
-quadratic in $B$ and dominates the negatives.
-
-For unit-norm $u, v \in \mathbb{R}^H$, write the temperature-scaled
-exponential of the inner product as
-\[
-  \sigma_\tau(u, v) \;=\; \exp\!\big(\langle u, v \rangle / \tau\big).
-\]
-The positive score at anchor $(b, t, c)$ is
-\[
-  \mathcal{P}_+(b, t, c) \;=\;
-  \sigma_\tau\!\big(f[b, t, c],\, h[b, t+1, c]\big),
-\]
-and the three negative sums at position $(t, c)$ are
-\begin{align*}
-  \mathcal{N}_{\mathrm{ct}}(t, c)
-    &\;=\; \sum_{b \in B}
-      \sigma_\tau\!\big(h[b, t, c],\; h[b, t+1, c]\big),\\
-  \mathcal{N}_{\mathrm{cc}}(t, c)
-    &\;=\; \sum_{b \in B} \, \sum_{c' \neq c}
-      \sigma_\tau\!\big(h[b, t, c],\; h[b, t, c']\big),\\
-  \mathcal{N}_{\mathrm{cb}}(t, c)
-    &\;=\; \sum_{b \neq b'}
-      \sigma_\tau\!\big(h[b, t+1, c],\; f[b', t, c]\big).
-\end{align*}
-The contribution of the anchor $(b, t, c)$ to the loss is
+The targets of the loss come from a teacher: a copy of the patch
+embedding and of the encoder, whose weights are an exponential moving
+average (EMA) of the weights of the model. The teacher shares the live
+time-scale embeddings of the model, with no EMA. After each step, the
+teacher weights become $\theta_T \leftarrow \alpha\,\theta_T +
+(1 - \alpha)\,\theta$, with a linear schedule of $\alpha$ from
+$0.99995$ at the first step to $1$ at the last step. The teacher reads the full context, with no hidden
+patch and no dropout, and no gradient flows through it. We write $h^T_t$ for its
+encoder latent of patch $t$. The loss has four terms:
 \begin{equation}
-  \mathcal{L}_{b, t, c}
-  \;=\; -\log \frac{\mathcal{P}_+(b, t, c)}
-  {\mathcal{N}_{\mathrm{ct}}(t, c) \;+\;
-   \mathcal{N}_{\mathrm{cc}}(t, c) \;+\;
-   \mathcal{N}_{\mathrm{cb}}(t, c)}.
-  \label{eq:loss-anchor}
+  \mathcal{L} \;=\;
+  \mathrm{SIGReg}(e) \;+\; \mathrm{SIGReg}(h)
+  \;+\; 0.1\, \mathcal{L}_{\mathrm{rep}}
+  \;+\; 10\, \mathcal{L}_{\mathrm{align}}.
+  \label{eq:loss-total}
 \end{equation}
-The denominator depends on $(t, c)$ but not on $b$: every anchor at
-the same position shares the same denominator. The mini-batch loss is
-the average over all anchors,
-\begin{equation}
-  \mathcal{L} \;=\; \frac{1}{N}
-  \sum_{b \in B} \sum_{t} \sum_{c \in C}
-  \mathcal{L}_{b, t, c},
-  \qquad N = B \cdot (T_p - 1) \cdot C.
-  \label{eq:loss-batch}
-\end{equation}
-In the contrastive learning literature $\tau$ is usually chosen between
-$0.05$ and $0.5$; the value used in our experiments is reported in
-Section~\ref{sec:experiments}.
+Every term skips the zero padding.
+
+\paragraph{SIGReg on the embedding and on the encoder latent.}
+A loss between two latents has a collapsed minimum: the same latent for
+every patch. SIGReg~\citep{balestriero2025lejepa} pushes the latents to
+an isotropic Gaussian distribution, and a collapsed distribution is far
+from it. SIGReg projects the latents of the batch on random unit
+directions and compares the distribution of each projection with a
+Gaussian through their characteristic functions. For the latents
+$z_1, \ldots, z_N \in \mathbb{R}^{\dmodel}$ of all the real patches of the
+batch, with the anchor skips of Section~\ref{sec:normalisation}, and $M = 1024$ unit directions $a_1, \ldots, a_M$ drawn again
+at each step,
+\begin{equation*}
+  \mathrm{SIGReg}(z) \;=\; \frac{1}{M} \sum_{m=1}^{M}
+  \int_{-6\sqrt{\dmodel}}^{6\sqrt{\dmodel}}
+  \bigg|\, \frac{1}{N} \sum_{n=1}^{N}
+  \exp\!\Big(i\,\omega\, \frac{\langle a_m, z_n \rangle}{\sqrt{\dmodel}}\Big)
+  \;-\; \exp\!\Big(-\frac{\omega^2}{2\dmodel}\Big) \bigg|^2 \, d\omega .
+\end{equation*}
+The target of each projection of $z / \sqrt{\dmodel}$ is the Gaussian
+$\mathcal{N}(0, 1/\dmodel)$, so each coordinate of $z$ gets a variance close
+to $1$, the scale of the sphere. SIGReg reads the embeddings $e$ and
+the encoder latents $h$ before their projection onto the sphere.
+
+\paragraph{Contrastive loss on the representation.}
+$\mathcal{L}_{\mathrm{rep}}$ is a contrastive loss on the encoder
+latent, in the style of MoCo~\citep{he2020moco}. For the anchor
+$(b, t)$, patch $t$ of series $b$, the query is the latent $h_{b,t}$
+of the model, which reads a context with hidden patches. The positive
+key is the teacher latent $h^T_{b,t}$ of the same patch, which reads
+the full context. The negative keys are the teacher latents of the
+other patches of series $b$ and of all the patches of the other series
+of the batch. The loss is
+\begin{equation*}
+  \mathcal{L}_{\mathrm{rep}} \;=\; -\frac{1}{|\mathcal{A}|}
+  \sum_{(b,t) \in \mathcal{A}}
+  \log \frac{e^{\mathrm{sim}(h_{b,t},\, h^T_{b,t}) / \tau}}
+  {e^{\mathrm{sim}(h_{b,t},\, h^T_{b,t}) / \tau}
+   + \sum_{q,\,k} e^{\mathrm{sim}(q, k) / \tau}},
+\end{equation*}
+with $\mathrm{sim}$ the cosine similarity, the temperature $\tau = 1$,
+and $\mathcal{A}$ the set of the anchors of the batch. The inner
+sum runs over the queries $q$ of all the anchors at time $t$ and over
+their negative keys $k$. All the anchors at time $t$ share this sum.
+$\mathcal{L}_{\mathrm{rep}}$ makes the latent of a patch closer to the
+teacher latent of the same patch than to the latents of the other
+patches and of the other series. Every patch of the window is an
+anchor, except the last one.
+
+\paragraph{Alignment of the forecasts.}
+$\mathcal{L}_{\mathrm{align}}$ ties each forecast to the teacher latent
+of the patch that it predicts, at distances from $1$ to $4$ patches.
+We write $F$ for the forecaster. The one-step forecasts are
+$f^{(0)} = F(h)$, with $f^{(0)}_t = f_t$. For $d > 1$, the forecaster
+reads its own forecasts in place of $h$, a latent rollout: $f^{(d-1)} = F(f^{(d-2)})$,
+so $f^{(d-1)}_t$ is the forecast of patch $t + d$ from patch $t$. The
+gradient flows through all the calls of $F$. The loss is
+\begin{equation*}
+  \mathcal{L}_{\mathrm{align}} \;=\; \sum_{d=1}^{4}\;
+  \underset{t}{\mathrm{mean}}
+  \Big[\, 2 - 2 \cos\!\big(f^{(d-1)}_t,\; \mathrm{sg}(h^T_{t+d})\big) \Big],
+\end{equation*}
+with $\mathrm{sg}$ the stop-gradient. The four distances have the same
+weight.
+
+On the sphere, this cosine loss is a mean squared error. For two
+vectors $u, v$ of norm $\sqrt{\dmodel}$,
+\[
+  \frac{\|u - v\|^2}{\dmodel} \;=\; 2 - 2 \cos(u, v).
+\]
+The forecast lies on the sphere, and the cosine does not depend on the
+norm of the teacher latent. So each term of
+$\mathcal{L}_{\mathrm{align}}$ is the mean squared error per coordinate
+between the forecast and the teacher latent put on the same sphere.
+
+For the curious reader, the cosine loss also has a probabilistic
+reading. The von Mises--Fisher distribution on the sphere, with mean
+direction $\mu$ and concentration $\kappa > 0$, has a density
+proportional to $\exp\big(\kappa \cos(x, \mu)\big)$. For a fixed
+$\kappa$, and up to a scale and a constant, each term $2 - 2\cos(f, h^T)$ is thus the negative log-likelihood of
+the teacher latent under a von Mises--Fisher distribution centred on
+the forecast: $\mathcal{L}_{\mathrm{align}}$ is a cross-entropy on the
+sphere. This is the next-token objective of a language model.
+
+\subsection{Forecast head}
+\label{sec:forecast-head}
+
+The forecast head maps the latents to values. We use it to compute all
+our GIFT-Eval scores. The head is a standard pre-norm causal
+transformer (Figure~\ref{fig:head-block}) with $2$ layers, width
+$\dmodel$, $n_{\mathrm{head}} = 8$ attention heads and no positional
+encoding. For each input token, a linear map gives $9$ quantiles, at
+the levels $0.1, 0.2, \ldots, 0.9$, of the $W$ values of one patch. The
+head has $109{,}456$ parameters.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figures/head_block.pdf}
+  \caption{The forecast head. It reads the encoder latents and the
+    forecasts of the frozen backbone, repeats a pre-norm block $2$
+    times, and maps each token to $9$ quantiles of $W$ values. A dashed
+    box marks a dropout of $0.1$, active only during training.}
+  \label{fig:head-block}
+\end{figure}
+
+\paragraph{Training.}
+Once the backbone is trained, we freeze its weights and train the
+forecast head on top of it. For a window of $T = 1024$ values, the frozen backbone gives the
+encoder latents $h_0, \ldots, h_{T_p - 1}$ of the full context and the
+one-step forecasts $f_0, \ldots, f_{T_p - 1}$. The latents are taken
+before their projection onto the sphere, and the forecasts after it. The head reads a sequence
+of $2 T_p$ tokens: the encoder latents, then the forecasts. The time
+axis is repeated, so the forecast block starts again at patch $0$.
+Figure~\ref{fig:head-attention} shows the tokens that each token
+reads, for $T_p = 4$. The latent $h_t$ attends to $h_0, \ldots, h_t$.
+The forecast $f_t$ attends to $h_0, \ldots, h_t$ and to
+$f_0, \ldots, f_t$. The output at $f_t$ predicts patch $t + 1$. The latent
+$h_{t+1}$ encodes this patch, so $f_t$ must not read it at any layer.
+For this reason the latent rows are causal too: with a full latent
+block, the first layer would carry $h_{t+1}$ into $h_t$, and $f_t$
+would read it at the second layer. The loss is the pinball loss of the
+$9$ quantiles against the values of patch $t + 1$, each value
+normalised with the EWMA statistics of its own step. The loss is
+averaged over the levels, the values and the forecast tokens, and the
+outputs at the latent tokens get no loss. The padded targets get no
+loss, and the head keeps the early anchors that the backbone losses
+skip (Section~\ref{sec:normalisation}). A dropout of $0.1$ applies
+in its blocks during training, at the same places as in the backbone
+(Section~\ref{sec:forecaster}). Section~\ref{sec:experiments} gives
+its optimiser settings.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.88\linewidth]{figures/head_attention.pdf}
+  \caption{The attention of the forecast head during training, for
+    $T_p = 4$. Each row shows the tokens that its bold token reads.
+    (a) The latent $h_t$ reads $h_0, \ldots, h_t$. The head predicts
+    nothing at $h_t$: the latents only give context to the forecasts.
+    (b) The forecast $f_t$ reads $h_0, \ldots, h_t$ and
+    $f_0, \ldots, f_t$, and its output predicts patch $t + 1$.}
+  \label{fig:head-attention}
+\end{figure}
+
+
+
+\paragraph{Forecast at test time.}
+For a horizon of $H$ values, the head reads the context and a latent
+rollout of the forecaster (Figure~\ref{fig:test-rollout}): the
+forecaster runs on its own latent forecasts, with no value in between.
+\begin{enumerate}
+\item The backbone normalises the last $1024$ values of the context
+  and encodes them into $h_0, \ldots, h_{T_p - 1}$. A shorter context
+  gets zeros on its left.
+\item The forecaster reads $h_0, \ldots, h_{T_p - 1}$, and its last
+  output is $r_0$. For $i \geq 1$, it reads
+  $h_0, \ldots, h_{T_p - 1}, r_0, \ldots, r_{i-1}$, each token on the
+  sphere, and its last output is $r_i$. The rollout has
+  $\lceil H / W \rceil$ steps. In the notation of
+  $\mathcal{L}_{\mathrm{align}}$, $r_i = f^{(i)}_{T_p - 1}$.
+\item The head reads $h_0, \ldots, h_{T_p - 1}, r_0, r_1, \ldots$ with a
+  causal mask. Its output at $r_i$ gives the quantiles of patch
+  $T_p + i$.
+\item The EWMA statistics of the last value of the context map the
+  quantiles back to values (Section~\ref{sec:normalisation}). The
+  point forecast is the median.
+\end{enumerate}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.6\linewidth]{figures/test_rollout.pdf}
+  \caption{The forecast at test time. After the encoder latents of the
+    context, the forecaster rolls out $r_0, r_1, \ldots$: each output
+    is the next input. The head reads the whole sequence with a causal
+    mask, and its output at $r_i$ is the forecast of patch $T_p + i$.}
+  \label{fig:test-rollout}
+\end{figure}
