@@ -39,7 +39,7 @@ latents to the target latents with an $L^2$ loss. JEPA uses no
 negatives. The stop-gradient on the target branch and the asymmetric
 predictor prevent the collapse to a constant, which is a global
 minimum of the loss. TS-JEPA~\citep{ennadir2025tsjepa} applies this
-recipe to time series. It cuts each series into $10$ patches, masks
+recipe to time series. It cuts each series into patches, masks
 $70\%$ of them, and trains with an $L^1$ loss in latent space. It
 trains one model for each dataset and evaluates it on classification
 and on forecasting. In its short-term forecast experiment, the
@@ -51,6 +51,7 @@ LeJEPA~\citep{balestriero2025lejepa} removes the EMA teacher and the
 stop-gradient. It adds SIGReg, a regulariser that pushes the
 distribution of the embeddings to an isotropic Gaussian, and this
 regulariser prevents the collapse.
+
 
 Our model takes from each of these works. It forecasts the next patch
 with a causal transformer, as TimesFM~\citep{das2024timesfm} does. Its

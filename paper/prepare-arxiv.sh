@@ -48,6 +48,7 @@ cp "$PAPER_DIR/neurips_2024.sty" "$BUILD_DIR/"
 cp "$PAPER_DIR/references.bib"   "$BUILD_DIR/"
 cp "$PAPER_DIR/sections/"*.tex   "$BUILD_DIR/sections/"
 cp "$PAPER_DIR/figures/"*.png    "$BUILD_DIR/figures/"
+cp "$PAPER_DIR/figures/"*.pdf    "$BUILD_DIR/figures/"
 
 log "Compiling once with latexmk to generate $MAIN.bbl"
 (
