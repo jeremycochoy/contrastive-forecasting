@@ -9,9 +9,14 @@ step mixes the series of some batches.
 
 \paragraph{Benchmark.}
 GIFT-Eval has $23$ datasets with frequencies from $10$ seconds to one
-year. A configuration is one dataset at one frequency and one forecast
-term. The benchmark has $97$ configurations: $55$ short-term, $21$
-medium-term and $21$ long-term.
+year. They cover, for example, electricity load, solar power, weather,
+road traffic, cloud servers, air quality, river flow, hospital
+admissions, sales and the economic series of M4. Each dataset has up to
+three forecast terms. The short term has a horizon set by the
+frequency, for example $48$ steps for hourly data. The medium and long
+terms have $10$ and $15$ times this horizon, and only $21$ pairs of a dataset
+and a frequency, all hourly or finer, have them. A configuration is one dataset at one
+frequency and one term, and the benchmark has $97$ configurations.
 
 \paragraph{Real series.}
 The pretraining corpus, GiftEvalPretrain, has $152$ sources,
@@ -26,10 +31,10 @@ variates of the row, as in Moirai, and each kept variate becomes a
 separate univariate series. The covariates of a row train like its
 target variates. A series shorter than the window gets zeros on its
 left, and the normalisation of Section~\ref{sec:normalisation} treats
-these zeros as padding. A run of $166{,}000$ steps reads $254$ real
+these zeros as padding. A run of $166{,}000$ steps reads $251$ real
 windows at each step: $42$ million windows, or $43$ billion window
-values. This is $18.7\%$ of the values of the corpus. The zero padding
-is about a tenth of the window values, so the run reads about $39$
+values. This is $18.5\%$ of the values of the corpus. The zero padding
+is about a tenth of the window values, so the run reads about $38$
 billion real values.
 
 \paragraph{Synthetic series.}
@@ -48,6 +53,15 @@ standard deviation $0.05$. The perturbed coefficients are clipped to
 the same $\ell_1$ bound, and the shared path starts after a burn-in of
 $200$ steps. Each series is the cumulative sum of its
 ARMA path, so it is an ARIMA$(p, 1, q)$ series.
+Figure~\ref{fig:forked-arma} shows one pair.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.6\linewidth]{figures/synthetic_forked_arma.pdf}
+  \caption{A forked ARMA pair: one shared past, then two futures after
+    the fork (dotted line).}
+  \label{fig:forked-arma}
+\end{figure}
 
 \paragraph{Crossfade series.}
 Each batch also holds three series built from two real windows $A$ and
@@ -59,8 +73,21 @@ variance, and their crossfade
 The weight $s_t$ goes linearly from $0$ to $1$ over a transition
 around a midpoint. The midpoint is uniform in the window, and the
 width of the transition is log-uniform between $1/128$ of the window
-and the full window. With the forked ARMA pair, a batch holds
-$254 + 2 + 3 = 259$ series.
+and the full window (Figure~\ref{fig:crossfade}).
+
+The batch is the same at every step: $256$ series, of which $251$ real
+windows, the forked ARMA pair and the three crossfade series
+($251 + 2 + 3 = 256$).
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.6\linewidth]{figures/synthetic_crossfade.pdf}
+  \caption{A crossfade $C$ of two series $A$ and $B$. In training, $A$
+    and $B$ are real windows of the batch. Here $A$ is the first future
+    of Figure~\ref{fig:forked-arma} and $B$ is one more ARIMA draw, and
+    the transition is wide so that the blend is visible.}
+  \label{fig:crossfade}
+\end{figure}
 
 \paragraph{Mixup.}
 At each step, with probability $0.3$, we mix the whole batch with the
@@ -77,3 +104,5 @@ the longer zero padding of its two series. The TSMixup of
 Chronos~\citep{ansari2024chronos} mixes up to $k$ series after a
 scaling of each series; our mixup mixes two raw series. Before the
 mixup, each series changes sign with probability $0.5$.
+
+

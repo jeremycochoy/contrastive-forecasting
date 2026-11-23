@@ -136,7 +136,8 @@ pre-norm residual connection. The convolution follows the observation
 of Elhage et al.~\citep{elhage2021circuits} that a short-range
 depthwise convolution lets induction-head-like circuits form without
 the second attention layer that the canonical induction circuit
-requires. Our model has $1$ encoder layer and $3$ forecaster layers.
+requires. Our models have $1$ encoder layer and $3$ or $5$ forecaster
+layers (Section~\ref{sec:experiments}).
 The initialisation follows muP~\citep{yang2022mup}. The base model has
 width $64$ and $3$ layers in each stack, so at our width the muP width
 rules change nothing. Each weight starts at the PyTorch initialisation
@@ -149,7 +150,7 @@ times a factor that depends on its class:
 The input weights are the projections of the patch embedding, and the
 output weights write the output of the last layer of each stack. The
 residual branches of a stack of $L$ layers are multiplied by $3 / L$:
-$3$ in the encoder and $1$ in the forecaster.
+$3$ in the encoder, and $1$ in a forecaster of $3$ layers.
 
 
 \begin{figure}[t]
@@ -157,7 +158,7 @@ $3$ in the encoder and $1$ in the forecaster.
   \includegraphics[width=\linewidth]{figures/arch_block.pdf}
   \caption{The block of the encoder and of the forecaster. LN is a layer
     normalisation. A stack repeats the block $L$ times ($1$ in the
-    encoder, $3$ in the forecaster), then puts its output on the sphere
+    encoder, $3$ or $5$ in the forecaster), then puts its output on the sphere
     of radius $\sqrt{\dmodel}$. A dashed box marks a dropout of $0.1$.
     DropKey and dropout act only during training.}
   \label{fig:block}
@@ -247,19 +248,19 @@ anchor, except the last one.
 
 \paragraph{Alignment of the forecasts.}
 $\mathcal{L}_{\mathrm{align}}$ ties each forecast to the teacher latent
-of the patch that it predicts, at distances from $1$ to $32$ patches.
+of the patch that it predicts, at distances from $1$ to $4$ patches.
 We write $F$ for the forecaster. The one-step forecasts are
 $f^{(0)} = F(h)$, with $f^{(0)}_t = f_t$. For $d > 1$, the forecaster
 reads its own forecasts in place of $h$, a latent rollout: $f^{(d-1)} = F(f^{(d-2)})$,
 so $f^{(d-1)}_t$ is the forecast of patch $t + d$ from patch $t$. The
 gradient flows through all the calls of $F$. The loss is
 \begin{equation*}
-  \mathcal{L}_{\mathrm{align}} \;=\; \sum_{d=1}^{32} \frac{1}{d}\;
+  \mathcal{L}_{\mathrm{align}} \;=\; \sum_{d=1}^{4}\;
   \underset{t}{\mathrm{mean}}
   \Big[\, 2 - 2 \cos\!\big(f^{(d-1)}_t,\; \mathrm{sg}(h^T_{t+d})\big) \Big],
 \end{equation*}
-with $\mathrm{sg}$ the stop-gradient. The weight $1/d$ gives the most
-weight to the nearest patches.
+with $\mathrm{sg}$ the stop-gradient. The four distances have the same
+weight.
 
 On the sphere, this cosine loss is a mean squared error. For two
 vectors $u, v$ of norm $\sqrt{\dmodel}$,
@@ -324,10 +325,8 @@ outputs at the latent tokens get no loss. The padded targets get no
 loss, and the head keeps the early anchors that the backbone losses
 skip (Section~\ref{sec:normalisation}). A dropout of $0.1$ applies
 in its blocks during training, at the same places as in the backbone
-(Section~\ref{sec:forecaster}). The head trains for
-$30{,}000$ steps at batch size $256$ with AdamW ($\beta_1 = 0.9$,
-$\beta_2 = 0.999$), a constant learning rate of $10^{-3}$, a weight
-decay of $0.01$ and a gradient norm clipped at $1$.
+(Section~\ref{sec:forecaster}). Section~\ref{sec:experiments} gives
+its optimiser settings.
 
 \begin{figure}[t]
   \centering

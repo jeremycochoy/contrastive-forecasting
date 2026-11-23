@@ -1,34 +1,51 @@
 \section{Results}
 \label{sec:results}
 
-Table~\ref{tab:gift-eval} gives the GM-MASE of the three models of
-Section~\ref{sec:experiments} after $166{,}000$ steps. At width $64$, the
-Moirai-style model scores $1.0090$ and our model scores $1.0164$. The
-Moirai-style model at width $384$ scores $0.9362$. The Moirai-style
-model at width $64$ has one patch embedding and one output head for
-each of its five patch sizes, so it has $3.3$ times the parameters of
-our model. Its learning rate decays to $0$ at the last step, and ours
-stays at $10^{-3}$. Figure~\ref{fig:gift-radar} gives the relative
-MASE of each GIFT-Eval dataset.
+Table~\ref{tab:gift-eval} gives the GM-MASE of the four models of
+Section~\ref{sec:experiments} after $166{,}000$ steps. At width $64$,
+our model scores $1.0057$ and the Moirai-style model scores $1.0090$.
+At width $384$, our model scores $0.9401$ and the Moirai-style model
+scores $0.9362$. The Moirai-style model at width $64$ has one patch
+embedding and one output head for each of its five patch sizes, so it
+has $3.3$ times the parameters of our model.
+
+Figure~\ref{fig:gm-curves} gives the GM-MASE along training. Our
+learning rate is constant, then cools down; the Moirai-style models
+follow a cosine schedule to $0$. At both widths, our model stays close
+to the Moirai-style model. After the cooldown it is below it at width
+$64$, and within $0.004$ of it at width $384$. Figure~\ref{fig:gift-radar} gives the
+relative MASE of each GIFT-Eval dataset.
 
 \begin{table}[t]
   \centering
   \caption{GM-MASE on the $97$ configurations of GIFT-Eval after
     $166{,}000$ training steps. Lower is better, and seasonal naive
     scores $1$. The layers are the encoder layers plus the forecaster
-    layers. Our parameter count includes the forecast head ($0.11$M)
-    and leaves out the EMA teacher, which the forecast does not use.}
+    layers. Our parameter counts include the forecast head and leave out
+    the EMA teacher, which the forecast does not use.}
   \label{tab:gift-eval}
   \begin{tabular}{lcccc}
     \toprule
     Model & Width & Layers & Parameters & GM-MASE \\
     \midrule
-    Contrastive Forecasting (ours) & $64$ & $1 + 3$ & $0.73$M & $1.0164$ \\
+    Contrastive Forecasting (ours) & $64$ & $1 + 3$ & $0.73$M & $1.0057$ \\
     Moirai-style, value space & $64$ & $1 + 3$ & $2.4$M & $1.0090$ \\
+    \midrule
+    Contrastive Forecasting (ours) & $384$ & $1 + 5$ & $15.0$M & $0.9401$ \\
     Moirai-style, value space & $384$ & $3 + 3$ & $14.4$M & $0.9362$ \\
     \bottomrule
   \end{tabular}
 \end{table}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\linewidth]{figures/gm_curves.pdf}
+  \caption{GM-MASE over the $97$ configurations at each scored save,
+    for width $64$ (left) and width $384$ (right). The dotted line marks
+    the step from which our learning rate cools down. The dashed line is
+    seasonal naive.}
+  \label{fig:gm-curves}
+\end{figure}
 
 \begin{figure}[t]
   \centering
@@ -42,3 +59,4 @@ MASE of each GIFT-Eval dataset.
     the $97$ configurations.}
   \label{fig:gift-radar}
 \end{figure}
+

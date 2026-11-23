@@ -20,13 +20,14 @@ PAPER = Path(__file__).resolve().parent.parent
 DATA = PAPER / "data" / "gift_eval"
 OUT = PAPER / "figures" / "gift_eval_radar.png"
 MASE = "eval_metrics/MASE[0.5]"
-TICKS = [0.75, 1.0, 1.5, 2.0, 3.0, 5.0, 8.0]
+TICKS = [0.75, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0]
 
 # (table, legend label, colour, line style, line width)
 MODELS = [
-    ("grey_w64_166k", "Ours, width 64 (0.73M parameters)", "#4d4d4d", "-", 2.6),
-    ("value_space_w64_166k", "Moirai-style, width 64 (2.4M)", "#2a78d6", "--", 1.8),
-    ("value_space_w384_166k", "Moirai-style, width 384 (14.4M)", "#eb6834", "-.", 1.8),
+    ("value_space_w64_166k", "Moirai-style, width 64 (2.4M)", "#E69F00", "-", 1.3),
+    ("green_w64_cd135_166k", "Ours, width 64 (0.73M parameters)", "#56B4E9", "-", 1.3),
+    ("value_space_w384_166k", "Moirai-style, width 384 (14.4M)", "#D55E00", "-", 1.7),
+    ("green_w384_cd125_166k", "Ours, width 384 (15.0M)", "#0072B2", "-", 1.7),
 ]
 
 
@@ -77,7 +78,7 @@ def style_axes(ax, labels, angles):
     ax.minorticks_off()
     ax.set_yticks(TICKS)
     ax.set_yticklabels([f"{t:g}" for t in TICKS], fontsize=7.5, color="dimgrey")
-    ax.set_ylim(0.55, 9.0)
+    ax.set_ylim(0.55, 5.4)
     ax.set_rlabel_position(180 + 180 / len(labels))  # between the two bottom spokes
 
 
@@ -92,7 +93,8 @@ def main():
         radii = [values[d] for d in labels]
         score = geometric_mean(list(logs[name].values()))
         ax.plot(angles, radii + radii[:1], style, color=colour, lw=width, marker="o",
-                ms=3.5, label=f"{label}: GM-MASE {score:.4f}", zorder=3)
+                ms=3.5, label=f"{label}: GM-MASE {score:.4f}",
+                zorder=4 if label.startswith("Ours") else 3)  # ours above every Moirai-style line
     ax.plot(angles, [1.0] * len(angles), ":", color="#2ca02c", lw=1.6,
             label="Seasonal naive: 1", zorder=2)
     style_axes(ax, labels, angles)
