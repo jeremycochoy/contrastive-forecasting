@@ -1152,6 +1152,28 @@ class MixedForkedArmaLoader:
                 yield x
 
 
+def step_rows(batch_size: int, mix_ratio: float, crossfade_ratio: float = 0.0,
+              cross_triplets: int = 0, triplets_on_top: bool = False) -> dict:
+    """The rows of one training step, by kind.
+
+    ``batch_size`` counts every row of a step. The loader samples
+    ``batch_size - 3 * cross_triplets`` rows (real, synthetic and crossfade)
+    and appends the ``3 * cross_triplets`` triplet rows. ``triplets_on_top``
+    keeps the count of the older runs: the loader samples ``batch_size``
+    rows, and a step holds ``batch_size + 3 * cross_triplets`` rows.
+    """
+    triplet = 3 * cross_triplets
+    sampled = batch_size if triplets_on_top else batch_size - triplet
+    synth = int(round(sampled * mix_ratio))
+    cross = int(round(sampled * crossfade_ratio))
+    real = sampled - synth - cross
+    if real < 1:
+        raise ValueError(f"batch_size {batch_size} leaves {real} real rows after "
+                         f"{synth} synthetic, {cross} crossfade and {triplet} triplet rows")
+    return {"sampled": sampled, "real": real, "synth": synth, "cross": cross,
+            "triplet": triplet, "total": sampled + triplet}
+
+
 def create_mixed_forked_arma_dataloader(
     repo_id: str, batch_size: int = 24, C: int = 4, mix_ratio: float = 0.5,
     path_in_repo: str = None, split: str = "train",

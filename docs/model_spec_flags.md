@@ -478,3 +478,11 @@ python3 experiments/2026-04-27_freq-embedding/scripts/train.py ... \
   --train-rollout-depth 31 --train-rollout-reduce hill \
   --train-rollout-hill-scale 4 --train-rollout-hill-power 4
 ```
+
+## `--batch-size` and `--crossfade-triplets-on-top`
+
+`--batch-size N` (integer) counts every row of a training step: the real rows, the synthetic rows of `--mix-ratio`, the crossfade rows of `--crossfade-ratio`, and the 3 rows of each `--crossfade-triplets` triplet. The loader samples N - 3 x triplets rows and appends the triplet rows. The synthetic and crossfade counts are rounded fractions of the sampled rows. Example: `--batch-size 256 --mix-ratio 0.0078125 --crossfade-triplets 1` gives 251 real rows, 2 synthetic rows and 3 triplet rows, 256 rows in all.
+
+`--crossfade-triplets-on-top` (a switch, off by default) restores the older count: the loader samples N rows and appends the triplet rows, so a step holds N + 3 x triplets rows. Use it to repeat or to resume a run that trained with that count: without it, a resume of such a run gets 3 x triplets fewer real rows per step. Without `--crossfade-triplets`, the switch changes nothing.
+
+Limits: the trainer refuses a batch that leaves no real row.
