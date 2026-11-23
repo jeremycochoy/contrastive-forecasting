@@ -265,12 +265,14 @@ def gift_args(corpus, tmp_path):
             str(write_index(tmp_path, index))]
 
 
-# The cos200k cell's terms at a size the CPU trains in seconds.
+# The cos200k cell's terms at a size the CPU trains in seconds. --batch-size
+# counts every row (#425): 7 rows are 3 real, 1 synthetic and the 3 rows of the
+# triplet, the rows of the older count of 4.
 TINY_COS200K = (
     "--gift-pretrain", "--freq-vocab", "v2", "--device", "cpu",
     "--weight-decay", "0.1", "--t-raw", "4096", "--n-channels", "1",
     "--d-model", "16", "--n-heads", "2", "--num-layers", "1",
-    "--num-encoder-layers", "1", "--batch-size", "4",
+    "--num-encoder-layers", "1", "--batch-size", "7",
     "--loss-shape", "cosine_similarity_batch_rep_only",
     "--align-loss-weight", "1.0", "--moco-rep-keys", "--tau-rep", "1.0",
     "--align-target", "teacher", "--ema-embedding", "--ema-encoder",

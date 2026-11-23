@@ -180,10 +180,13 @@ def test_the_cyan_run_writes_the_losses_csv_of_the_base_commit(tmp_path):
     old = run(git_tree(BASE_COMMIT, tmp_path), tmp_path / "old", *CYAN_EWMA,
               *data)
     # The cyan recipe runs SIGReg on e and h. The base commit has the bound
-    # W = 6/sqrt(K), which --sigreg-legacy-window restores, and it feeds the
-    # rollout depth back raw, which --train-rollout-feedback raw restores.
+    # W = 6/sqrt(K), which --sigreg-legacy-window restores, it feeds the
+    # rollout depth back raw, which --train-rollout-feedback raw restores, and
+    # it counts the crossfade triplet on top of the batch, which
+    # --crossfade-triplets-on-top restores.
     new = run(REPO_ROOT, tmp_path / "new", *CYAN_EWMA, "--sigreg-legacy-window",
-              "--train-rollout-feedback", "raw", *data)
+              "--train-rollout-feedback", "raw", "--crossfade-triplets-on-top",
+              *data)
     assert old.returncode == 0, old.stdout[-2000:] + old.stderr[-2000:]
     assert new.returncode == 0, new.stdout[-2000:] + new.stderr[-2000:]
     assert len(losses(tmp_path / "new")) == 3

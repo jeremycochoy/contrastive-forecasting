@@ -48,6 +48,7 @@ from src.dataloader import (
     create_mixed_composite_dataloader,
     create_mixed_forked_arma_dataloader,
     create_hf_dataloader,
+    step_rows,
 )
 from src.loss import (contrastive_latent_loss, rep_only_term,
                       grid_pred_term, pred_term, cpc_infonce_aux_loss,
@@ -286,11 +287,16 @@ def build_parser():
                         "crossfade_ratio. Only valid with --synth-kind forked-arma.")
     p.add_argument("--crossfade-triplets", type=int, default=0,
                    help="Number of explicit (A_norm, B_norm, C) crossfade "
-                        "triplets to append ON TOP of the batch (#328): both "
-                        "z-normalised parents plus their monotone blend, 3 rows "
-                        "per triplet, additive (total batch = batch_size + "
-                        "3*crossfade_triplets). Drawn from the real sub-batch; "
-                        "complements --crossfade-ratio (which adds C-only rows).")
+                        "triplets in the batch (#328): both z-normalised parents "
+                        "plus their monotone blend, 3 rows per triplet. They count "
+                        "in --batch-size: the loader samples 3*crossfade_triplets "
+                        "fewer rows, so a step holds batch_size rows. Drawn from "
+                        "the real sub-batch; complements --crossfade-ratio (which "
+                        "adds C-only rows).")
+    p.add_argument("--crossfade-triplets-on-top", action="store_true",
+                   help="Count the --crossfade-triplets rows on top of "
+                        "--batch-size, as the older runs did: a step then holds "
+                        "batch_size + 3*crossfade_triplets rows.")
     p.add_argument("--synth-seed", type=int, default=None)
     p.add_argument("--t-raw", type=int, default=T_RAW,
                    help="Raw window length (T) per sample. Default 1024 "
@@ -2222,7 +2228,8 @@ VALUE_SPACE_FLAGS = frozenset((
     "grad_clip", "weight_decay", "adam_beta1", "adam_beta2", "seed",
     # The data.
     "hf_repo", "hf_path", "split", "mix_ratio", "crossfade_ratio",
-    "crossfade_triplets", "synth_seed", "synth_kind", "enable_pulse",
+    "crossfade_triplets", "crossfade_triplets_on_top", "synth_seed",
+    "synth_kind", "enable_pulse",
     "seas_heavy", "more_primitives", "env_gain_max", "t_raw", "n_channels",
     "mixup_p", "mixup_alpha", "gift_pretrain", "gift_pretrain_index",
     "gift_pretrain_root",
@@ -3906,11 +3913,13 @@ def main():
     if (args.crossfade_ratio > 0 or args.crossfade_triplets > 0) and args.synth_kind != "forked-arma":
         raise ValueError(
             "--crossfade-ratio / --crossfade-triplets require --synth-kind forked-arma")
-    synth_bs = int(round(args.batch_size * args.mix_ratio))
+    # --batch-size counts every row of a step, the triplet rows too (#425): the
+    # loader samples rows["sampled"] rows and appends the triplets.
     # Crossfade rows are blended FROM the real rows (they consume no extra HF
     # rows), so they shrink hf_bs but not hf_rows_per_step's per-real accounting.
-    cross_bs = int(round(args.batch_size * args.crossfade_ratio))
-    hf_bs = args.batch_size - synth_bs - cross_bs
+    rows = step_rows(args.batch_size, args.mix_ratio, args.crossfade_ratio,
+                     args.crossfade_triplets, args.crossfade_triplets_on_top)
+    synth_bs, cross_bs, hf_bs = rows["synth"], rows["cross"], rows["real"]
     hf_rows_per_step = hf_bs * C
     synth_rows_per_step = synth_bs * C
     if args.resume and restored.get("hf_rows_consumed", 0) > 0:
@@ -3943,7 +3952,7 @@ def main():
             synth_kwargs["env_gain_range"] = (1.0 / args.env_gain_max,
                                                args.env_gain_max)
         data_loader = create_mixed_composite_dataloader(
-            repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
+            repo_id=args.hf_repo, batch_size=rows["sampled"], C=C,
             mix_ratio=args.mix_ratio,
             path_in_repo=args.hf_path, split=args.split,
             skip_rows=hf_rows_consumed, T_raw=args.t_raw, seed=synth_seed,
@@ -3952,7 +3961,7 @@ def main():
         )
     elif args.synth_kind == "forked-arma":
         data_loader = create_mixed_forked_arma_dataloader(
-            repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
+            repo_id=args.hf_repo, batch_size=rows["sampled"], C=C,
             mix_ratio=args.mix_ratio, crossfade_ratio=args.crossfade_ratio,
             cross_triplets=args.crossfade_triplets,
             path_in_repo=args.hf_path, split=args.split,
@@ -3964,7 +3973,7 @@ def main():
         )
     else:
         data_loader = create_mixed_periodic_dataloader(
-            repo_id=args.hf_repo, batch_size=args.batch_size, C=C,
+            repo_id=args.hf_repo, batch_size=rows["sampled"], C=C,
             mix_ratio=args.mix_ratio,
             path_in_repo=args.hf_path, split=args.split,
             skip_rows=hf_rows_consumed, T_raw=args.t_raw, seed=synth_seed,
@@ -3972,12 +3981,12 @@ def main():
             real_rows=real_rows,
         )
     real_frac = (1 - args.mix_ratio - args.crossfade_ratio) * 100
-    trip_rows = 3 * args.crossfade_triplets
+    trip_rows = rows["triplet"]
     print(f"Data: MIX {real_frac:.0f}% HF + {args.mix_ratio*100:.0f}% synth "
           f"({args.synth_kind}) + {args.crossfade_ratio*100:.0f}% crossfade "
           f"+ {args.crossfade_triplets} triplet(s)={trip_rows} rows, "
           f"hf_bs={hf_bs}, synth_bs={synth_bs}, cross_bs={cross_bs}, "
-          f"total_bs={args.batch_size + trip_rows}")
+          f"total_bs={rows['total']}")
     if args.gift_pretrain:
         print(f"Data: the real rows are Salesforce/GiftEvalPretrain (#419), "
               f"uni2ts sampling, 1,024-value windows, left zero padding, "

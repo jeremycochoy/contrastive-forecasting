@@ -136,7 +136,10 @@ def test_off_the_run_writes_the_csv_of_the_commit_before_the_mode(
     with the mode off, the losses CSV equals the one of 4b521ea8."""
     old_root = git_tree("4b521ea8", tmp_path)
     old, old_csv = run(old_root, tmp_path / "old", corpus)
-    new, new_csv = run(REPO_ROOT, tmp_path / "new", corpus)
+    # 4b521ea8 counts the crossfade triplet on top of the batch, which
+    # --crossfade-triplets-on-top restores (#425).
+    new, new_csv = run(REPO_ROOT, tmp_path / "new", corpus,
+                       flags=TINY_RUN + ("--crossfade-triplets-on-top",))
     assert old.returncode == 0, old.stdout[-2000:] + old.stderr[-2000:]
     assert new.returncode == 0, new.stdout[-2000:] + new.stderr[-2000:]
     assert "NaN debug" not in new.stdout
@@ -188,14 +191,16 @@ def test_a_nan_gradient_stops_the_run_before_the_step(grad_dump):
 def test_the_dump_holds_the_batch_after_every_transform(grad_dump):
     batch = torch.load(grad_dump[2], weights_only=False)["batch"]
     B, T, C = batch["values"].shape
-    assert (B, T, C) == (8 + 3, 1024, 1)
+    # --batch-size counts every row (#425): 4 real rows, 1 synthetic row and
+    # the 3 rows of the triplet make the 8 rows of the batch.
+    assert (B, T, C) == (8, 1024, 1)
     for key in ("x_norm", "padding", "loc", "scale", "loaded"):
         assert batch[key].shape[0] == B
     for key in ("patch_size", "max_z", "freq_ids", "seasonality_ids", "kept"):
         assert batch[key].shape == (B,)
     assert batch["split"].shape == (B, C)
     assert batch["sign_flipped"].shape == (B, C)
-    assert batch["row_kind"] == (["real"] * 6 + ["forked-arma"] * 2
+    assert batch["row_kind"] == (["real"] * 4 + ["forked-arma"] * 1
                                  + ["triplet A", "triplet B", "triplet C"])
     assert set(batch["mixup"]) == {"weight", "partner"}
     assert sorted(batch["mixup"]["partner"].tolist()) == list(range(B))

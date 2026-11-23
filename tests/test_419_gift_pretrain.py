@@ -642,12 +642,14 @@ def test_missing_values_before_the_first_become_padding_under_zeros():
 # 7. The trainer
 # ---------------------------------------------------------------------------
 
-# The #415 cell's data path at a size the CPU trains in seconds.
+# The #415 cell's data path at a size the CPU trains in seconds. --batch-size
+# counts every row (#425): 7 rows are 3 real, 1 synthetic and the 3 rows of the
+# triplet, the rows of the older count of 4.
 TINY_GIFT_RUN = (
     "--value-space-objective", "--gift-pretrain", "--freq-vocab", "v2",
     "--t-raw", "4096", "--n-channels", "1", "--d-model", "16",
     "--n-heads", "2", "--num-layers", "1", "--num-encoder-layers", "1",
-    "--enc-num-layers", "1", "--enc-nhead", "2", "--batch-size", "4",
+    "--enc-num-layers", "1", "--enc-nhead", "2", "--batch-size", "7",
     "--synth-kind", "forked-arma", "--mix-ratio", "0.25",
     "--crossfade-triplets", "1", "--mixup-p", "0.3",
     "--freq-emb-dim", "3", "--seasonality-emb-dim", "3",
