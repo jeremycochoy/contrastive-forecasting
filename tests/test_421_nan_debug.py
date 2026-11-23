@@ -136,7 +136,10 @@ def test_off_the_run_writes_the_csv_of_the_commit_before_the_mode(
     with the mode off, the losses CSV equals the one of 4b521ea8."""
     old_root = git_tree("4b521ea8", tmp_path)
     old, old_csv = run(old_root, tmp_path / "old", corpus)
-    new, new_csv = run(REPO_ROOT, tmp_path / "new", corpus)
+    # 4b521ea8 counts the crossfade triplet on top of the batch, which
+    # --crossfade-triplets-on-top restores (#425).
+    new, new_csv = run(REPO_ROOT, tmp_path / "new", corpus,
+                       flags=TINY_RUN + ("--crossfade-triplets-on-top",))
     assert old.returncode == 0, old.stdout[-2000:] + old.stderr[-2000:]
     assert new.returncode == 0, new.stdout[-2000:] + new.stderr[-2000:]
     assert "NaN debug" not in new.stdout
