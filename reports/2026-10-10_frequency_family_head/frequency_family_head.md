@@ -81,6 +81,31 @@ The scores after 250 steps come from a second run of the first 250 steps of S256
 With the normalised rollout, the best stops of grey (1.0269 at 240k), yellow (1.0304 at 200k) and violet (1.0208 at 460k) are below blue at 180k (1.0482).
 Grey at 200k gets 1.0215 with the normalised rollout, its lowest score.
 
+## Cosine schedule and cooldown at width 384
+
+![GM-Relative MASE of green-384 with three schedules of the learning rate](plots/schedule_cosine_vs_cooldown.png)
+
+A cosine to 0 does not beat the cooldown, with or without a warmup.
+At 166k, the GM-Relative MASE is 0.9401 with the cooldown.
+It is 0.9443 with the constant start and the cosine, and 0.9538 with the warmup and the cosine.
+At 150k, these scores are 0.9380, 0.9408 and 0.9582.
+The constant start with the cosine gets its lowest score, 0.9379, at 125k.
+The cooldown gets its lowest score, 0.9380, at 150k.
+At 166k, the cooldown gets the lowest score on the short horizons: 0.8394, against 0.8487 and 0.8519.
+On the medium horizons, the constant start with the cosine gets the lowest score: 1.0912.
+The cooldown gets 1.1007 and the warmup with the cosine 1.1073.
+On the long horizons, the cooldown gets 1.0803, the constant start with the cosine 1.0808 and the warmup with the cosine 1.1046.
+
+The three runs train green-384: the 10-L-ALIGN loss at width 384, with 1 encoder and 5 forecaster layers.
+Each run has batch 256 and 166k steps.
+The warmup increases the rate linearly from 0 to 1e-3 in 10k steps.
+Then one cosine decreases the rate to 0 at 166k (the schedule of Moirai).
+The constant start keeps the rate at 1e-3 to 10k, then uses the same cosine.
+The cooldown keeps the rate at 1e-3 to 125k.
+Then it divides the rate by 2 at each 5k steps, to 166k: an exponential decrease in the last 25% of the steps.
+The cooldown run starts from the 125k checkpoint of green-384, thus its points to 125k are the points of green-384.
+`results/schedule_cosine_vs_cooldown_points.tsv` holds the values of the figure.
+
 ## Learning rate
 
 ![Learning rate through training](plots/lr_schedule_099995.png)
