@@ -96,6 +96,8 @@ On the medium horizons, the constant start with the cosine gets the lowest score
 The cooldown gets 1.1007 and the warmup with the cosine 1.1073.
 On the long horizons, the cooldown gets 1.0803, the constant start with the cosine 1.0808 and the warmup with the cosine 1.1046.
 
+![The learning rate of the three schedules](plots/lr_three_arms.png)
+
 The three runs train green-384: the 10-L-ALIGN loss at width 384, with 1 encoder and 5 forecaster layers.
 Each run has batch 256 and 166k steps.
 The warmup increases the rate linearly from 0 to 1e-3 in 10k steps.
@@ -104,7 +106,7 @@ The constant start keeps the rate at 1e-3 to 10k, then uses the same cosine.
 The cooldown keeps the rate at 1e-3 to 125k.
 Then it divides the rate by 2 at each 5k steps, to 166k: an exponential decrease in the last 25% of the steps.
 The cooldown run starts from the 125k checkpoint of green-384, thus its points to 125k are the points of green-384.
-`results/schedule_cosine_vs_cooldown_points.tsv` holds the values of the figure.
+`results/schedule_cosine_vs_cooldown_points.tsv` holds the values of the score figure.
 
 ## Learning rate
 
