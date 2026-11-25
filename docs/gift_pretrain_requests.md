@@ -107,7 +107,8 @@ Example, for the runs that start after it:
 export GIFT_PRETRAIN_CHUNK_MB=32 GIFT_PRETRAIN_POOL_MB=96
 ```
 
-The stream logs its settings at its start:
+The stream logs its settings at its start when the cache or the bigger reads
+are on:
 `[gift_pretrain] chunks of 32 MB, small record batches joined, pools of 96 MB,
 disk cache ...`.
 

@@ -847,10 +847,11 @@ class GiftPretrainStream:
         return_large_buffers()
         revision = self.index["revision"]
         cache = open_cache(self.cache_dir, revision, self.root)
-        log(f"chunks of {CHUNK_BYTES / 2 ** 20:g} MB"
-            f"{', small record batches joined' if JOIN_BATCHES else ''}, "
-            f"pools of {POOL_BYTES / 2 ** 20:g} MB, disk cache "
-            f"{cache.folder if cache else 'off'}")
+        if cache or JOIN_BATCHES:  # else the stream and its log are as before
+            log(f"chunks of {CHUNK_BYTES / 2 ** 20:g} MB"
+                f"{', small record batches joined' if JOIN_BATCHES else ''}, "
+                f"pools of {POOL_BYTES / 2 ** 20:g} MB, disk cache "
+                f"{cache.folder if cache else 'off'}")
         loader = BlockLoader(revision, self.root, cache)
         executor = ThreadPoolExecutor(self.workers)
         return [self._pool(f, loader, executor, rng) for f in self.families]
