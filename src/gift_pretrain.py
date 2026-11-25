@@ -32,22 +32,41 @@ seasonality id of its source's `freq`.
 Memory and bandwidth stay bounded. A small source (at most
 ``RESIDENT_BYTES``) is read once and kept. A large one is cut into chunks, runs
 of about ``CHUNK_BYTES`` of rows of one record batch, and keeps a few of them
-(about ``POOL_BYTES``). A chunk is read with three byte ranges: the record
-batch header, the offsets of its rows and their values. Each chunk serves
-``BLOCK_USE`` of the windows its values hold, then a chunk drawn uniformly
-from the source replaces it, while a background thread already fetches the
-next. Drawing chunks uniformly and serving each in proportion to its values
-keeps the row probabilities of steps 1 and 2 exact in expectation.
+(about ``POOL_BYTES``). Each chunk serves ``BLOCK_USE`` of the windows its
+values hold, then a chunk drawn uniformly from the source replaces it, while a
+background thread already fetches the next. Drawing chunks uniformly and
+serving each in proportion to its values keeps the row probabilities of steps
+1 and 2 exact in expectation.
+
+The Hub limits the requests of a token, so the stream makes few of them. A
+chunk of whole record batches costs one byte range. A chunk of part of a
+record batch costs one byte range for each float column, its values, and one
+more for a column with nulls. The header and the row offsets of that record
+batch come from one read, the first time the machine needs them. A disk cache
+(``DiskCache``) keeps them, with the schemas and the files of the small
+sources, so that a new process does not read them again. Every process of a
+machine shares the cache. ``GIFT_PRETRAIN_CACHE`` sets its folder, ``off``
+stops it. ``scripts/build_gift_pretrain_cache.py`` fills it before a run.
+None of this changes a window.
+
+``GIFT_PRETRAIN_CHUNK_MB`` (an opt-in) sets the size of a chunk, and joins
+small consecutive record batches of a file into one chunk: fewer requests,
+and more windows from one run of rows. ``GIFT_PRETRAIN_POOL_MB`` sets
+``POOL_BYTES``. `docs/gift_pretrain_requests.md` gives the requests, the
+mixing and the memory of each setting.
 
 The byte offsets of every record batch come from
 `scripts/build_gift_pretrain_index.py`, pinned to one commit of the dataset.
 """
 
 import collections
+import contextlib
 import gzip
+import io
 import json
 import math
 import os
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -62,19 +81,38 @@ MAX_DIM = 128
 DEFAULT_INDEX = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              "gift_pretrain_index.json.gz")
 FIELDS = ("target", "past_feat_dynamic_real")
+
+
+def env_mb(name, default):
+    """``default`` MiB in bytes, or the MiB count of environment variable
+    ``name`` when it is set."""
+    mb = float(os.environ.get(name) or default)
+    if mb <= 0:
+        raise ValueError(f"{name}={mb}: give a positive count of MiB")
+    return int(mb * 2 ** 20)
+
+
 # A source is read whole and kept when its files hold at most this.
 RESIDENT_BYTES = 96 * 2 ** 20
 # A large source is read in chunks of about this many bytes: a run of rows
 # of one record batch. Some record batches hold 440 MB.
-CHUNK_BYTES = 16 * 2 ** 20
+CHUNK_BYTES = env_mb("GIFT_PRETRAIN_CHUNK_MB", 16)
+# The bigger reads, an opt-in: with GIFT_PRETRAIN_CHUNK_MB set, a chunk can
+# also join consecutive small record batches of one file. A larger chunk
+# costs fewer requests a window, and more windows then come from one run of
+# rows. Without it, the chunks (and the stream) are those of before.
+JOIN_BATCHES = bool(os.environ.get("GIFT_PRETRAIN_CHUNK_MB"))
 # A large source keeps about this much of it in memory, plus one chunk
-# fetched ahead.
-POOL_BYTES = 48 * 2 ** 20
+# fetched ahead (GIFT_PRETRAIN_POOL_MB, by default 48).
+POOL_BYTES = env_mb("GIFT_PRETRAIN_POOL_MB", 48)
 # A kept chunk serves this share of the windows its values hold
 # (values / 1,024), then another one replaces it.
 BLOCK_USE = 0.25
-# One request reads a record batch header. a longer one reads it again.
-HEADER_BYTES = 64 * 1024
+# One request reads a record batch header and the row offsets after it.
+# A longer header is read again.
+HEADER_BYTES = 128 * 1024
+# The folder of the disk cache, or "off". By default ~/.cache/gift_pretrain.
+CACHE_ENV = "GIFT_PRETRAIN_CACHE"
 # Windows mixed before they reach a batch, so that the variates of one draw
 # and the rows of one record batch spread over many batches.
 SHUFFLE_WINDOWS = 4096
@@ -162,6 +200,93 @@ def result_with_retries(future, resubmit, what):
             log(f"{what} failed, retry {attempt + 1}/{LOAD_RETRIES}: "
                 f"{str(e)[:300]}")
             future = resubmit()
+
+
+# ── The disk cache ───────────────────────────────────────────────────────────
+
+
+class DiskCache:
+    """Files of one dataset revision on the local disk, ``<folder>/<name>``,
+    shared by every process of the machine.
+
+    A write goes to a temporary file and a rename puts it in place, so a
+    reader sees a whole file or none. When the disk refuses a write (full,
+    read only), the cache logs it once and the stream reads the Hub.
+    """
+
+    def __init__(self, folder):
+        self.folder, self._warned = folder, False
+
+    def path(self, name):
+        return os.path.join(self.folder, name)
+
+    def _warn(self, error):
+        if not self._warned:
+            self._warned = True
+            log(f"disk cache {self.folder}: {error}. The stream reads the "
+                f"Hub for what the cache cannot keep.")
+
+    def get(self, name, size=None):
+        """The bytes of ``name``. None when it is absent, or when ``size``
+        is given and the file has another size."""
+        try:
+            with open(self.path(name), "rb") as f:
+                data = f.read()
+        except OSError:
+            return None
+        return data if size is None or len(data) == size else None
+
+    def put(self, name, data):
+        """Write ``name`` in one atomic step. False when the disk refused."""
+        path = self.path(name)
+        tmp = f"{path}.{os.getpid()}.{threading.get_ident()}.tmp"
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(tmp, "wb") as f:
+                f.write(data)
+            os.replace(tmp, path)
+            return True
+        except OSError as e:
+            self._warn(e)
+            with contextlib.suppress(OSError):
+                os.remove(tmp)
+            return False
+
+    @contextlib.contextmanager
+    def lock(self, name):
+        """An exclusive lock on ``name`` for all the processes and threads:
+        one of them reads the file, the others wait and find it on disk."""
+        import fcntl
+        f = None
+        try:
+            os.makedirs(os.path.dirname(self.path(name)), exist_ok=True)
+            f = open(self.path(name) + ".lock", "a")
+            fcntl.flock(f, fcntl.LOCK_EX)
+        except OSError as e:  # no lock: a second process may read the file too
+            self._warn(e)
+        try:
+            yield
+        finally:
+            if f is not None:
+                f.close()
+
+
+def open_cache(cache_dir, revision, root=None):
+    """The :class:`DiskCache` of one dataset revision, or None.
+
+    ``cache_dir="auto"`` takes ``$GIFT_PRETRAIN_CACHE``, else
+    ``~/.cache/gift_pretrain``, for a stream that reads the Hub. A stream on
+    a local copy (``root``) needs no cache. ``None`` or ``"off"`` turns it
+    off.
+    """
+    if cache_dir == "auto":
+        if root is not None:
+            return None
+        cache_dir = (os.environ.get(CACHE_ENV) or os.path.join(
+            os.path.expanduser("~"), ".cache", "gift_pretrain"))
+    if cache_dir is None or cache_dir == "off":
+        return None
+    return DiskCache(os.path.join(cache_dir, str(revision)))
 
 
 # ── The index ────────────────────────────────────────────────────────────────
@@ -266,6 +391,19 @@ class Block:
         return cls([_field_arrays(batch.column(n)) for n in FIELDS
                     if n in names], uniform, source)
 
+    @classmethod
+    def joined(cls, blocks, uniform):
+        """One Block of the rows of ``blocks``, in their order."""
+        if len(blocks) == 1:
+            return blocks[0]
+        fields = []
+        for parts in zip(*(b.fields for b in blocks)):
+            shift = np.cumsum([0] + [len(v) for v, _, _ in parts[:-1]])
+            fields.append((np.concatenate([v for v, _, _ in parts]),
+                           np.concatenate([s + k for (_, s, _), k in zip(parts, shift)]),
+                           np.concatenate([e + k for (_, _, e), k in zip(parts, shift)])))
+        return cls(fields, uniform, blocks[0].source)
+
     def pick_row(self, rng):
         """A row: uniform, or in proportion to its length."""
         if self.cdf is None:
@@ -296,97 +434,180 @@ def decode_batches(schema_buf, stream_buf):
     return out
 
 
+def pack_layout(layout):
+    """A record batch layout as ``.npz`` bytes. The offsets are kept as row
+    lengths, which compress well."""
+    meta = np.array([[d, val_at, valid_at, nulls, int(offs[0])]
+                     for d, val_at, valid_at, nulls, offs in layout], np.int64)
+    lengths = {f"lengths_{i}": np.diff(offs).astype(np.int32)
+               for i, (*_, offs) in enumerate(layout)}
+    buf = io.BytesIO()
+    np.savez_compressed(buf, meta=meta, **lengths)
+    return buf.getvalue()
+
+
+def unpack_layout(data):
+    """The layout :func:`pack_layout` wrote."""
+    with np.load(io.BytesIO(data)) as z:
+        out = []
+        for i, (d, val_at, valid_at, nulls, first) in enumerate(z["meta"]):
+            offs = np.concatenate([[first], first + np.cumsum(
+                z[f"lengths_{i}"], dtype=np.int64)])
+            out.append((int(d), int(val_at), int(valid_at), int(nulls), offs))
+        return out
+
+
 class BlockLoader:
     """Reads record batches of the index, by byte range or from ``root``:
-    whole files of a small source, chunks of rows of a large one. Schemas
-    and record batch headers are read once and cached."""
+    whole files of a small source, chunks of rows of a large one.
 
-    def __init__(self, revision, root=None):
-        self.revision, self.root = revision, root
-        self._schemas, self._layouts, self._headers = {}, {}, {}
+    A chunk of whole record batches costs one range. A chunk of part of a
+    record batch costs one range for each float column, its values, and one
+    more for a column with nulls, its validity bits. The layout of a record
+    batch (its header fields and its row offsets) costs one read the first
+    time. ``cache`` (a :class:`DiskCache`) keeps the layouts, the schemas and
+    the files of the small sources for every process of the machine.
+    Without it, they stay in memory.
+    """
 
-    def _read(self, ref, start, end):
-        return fetch_range(ref["path"], start, end, self.revision,
-                           root=self.root)
+    def __init__(self, revision, root=None, cache=None):
+        self.revision, self.root, self.cache = revision, root, cache
+        self._schemas, self._columns, self._layouts = {}, {}, {}
 
-    def schema(self, ref):
-        key = ref["path"]
-        if key not in self._schemas:
-            self._schemas[key] = fetch_range(
-                key, 0, ref["schema_bytes"], self.revision, root=self.root)
-        return self._schemas[key]
+    def _read(self, path, start, end):
+        return fetch_range(path, start, end, self.revision, root=self.root)
+
+    def _cached(self, name, read, size=None):
+        """The bytes of cache entry ``name``, else ``read()``, then kept."""
+        data = self.cache.get(name, size) if self.cache else None
+        if data is None:
+            data = read()
+            if self.cache:
+                self.cache.put(name, data)
+        return data
+
+    def file_bytes(self, path, end):
+        """Bytes ``[0, end)`` of one file, in one request. With a cache, one
+        process of the machine reads them and the others find them."""
+        def read():
+            return self._read(path, 0, end)
+        if self.cache is None:
+            return read()
+        with self.cache.lock(f"files/{path}"):
+            return self._cached(f"files/{path}", read, size=end)
 
     def whole_file(self, refs, uniform):
-        """Every record batch of one file, read in one request."""
+        """Every record batch of one file: its schema and its batches."""
+        at = refs[0]["schema_bytes"]
         end = max(r["offset"] + r["bytes"] for r in refs)
-        start = refs[0]["schema_bytes"]
-        buf = fetch_range(refs[0]["path"], start, end, self.revision,
-                          root=self.root)
+        buf = memoryview(self.file_bytes(refs[0]["path"], end))
         return [Block.from_batch(b, uniform, refs[0]["source"])
-                for b in decode_batches(self.schema(refs[0]), buf)]
+                for b in decode_batches(buf[:at], buf[at:])]
 
+    def schema(self, ref):
+        """The schema message of a source. The index builder checks that all
+        files of a source have one schema, so one file gives it for all."""
+        source = ref["source"]
+        if source not in self._schemas:
+            self._schemas[source] = self._cached(
+                f"schemas/{source}",
+                lambda: self._read(ref["path"], 0, ref["schema_bytes"]))
+        return self._schemas[source]
 
-    def layout(self, ref):
-        """:func:`arrow_ipc.float_column` of every float field of a file."""
+    def float_columns(self, ref):
+        """:func:`arrow_ipc.float_column` of every float field."""
         import pyarrow as pa
-        if ref["path"] not in self._layouts:
+        source = ref["source"]
+        if source not in self._columns:
             schema = pa.ipc.read_schema(pa.py_buffer(self.schema(ref)))
-            self._layouts[ref["path"]] = [
-                arrow_ipc.float_column(schema, n) for n in FIELDS
-                if n in schema.names]
-        return self._layouts[ref["path"]]
+            self._columns[source] = [arrow_ipc.float_column(schema, n)
+                                     for n in FIELDS if n in schema.names]
+        return self._columns[source]
 
-    def header(self, ref):
-        """``(RecordBatch header, absolute body offset)``, read once."""
-        key = (ref["path"], ref["offset"])
-        if key not in self._headers:
-            at = ref["offset"]
-            head = self._read(ref, at, at + min(ref["bytes"], HEADER_BYTES))
-            mlen, pre = arrow_ipc.split_prefix(head)
-            if pre + mlen > len(head):
-                head = self._read(ref, at, at + pre + mlen)
-            msg = arrow_ipc.message_header(head[pre:pre + mlen])
-            self._headers[key] = (msg, at + pre + mlen)
-        return self._headers[key]
+    def batch_layout(self, ref):
+        """Per float column of one record batch: ``(variates per row,
+        values at, validity at, null count, row offsets)``."""
+        name = f"layouts/{ref['path']}@{ref['offset']}.npz"
+        if name in self._layouts:
+            return self._layouts[name]
+        data = self.cache.get(name) if self.cache else None
+        if data is not None:
+            with contextlib.suppress(Exception):  # a damaged entry: read again
+                return unpack_layout(data)
+        layout = self._read_layout(ref)
+        if not (self.cache and self.cache.put(name, pack_layout(layout))):
+            self._layouts[name] = layout
+        return layout
 
-    def column(self, ref, msg, body, col):
+    def _read_layout(self, ref):
+        """Header and row offsets of one record batch. One request reads
+        both when the offsets lie in its first ``HEADER_BYTES``."""
+        path, at = ref["path"], ref["offset"]
+        head = self._read(path, at, at + min(ref["bytes"], HEADER_BYTES))
+        mlen, pre = arrow_ipc.split_prefix(head)
+        if pre + mlen > len(head):
+            head = self._read(path, at, at + min(ref["bytes"],
+                                                 pre + mlen + HEADER_BYTES))
+        msg = arrow_ipc.message_header(head[pre:pre + mlen])
+        body, out = at + pre + mlen, []
+        for d, node, off_buf, valid_buf in self.float_columns(ref):
+            off_at = body + msg["buffers"][off_buf][0]
+            n = 4 * (msg["rows"] * d + 1)
+            raw = (head[off_at - at:off_at - at + n]
+                   if off_at - at + n <= len(head)
+                   else self._read(path, off_at, off_at + n))
+            out.append((d, body + msg["buffers"][valid_buf + 1][0],
+                        body + msg["buffers"][valid_buf][0],
+                        msg["nodes"][node][1], np.frombuffer(raw, "<i4")))
+        return out
+
+    def column(self, ref, col):
         """``(values, starts, ends)`` of rows ``[rows_from, rows_to)`` of one
-        column, from three ranges: offsets, values, and the validity bitmap
+        column: one range for the values, one more for the validity bits
         when the column holds nulls."""
-        d, node, off_buf, valid_buf = col
-        a, b = ref["rows_from"] * d, ref["rows_to"] * d
-        off_at = body + msg["buffers"][off_buf][0]
-        offs = np.frombuffer(self._read(ref, off_at + 4 * a, off_at + 4 * b + 4),
-                             dtype="<i4").astype(np.int64)
+        d, val_at, valid_at, nulls, offsets = col
+        offs = offsets[ref["rows_from"] * d:ref["rows_to"] * d + 1].astype(
+            np.int64)
         v0, v1 = int(offs[0]), int(offs[-1])
-        val_at = body + msg["buffers"][valid_buf + 1][0]
-        values = (np.frombuffer(self._read(ref, val_at + 4 * v0, val_at + 4 * v1),
-                                dtype="<f4") if v1 > v0 else np.zeros(0, "<f4"))
-        if msg["nodes"][node][1] > 0 and v1 > v0:
-            values = self._nulls_to_nan(ref, body, msg, valid_buf, values, v0)
+        values = (np.frombuffer(self._read(ref["path"], val_at + 4 * v0,
+                                           val_at + 4 * v1), dtype="<f4")
+                  if v1 > v0 else np.zeros(0, "<f4"))
+        if nulls > 0 and v1 > v0:
+            values = self._nulls_to_nan(ref["path"], valid_at, values, v0)
         return values, (offs[:-1] - v0).reshape(-1, d), (offs[1:] - v0).reshape(-1, d)
 
-    def _nulls_to_nan(self, ref, body, msg, valid_buf, values, v0):
-        at = body + msg["buffers"][valid_buf][0]
+    def _nulls_to_nan(self, path, valid_at, values, v0):
         n = len(values)
-        raw = self._read(ref, at + v0 // 8, at + (v0 + n + 7) // 8)
+        raw = self._read(path, valid_at + v0 // 8, valid_at + (v0 + n + 7) // 8)
         bits = np.unpackbits(np.frombuffer(raw, np.uint8), bitorder="little")
         out = values.copy()
         out[~bits[v0 % 8:v0 % 8 + n].astype(bool)] = np.nan
         return out
 
     def chunk(self, ref, uniform):
-        """A Block of the rows ``[rows_from, rows_to)`` of one record batch,
-        read without the rest of it."""
-        msg, body = self.header(ref)
-        return Block([self.column(ref, msg, body, col)
-                      for col in self.layout(ref)], uniform, ref["source"])
+        """A Block of the rows ``[rows_from, rows_to)`` of ``ref``: whole
+        record batches in one range, or a part of one record batch read
+        without the rest of it."""
+        if is_whole(ref):
+            return self.whole_batches(ref, uniform)
+        return Block([self.column(ref, col) for col in self.batch_layout(ref)],
+                     uniform, ref["source"])
+
+    def whole_batches(self, ref, uniform):
+        """The record batches of ``ref`` (one, or a run of consecutive ones
+        of a file), from one range: their headers and their bodies."""
+        buf = self._read(ref["path"], ref["offset"], ref["offset"] + ref["bytes"])
+        return Block.joined([Block.from_batch(b, uniform, ref["source"])
+                             for b in decode_batches(self.schema(ref), buf)],
+                            uniform)
 
 
-def chunk_refs(refs, chunk_bytes=None):
+def chunk_refs(refs, chunk_bytes=None, join=False):
     """Record batches cut into runs of rows of about ``chunk_bytes``
-    (default ``CHUNK_BYTES``). The cut depends on the index alone, so every
-    run can be drawn uniformly."""
+    (default ``CHUNK_BYTES``). With ``join``, consecutive record batches of
+    one file also join into one run while that brings it nearer to
+    ``chunk_bytes``. The cut depends on the index alone, so every run can be
+    drawn uniformly."""
     chunk_bytes = chunk_bytes or CHUNK_BYTES
     out = []
     for ref in refs:
@@ -394,7 +615,31 @@ def chunk_refs(refs, chunk_bytes=None):
         edges = np.linspace(0, ref["rows"], n + 1).round().astype(int)
         out += [dict(ref, rows_from=int(a), rows_to=int(b))
                 for a, b in zip(edges[:-1], edges[1:]) if b > a]
+    return join_batches(out, chunk_bytes) if join else out
+
+
+def join_batches(chunks, chunk_bytes):
+    """``chunks`` with every run of whole, consecutive record batches of one
+    file joined, while a join brings the run nearer to ``chunk_bytes``."""
+    out = []
+    for c in chunks:
+        last = out[-1] if out else None
+        if (last is not None and is_whole(c) and is_whole(last)
+                and c["path"] == last["path"]
+                and c["offset"] == last["offset"] + last["bytes"]
+                and abs(last["bytes"] + c["bytes"] - chunk_bytes)
+                < abs(last["bytes"] - chunk_bytes)):
+            rows = last["rows"] + c["rows"]
+            out[-1] = dict(last, bytes=last["bytes"] + c["bytes"], rows=rows,
+                           values=last["values"] + c["values"], rows_to=rows)
+        else:
+            out.append(c)
     return out
+
+
+def is_whole(chunk):
+    """Does ``chunk`` hold whole record batches?"""
+    return chunk["rows_from"] == 0 and chunk["rows_to"] == chunk["rows"]
 
 
 # ── Pools ────────────────────────────────────────────────────────────────────
@@ -564,19 +809,22 @@ class GiftPretrainStream:
     ``root`` reads a local copy of the repository instead of Hugging Face,
     for tests. ``with_covariates=False`` trains on the targets only.
     ``prefetch`` batches (1 MB each at batch 256) wait ahead of the trainer,
-    so a slow range request does not stall a step.
+    so a slow range request does not stall a step. ``cache_dir`` is the
+    folder of the disk cache (see :func:`open_cache`). The cache changes no
+    window.
     """
 
     def __init__(self, batch_size, C=1, seed=0, window=1024, index=None,
                  root=None, freq_vocab="v1", emit_labels=True, prefetch=8,
-                 workers=8, block_use=BLOCK_USE, with_covariates=True):
+                 workers=8, block_use=BLOCK_USE, with_covariates=True,
+                 cache_dir="auto"):
         self.batch_size, self.C, self.window = batch_size, C, window
         self.seed, self.root, self.prefetch = seed, root, prefetch
         self.index = index if index is not None else load_index()
         self.families = build_families(self.index)
         self.freq_vocab, self.emit_labels = freq_vocab, emit_labels
         self.workers, self.block_use = workers, block_use
-        self.with_covariates = with_covariates
+        self.with_covariates, self.cache_dir = with_covariates, cache_dir
         self.counts = collections.Counter()
 
     def __iter__(self):
@@ -597,7 +845,14 @@ class GiftPretrainStream:
     def open_pools(self, rng):
         """One pool per family: resident when small, streaming otherwise."""
         return_large_buffers()
-        loader = BlockLoader(self.index["revision"], self.root)
+        revision = self.index["revision"]
+        cache = open_cache(self.cache_dir, revision, self.root)
+        if cache or JOIN_BATCHES:  # else the stream and its log are as before
+            log(f"chunks of {CHUNK_BYTES / 2 ** 20:g} MB"
+                f"{', small record batches joined' if JOIN_BATCHES else ''}, "
+                f"pools of {POOL_BYTES / 2 ** 20:g} MB, disk cache "
+                f"{cache.folder if cache else 'off'}")
+        loader = BlockLoader(revision, self.root, cache)
         executor = ThreadPoolExecutor(self.workers)
         return [self._pool(f, loader, executor, rng) for f in self.families]
 
@@ -605,7 +860,7 @@ class GiftPretrainStream:
         uniform = family["uniform"]
         if family["bytes"] <= RESIDENT_BYTES:
             return ResidentPool(self._whole(family, loader, executor))
-        refs = chunk_refs(family["refs"])
+        refs = chunk_refs(family["refs"], join=JOIN_BATCHES)
         slots = max(1, int(POOL_BYTES * len(refs) // family["bytes"]))
         own = np.random.default_rng(rng.integers(2 ** 62))
         return StreamingPool(refs, lambda r: loader.chunk(r, uniform),
