@@ -138,6 +138,15 @@ python scripts/recover.py --device cuda --model-path model.pth --epochs 20000
   windows of a config `N` at a time under strategy B4, with the same
   numbers as one window at a time.
 
+### Data stream settings
+
+- [`docs/gift_pretrain_requests.md`](docs/gift_pretrain_requests.md): the
+  Hub requests of the GiftEvalPretrain stream. A disk cache on each machine
+  (`GIFT_PRETRAIN_CACHE`, `scripts/build_gift_pretrain_cache.py`) removes
+  most of them and changes no window. The bigger reads
+  (`GIFT_PRETRAIN_CHUNK_MB`, `GIFT_PRETRAIN_POOL_MB`) are an opt-in that
+  removes more, and changes the stream.
+
 ### How large is the model?
 
 `scripts/model_size.py` counts the backbone, at one shape or at many. Use it
