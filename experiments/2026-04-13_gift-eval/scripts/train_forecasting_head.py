@@ -1096,11 +1096,11 @@ class HeadJob:
                 # The prediction branch: f_t decodes the values of patch
                 # t + 1. --head-train-input e_then_f gives the head the
                 # layout that B4 decodes at eval (forecast_head_input).
-                f_bc, x_norm = extract_forecaster_latents(
+                f_bc, x_norm, e_bc = extract_forecaster_latents(
                     backbone, x, freq_ids=freq_ids,
-                    seasonality_ids=seasonality_ids)
+                    seasonality_ids=seasonality_ids, with_encoder=True)
                 seq, mask, start = forecast_head_input(
-                    backbone, x, f_bc, args.head_train_input,
+                    backbone, x, f_bc, args.head_train_input, e_bc=e_bc,
                     freq_ids=freq_ids, seasonality_ids=seasonality_ids)
                 targets, T_valid = compute_valid_targets(
                     x_norm, W=W, forecast_len=args.forecast_len)

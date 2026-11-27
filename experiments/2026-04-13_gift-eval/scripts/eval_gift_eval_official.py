@@ -87,6 +87,7 @@ from src.freq_family import (
     family_member,
     family_member_state,
 )
+from src.gluonts_speed import use_fast_gluonts
 
 
 # ============================================================================
@@ -1058,6 +1059,9 @@ def load_models(args, device):
 def main():
     args = parse_args()
     device = torch.device(args.device)
+    # gluonts spent 90% of the eval time on the seasonal error of the MASE
+    # and on quantile names. The same floats in a fraction of that time (#425).
+    use_fast_gluonts()
 
     # Load models
     print("Loading models...")

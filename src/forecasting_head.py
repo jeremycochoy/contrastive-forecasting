@@ -329,7 +329,7 @@ def build_e_then_f_mask(T_e: int, T_f: int, device=None) -> torch.Tensor:
 HEAD_TRAIN_INPUTS = ("f_only", "e_then_f")
 
 
-def forecast_head_input(backbone, x, f_bc, layout, **kwargs):
+def forecast_head_input(backbone, x, f_bc, layout, e_bc=None, **kwargs):
     """``(sequence, mask, start)``: the input of a forecast head, its mask,
     and the position of its first decoded latent.
 
@@ -345,7 +345,8 @@ def forecast_head_input(backbone, x, f_bc, layout, **kwargs):
                          f"{HEAD_TRAIN_INPUTS}; got {layout!r}")
     if layout == "f_only":
         return f_bc, None, 0
-    e_bc, _ = extract_encoder_latents(backbone, x, **kwargs)
+    if e_bc is None:
+        e_bc, _ = extract_encoder_latents(backbone, x, **kwargs)
     mask = build_e_then_f_mask(e_bc.size(1), f_bc.size(1), device=f_bc.device)
     return torch.cat([e_bc, f_bc], dim=1), mask, e_bc.size(1)
 
@@ -441,7 +442,7 @@ def quantile_loss(predicted, target, quantile_levels=QUANTILE_LEVELS):
 
 def extract_forecaster_latents(backbone, x, freq_ids=None,
                                 seasonality_ids=None, patch_size=None,
-                                normalised=False):
+                                normalised=False, with_encoder=False):
     """Extract f_lat from backbone for forecasting head input.
 
     Applies RevEWMNorm, patches the input (incl. patch-stats, freq-emb,
@@ -482,8 +483,10 @@ def extract_forecaster_latents(backbone, x, freq_ids=None,
             x_norm, freq_ids=freq_ids, seasonality_ids=seasonality_ids,
             **size_kwarg)
 
-        f_flat, _ = backbone.transformer(xr)
+        f_flat, e_bc = backbone.transformer(xr)
 
+    if with_encoder:
+        return f_flat.detach(), x_norm.detach(), e_bc.detach()
     return f_flat.detach(), x_norm.detach()
 
 
