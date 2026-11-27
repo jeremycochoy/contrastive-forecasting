@@ -1324,7 +1324,32 @@ def draw_context_ends(real_lengths, sample_sizes, T_raw):
     return torch.where(lengths < MIN_TIME_PATCHES * P, T_raw, ends)
 
 
-def mean_std_inputs(model, x, freq_ids=None, multi_patch_sizes=()):
+def draw_short_context_ends(real_lengths, sample_sizes, T_raw):
+    """Where the context of each series window ends, for the instance
+    normalisation with no target leak (#482, #475).
+
+    Each sample draws its context length c uniformly in 1 .. max(1, n // 2)
+    whole patches, n the whole patches of its real values: a context of one
+    patch to half of the window. As in :func:`draw_context_ends`, a first
+    patch that holds padding too stays in the context, and a window with
+    fewer than two whole patches has no target (its context ends at
+    ``T_raw``). The draw makes the same call on torch's CPU generator as
+    :func:`draw_context_ends`, so the other draws of a step do not move.
+
+    Returns a CPU LongTensor ``[B, 1, C]``: the index of the first value
+    after the context, a multiple of P.
+    """
+    lengths = real_lengths.detach().cpu().long()
+    P = sample_sizes.detach().cpu().long().view(-1, 1, 1)
+    u = torch.rand((lengths.shape[0], 1, 1), dtype=torch.float64)
+    n = lengths // P
+    context = 1 + (u * (n // 2).clamp(min=1)).long()
+    ends = (T_raw // P - n + context) * P
+    return torch.where(lengths < MIN_TIME_PATCHES * P, T_raw, ends)
+
+
+def mean_std_inputs(model, x, freq_ids=None, multi_patch_sizes=(),
+                    short_context=False):
     """``(x_norm, sample_sizes, target_mask)`` of one value-space step under
     the mean/std scaling (#421).
 
@@ -1337,7 +1362,8 @@ def mean_std_inputs(model, x, freq_ids=None, multi_patch_sizes=()):
        normalise the whole window. No value after the split enters them.
 
     ``target_mask`` (``[B, T_raw, C]``) marks the values after the split.
-    ``sample_sizes`` is None for a single-patch model.
+    ``sample_sizes`` is None for a single-patch model. ``short_context``
+    (#482) draws the split with :func:`draw_short_context_ends`.
     """
     B, T_raw, C = x.shape
     if model.rev_norm.skip_leading_zeros:
@@ -1348,7 +1374,8 @@ def mean_std_inputs(model, x, freq_ids=None, multi_patch_sizes=()):
     if multi_patch_sizes:
         sizes = draw_patch_sizes(freq_ids, multi_patch_sizes, B,
                                  lengths=lengths.amax(dim=(1, 2)))
-    ends = draw_context_ends(lengths, sizes, T_raw).to(x.device)
+    draw = draw_short_context_ends if short_context else draw_context_ends
+    ends = draw(lengths, sizes, T_raw).to(x.device)
     x_norm = model.rev_norm(x, mode='norm', context_end=ends)
     t = torch.arange(T_raw, device=x.device).view(1, -1, 1)
     return x_norm, (sizes if multi_patch_sizes else None), t >= ends

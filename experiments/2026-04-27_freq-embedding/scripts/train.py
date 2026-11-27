@@ -373,10 +373,21 @@ def build_parser():
                         "p) — much harder for a position counter to recover "
                         "than the layer-independent case where the union of "
                         "visible-at-some-layer is large.")
+    p.add_argument("--dropout", type=float, default=MODEL_CONFIG["dropout"],
+                   help="The dropout of the blocks of the encoder and of the "
+                        "forecaster (#482): on the attention weights, on the "
+                        "attention output, in the hidden layer of the "
+                        "feed-forward network and on its output. Default "
+                        "0.1, the value of every earlier run. 0 removes "
+                        "it. DropKey (--encoder-dropkey) is a separate "
+                        "flag.")
     p.add_argument("--encoder-type", default=MODEL_CONFIG["encoder_type"],
                    choices=["mlp", "mlp_wide", "residual_silu", "gru", "conv",
-                            "transformer"],
+                            "transformer", "timesfm"],
                    help="Patch encoder type. Default 'gru' (matches all backbone-beta runs). "
+                        "'timesfm' is the residual block of TimesFM: an MLP "
+                        "of the patch vector plus a linear map, then a layer "
+                        "normalisation (#482). "
                         "'transformer' replaces GRU+skip with a small decoder-only "
                         "causal transformer (Linear(W'->H) + N layers attending over T).")
     p.add_argument("--enc-num-layers", type=int, default=4,
@@ -502,6 +513,14 @@ def build_parser():
                    help="Seasonality embedding dim (0 = disabled).")
     p.add_argument("--freq-emb-dim", type=int, default=3,
                    help="Frequency embedding dimension (0 disables it).")
+    p.add_argument("--zero-time-scale-embedding", action="store_true",
+                   help="The frequency and seasonality embeddings stay at 0 "
+                        "and do not train (#482), so the model reads no time "
+                        "scale. The tables keep their shapes in the model "
+                        "and in the checkpoint, so the forecast heads load "
+                        "the backbone as before, and the mixup runs as "
+                        "before. Needs --freq-emb-dim or "
+                        "--seasonality-emb-dim above 0. Default off.")
     p.add_argument("--freq-vocab", default="v1", choices=["v1", "v2"],
                    help="Frequency classes (#419). v1: the 10 classes up to "
                         "weekly. v2 keeps them at their ids and adds every "
@@ -535,6 +554,19 @@ def build_parser():
                         "none of its values reaches the model. The default, "
                         "100, keeps 99.2%% of the GiftEvalPretrain windows "
                         "(reports/2026-09-28_meanstd_z). 0 turns it off.")
+    p.add_argument("--meanstd-no-leak", action="store_true",
+                   help="With --rev-norm-kind meanstd and the contrastive "
+                        "objective: instance normalisation with no target "
+                        "leak (#482, #475). Each window draws a context of "
+                        "1 patch to half of its whole real patches, in "
+                        "place of the uni2ts split. One mean and one "
+                        "standard deviation over the context normalise the "
+                        "whole window, and every term (L_align at each "
+                        "distance, L_rep with its keys, SIGReg) keeps only "
+                        "the anchors whose next patch starts after the "
+                        "context. The checkpoint and the eval are those of "
+                        "meanstd. Set --meanstd-z-max 0 for no window "
+                        "filter. Default off.")
     p.add_argument("--skip-nan-samples", action="store_true",
                    help="With --value-space-objective (#421), or a "
                         "contrastive objective whose terms take a row mask "
@@ -868,6 +900,10 @@ def build_parser():
                         "the weight the teacher keeps on its own previous "
                         "value in θ_T ← α·θ_T + (1−α)·θ_S. Higher α = slower "
                         "teacher. Constant unless --ema-tau-end is given. "
+                        "0 (#482) gives a teacher with no moving average: "
+                        "after each step it takes the student weights, so "
+                        "the targets are the student latents of the full "
+                        "context, with stop-gradient. "
                         "Default 0.99 (half-life ln(0.5)/ln(α) ≈ 69 "
                         "steps). (#353)")
     p.add_argument("--ema-tau-end", type=float, default=None,
@@ -1580,6 +1616,21 @@ def announce_dropped(kind, step, found, seconds, meta, args, extra=""):
     return len(culprits)
 
 
+def zero_time_scale_embedding_(model):
+    """Set the frequency and seasonality tables of ``model`` to 0 and freeze
+    them (#482): the model then reads no time scale. Returns the count of
+    tables. A frozen table gets no gradient, so AdamW and its weight decay
+    leave it at 0."""
+    tables = [m.embedding.weight for m in (model.freq_embedding,
+                                           model.seasonality_embedding)
+              if m is not None]
+    with torch.no_grad():
+        for table in tables:
+            table.zero_()
+            table.requires_grad_(False)
+    return len(tables)
+
+
 def random_sign_flip(x):
     B, T, C = x.shape
     signs = torch.where(torch.rand(B, 1, C, device=x.device) < 0.5,
@@ -2173,6 +2224,12 @@ def check_mean_std(args):
         raise SystemExit("--meanstd-z-max filters the windows of "
                          "--rev-norm-kind meanstd (#421). Add it, or drop "
                          "the flag.")
+    if args.meanstd_no_leak and (args.rev_norm_kind != "meanstd"
+                                 or args.value_space_objective):
+        raise SystemExit("--meanstd-no-leak draws the context of "
+                         "--rev-norm-kind meanstd for the contrastive "
+                         "objective (#482). Add --rev-norm-kind meanstd, or "
+                         "drop the flag.")
     if args.meanstd_z_max < 0:
         raise SystemExit("--meanstd-z-max is 0 (off) or a positive bound.")
     if args.gru_input_bound < 0:
@@ -2180,6 +2237,17 @@ def check_mean_std(args):
     if args.gru_input_bound and args.encoder_type != "gru":
         raise SystemExit("--gru-input-bound bounds the input of the GRU patch "
                          "encoder. Use --encoder-type gru, or drop it.")
+
+
+def step_start_mask(args, model, target_mask):
+    """``[B, T_raw, C]`` bool, the ``start_mask`` of the step inputs: the
+    values whose patch no term may take as the next patch of an anchor
+    (``group_padding``). Under --meanstd-no-leak (#482) the context:
+    an anchor whose next patch starts in it reads statistics of its target.
+    Else the first window of the EWMA, or None."""
+    if args.meanstd_no_leak:
+        return ~target_mask
+    return getattr(model.rev_norm, "start_mask", None)
 
 
 def contrastive_padding(model, args):
@@ -2989,6 +3057,9 @@ def main():
             .format(args.depthwise_conv, args.deprecated_depthwise_conv))
     model_config["depthwise_conv"] = args.depthwise_conv
     model_config["deprecated_depthwise_conv"] = args.deprecated_depthwise_conv
+    if not 0.0 <= args.dropout < 1.0:
+        raise SystemExit(f"--dropout must be in [0, 1); got {args.dropout!r}.")
+    model_config["dropout"] = args.dropout
     # Forecaster bottleneck (#286 follow-up, v13). When None on both the
     # ConfigurableModel side defaults them to (H, nhead) — full no-op for
     # all pre-v13 runs / checkpoints. v13: 128 + 4 (vs encoder H=384 / 6).
@@ -3054,8 +3125,8 @@ def main():
         raise SystemExit(
             "--ema-embedding/--ema-encoder only implemented for "
             f"--loss-shape in {_EMA_LOSS_SHAPES}.")
-    if (args.ema_embedding or args.ema_encoder) and not (0.0 < args.ema_tau < 1.0):
-        raise SystemExit("--ema-tau must be in (0, 1); got "
+    if (args.ema_embedding or args.ema_encoder) and not (0.0 <= args.ema_tau < 1.0):
+        raise SystemExit("--ema-tau must be in [0, 1); got "
                          f"{args.ema_tau!r}.")
     # Parse --extra-save-steps at validation time (not deep in the training
     # loop) so a malformed value fails immediately instead of after model +
@@ -3206,6 +3277,11 @@ def main():
                          "(muP, docs/mup.md).")
     if not 0.5 <= args.mup_depth_alpha <= 1.0:
         raise SystemExit(f"--mup-depth-alpha must be in [0.5, 1], not {args.mup_depth_alpha}.")
+    if args.zero_time_scale_embedding and not (args.freq_emb_dim > 0
+                                               or args.seasonality_emb_dim > 0):
+        raise SystemExit("--zero-time-scale-embedding needs a time-scale "
+                         "embedding: --freq-emb-dim or --seasonality-emb-dim "
+                         "above 0.")
     model = ConfigurableModel(**model_config).to(device)
     if args.latent_sphere:
         print(f"Latent sphere: e, h and f at radius sqrt({args.d_model}) = "
@@ -3220,6 +3296,10 @@ def main():
         weight_decay=args.weight_decay,
         betas=(args.adam_beta1, args.adam_beta2),
     )
+    if args.zero_time_scale_embedding:
+        # After the init (muP included): the tables stay at 0 (#482).
+        n = zero_time_scale_embedding_(model)
+        print(f"Time-scale embedding: {n} table(s) at 0, frozen (#482)")
 
     start_step = 0
     best_gap, best_gap_step = -float("inf"), 0
@@ -3330,11 +3410,18 @@ def main():
         counted = ("the loss counts only the patches after it"
                    if args.value_space_objective
                    else "the contrastive terms keep every real position")
-        print(f"Scaling (#421): the mean/std scaling of Moirai 1.0. Each "
-              f"window draws a target fraction r ~ U[0.15, 0.5] of its whole "
-              f"patches of real values. loc and scale come from the observed "
-              f"values before the split, and {counted}. A size needs two "
-              f"whole patches of real values (uni2ts GetPatchSize).")
+        if args.meanstd_no_leak:
+            print("Scaling (#482): instance normalisation with no target "
+                  "leak. Each window draws a context of 1 patch to half of "
+                  "its whole patches of real values. loc and scale come from "
+                  "the context, and each term keeps only the anchors whose "
+                  "next patch starts after it.")
+        else:
+            print(f"Scaling (#421): the mean/std scaling of Moirai 1.0. Each "
+                  f"window draws a target fraction r ~ U[0.15, 0.5] of its whole "
+                  f"patches of real values. loc and scale come from the observed "
+                  f"values before the split, and {counted}. A size needs two "
+                  f"whole patches of real values (uni2ts GetPatchSize).")
         if args.meanstd_z_max > 0:
             print(f"Window filter (#421, Moirai 2.0): a window whose target "
                   f"part holds a |z| above {args.meanstd_z_max:g} leaves the "
@@ -3664,7 +3751,8 @@ def main():
                 # the patches after it only. The contrastive terms keep
                 # every real position (#412).
                 x_norm, sample_sizes, target_mask = mean_std_inputs(
-                    model, x, freq_ids, multi_patch_sizes)
+                    model, x, freq_ids, multi_patch_sizes,
+                    short_context=args.meanstd_no_leak)
                 pad_mask = model.rev_norm.pad_mask
                 if args.skip_nan_samples:
                     # #421: the rows as the step reads them, for the report
@@ -3714,7 +3802,7 @@ def main():
             step_inputs = dict(
                 x_norm=x_norm, sample_sizes=sample_sizes,
                 target_mask=target_mask, pad_mask=pad_mask,
-                start_mask=getattr(model.rev_norm, "start_mask", None),
+                start_mask=step_start_mask(args, model, target_mask),
                 freq_ids=freq_ids, freq_embs=freq_embs,
                 seasonality_ids=seasonality_ids,
                 seasonality_embs=seasonality_embs)
