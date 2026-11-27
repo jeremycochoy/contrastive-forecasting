@@ -30,6 +30,22 @@ def test_synthetic_and_crossfade_rows_are_fractions_of_the_sampled_rows():
     assert rows["real"] + rows["synth"] + rows["cross"] == rows["sampled"]
 
 
-def test_a_batch_with_no_real_row_is_refused():
+def test_an_all_synthetic_batch_has_no_real_row():
+    rows = step_rows(2, 1.0)
+    assert rows == {"sampled": 2, "real": 0, "synth": 2, "cross": 0,
+                    "triplet": 0, "total": 2}
+
+
+def test_triplet_rows_with_no_real_row_are_refused():
     with pytest.raises(ValueError):
         step_rows(3, 0.0, 0.0, 1)
+
+
+def test_crossfade_rows_with_no_real_row_are_refused():
+    with pytest.raises(ValueError):
+        step_rows(4, 0.5, 0.5)
+
+
+def test_more_synthetic_and_crossfade_rows_than_rows_are_refused():
+    with pytest.raises(ValueError):
+        step_rows(4, 0.75, 0.5)
