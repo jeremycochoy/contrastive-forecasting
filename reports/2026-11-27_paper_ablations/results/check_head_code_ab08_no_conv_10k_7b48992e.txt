@@ -1,0 +1,7 @@
+# python3 check_head_code.py --old /home/jupyter/cf_runs/cf-482/ff_code_f541cf17 --new /home/jupyter/cf_runs/cf-482/ff_code_7b48992e --ckpt s3://model.artifacts/manual/cf_runs/cf-482/g166b_w320e6f6_ab08_no_conv/ckpt/g166b_w320e6f6_ab08_no_conv_10k.pth (MD5 = S3 ETag)
+head_config: SAME
+head_weights: SAME
+eval_config: SAME
+eval_weights: SAME
+encoder_type gru, depthwise_conv 0
+exit 0

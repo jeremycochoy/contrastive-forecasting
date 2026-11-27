@@ -1,0 +1,30 @@
+# The score code folders of round 3 (#482): make_head_code.sh of round 3 (reports in the patch), HEAD_SHA=<sha>
+2026-11-27T22:05:49Z /home/jupyter/cf_runs/cf-482/ff_code_f14b0a5e: /home/jupyter/cf_runs/hp64/ff/code with the patch f14b0a5e8a74d246c272cbd548c3d05025d3adcf, md5 of the tree 1f3705758bcd5ac98e0d9e903559c55d
+2026-11-27T22:05:49Z /home/jupyter/cf_runs/cf-482/ff_code_7b48992e: /home/jupyter/cf_runs/hp64/ff/code with the patch 7b48992ef5ca3556cfc31a6973620f6763b27d56, md5 of the tree ea603ac99d6e29d37a04038c447c42fb
+# diff -rq -x __pycache__ <folder of the rows today> <new folder>
+== hp64/ff/code -> ff_code_f14b0a5e (the 13 rows other than 6 and 8)
+Files hp64/ff/code/DEPLOYED_COMMIT and ff_code_f14b0a5e/DEPLOYED_COMMIT differ
+Files hp64/ff/code/experiments/hf_token.txt and ff_code_f14b0a5e/experiments/hf_token.txt differ
+Files hp64/ff/code/reports/2026-10-10_frequency_family_head/scripts/follow_multi.sh and ff_code_f14b0a5e/reports/2026-10-10_frequency_family_head/scripts/follow_multi.sh differ
+== ff_code_c0124ad0 -> ff_code_7b48992e (row 6)
+Files ff_code_c0124ad0/DEPLOYED_COMMIT and ff_code_7b48992e/DEPLOYED_COMMIT differ
+Files ff_code_c0124ad0/reports/2026-10-10_frequency_family_head/scripts/follow_multi.sh and ff_code_7b48992e/reports/2026-10-10_frequency_family_head/scripts/follow_multi.sh differ
+== ff_code_f541cf17 -> ff_code_7b48992e (row 8; src/encoders.py: the TimesFM block of c0124ad0)
+Files ff_code_f541cf17/DEPLOYED_COMMIT and ff_code_7b48992e/DEPLOYED_COMMIT differ
+Files ff_code_f541cf17/reports/2026-10-10_frequency_family_head/scripts/follow_multi.sh and ff_code_7b48992e/reports/2026-10-10_frequency_family_head/scripts/follow_multi.sh differ
+Files ff_code_f541cf17/src/encoders.py and ff_code_7b48992e/src/encoders.py differ
+# The token file of each new folder against cf-482/secrets/hf_token_agent.txt (MD5 compare, no token printed)
+ff_code_f14b0a5e: the card token, mode 600
+ff_code_7b48992e: the card token, mode 600
+# CUDA_VISIBLE_DEVICES= FF_TEST_SCRIPTS=<folder>/reports/2026-10-10_frequency_family_head/scripts python3 -m pytest tests/test_482_follow_retry.py
+ff_code_f14b0a5e: 15 passed in 66.45s (0:01:06), exit 0
+ff_code_7b48992e: 15 passed in 108.73s (0:01:48), exit 0
+# /home/jupyter/cf_runs/cf-482/tools_r4 (md5)
+febe3a2024053ee1c609ac8ab4fc1762  follower_box.sh
+7edcb9627c35f82545ccfa9d510e2c8f  hb_check.sh
+213e0f6723693eda05e0e3e014ddb8f8  make_head_code.sh
+fba027dba54ef7c2ecc0584f69cf95e4  pull_box.sh
+a803d54cad1e9f86f60bb490f914ea7f  s3_box_copy.py
+e9e59b453c0b37619dcfde5f6d517437  setup_box.sh
+1bca7f56384ad0fbc618dbeed4254816  start_box.sh
+71b56d87dd1f060a3244422ca36db5f8  swap_follower.sh

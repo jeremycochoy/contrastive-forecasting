@@ -12,6 +12,8 @@ file comes later.
 | Score code of the row 8: the score code of #425 plus the patch of #482 | `f541cf17`, branch `run/cf-482-heads` | `/home/jupyter/cf_runs/cf-482/ff_code_f541cf17` |
 | Score code of the row 6: f541cf17 plus the TimesFM block with no layer normalisation | `c0124ad0`, branch `run/cf-482-heads` | `/home/jupyter/cf_runs/cf-482/ff_code_c0124ad0` |
 | Score code of the other rows | the folder of #425, unchanged | `/home/jupyter/cf_runs/hp64/ff/code` |
+| Score code of round 3, rows 6 and 8: c0124ad0 plus the follower that tries a failed head or score again | `7b48992e`, branch `run/cf-482-heads` | `/home/jupyter/cf_runs/cf-482/ff_code_7b48992e` |
+| Score code of round 3, the other rows: the folder of #425 plus the same follower | `f14b0a5e`, branch `run/cf-482-heads-base` | `/home/jupyter/cf_runs/cf-482/ff_code_f14b0a5e` |
 
 The score code of #425 is a416b3ae with three local changes on elisa: the
 exact eval speedups of 11-24 and the stream module of PR #480 (11-25). The
@@ -101,11 +103,12 @@ follower of #425 does it on the box, beside the training
 (`start_follow_w320e6f6_box.sh`).
 
 The flow of one box. The box scripts are in `scripts/`. A new box uses
-their copy in `/home/jupyter/cf_runs/cf-482/tools_r3/`. The boxes of round 1
+their copy in `/home/jupyter/cf_runs/cf-482/tools_r4/`. The boxes of round 1
 keep `tools_r1/`, and rows 4 and 6 started with `tools_r2/`. `tools_r3` is
 `tools_r2` with one fix of the seed (a failed move of a file of the pair
-stops the seed). The copy to S3 is the same in both. The box keeps the
-layout `/workspace/hp64` of #425.
+stops the seed). The copy to S3 is the same in both. `tools_r4` is
+`tools_r3` with the scripts of round 3 (below). The box keeps the layout
+`/workspace/hp64` of #425.
 
 1. `rent_box.sh` of #425 (1 x RTX 5090).
 2. `setup_box.sh`: the setup of #425, the run code, the run folder, the
@@ -163,16 +166,16 @@ When the box of a run stops for good:
    stops at or after the step of the pair: the new box holds no backbone of
    an earlier stop. S3 holds the backbone of each stop in `<run>/ckpt/`.
 4. Read the credit, then rent a new box as for a first start.
-5. `setup_box.sh` of `tools_r3` with the same `CODE`, `RUN` and
-   `HEAD_CODE`.
-6. `python3 tools_r3/s3_box_copy.py seed <run> <box> <port>` (the rnd venv):
+5. `setup_box.sh` of `tools_r4` with the same `CODE` and `RUN`, and the
+   `HEAD_CODE` of round 3 (below).
+6. `python3 tools_r4/s3_box_copy.py seed <run> <box> <port>` (the rnd venv):
    the box downloads the pair from S3 with presigned GET URLs into
    `<run>/ckpt/`, and the ETag of each file must equal the S3 ETag. It
    refuses a box with no `setup_done_<run>` or with a `.pth` file of the
    run. At a failure it removes the pair from the box and ends with exit
    code 1. Go to step 7 only after exit code 0: with a half pair the run
    script starts from step 0.
-7. `STOPS="<the stops of step 3>" start_box.sh` of `tools_r3`. The run script
+7. `STOPS="<the stops of step 3>" start_box.sh` of `tools_r4`. The run script
    resumes from the pair (`--resume`) and writes `<run>_r2_<k>k.pth`. The
    follower waits for each stop in the order of `STOPS`.
 8. Write the new box in `cf-482/boxes.tsv`.
@@ -185,6 +188,67 @@ through elisa and no optimizer file. To move a running row to the puller of
 with the same variables. This changes no file on the box. The new puller
 accepts the backbones that the old puller sent in parts: it compares the
 multipart ETag.
+
+## Round 3: the follower tries a failed head or score again
+
+On 11-27 the head runner refused an empty token at the 25k stop of five
+boxes. The follower tried each stop once, so these stops got no score.
+`follow_multi.sh` now tries again:
+
+- The heads of a stop get up to `FF_HEAD_TRIES` tries (default 3),
+  `FF_HEAD_RETRY_WAIT` s apart (default 600). Each try trains only the runs
+  with no final head.
+- The score of each run and stop gets the same tries.
+- Before `FOLLOW_END`, a last pass gives one more head try and score try to
+  each stop with a checkpoint copy and no score.
+- A log line gives each failed try with its cause. `FAILED` comes only after
+  the last try. The exit code is 1 when a stop of the list has no score.
+
+A head and a score that work at the first try give the calls and the files
+of a416b3ae (test).
+
+| Check | Result | Record |
+|---|---|---|
+| The files of `ff_code_f14b0a5e` against `hp64/ff/code`, and of `ff_code_7b48992e` against `ff_code_c0124ad0` (row 6) and `ff_code_f541cf17` (row 8) | `follow_multi.sh`, `DEPLOYED_COMMIT` and the token file change. Against `ff_code_f541cf17`, the TimesFM block (`src/encoders.py`) changes too | `results/score_code_r3.txt` |
+| `ff_code_7b48992e` builds the backbone of the reference at 100k, and of rows 6 and 8 at 10k (from S3, MD5 = ETag) | the same config and weights as the folder of each one today | `results/check_head_code_*_7b48992e.txt` |
+| `tests/test_482_follow_retry.py` on the scripts of each folder (`FF_TEST_SCRIPTS`) | 15 passed, on each folder | `results/score_code_r3.txt` |
+
+### Deploy on the boxes (the Runner)
+
+`tools_r4/` is `tools_r3/` plus `swap_follower.sh`, `follower_box.sh` and
+the `make_head_code.sh` of round 3. `swap_follower.sh` moves the follower of
+one box to a new folder:
+
+1. It copies the folder next to `$H/ff/code`, to `$H/ff/<folder>`, with an
+   md5 check. The running follower reads `$H/ff/code`, so the copy writes
+   nothing there.
+2. It stops each follower by its PID, only if no head trains and no score
+   runs. Else it ends with exit code 3 and stops nothing.
+3. It moves `$H/ff/code` to `$H/ff/code_<time>`, then the new folder to
+   `$H/ff/code`.
+4. It starts the follower with the start script of the box, unchanged, for
+   the stops with no score file. The follower adds its lines to the same log.
+
+Do these steps:
+
+1. Use `FOLDER=ff_code_7b48992e` for rows 6 and 8 (ab06b, ab08). Use
+   `FOLDER=ff_code_f14b0a5e` for the other 13 rows.
+2. Start with one box: the box whose next checkpoint comes first.
+3. Read its state:
+   `MODE=check BOX=<root@ip> BOX_PORT=<port> RUN=<run> SHORT=<short> FOLDER=<folder> bash tools_r4/swap_follower.sh`.
+4. Run the same command with no `MODE`. Exit code 3: a head trains or a
+   score runs, so try again later. Exit code 0: the output gives the PID and
+   the stops of the new follower.
+5. Write the PID of the new follower in `boxes.tsv` (`hb_check.sh` reads it).
+6. After the next checkpoint of the box, run step 3 again. The follower log
+   must show `train: 1 heads at <k>k ... code a416b3ae + #482 patch <sha>`,
+   and the check must show `head trainer <pid>: the card token`.
+7. Then do steps 3 to 5 on each of the 14 other boxes.
+
+After a failure, run the swap again: it skips the copy and the move on a box
+that has the new code. For a resume on a new box, give `setup_box.sh`
+`HEAD_CODE=ff_code_f14b0a5e`, or `HEAD_CODE=ff_code_7b48992e` for rows 6
+and 8.
 
 ## Facts about the reference for the report
 

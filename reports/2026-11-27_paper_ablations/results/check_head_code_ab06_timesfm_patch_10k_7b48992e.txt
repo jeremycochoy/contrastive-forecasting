@@ -1,0 +1,7 @@
+# python3 check_head_code.py --old /home/jupyter/cf_runs/cf-482/ff_code_c0124ad0 --new /home/jupyter/cf_runs/cf-482/ff_code_7b48992e --ckpt s3://model.artifacts/manual/cf_runs/cf-482/g166b_w320e6f6_ab06_timesfm_patch/ckpt/g166b_w320e6f6_ab06_timesfm_patch_10k.pth (MD5 = S3 ETag)
+head_config: SAME
+head_weights: SAME
+eval_config: SAME
+eval_weights: SAME
+encoder_type timesfm, depthwise_conv 3
+exit 0
