@@ -215,19 +215,27 @@ of a416b3ae (test).
 
 ### Deploy on the boxes (the Runner)
 
-`tools_r4/` is `tools_r3/` plus `swap_follower.sh`, `follower_box.sh` and
-the `make_head_code.sh` of round 3. `swap_follower.sh` moves the follower of
-one box to a new folder:
+Use `tools_r5/`: `tools_r4/` plus the swap fix of round 4, in
+`swap_follower.sh` and `follower_box.sh`. Do not use the swap of
+`tools_r4/`: a head could start between its check and its stop, and a
+failed ssh query gave exit code 0 after the stop. `swap_follower.sh` moves
+the follower of one box to a new folder:
 
-1. It copies the folder next to `$H/ff/code`, to `$H/ff/<folder>`, with an
+1. It reads the stops with no score file on the box. A failed query, or an
+   answer without the state of each stop, gives exit code 2, and the swap
+   changes nothing.
+2. It copies the folder next to `$H/ff/code`, to `$H/ff/<folder>`, with an
    md5 check. The running follower reads `$H/ff/code`, so the copy writes
    nothing there.
-2. It stops each follower by its PID, only if no head trains and no score
-   runs. Else it ends with exit code 3 and stops nothing.
-3. It moves `$H/ff/code` to `$H/ff/code_<time>`, then the new folder to
-   `$H/ff/code`.
-4. It starts the follower with the start script of the box, unchanged, for
-   the stops with no score file. The follower adds its lines to the same log.
+3. It freezes each follower (SIGSTOP). A frozen follower cannot start a head
+   or a score. Then it looks for a head or a score on the box and in the
+   children of the followers. If one runs, it resumes the followers (SIGCONT)
+   and ends with exit code 3. Else it kills the frozen followers.
+4. It checks again that no follower, head or score runs. Then it moves
+   `$H/ff/code` to `$H/ff/code_<time>`, and the new folder to `$H/ff/code`.
+5. It starts the follower with the start script of the box, unchanged, for
+   the stops of step 1. The follower adds its lines to the same log. If no
+   follower runs 5 s later, the exit code is 2.
 
 Do these steps:
 
@@ -235,10 +243,13 @@ Do these steps:
    `FOLDER=ff_code_f14b0a5e` for the other 13 rows.
 2. Start with one box: the box whose next checkpoint comes first.
 3. Read its state:
-   `MODE=check BOX=<root@ip> BOX_PORT=<port> RUN=<run> SHORT=<short> FOLDER=<folder> bash tools_r4/swap_follower.sh`.
+   `MODE=check BOX=<root@ip> BOX_PORT=<port> RUN=<run> SHORT=<short> FOLDER=<folder> bash tools_r5/swap_follower.sh`.
+   If it shows no follower PID, read the follower log. Do the swap only if
+   the follower ended.
 4. Run the same command with no `MODE`. Exit code 3: a head trains or a
-   score runs, so try again later. Exit code 0: the output gives the PID and
-   the stops of the new follower.
+   score runs. Exit code 4: no follower PID, but a follower log grew in the
+   last 10 min. For 3 and 4, the followers go on: try again later. Exit code
+   0: the output gives the PID and the stops of the new follower.
 5. Write the PID of the new follower in `boxes.tsv` (`hb_check.sh` reads it).
 6. After the next checkpoint of the box, run step 3 again. The follower log
    must show `train: 1 heads at <k>k ... code a416b3ae + #482 patch <sha>`,
@@ -249,6 +260,10 @@ After a failure, run the swap again: it skips the copy and the move on a box
 that has the new code. For a resume on a new box, give `setup_box.sh`
 `HEAD_CODE=ff_code_f14b0a5e`, or `HEAD_CODE=ff_code_7b48992e` for rows 6
 and 8.
+
+The rule of exit code 4 does not see each follower that the `FF_BASE` match
+misses: a follower that waits for a checkpoint writes its log only each
+30 min. The check of step 3 is the guard for this case.
 
 ## Facts about the reference for the report
 

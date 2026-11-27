@@ -1,12 +1,14 @@
 """#482: swap_follower.sh moves the head follower of a box to a new score code.
 
 The swap must stop a follower only while it waits for a checkpoint: no head
-trains and no score runs. It copies the new folder next to the score code
-(the running follower reads $H/ff/code), moves it in place after the stop,
-and starts the follower with the start script of the box for the stops with
-no score. The tests replace ssh and rsync (fake_box/): the "box" is a local
-folder, and each process of its follower has FF_BASE=<box>/ff. The tests
-stop only the processes with this FF_BASE.
+trains and no score runs. It freezes the followers before it looks for a head
+or a score, so that no head starts between the check and the stop. It reads
+the stops with no score before it stops a follower. It copies the new folder
+next to the score code (the running follower reads $H/ff/code), moves it in
+place after the stop, and starts the follower with the start script of the
+box for the stops with no score. The tests replace ssh and rsync (fake_box/):
+the "box" is a local folder, and each process of its follower has
+FF_BASE=<box>/ff. The tests stop only the processes with this FF_BASE.
 """
 import os
 import shutil
@@ -24,10 +26,19 @@ RUN, SHORT, FOLDER = "g166b_w320e6f6_ab01_no_synth", "ab01c", "ff_code_1234abcd"
 NEW_COMMIT = "a416b3ae + #482 patch 1234abcd"
 FOLLOW_DIR = "reports/2026-10-10_frequency_family_head/scripts"
 
-# follow_multi.sh of the tests: a follower that waits for a checkpoint.
+# follow_multi.sh of the tests: a follower that waits for a checkpoint. When
+# the file head_now appears in FF_BASE (a checkpoint came), it starts a head
+# trainer, and the head writes head_runs.
 FOLLOWER = r'''#!/bin/bash
 echo "[stub] start: stops $FF_STOPS, code $(cat ../../../DEPLOYED_COMMIT), trainer ${FF_TRAINER:-none}"
-while :; do sleep 1; done
+while :; do
+  if [ -e "$FF_BASE/head_now" ]; then
+    rm -f "$FF_BASE/head_now"
+    python3 -c 'import pathlib, sys, time; pathlib.Path(sys.argv[1]).touch(); time.sleep(300)' \
+      "$FF_BASE/head_runs" --jobs x &
+  fi
+  sleep 0.2
+done
 '''
 
 # start_follow_w320e6f6_box.sh of the tests, with the box folder FAKE_BOX_H.
@@ -69,6 +80,17 @@ def followers(h):
     return [pid for pid, cmd in box_procs(h) if cmd[-1:] == ["follow_multi.sh"]]
 
 
+def state(pid):
+    """The state letter of a process: T when it is stopped (frozen)."""
+    return Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0]
+
+
+def start_follower(box, stops, log):
+    h, env = box
+    subprocess.run(["bash", "start_follow_w320e6f6_box.sh"], cwd=h / "ff", check=True,
+                   env=dict(env, E_STOPS=stops, E_LOG=log))
+
+
 def stop_all(h):
     for sig in (signal.SIGTERM, signal.SIGKILL):
         for pid, _ in box_procs(h):
@@ -96,9 +118,7 @@ def box(tmp_path):
                FAKE_LOG=str(tmp_path / "fake.log"), FAKE_BOX_H=str(h), CF=str(cf),
                BOX_H=str(h), BOX="root@box", BOX_PORT="22", RUN=RUN, SHORT=SHORT,
                FOLDER=FOLDER)
-    subprocess.run(["bash", "start_follow_w320e6f6_box.sh"], cwd=h / "ff", check=True,
-                   env=dict(env, E_STOPS="10 25 50 75 100 125 150 166",
-                            E_LOG=f"follow_{SHORT}_box.log"))
+    start_follower((h, env), "10 25 50 75 100 125 150 166", f"follow_{SHORT}_box.log")
     wait_until(lambda: followers(h))
     yield h, env
     stop_all(h)
@@ -160,9 +180,99 @@ def test_a_box_where_a_head_trains_keeps_its_follower(box):
         trainer.kill()
     assert r.returncode == 3, r.stdout + r.stderr
     assert "a head or a score runs" in r.stdout
-    assert followers(h) == [old]
+    assert followers(h) == [old] and state(old) != "T"
     assert (h / "ff" / "code" / "DEPLOYED_COMMIT").read_text() == "a416b3ae\n"
     assert not list(h.joinpath("ff").glob("code_*"))
+
+
+def kill_after_head(base):
+    """A bash function `kill` for the box script: before its first signal, a
+    checkpoint comes and the follower starts a head. The function waits until
+    the head runs, then sends the signal."""
+    return (f'() {{ if [ ! -e {base}/head_asked ]; then touch {base}/head_asked {base}/head_now; '
+            f'until [ -e {base}/head_runs ]; do sleep 0.05; done; fi; builtin kill "$@"; }}')
+
+
+def test_a_head_that_starts_between_the_check_and_the_stop_keeps_the_follower(box):
+    h, _ = box
+    base = h / "ff"
+    (old,) = followers(h)
+    r = swap(box, **{"BASH_FUNC_kill%%": kill_after_head(base)})
+    assert r.returncode == 3, r.stdout + r.stderr
+    assert "a head or a score runs" in r.stdout
+    assert followers(h) == [old] and state(old) != "T"
+    assert (base / "code" / "DEPLOYED_COMMIT").read_text() == "a416b3ae\n"
+    assert not list(base.glob("code_*"))
+    (base / "head_runs").unlink()                    # the follower goes on: a second head
+    (base / "head_now").touch()
+    wait_until(lambda: (base / "head_runs").exists())
+
+
+@pytest.mark.parametrize("fault", [{"FAKE_SSH_FAIL": "-- stops "},     # ssh fails
+                                   {"FAKE_SSH_HEAD": "-- stops :0"},   # no answer
+                                   {"FAKE_SSH_HEAD": "-- stops :1"}])  # 1 stop of 8
+def test_a_failed_query_of_the_stops_stops_no_follower(box, fault):
+    h, _ = box
+    (old,) = followers(h)
+    r = swap(box, **fault)
+    assert r.returncode == 2, r.stdout + r.stderr
+    assert "Nothing is stopped" in r.stdout
+    assert followers(h) == [old] and state(old) != "T"
+    assert (h / "ff" / "code" / "DEPLOYED_COMMIT").read_text() == "a416b3ae\n"
+
+
+def test_a_box_where_each_stop_has_its_score_keeps_its_follower(box):
+    h, _ = box
+    (old,) = followers(h)
+    for k in (50, 75, 100, 125, 150, 166):
+        write(h / "ff" / "results" / f"score_{RUN}_bb{k}k_h30k_control.txt", "0.95\n")
+    r = swap(box)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "each stop of STOPS has its score" in r.stdout
+    assert followers(h) == [old] and not (h / "ff" / FOLDER).exists()
+
+
+def test_a_swap_stops_the_main_and_the_recovery_follower_and_starts_one(box):
+    h, _ = box
+    (h / "ff" / "results" / f"score_{RUN}_bb25k_h30k_control.txt").unlink()
+    start_follower(box, "25", f"follow_{SHORT}_25k_box.log")      # the recovery follower
+    wait_until(lambda: len(followers(h)) == 2)
+    old = set(followers(h))
+    r = swap(box)
+    assert r.returncode == 0, r.stdout + r.stderr
+    (new,) = followers(h)
+    assert new not in old
+    assert box_log(h).splitlines()[-1].startswith(
+        f"[stub] start: stops 25 50 75 100 125 150 166, code {NEW_COMMIT}")
+
+
+def test_no_follower_and_a_log_that_grew_in_the_last_10_min_stop_the_swap(box):
+    h, _ = box
+    stop_all(h)
+    r = swap(box)
+    assert r.returncode == 4, r.stdout + r.stderr
+    assert not followers(h)
+    assert (h / "ff" / "code" / "DEPLOYED_COMMIT").read_text() == "a416b3ae\n"
+
+
+def test_no_follower_and_logs_of_11_min_ago_let_the_swap_go_on(box):
+    h, _ = box
+    stop_all(h)
+    then = time.time() - 11 * 60
+    for log in (h / "ff" / "results").glob("follow_*.log"):
+        os.utime(log, (then, then))
+    r = swap(box)
+    assert r.returncode == 0, r.stdout + r.stderr
+    (new,) = followers(h)
+    assert (h / "ff" / "code" / "DEPLOYED_COMMIT").read_text() == NEW_COMMIT + "\n"
+
+
+def test_a_follower_that_ends_after_its_start_fails_the_swap(box):
+    h, env = box
+    write(Path(env["CF"]) / FOLDER / FOLLOW_DIR / "follow_multi.sh", "#!/bin/bash\nexit 2\n")
+    r = swap(box)
+    assert r.returncode == 2, r.stdout + r.stderr
+    assert "no follower runs" in r.stdout
 
 
 def test_a_copy_with_another_md5_changes_nothing(box):

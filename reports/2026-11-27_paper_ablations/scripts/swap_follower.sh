@@ -7,18 +7,24 @@
 #               trainer (the card token or not), the stops with no score,
 #               and the last line of the follower log. It changes nothing.
 #   MODE=swap   (the default)
-#     1. Copy the folder $CF/FOLDER of elisa to $H/ff/FOLDER on the box, with
+#     1. Read the stops of STOPS with no score file on the box. A failed
+#        query, or an answer without the state of each stop, gives exit
+#        code 2. With no such stop, the swap ends with exit code 0. In the
+#        two cases, the swap changes nothing.
+#     2. Copy the folder $CF/FOLDER of elisa to $H/ff/FOLDER on the box, with
 #        an md5 check. The running follower reads $H/ff/code: the copy writes
 #        nothing there.
-#     2. Stop each follower of the box by its PID, if no head trains and no
-#        score runs. Else end with exit code 3 and stop nothing: try again
-#        later.
-#     3. Move $H/ff/code to $H/ff/code_<time>, and $H/ff/FOLDER to $H/ff/code.
-#     4. Start the follower with the start script of the box, unchanged, for
-#        the stops of STOPS with no score file on the box. The follower adds
-#        its lines to the same log, follow_<short>_box.log.
-# A swap of a box that has the new code already skips steps 1 and 3. So after
-# a failure, run the swap again.
+#     3. Stop each follower of the box, if no head trains and no score runs.
+#        The box freezes the followers before it looks, so no head can start
+#        between the check and the stop. Exit code 3: a head or a score runs.
+#        Exit code 4: no follower PID, but a follower log grew in the last
+#        10 min. In the two cases, the followers go on: try again later.
+#     4. Move $H/ff/code to $H/ff/code_<time>, and $H/ff/FOLDER to $H/ff/code.
+#     5. Start the follower with the start script of the box, unchanged, for
+#        the stops of step 1. The follower adds its lines to the same log,
+#        follow_<short>_box.log. Exit code 2 if no follower runs 5 s later.
+# A swap of a box that has the new code already skips the copy and the move.
+# So after a failure, run the swap again.
 #   BOX=root@<ip> BOX_PORT=<port> RUN=<run> SHORT=<short> FOLDER=ff_code_<sha> [MODE=check] \
 #     bash swap_follower.sh
 set -uo pipefail
@@ -55,13 +61,36 @@ token_of() {  # "empty" or the MD5 of a token -> the name of the token
   case "$1" in empty) echo "no token" ;; "$card") echo "the card token" ;; *) echo "another token" ;; esac
 }
 
+# The stops of STOPS that the answer of the box gives as open, in OPEN. The
+# answer must give "<k> open" or "<k> scored" for each stop of STOPS, in order.
+read_stops() {  # <answer>
+  local lines i want=($STOPS)
+  mapfile -t lines <<< "$1"
+  [ "${#lines[@]}" = "${#want[@]}" ] || return 1
+  OPEN=""
+  for (( i = 0; i < ${#want[@]}; i++ )); do
+    case "${lines[i]}" in
+      "${want[i]} open") OPEN+="${OPEN:+ }${want[i]}" ;;
+      "${want[i]} scored") ;;
+      *) return 1 ;;
+    esac
+  done
+}
+
+open_stops() {  # OPEN, else the end of the swap before any change
+  local out
+  out=$(on_box stops "$RUN" $STOPS) || fail "the query of the stops with no score failed. Nothing is stopped."
+  read_stops "$out" || fail "the box gave no state for each stop ('$(echo "$out" | paste -sd';')'). Nothing is stopped."
+}
+
 check() {
   local pid sum
   log "score code on the box: $(box_code). $FOLDER: $(new_code)"
   log "followers (PID and folder): $(on_box followers | paste -sd';')"
   log "head or score processes: $(on_box busy | cut -c1-150 | paste -sd';')"
   on_box token | while read -r pid sum; do log "head trainer $pid: $(token_of "$sum")"; done
-  log "stops with no score: $(on_box stops "$RUN" $STOPS)"
+  if read_stops "$(on_box stops "$RUN" $STOPS)"; then log "stops with no score: $OPEN"
+  else log "stops with no score: no valid answer from the box"; fi
   log "follower log: $(x "tail -n 1 $H/ff/results/$LOG")"
 }
 
@@ -69,8 +98,12 @@ stop_followers() {
   local out rc
   out=$(on_box stop); rc=$?
   log "stop: $(echo "$out" | cut -c1-150 | paste -sd';')"
-  [ "$rc" != 3 ] || fail "a head or a score runs. Nothing is stopped: try again later." 3
-  [ "$rc" = 0 ] || fail "the stop of the followers failed"
+  case "$rc" in
+    0) ;;
+    3) fail "a head or a score runs. The followers go on, and nothing is stopped: try again later." 3 ;;
+    4) fail "no follower PID, but a follower log grew in the last 10 min. Nothing is stopped: look at the box (MODE=check)." 4 ;;
+    *) fail "the stop of the followers failed (exit code $rc). Look at the box (MODE=check)." ;;
+  esac
 }
 
 move_code() {
@@ -79,18 +112,21 @@ move_code() {
   log "$out"
 }
 
-start_follower() {
-  local stops
-  stops=$(on_box stops "$RUN" $STOPS)
-  [ -n "$stops" ] || { log "each stop has its score: no follower to start"; return 0; }
-  x "cd $H/ff && FF_TRAINER=$H/ff/train_heads_tf32.py E_RUNS=$RUN E_STOPS='$stops' E_LOG=$LOG bash start_follow_w320e6f6_box.sh" \
+start_follower() {  # for the stops of OPEN
+  local pids
+  x "cd $H/ff && FF_TRAINER=$H/ff/train_heads_tf32.py E_RUNS=$RUN E_STOPS='$OPEN' E_LOG=$LOG bash start_follow_w320e6f6_box.sh" \
     || fail "the start script failed. Run the swap again."
   sleep 5
-  log "new follower (PID and folder): $(on_box followers | paste -sd';')"
+  pids=$(on_box followers | paste -sd';')
+  [ -n "$pids" ] || fail "no follower runs 5 s after the start. Follower log: $(x "tail -n 1 $H/ff/results/$LOG")"
+  log "new follower (PID and folder): $pids"
   log "follower log: $(x "tail -n 1 $H/ff/results/$LOG")"
 }
 
 swap() {
+  open_stops
+  [ -n "$OPEN" ] || { log "each stop of STOPS has its score: no follower to start. Nothing is stopped."; return 0; }
+  log "stops with no score: $OPEN"
   if [ "$(box_code)" = "$(new_code)" ]; then log "the box has the score code of $FOLDER already"; else copy; fi
   stop_followers
   [ "$(box_code)" = "$(new_code)" ] || move_code
