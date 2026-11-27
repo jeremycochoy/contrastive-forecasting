@@ -1,0 +1,38 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+We follow the next-token objective of language models: our model
+predicts the next patch of a series. Following JEPA, it predicts the
+latent of that patch rather than its raw values, so it does not have to
+reproduce the noise of the series. A contrastive loss with negatives
+makes the latents of different patches and series stay apart, so the
+latents keep as much information about the series as they can, and
+SIGReg keeps them from collapsing (Section~\ref{sec:method}).
+The whole
+model trains without labels. To show that its latent forecasts hold the
+information of the future values, and that this information is easy to
+read, we freeze the model and train only a small head that maps the
+latent forecasts back to values.
+
+On GIFT-Eval (Section~\ref{sec:results}), our model forecasts as well
+as a value-space model trained with the same data and the same budget,
+at both widths. The task is harder for it: its backbone never sees a
+loss on the values, and only the head, trained afterwards, reads
+the values out of the latent forecasts. We take this result as evidence
+that forecasting in latent space is a viable way to train a time-series
+foundation model. The ablations of Section~\ref{sec:ablation} will
+measure the effect of each part of our recipe.
+
+The evaluation is still narrow. A latent space that keeps the information
+of the series should also serve other tasks, such as the
+classification of series and anomaly detection. Each task needs only
+a small head on the frozen model, so the same backbone can be scored
+on all of them. We have also not tried to fine-tune the backbone on a task, which
+may score better than a head on a frozen model.
+
+One limit of the method is that its training loss does not tell how
+good the model is. A low loss in latent space can still hide a poor
+representation. To judge a model, we must train the head and score the
+forecasts on a benchmark, which costs time at each save. A metric in
+latent space that predicts the forecast error would make the iteration
+loop much faster.
