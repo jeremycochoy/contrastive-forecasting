@@ -1109,11 +1109,11 @@ class HeadJob:
                 # row. Then the rows of each block size P decode their
                 # blocks of P / W latents with the output layer of P. With
                 # separate trunks, the rows of P read the trunk of P.
-                f_bc, x_norm = extract_forecaster_latents(
+                f_bc, x_norm, e_bc = extract_forecaster_latents(
                     backbone, x, freq_ids=freq_ids,
-                    seasonality_ids=seasonality_ids)
+                    seasonality_ids=seasonality_ids, with_encoder=True)
                 seq, mask, start = forecast_head_input(
-                    backbone, x, f_bc, args.head_train_input,
+                    backbone, x, f_bc, args.head_train_input, e_bc=e_bc,
                     freq_ids=freq_ids, seasonality_ids=seasonality_ids)
                 keep = ~backbone.rev_norm.pad_mask if zero_pad else None
                 row_sizes = self.row_sizes(freq_ids, x.shape[0])
@@ -1194,9 +1194,9 @@ class HeadJob:
 
             elif args.reconstruction == 'forecaster':
                 # Forecaster reconstruction: f[t] → patch t+1 values
-                f_bc, x_norm = extract_forecaster_latents(
+                f_bc, x_norm, e_bc = extract_forecaster_latents(
                     backbone, x, freq_ids=freq_ids,
-                    seasonality_ids=seasonality_ids)
+                    seasonality_ids=seasonality_ids, with_encoder=True)
                 targets, T_valid = compute_reconstruction_targets(
                     x_norm, W=W, output_len=args.forecast_len, mode='forecaster')
                 targets = targets.to(device)
@@ -1206,7 +1206,7 @@ class HeadJob:
                 # mask the head copied the target: ema_loss fell below 0.12
                 # against the true plateau of about 0.19).
                 seq, mask, start = forecast_head_input(
-                    backbone, x, f_bc, args.head_train_input,
+                    backbone, x, f_bc, args.head_train_input, e_bc=e_bc,
                     freq_ids=freq_ids, seasonality_ids=seasonality_ids)
                 preds = decode_forecast_head(head, seq, mask, start)
                 f_slice = slice(0, T_valid)
@@ -1227,11 +1227,11 @@ class HeadJob:
                 # The prediction branch: f_t decodes the values of patch
                 # t + 1. --head-train-input e_then_f gives the head the
                 # layout that B4 decodes at eval (forecast_head_input).
-                f_bc, x_norm = extract_forecaster_latents(
+                f_bc, x_norm, e_bc = extract_forecaster_latents(
                     backbone, x, freq_ids=freq_ids,
-                    seasonality_ids=seasonality_ids)
+                    seasonality_ids=seasonality_ids, with_encoder=True)
                 seq, mask, start = forecast_head_input(
-                    backbone, x, f_bc, args.head_train_input,
+                    backbone, x, f_bc, args.head_train_input, e_bc=e_bc,
                     freq_ids=freq_ids, seasonality_ids=seasonality_ids)
                 targets, T_valid = compute_valid_targets(
                     x_norm, W=W, forecast_len=args.forecast_len)

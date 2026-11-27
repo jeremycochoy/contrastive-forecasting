@@ -1161,13 +1161,17 @@ def step_rows(batch_size: int, mix_ratio: float, crossfade_ratio: float = 0.0,
     and appends the ``3 * cross_triplets`` triplet rows. ``triplets_on_top``
     keeps the count of the older runs: the loader samples ``batch_size``
     rows, and a step holds ``batch_size + 3 * cross_triplets`` rows.
+
+    A step can have no real row (``mix_ratio`` 1: all rows are synthetic).
+    The crossfade and triplet rows blend real rows, so such a step cannot
+    have them.
     """
     triplet = 3 * cross_triplets
     sampled = batch_size if triplets_on_top else batch_size - triplet
     synth = int(round(sampled * mix_ratio))
     cross = int(round(sampled * crossfade_ratio))
     real = sampled - synth - cross
-    if real < 1:
+    if sampled < 1 or real < 0 or (real == 0 and (cross or triplet)):
         raise ValueError(f"batch_size {batch_size} leaves {real} real rows after "
                          f"{synth} synthetic, {cross} crossfade and {triplet} triplet rows")
     return {"sampled": sampled, "real": real, "synth": synth, "cross": cross,
