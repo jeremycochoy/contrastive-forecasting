@@ -60,6 +60,13 @@ def test_the_encoder_type_comes_from_the_keys():
     assert encoder_type_of(sd, "gru") == "timesfm"
 
 
+def test_the_timesfm_patch_encoder_has_no_layer_norm():
+    # The ResidualBlock of TimesFM v1 returns output + residual (#482).
+    keys = backbone(encoder_type="timesfm").state_dict()
+    assert "encoder.residual_layer.weight" in keys
+    assert not any(k.startswith("encoder.layer_norm.") for k in keys)
+
+
 def test_the_conv_kernel_comes_from_the_keys():
     assert depthwise_conv_of(backbone().state_dict(), 3) == 3
     assert depthwise_conv_of(backbone(depthwise_conv=5).state_dict(), 3) == 5
