@@ -19,8 +19,14 @@
 #      FF_WAVE_VRAM_MIB free on its GPU.
 #   3. Start the score of each run in the background (run_wave.sh with
 #      FF_TRAIN=0; its log: results/follow_<run>.log), and go to the next stop.
+# A failed step is tried again (#482): the heads of a stop get up to
+# FF_HEAD_TRIES tries, and each score too, FF_HEAD_RETRY_WAIT s apart. Each
+# try of the heads trains only the runs with no final head. A stop whose heads
+# fail at each try gets no score, and the next stop goes on. At the end, a last
+# pass gives one more try of the heads and of the score to each stop with a
+# checkpoint copy and no score.
 # A second start skips the work that is done: a copy, a final head, a score.
-# The script ends with code 1 when a wait ended, or a wave or a score failed.
+# The script ends with code 1 when a run has no score at a stop of the list.
 #
 # Usage, from the code folder:
 #   FF_BASE=<base> FF_MULTI_RUNS="<run>=<ckpt folder> ..." FF_STOPS="0 10 25" \
@@ -29,6 +35,8 @@
 # FF_HEAD_STEPS, FF_EVAL_DEVICE, FF_EVAL_SLOTS, FF_EVAL_FORECAST_BATCH_SIZE,
 # FF_EVAL_FILTER, ...) reach the training here and the scores alike.
 #   FF_WAIT_MAX=172800   the longest wait for the checkpoints of one stop, in s
+#   FF_HEAD_TRIES=3      the tries of the heads of a stop, and of a score
+#   FF_HEAD_RETRY_WAIT=600  the wait between two tries, in s
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE="${FF_BASE:?FF_BASE: the base folder of the waves}"
@@ -36,6 +44,8 @@ BASE="${FF_BASE:?FF_BASE: the base folder of the waves}"
 RUNS="${FF_MULTI_RUNS:?FF_MULTI_RUNS: <run>=<ckpt folder> ...}"
 STOPS="${FF_STOPS:?FF_STOPS: the stops, in thousands of steps}"
 WAIT_MAX="${FF_WAIT_MAX:-172800}"
+HEAD_TRIES="${FF_HEAD_TRIES:-3}"
+RETRY_WAIT="${FF_HEAD_RETRY_WAIT:-600}"
 POLL="${FF_POLL:-60}"
 WAVE="${FF_WAVE:-$HERE/run_wave.sh}"
 ROOT="$BASE/heads"; RES="$BASE/results"; LOCKS="$BASE/locks"
@@ -57,10 +67,13 @@ unset CF_FREQ_FAMILY CF_FREQ_FAMILY_RULE CF_FREQ_FAMILY_MEMBERS \
 log(){ echo "[$(date '+%m-%d %H:%M:%S')] [freq_family multi] $*"; }
 tag_of(){ echo "${1}_bb${2}k_h${HK}_control"; }                     # <run> <stop k>
 has_head(){ compgen -G "$ROOT/eval/$1/*_final.pth" >/dev/null; }    # <tag>
+has_score(){ [ -s "$RES/score_$1.txt" ]; }                          # <tag>
+copy_of(){ echo "$BASE/ckpt/$1/${1}_${2}k.pth"; }                   # <run> <stop k>
 gpu_free(){  # MiB, or nothing with no nvidia-smi
   nvidia-smi --id="$GPU" --query-gpu=memory.free --format=csv,noheader,nounits \
     2>/dev/null | head -1 | tr -dc 0-9
 }
+last_line(){ tail -n 1 "$1" 2>/dev/null | tr -d '\r' | cut -c1-200; }   # <file>
 
 # A checkpoint and its optimizer file both load.
 loads(){  # <checkpoint>
@@ -119,7 +132,9 @@ wait_vram(){
   while :; do
     free=$(gpu_free)
     { [ -z "$free" ] || [ "$free" -ge "$VRAM" ]; } && return 0
-    (( SECONDS - start < VRAM_WAIT )) || { log "ABORT: GPU $GPU has $free MiB free after ${VRAM_WAIT} s"; return 1; }
+    if (( SECONDS - start >= VRAM_WAIT )); then
+      CAUSE="GPU $GPU has $free MiB free after ${VRAM_WAIT} s"; log "ABORT: $CAUSE"; return 1
+    fi
     (( (SECONDS - start) % 600 < 30 )) && log "waiting: GPU $GPU has $free MiB free, a wave needs $VRAM"
     sleep 30
   done
@@ -135,21 +150,24 @@ todo_runs(){  # <stop k> <run> ...
 # The jobs file of the heads of TODO_RUNS, in a new wave folder DIR.
 write_jobs(){  # <stop k>
   local run
-  mkdir -p "$RES/waves" && DIR=$(mktemp -d "$RES/waves/multi_bb${1}k_$(date '+%m%d_%H%M%S')_XXXX") || return 1
+  mkdir -p "$RES/waves" && DIR=$(mktemp -d "$RES/waves/multi_bb${1}k_$(date '+%m%d_%H%M%S')_XXXX") \
+    || { CAUSE="no wave folder in $RES/waves"; return 1; }
   job_env "$1"
   for run in "${TODO_RUNS[@]}"; do
     env "${JOB_ENV[@]}" CF_HEAD_ARGV_TO="$DIR/jobs.jsonl" \
       bash "$RUNNER" "$(tag_of "$run" "$1")" "$BASE/ckpt/$run/${run}_${1}k.pth" student "$HEAD_STEPS" \
-      >>"$RES/heads.log" 2>&1 </dev/null || { log "ABORT: no head flags for $run at ${1}k. See $RES/heads.log."; return 1; }
+      >>"$RES/heads.log" 2>&1 </dev/null || {
+        CAUSE="no head flags for $run ($(last_line "$RES/heads.log"))"
+        log "ABORT: no head flags for $run at ${1}k. See $RES/heads.log."; return 1; }
   done
   [ "$(grep -c . "$DIR/jobs.jsonl" 2>/dev/null)" = "${#TODO_RUNS[@]}" ] \
-    || { log "ABORT: $DIR/jobs.jsonl does not hold ${#TODO_RUNS[@]} jobs"; return 1; }
+    || { CAUSE="$DIR/jobs.jsonl does not hold ${#TODO_RUNS[@]} jobs"; log "ABORT: $CAUSE"; return 1; }
 }
 
 # The training of the jobs of DIR, in one process. Returns 1 when a run has no
 # final head after it.
 train_jobs(){  # <stop k>
-  local rc run
+  local rc run none=()
   log "train: ${#TODO_RUNS[@]} heads at ${1}k, $HEAD_STEPS steps, GPU $GPU, code $(cat "$CODE/DEPLOYED_COMMIT" 2>/dev/null): ${TODO_RUNS[*]} -> $DIR/train.log"
   env PYTHONPATH="$CODE" CUDA_VISIBLE_DEVICES="$GPU" PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
     OMP_NUM_THREADS="${FF_TRAIN_THREADS:-4}" MKL_NUM_THREADS="${FF_TRAIN_THREADS:-4}" \
@@ -159,9 +177,11 @@ train_jobs(){  # <stop k>
   rc=$?
   log "train rc=$rc"
   for run in "${TODO_RUNS[@]}"; do
-    has_head "$(tag_of "$run" "$1")" || { log "no final head for $run at ${1}k after the trainer"; rc=1; }
+    has_head "$(tag_of "$run" "$1")" || { log "no final head for $run at ${1}k after the trainer"; none+=("$run"); }
   done
-  return "$rc"
+  [ "$rc" = 0 ] && [ "${#none[@]}" -eq 0 ] && return 0
+  CAUSE="the trainer ended with rc=$rc${none[*]:+, no final head for ${none[*]}} ($(last_line "$DIR/train.log"))"
+  return 1
 }
 
 # The heads of a stop, trained under the stream lock. The runs with no head are
@@ -178,29 +198,93 @@ train_stop(){  # <stop k> <run> ...
       write_jobs "$1" && wait_vram && train_jobs "$1"; rc=$?
     fi
   else
-    log "ABORT: another wave reads the data stream after ${STREAM_WAIT} s"; rc=1
+    CAUSE="another wave reads the data stream after ${STREAM_WAIT} s"; log "ABORT: $CAUSE"; rc=1
   fi
   exec {lk}>&-
   return "$rc"
 }
 
+# A step up to <tries> times, RETRY_WAIT s apart, until it succeeds. The step
+# names the cause of a failure in CAUSE.
+retry(){  # <tries> <what> <command> ...
+  local tries="$1" what="$2" i; shift 2
+  for (( i = 1; ; i++ )); do
+    CAUSE=""
+    if "$@"; then (( i == 1 )) || log "$what: try $i of $tries worked"; return 0; fi
+    CAUSE="${CAUSE%.}"
+    if (( i >= tries )); then log "$what FAILED (try $i of $tries): ${CAUSE:-no cause}"; return 1; fi
+    log "$what: try $i of $tries failed: ${CAUSE:-no cause}. The next try in $RETRY_WAIT s."
+    sleep "$RETRY_WAIT"
+  done
+}
+
+# The score of a run at a stop. CAUSE: the exit code and the last error line
+# of this start in the log of the run.
+score_once(){  # <run> <stop k>
+  local out="$RES/follow_$1.log" at rc
+  at=$(stat -c %s "$out" 2>/dev/null || echo 0)
+  FF_TRAIN=0 bash "$WAVE" "$1" "$2" "$(copy_of "$1" "$2")" control >>"$out" 2>&1 </dev/null
+  rc=$?
+  [ "$rc" = 0 ] && return 0
+  CAUSE="rc=$rc$(tail -c +$(( at + 1 )) "$out" | grep -F "[freq_family $1 ${2}k]" \
+    | grep -E 'ABORT|FAILED|REFUSED|no score' | tail -n 1 | sed 's/^\[[^]]*\] \[[^]]*\] /, /')"
+  return "$rc"
+}
+
+# The score of each run at a stop in the background, each with up to <tries>
+# tries. PIDS keeps their PIDs.
+start_scores(){  # <tries> <stop k> <run> ...
+  local tries="$1" stop="$2" run; shift 2
+  for run in "$@"; do
+    retry "$tries" "the score of $run ${stop}k" score_once "$run" "$stop" &
+    PIDS+=($!)
+  done
+}
+wait_scores(){ local pid; for pid in "${PIDS[@]}"; do wait "$pid"; done; PIDS=(); }
+
+# One more try of the heads and of the scores of each stop with a run that has
+# a checkpoint copy and no score.
+last_pass(){
+  local stop run todo
+  for stop in $STOPS; do
+    todo=()
+    for run in "${NAMES[@]}"; do
+      [ -s "$(copy_of "$run" "$stop")" ] && ! has_score "$(tag_of "$run" "$stop")" && todo+=("$run")
+    done
+    [ "${#todo[@]}" -gt 0 ] || continue
+    log "last pass at ${stop}k: ${todo[*]}"
+    retry 1 "the heads of ${stop}k at the last pass" train_stop "$stop" "${todo[@]}" || continue
+    start_scores 1 "$stop" "${todo[@]}"
+  done
+  wait_scores
+}
+
+# The runs and stops of the list with no score, in MISSING.
+missing_scores(){
+  local stop run
+  MISSING=()
+  for stop in $STOPS; do
+    for run in "${NAMES[@]}"; do has_score "$(tag_of "$run" "$stop")" || MISSING+=("$run ${stop}k"); done
+  done
+}
+
 [ -f "$WAVE" ] && [ -f "$RUNNER" ] && [ -f "$TRAINER" ] || { log "ABORT: no wave, runner or trainer in $CODE"; exit 2; }
+[[ "$HEAD_TRIES" =~ ^[1-9][0-9]*$ && "$RETRY_WAIT" =~ ^[0-9]+$ ]] \
+  || { log "ABORT: FF_HEAD_TRIES=$HEAD_TRIES and FF_HEAD_RETRY_WAIT=$RETRY_WAIT: give 1 or more tries and a wait in s"; exit 2; }
 mkdir -p "$RES" "$LOCKS" || exit 2
 declare -A DIRS; NAMES=()
 for pair in $RUNS; do NAMES+=("${pair%%=*}"); DIRS["${pair%%=*}"]="${pair#*=}"; done
 log "start: runs ${NAMES[*]}, stops $STOPS, code $CODE"
-rc=0; pids=(); what=()
+PIDS=()
 for stop in $STOPS; do
-  for run in "${NAMES[@]}"; do copy_ckpt "$run" "${DIRS[$run]}" "$stop" || { rc=1; break 2; }; done
-  train_stop "$stop" "${NAMES[@]}" || { log "the heads of ${stop}k FAILED. The next stop goes on."; rc=1; continue; }
-  for run in "${NAMES[@]}"; do
-    FF_TRAIN=0 bash "$WAVE" "$run" "$stop" "$BASE/ckpt/$run/${run}_${stop}k.pth" control \
-      >>"$RES/follow_$run.log" 2>&1 </dev/null &
-    pids+=($!); what+=("$run ${stop}k")
-  done
+  for run in "${NAMES[@]}"; do copy_ckpt "$run" "${DIRS[$run]}" "$stop" || break 2; done
+  retry "$HEAD_TRIES" "the heads of ${stop}k" train_stop "$stop" "${NAMES[@]}" || continue
+  start_scores "$HEAD_TRIES" "$stop" "${NAMES[@]}"
 done
-for i in "${!pids[@]}"; do
-  wait "${pids[$i]}" || { log "the score of ${what[$i]} FAILED"; rc=1; }
-done
+wait_scores
+last_pass
+missing_scores
+rc=0
+[ "${#MISSING[@]}" -eq 0 ] || { log "no score: $(IFS=,; echo "${MISSING[*]}")"; rc=1; }
 log "FOLLOW_END rc=$rc"
 exit "$rc"
