@@ -1,0 +1,26 @@
+schedule	step_k	run	gm	short	medium	long
+warmup 10k, then a cosine to 0	10	g166b_w384e1f5_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix_wu10kcos	1.1173	0.9672	1.3516	1.3477
+warmup 10k, then a cosine to 0	25	g166b_w384e1f5_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix_wu10kcos	0.9851	0.8776	1.1459	1.1459
+warmup 10k, then a cosine to 0	50	g166b_w384e1f5_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix_wu10kcos	0.9840	0.8731	1.1455	1.1560
+warmup 10k, then a cosine to 0	75	g166b_w384e1f5_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix_wu10kcos	0.9642	0.8570	1.1184	1.1320
+warmup 10k, then a cosine to 0	100	g166b_w384e1f5_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix_wu10kcos	0.9610	0.8554	1.1175	1.1212
+warmup 10k, then a cosine to 0	125	g166b_w384e1f5_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix_wu10kcos	0.9499	0.8464	1.1065	1.1030
+warmup 10k, then a cosine to 0	150	g166b_w384e1f5_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix_wu10kcos	0.9582	0.8561	1.1152	1.1059
+warmup 10k, then a cosine to 0	166	g166b_w384e1f5_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix_wu10kcos	0.9538	0.8519	1.1073	1.1046
+constant 1e-3 to 10k, then a cosine to 0	10	g166b_w384e1f5_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix_c10kcos	1.0056	0.9029	1.1623	1.1538
+constant 1e-3 to 10k, then a cosine to 0	25	g166b_w384e1f5_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix_c10kcos	1.0071	0.8958	1.1621	1.1859
+constant 1e-3 to 10k, then a cosine to 0	50	g166b_w384e1f5_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix_c10kcos	0.9872	0.8700	1.1521	1.1776
+constant 1e-3 to 10k, then a cosine to 0	75	g166b_w384e1f5_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix_c10kcos	0.9586	0.8594	1.1114	1.1009
+constant 1e-3 to 10k, then a cosine to 0	100	g166b_w384e1f5_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix_c10kcos	0.9400	0.8516	1.0797	1.0602
+constant 1e-3 to 10k, then a cosine to 0	125	g166b_w384e1f5_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix_c10kcos	0.9379	0.8460	1.0784	1.0685
+constant 1e-3 to 10k, then a cosine to 0	150	g166b_w384e1f5_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix_c10kcos	0.9408	0.8453	1.0871	1.0779
+constant 1e-3 to 10k, then a cosine to 0	166	g166b_w384e1f5_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix_c10kcos	0.9443	0.8487	1.0912	1.0808
+constant 1e-3, then the cooldown from 125k	10	g166b_w384e1f5_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix	1.0227	0.9001	1.2018	1.2160
+constant 1e-3, then the cooldown from 125k	25	g166b_w384e1f5_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix	0.9802	0.8801	1.1340	1.1232
+constant 1e-3, then the cooldown from 125k	50	g166b_w384e1f5_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix	0.9863	0.8683	1.1545	1.1765
+constant 1e-3, then the cooldown from 125k	75	g166b_w384e1f5_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix	0.9591	0.8685	1.1045	1.0800
+constant 1e-3, then the cooldown from 125k	100	g166b_w384e1f5_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix	0.9546	0.8637	1.1018	1.0750
+constant 1e-3, then the cooldown from 125k	125	g166b_w384e1f5_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix	0.9473	0.8540	1.1059	1.0644
+constant 1e-3, then the cooldown from 125k	140	g166b_w384e1f5_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix_cd125	0.9444	0.8499	1.0982	1.0703
+constant 1e-3, then the cooldown from 125k	150	g166b_w384e1f5_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix_cd125	0.9380	0.8430	1.0903	1.0673
+constant 1e-3, then the cooldown from 125k	166	g166b_w384e1f5_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix_cd125	0.9401	0.8394	1.1007	1.0803
