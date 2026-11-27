@@ -1,0 +1,55 @@
+\section{Ablation}
+\label{sec:ablation}
+
+Our recipe changes several parts of a standard time-series foundation
+model. Table~\ref{tab:ablation} lists these changes. Each ablation
+starts from our width-384 model of Section~\ref{sec:experiments}, the
+reference, and replaces one change with its standard counterpart. The other settings stay the same. Each run trains for
+$166{,}000$ steps, then a new forecast head trains on its backbone
+(Section~\ref{sec:forecast-head}). The scores of the ablations will
+come in a later version of this report.
+
+$^{*}$Instance normalisation, as in RevIN~\citep{kim2022revin} and
+Moirai~\citep{woo2024moirai}, needs a context: one mean and one standard
+deviation over the whole window would read the targets
+(Section~\ref{sec:normalisation}). Each series draws a context of one
+patch to half of its window. One mean and one standard deviation over
+the context normalise the whole window, and the losses keep only the
+anchors whose next patch comes after the context.
+
+% The reference row is the run "green-384", cooled down from 125k, at 166k (Section experiments).
+\begin{table}[!htb]
+  \centering
+  \caption{Ablations of our recipe. Each row replaces one change of
+    our width-384 model with its standard counterpart. GM-MASE on
+    the $97$ configurations of GIFT-Eval after $166{,}000$ steps; lower
+    is better.}
+  \label{tab:ablation}
+  \small
+  \begin{tabular}{llll}
+    \toprule
+    Part & Our recipe & Replaced by & GM-MASE \\
+    \midrule
+    None & Reference: our model at width $384$ & & $0.9401$ \\
+    \midrule
+    Data & Forked ARMA series (Sec.~\ref{sec:data}) & No synthetic series & \\
+    Data & Crossfade series (Sec.~\ref{sec:data}) & No crossfade series & \\
+    Data & Mixup, $p = 0.3$ (Sec.~\ref{sec:data}) & No mixup & \\
+    \midrule
+    Input & EWMA normalisation & Instance normalisation$^{*}$ & \\
+    Input & Time-scale embedding & No time-scale embedding & \\
+    Input & GRU patch embedding & Residual block of TimesFM & \\
+    \midrule
+    Model & Latent sphere after each stage & No sphere & \\
+    Model & Depthwise causal convolution & No convolution & \\
+    Model & DropKey in the encoder, $p = 0.7$ & No DropKey & \\
+    Model & Dropout of $0.1$ in the blocks & No dropout & \\
+    \midrule
+    Loss & EMA teacher & Student targets with stop-gradient & \\
+    Loss & SIGReg on $e$ & No SIGReg on $e$ & \\
+    Loss & SIGReg on $h$ & No SIGReg on $h$ & \\
+    Loss & $\mathcal{L}_{\mathrm{rep}}$ & No $\mathcal{L}_{\mathrm{rep}}$ & \\
+    Loss & $\mathcal{L}_{\mathrm{align}}$ at distances $1$ to $4$ & Distance $1$ only & \\
+    \bottomrule
+  \end{tabular}
+\end{table}

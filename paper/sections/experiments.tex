@@ -1,0 +1,70 @@
+\section{Experiments}
+\label{sec:experiments}
+
+On GIFT-Eval, we compare our model with value-space models trained
+with the rest of our recipe.\footnote{Code, training scripts
+and experiment notebooks are available at
+\url{https://github.com/jeremycochoy/contrastive-forecasting}.}
+
+% Our models are the run "green" of the width-64 search and its width-384
+% copy (experiments/2026-11-08_width64_search):
+% g166b_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix_cd135
+% g166b_w384e1f5_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix_cd125
+% The value-space models are the runs MPE: cf462_mpe_w64 (width 64) and
+% cf421ew_moirai_k3 (width 384).
+
+\paragraph{Our models.}
+Our models are the model of Section~\ref{sec:method}, trained with the
+loss of Equation~\eqref{eq:loss-total} on the data of
+Section~\ref{sec:data}, at two sizes: $\dmodel = 64$ with $1$ encoder
+layer and $3$ forecaster layers, and $\dmodel = 384$ with $1$ encoder
+layer and $5$ forecaster layers. The muP base stays at width $64$, so
+the learning rate transfers. They train with AdamW ($\beta_1 = 0.9$,
+$\beta_2 = 0.98$) and a weight decay of $0.1$, for the budget below.
+The learning rate is $10^{-3}$, then an exponential cooldown halves it
+every $5{,}000$ steps, from step $135{,}000$ at width $64$ and from
+step $125{,}000$ at width $384$. The forecast head of Section~\ref{sec:forecast-head} then trains
+on the frozen backbone for $30{,}000$ steps at batch size $256$, with
+AdamW ($\beta_1 = 0.9$, $\beta_2 = 0.999$), a constant learning rate of
+$10^{-3}$, a weight decay of $0.01$ and a gradient norm clipped at $1$.
+
+\paragraph{Moirai-style models.}
+To measure the effect of the latent-space objective, we train
+value-space models with the rest of our recipe: the same data,
+normalisation, time-scale embedding, GRU patch embedding and
+transformer blocks. Their patches come from
+Moirai~\citep{woo2024moirai}: they have one patch embedding and one
+output head for each of the patch sizes $8$, $16$, $32$, $64$ and
+$128$, and each series draws its patch size from the range of its
+frequency.
+Each output head predicts the $9$ quantiles of the next patch, and the
+loss is the pinball loss on the normalised values. Like our model,
+they also run on their own forecasts: the model reads its median
+forecast up to $3$ times, and the loss adds the pinball loss of each
+depth. The learning rate rises to $10^{-3}$ over $10{,}000$ steps,
+then a cosine takes it to $0$ at step $166{,}000$. We train one model
+of the size of ours, at width $64$ with $1$ encoder layer and $3$
+forecaster layers. We train a bigger one at width $384$ with $3$
+encoder layers and $3$ forecaster layers. It has $14.4$ million
+parameters, the size of Moirai small. The baselines differ from our
+run in a few more ways: they clip the gradient norm at $1$, they skip
+the windows with NaN values or extreme spikes, and they run the
+attention, the feed-forward network and the convolution in fp32,
+where our models run them in fp16 at width $64$ and in bf16 at width
+$384$. The width-64 baseline also keeps
+the early targets that our losses skip
+(Section~\ref{sec:normalisation}).
+
+\paragraph{Training budget.}
+All four models train for $166{,}000$ steps at batch size $256$:
+$251$ real windows, the forked pair and the crossfade triplet
+(Section~\ref{sec:data}). The models read $42$ million windows of the
+pretraining corpus, or $18.5\%$ of its values.
+
+\paragraph{Metric.}
+For each of the $97$ configurations, we compute the MASE of the median
+forecast, with the seasonal period of the frequency, and we divide it
+by the MASE of the seasonal naive forecast. The GM-MASE is the
+geometric mean of this ratio over the $97$ configurations. Lower is
+better, and the seasonal naive forecast scores $1$. Each score comes
+from one training run.

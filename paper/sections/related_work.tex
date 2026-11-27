@@ -1,0 +1,63 @@
+\section{Related Work}
+\label{sec:related-work}
+
+The foundation models of Section~\ref{sec:introduction} compute their
+loss on the values of the series. Two earlier lines of work move the
+prediction of the future into a latent space: Contrastive Predictive
+Coding and the Joint Embedding Predictive Architecture.
+
+Contrastive Predictive Coding (CPC)~\citep{oord2018cpc} encodes each
+step of a signal with a strided convolutional network, and a GRU
+summarises the past latents into a context vector. For each horizon
+$k$, a linear map of the context predicts the latent of the step
+$t + k$. The InfoNCE loss~\citep{oord2018cpc} trains the model to
+find the true future latent among negative latents, sampled from other
+times and other sequences. This loss is a lower bound on the mutual
+information between the context and the future, so the encoder keeps
+the part of the past that predicts the future. CPC learns
+representations for speech, images, text and reinforcement learning.
+In speech and vision, the evaluation trains a linear classifier on the
+frozen representations, for example to recognise phones or speakers.
+CPC does not try to forecast. No part of the model maps a predicted
+latent back to the values of the signal, and the paper reports no
+forecast error. The time-series successors keep the contrastive loss
+and change the positive pairs: a subseries and a shorter subseries
+inside it in T-Loss~\citep{franceschi2019tloss}, temporal
+neighbourhoods in TNC~\citep{tonekaboni2021tnc}, and two augmented
+views of the same time step in TS2Vec~\citep{yue2022ts2vec}. These
+methods target classification and anomaly detection. TS2Vec also
+reports forecasts, from a ridge regression that it fits on the frozen
+representations of each dataset.
+
+The Joint Embedding Predictive Architecture
+(JEPA)~\citep{assran2023ijepa} comes from vision. A context encoder
+reads the visible part of an image. A target encoder reads the full
+image, and its latents of the masked blocks are the targets. The
+weights of the target encoder are an exponential moving average (EMA)
+of the weights of the context encoder. A predictor maps the context
+latents to the target latents with an $L^2$ loss. JEPA uses no
+negatives. The stop-gradient on the target branch and the asymmetric
+predictor prevent the collapse to a constant, which is a global
+minimum of the loss. TS-JEPA~\citep{ennadir2025tsjepa} applies this
+recipe to time series. It cuts each series into patches, masks
+$70\%$ of them, and trains with an $L^1$ loss in latent space. It
+trains one model for each dataset and evaluates it on classification
+and on forecasting. In its short-term forecast experiment, the
+autoregressive baseline of the paper has a lower error than TS-JEPA on
+two of the three datasets.
+LaT-PFN~\citep{verdenius2024latpfn} combines JEPA with a prior-data
+fitted network for zero-shot forecasting in context.
+LeJEPA~\citep{balestriero2025lejepa} removes the EMA teacher and the
+stop-gradient. It adds SIGReg, a regulariser that pushes the
+distribution of the embeddings to an isotropic Gaussian, and this
+regulariser prevents the collapse.
+
+
+Our model takes from each of these works. It forecasts the next patch
+with a causal transformer, as TimesFM~\citep{das2024timesfm} does. Its
+forecast is a latent, as in CPC and JEPA, and it must match an EMA
+target, as in JEPA. A contrastive loss with negatives, as in CPC, and
+the SIGReg regulariser of LeJEPA keep the latents away from collapse.
+Unlike CPC and TS-JEPA, it trains one model on many datasets for
+forecasting, and we score it with a forecast error on the GIFT-Eval
+benchmark~\citep{aksu2024gifteval}.
