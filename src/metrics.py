@@ -143,44 +143,26 @@ def dim_usage(z: Tensor, axis: int) -> Tensor:
 
     For isotropic random z, mean cos² ≈ 1/d so U → 1.
     For collinear z, cos² = 1 so U → 1/d.
+
+    The sum of cos² over all pairs (i, j) is the squared Frobenius norm of
+    Z^T Z, a d x d matrix, as well as of Z Z^T, an n x n matrix. The smaller
+    one gives the sum: n * d * min(n, d) multiply-adds in place of n * n * d.
+    The diagonal of Z Z^T holds |z_i|^4: 1 for a row, 0 for a zero row.
     """
     if axis < 0:
         axis += z.ndim
     assert axis != z.ndim - 1, "axis cannot be the feature dim"
-
-    # Move the n-axis to position 0, leaving (n, *fixed, d).
     z = z.movedim(axis, 0)
-    n = z.shape[0]
-    d = z.shape[-1]
+    n, d = z.shape[0], z.shape[-1]
     if n < 2:
         return torch.ones((), device=z.device, dtype=z.dtype)
-
     z_norm = F.normalize(z, p=2, dim=-1, eps=1e-12)
-    # Flatten fixed axes for batched matmul. Restore at end.
     fixed_shape = z_norm.shape[1:-1]
     flat = z_norm.reshape(n, -1, d).permute(1, 0, 2)   # (S, n, d)
-    # Materialising sim = flat @ flat.T is (S, n, n) — 16 GiB at n=65k
-    # (#369, B=1024). Accumulate Σ sim² row-chunk-wise so peak allocation
-    # is (S, chunk, n) instead. Chunk size settable via env for tuning.
-    chunk = int(os.environ.get("DIM_USAGE_CHUNK", "4096"))
-    if chunk <= 0 or chunk >= n:
-        sim = torch.matmul(flat, flat.transpose(-1, -2))   # (S, n, n)
-        sq = sim.pow(2)
-        sum_all = sq.sum(dim=(-1, -2))
-        sum_diag = torch.diagonal(sq, dim1=-2, dim2=-1).sum(dim=-1)
-    else:
-        S = flat.shape[0]
-        sum_all = torch.zeros(S, device=z.device, dtype=flat.dtype)
-        sum_diag = torch.zeros(S, device=z.device, dtype=flat.dtype)
-        flat_T = flat.transpose(-1, -2)  # (S, d, n)
-        for i in range(0, n, chunk):
-            j = min(i + chunk, n)
-            sim_chunk = torch.matmul(flat[:, i:j, :], flat_T)   # (S, c, n)
-            sq_chunk = sim_chunk.pow(2)
-            sum_all = sum_all + sq_chunk.sum(dim=(-1, -2))
-            # Diagonal entries at (k, i+k) within the chunk.
-            idx = torch.arange(i, j, device=z.device)
-            sum_diag = sum_diag + sq_chunk[:, torch.arange(j - i, device=z.device), idx].sum(dim=-1)
+    gram = (flat.transpose(-1, -2) @ flat if n > d
+            else flat @ flat.transpose(-1, -2))         # (S, min(n, d), min(n, d))
+    sum_all = gram.pow(2).sum(dim=(-1, -2))
+    sum_diag = flat.pow(2).sum(dim=-1).pow(2).sum(dim=-1)
     off_mean = (sum_all - sum_diag) / (n * (n - 1))
     u_per_slice = (1.0 / (d * off_mean.clamp_min(1e-12))).clamp_max(1.0)
     if fixed_shape:

@@ -1,6 +1,6 @@
 """Tests for src/metrics.py — diagnostic metrics for the backbone.
 
-Synthetic tensors only; no real backbone needed.
+Synthetic tensors only. No real backbone is needed.
 """
 
 import math
@@ -110,16 +110,28 @@ def test_dim_usage_collinear_is_one_over_d():
     assert u == pytest.approx(1.0 / d, abs=1e-3)
 
 
-def test_dim_usage_chunked_equals_unchunked(monkeypatch):
-    # The chunked accumulation path (#369, DIM_USAGE_CHUNK < n) must be
-    # numerically identical to the one-shot matmul path.
+def pairwise_dim_usage(z, axis):
+    """U from the explicit n x n matrix of the cosines of each slice."""
+    z = torch.nn.functional.normalize(z.movedim(axis, 0), dim=-1)
+    n, d = z.shape[0], z.shape[-1]
+    flat = z.reshape(n, -1, d).permute(1, 0, 2)
+    sq = (flat @ flat.transpose(-1, -2)).pow(2)
+    off = (sq.sum(dim=(-1, -2))
+           - torch.diagonal(sq, dim1=-2, dim2=-1).sum(dim=-1)) / (n * (n - 1))
+    return (1.0 / (d * off.clamp_min(1e-12))).clamp_max(1.0).mean()
+
+
+@pytest.mark.parametrize("shape,axis", [((64, 3, 16), 0), ((10, 3, 16), 0),
+                                        ((5, 40, 2, 8), 1)])
+def test_dim_usage_equals_the_pairwise_sum(shape, axis):
+    # On both sides of n = d: the d x d Gram matrix (n > d) and the n x n
+    # matrix (n <= d) give the sum of the cos² of all pairs (#425). A zero
+    # row stays a zero vector on both paths.
     torch.manual_seed(0)
-    z = torch.randn(64, 3, 16)  # (n=64, fixed=3, d=16)
-    monkeypatch.setenv("DIM_USAGE_CHUNK", "0")   # one-shot path
-    u_full = dim_usage(z, axis=0).item()
-    monkeypatch.setenv("DIM_USAGE_CHUNK", "7")   # chunked path, n % chunk != 0
-    u_chunked = dim_usage(z, axis=0).item()
-    assert u_chunked == pytest.approx(u_full, abs=1e-6)
+    z = torch.randn(*shape)
+    z.reshape(-1, shape[-1])[:2] = 0.0
+    assert dim_usage(z, axis=axis).item() == pytest.approx(
+        pairwise_dim_usage(z, axis).item(), rel=1e-5)
 
 
 def test_u_batch_isotropic_near_one():
@@ -154,7 +166,7 @@ def test_retrieval_forecast_equals_past_lag():
     torch.manual_seed(0)
     B, T, C, H = 4, 32, 3, 16
     h_full = torch.randn(B, T + 1, C, H)
-    # f[t] = h[t-1] (so f exactly matches the k=1 negative; positive can't beat it).
+    # f[t] = h[t-1], so f exactly matches the k=1 negative. The positive can't beat it.
     f = torch.empty(B, T, C, H)
     for t in range(T):
         f[:, t, :, :] = h_full[:, max(t - 1, 0), :, :]
@@ -162,7 +174,7 @@ def test_retrieval_forecast_equals_past_lag():
     # k=1 negative IS f itself → sim=1, positive can never beat it → Top1=0.
     assert top1.item() == pytest.approx(0.0, abs=1e-6)
     # AUC: positive can still beat negatives k∈{2,4,8} at ~chance, never k=1.
-    # Mean over 4 negatives ≤ 3/4; with 0 from k=1 and ~0.5 from others ≈ 0.375.
+    # Mean over 4 negatives ≤ 3/4. With 0 from k=1 and ~0.5 from the others, ≈ 0.375.
     assert auc.item() < 0.6
 
 
@@ -224,7 +236,7 @@ def test_m_z_perfect_high_d_is_large():
     sim_pos = torch.tensor([1.0])
     sim_neg = (pos_vec.unsqueeze(0) * neg_vecs).sum(-1).unsqueeze(0)  # (1, N)
     z = m_z(sim_pos, sim_neg).item()
-    # In dim 256, √d ≈ 16; tolerate noise.
+    # In dim 256, √d ≈ 16. Tolerate noise.
     assert 12 < z < 20, f"m_z={z}, expected ≈ √d ≈ 16"
 
 
@@ -344,7 +356,7 @@ def test_retrieval_topk_brute_force_oracle():
     # Independent oracle: enumerate every (b, t, b', k) explicitly and
     # compute the expected negative sim from the documented layout
     # h_full[b', t+1-k, c, :]. The product-structure test above uses the
-    # same vectorized slice as the impl; an off-by-one introduced in
+    # same vectorized slice as the impl. An off-by-one introduced in
     # both would pass that test. This loop has no shared slicing logic
     # with the impl, so it catches alignment bugs.
     torch.manual_seed(7)
@@ -380,7 +392,7 @@ def test_retrieval_topk_brute_force_oracle():
     sim_pos_expected = torch.nn.functional.cosine_similarity(
         f[:, max_lag:T, :, :], h_full[:, max_lag + 1:T + 1, :, :], dim=-1
     )
-    # AUC and MRR are order-invariant in the neg axis; the impl's
+    # AUC and MRR are order-invariant in the neg axis. The impl's
     # internal lag/batch interleaving doesn't have to match `slot`.
     beats_expected = (sim_pos_expected.unsqueeze(-1) > expected_sim_neg).float()
     auc_expected = beats_expected.mean(dim=-1).mean()
@@ -511,7 +523,7 @@ def test_retrieval_auc_topk_sim_neg_einsum_equals_gather(B, T, H):
 
 def test_drift_pair_identity_is_zero():
     """Same tensor twice → drift_cos = drift_cos_aligned = rot_gap = 0,
-    cka = 1. The base case; anything else means the metric is buggy."""
+    cka = 1. The base case. Anything else means the metric is buggy."""
     torch.manual_seed(0)
     A = torch.randn(16, 32, 1, 24)
     m = drift_pair(A, A)
@@ -576,7 +588,7 @@ def test_drift_pair_independent_random_saturates_metrics():
     B = torch.randn_like(A)
     m = drift_pair(A, B)
     assert 0.8 <= m["drift_cos"].item() <= 1.2
-    # Even orthogonal alignment can't remove independence; residual is
+    # Even orthogonal alignment can't remove independence. The residual is
     # still O(1). Only require it stayed non-trivially positive.
     assert m["drift_cos_aligned"].item() > 0.3
     # Two independent random tensors on N = 32·128·1 = 4096 samples,
