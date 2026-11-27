@@ -81,6 +81,63 @@ The scores after 250 steps come from a second run of the first 250 steps of S256
 With the normalised rollout, the best stops of grey (1.0269 at 240k), yellow (1.0304 at 200k) and violet (1.0208 at 460k) are below blue at 180k (1.0482).
 Grey at 200k gets 1.0215 with the normalised rollout, its lowest score.
 
+## The 6 + 6 models: possibly the best architecture
+
+![GM-Relative MASE of the width-320 6 + 6 runs and of their cooldowns](plots/w320_6p6_cooldowns.png)
+
+The 6 + 6 models have 6 encoder layers and 6 forecaster layers.
+At width 320, they have 15.5M parameters, and MPE has 14.4M.
+At width 64, they have 1.0M parameters.
+Each run has batch 256 and 166k steps: a warmup of 10k steps to 1e-3, then a constant rate of 1e-3.
+Green at width 320 gets the lowest GM-Relative MASE of the 6 + 6 runs: 0.9260 at 150k.
+At 50k, green gets 0.9325, and MPE gets 0.9831.
+The lowest score of MPE is 0.9362, at 166k.
+Light blue at width 320 gets 0.9313 at 150k and 0.9342 at 166k.
+At width 64, light blue gets 0.9841 at 150k, and green gets 0.9854 at 75k.
+
+L_align compares the rollout of the student with the teacher at different distances, with the cosine.
+Green, light blue and grey give different weights to these distances:
+
+- Green: the weight 10 at each distance from 1 to 4, thus the sum of the 4 terms. The total weight is 40.
+- Light blue: the weight 20/2^(d-1) at each distance d from 1 to 32. The total weight is 40.
+- Grey (grey-384, and the runs with the 32 distances of grey): the weight 10/d at each distance d from 1 to 32. The total weight is 40.6.
+
+Thus, the three families keep the same total weight of L_align: approximately 40.
+The tau 0.3 runs have no L_align and no L_rep.
+They use the joint teacher fraction of PR #470: a contrastive loss, one InfoNCE at each rollout depth, with the temperature 0.3.
+
+The conclusion of the user (11-27):
+
+1. The family of light blue and grey (many distances, with weights that decrease with the distance) gives good scores, but it converges very slowly.
+2. Green converges faster.
+3. The important thing is to keep the total weight of L_align.
+4. The contrastive models (tau 0.3) are promising, but their score diverges: it increases after a low point. It is not clear if this is a double descent or a misalignment of the objectives.
+5. But these models learn very quickly. Sometimes they get their lowest score after only 50k steps.
+6. Possibly these models scale with much less training: much fewer tokens for the same score.
+
+The data for this conclusion:
+
+- At width 320 and 50k, green gets 0.9325 and light blue gets 0.9545. Light blue gets 0.9330 at 75k.
+- At width 64 and 75k, green gets 0.9854 and light blue gets 0.9981. Light blue gets its lowest score, 0.9841, at 150k.
+- At width 384, with 2 encoder layers and 4 forecaster layers, tau 0.3 gets 0.9320 at 50k. This score is lower than the score of MPE at 166k. Then its score increases to 0.9497 at 166k.
+- At width 320, tau 0.3 gets 0.9449 at 50k, 0.9512 at 75k, 0.9353 at 125k and 0.9394 at 166k.
+- At width 64, tau 0.3 gets 1.0000 at 10k, 1.0195 at 50k and 0.9956 at 150k.
+
+Each cooldown starts from the 125k checkpoint of its run.
+It divides the learning rate by 2 at each 4,114 steps, to 1e-6 at 166k.
+The maximum difference between the two seeds of the green cooldown is 0.0053, at 150k (0.9368 and 0.9315).
+At width 320 and 166k, the cooldown changes the score of green, light blue and tau 0.3 by less than this difference.
+Green gets 0.9296 and 0.9324 with the cooldown (two seeds), and 0.9303 without it.
+Light blue gets 0.9376 with the cooldown and 0.9342 without it.
+Tau 0.3 gets 0.9358 with the cooldown and 0.9394 without it.
+Only tau 0.3 with the 32 distances of grey gets a larger decrease: 0.9491 with the cooldown and 0.9646 without it.
+At width 64, the cooldown decreases the score at 166k by 0.006 to 0.009 for each run.
+A second cooldown of green starts from the 100k checkpoint and divides the learning rate by 2 at each 6,623 steps.
+It gets 0.9333 at 125k.
+Its scores at 150k and 166k are not available at this time.
+`results/scores_6p6.tsv` holds the GM-Relative MASE of each 6 + 6 run and of MPE at each stop, with the names of the runs.
+It gives the score on the 97 configs and on the short, medium and long horizons.
+
 ## Cosine schedule and cooldown at width 384
 
 ![GM-Relative MASE of green-384 with three schedules of the learning rate](plots/schedule_cosine_vs_cooldown.png)
