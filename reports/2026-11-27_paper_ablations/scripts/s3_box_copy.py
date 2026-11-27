@@ -17,7 +17,9 @@ is a whole zip file (the format of torch.save).
         Put the newest pair of the run in S3 (a backbone and its optimizer
         file) in the ckpt folder of the run on a new box, with the ETag
         check. It refuses a box with no setup_done_<run> (setup_box.sh) or
-        with a .pth file of the run.
+        with a .pth file of the run. At a failure it removes both files of
+        the pair from the box and ends with exit code 1: start the box only
+        after exit code 0.
 
 Keys: s3://model.artifacts/manual/cf_runs/cf-482/<run>/ckpt/<file>. The
 client reads the AWS profile of the pullers (upload_and_delete_pth.py).
@@ -280,19 +282,26 @@ def newest_stop_pair(run, names, stops):
 
 def seed(box, client, run, box_h, log):
     """Put the newest pair of the run in S3 in its ckpt folder on the box.
-    Returns the name of the pair."""
+    Returns the name of the pair. At a failure no file of the pair stays
+    on the box: with a half pair the run script starts from step 0."""
     folder, prefix = f"{box_h}/{run}/ckpt", ckpt_prefix(run)
     check_new_box(box, run, box_h, folder)
     held = s3_objects(client, prefix)
     whole = saves(run, held)
     if not whole:
         raise SystemExit(f"no pair of {run} in s3://{BUCKET}/{prefix}/")
-    backbone = whole[max(whole)]
-    box.run(f"mkdir -p {folder}")
-    for name in (backbone, optimizer_of(backbone)):
-        get_to_box(box, client, f"{prefix}/{name}", f"{folder}/{name}", held[name])
-        log(f"{name}: on the box, ETag {held[name][1]} = the S3 object")
-    return backbone[:-4]
+    pair = (whole[max(whole)], optimizer_of(whole[max(whole)]))
+    box.run(f"mkdir -p {shlex.quote(folder)}")
+    try:
+        for name in pair:
+            get_to_box(box, client, f"{prefix}/{name}", f"{folder}/{name}", held[name])
+    except SystemExit:
+        box.run("rm -f " + " ".join(shlex.quote(f"{folder}/{name}{end}")
+                                    for name in pair for end in ("", ".part")))
+        raise
+    log(f"{pair[0][:-4]}: the pair on the box, each ETag = the S3 object; "
+        "the run script resumes from it")
+    return pair[0][:-4]
 
 
 def check_new_box(box, run, box_h, folder):
@@ -314,7 +323,10 @@ def get_to_box(box, client, key, path, held):
         box.run(f"rm -f {shlex.quote(part)}")
         raise SystemExit(f"{key}: not the bytes of S3 on the box "
                          f"(curl exit code {code} {error})")
-    box.run(f"mv {shlex.quote(part)} {shlex.quote(path)}")
+    moved = box.run(f"mv {shlex.quote(part)} {shlex.quote(path)}")
+    if moved.returncode:
+        raise SystemExit(f"{key}: the move of {part} to {path} failed "
+                         f"(exit code {moved.returncode})")
 
 
 def main(argv=None):
@@ -339,7 +351,7 @@ def main(argv=None):
         copy_poll(box, client, a.run, {int(s) for s in a.stops.split()}, a.box_h,
                   a.record, log)
     else:
-        log(f"{seed(box, client, a.run, a.box_h, log)}: the run script resumes from it")
+        seed(box, client, a.run, a.box_h, log)
     return 0
 
 

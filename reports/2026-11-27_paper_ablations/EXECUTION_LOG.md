@@ -101,9 +101,11 @@ follower of #425 does it on the box, beside the training
 (`start_follow_w320e6f6_box.sh`).
 
 The flow of one box. The box scripts are in `scripts/`. A new box uses
-their copy in `/home/jupyter/cf_runs/cf-482/tools_r2/` (round 2). The boxes
-of round 1 keep `tools_r1/`. The box keeps the layout `/workspace/hp64` of
-#425.
+their copy in `/home/jupyter/cf_runs/cf-482/tools_r3/`. The boxes of round 1
+keep `tools_r1/`, and rows 4 and 6 started with `tools_r2/`. `tools_r3` is
+`tools_r2` with one fix of the seed (a failed move of a file of the pair
+stops the seed). The copy to S3 is the same in both. The box keeps the
+layout `/workspace/hp64` of #425.
 
 1. `rent_box.sh` of #425 (1 x RTX 5090).
 2. `setup_box.sh`: the setup of #425, the run code, the run folder, the
@@ -161,14 +163,16 @@ When the box of a run stops for good:
    stops at or after the step of the pair: the new box holds no backbone of
    an earlier stop. S3 holds the backbone of each stop in `<run>/ckpt/`.
 4. Read the credit, then rent a new box as for a first start.
-5. `setup_box.sh` of `tools_r2` with the same `CODE`, `RUN` and
+5. `setup_box.sh` of `tools_r3` with the same `CODE`, `RUN` and
    `HEAD_CODE`.
-6. `python3 tools_r2/s3_box_copy.py seed <run> <box> <port>` (the rnd venv):
+6. `python3 tools_r3/s3_box_copy.py seed <run> <box> <port>` (the rnd venv):
    the box downloads the pair from S3 with presigned GET URLs into
    `<run>/ckpt/`, and the ETag of each file must equal the S3 ETag. It
    refuses a box with no `setup_done_<run>` or with a `.pth` file of the
-   run.
-7. `STOPS="<the stops of step 3>" start_box.sh` of `tools_r2`. The run script
+   run. At a failure it removes the pair from the box and ends with exit
+   code 1. Go to step 7 only after exit code 0: with a half pair the run
+   script starts from step 0.
+7. `STOPS="<the stops of step 3>" start_box.sh` of `tools_r3`. The run script
    resumes from the pair (`--resume`) and writes `<run>_r2_<k>k.pth`. The
    follower waits for each stop in the order of `STOPS`.
 8. Write the new box in `cf-482/boxes.tsv`.
@@ -177,7 +181,7 @@ Destroy the old box only under the rules of `CLAUDE.md`.
 
 The pullers of `tools_r1` (the boxes of round 1) send each stop backbone
 through elisa and no optimizer file. To move a running row to the puller of
-`tools_r2`: stop its puller as in step 1, then start `tools_r2/pull_box.sh`
+`tools_r3`: stop its puller as in step 1, then start `tools_r3/pull_box.sh`
 with the same variables. This changes no file on the box. The new puller
 accepts the backbones that the old puller sent in parts: it compares the
 multipart ETag.

@@ -145,7 +145,7 @@ class MemoryBox:
     def __init__(self, s3, files, whole=lambda path: True):
         self.s3, self.files, self.whole = s3, dict(files), whole
         self.commands, self.stdins = [], []
-        self.curl_exit = 0
+        self.curl_exit, self.fail_mv = 0, None
 
     def run(self, command, stdin=""):
         self.commands.append(command)
@@ -166,9 +166,12 @@ class MemoryBox:
         if words[0] == "cut":
             return self.out(self.files.get(words[-1], b"").decode()[:4 + len(RUN)])
         if words[0] == "mv":
+            if self.fail_mv and words[1].endswith(self.fail_mv + ".part"):
+                return self.out("", 1, "mv: cannot move")
             self.files[words[2]] = self.files.pop(words[1])
         if words[:2] == ["rm", "-f"]:
-            self.files.pop(words[2], None)
+            for path in words[2:]:
+                self.files.pop(path, None)
         return self.out("")
 
     def curl(self, words, stdin):
@@ -308,6 +311,19 @@ def test_the_seed_refuses_a_box_with_a_checkpoint():
     box.files[f"{BOX_DIR}/{RUN}_5k.pth"] = b"x"
     with pytest.raises(SystemExit, match="holds a .pth"):
         bc.seed(box, s3, RUN, "/box", print)
+
+
+@pytest.mark.parametrize("which", [0, 1])
+def test_a_failed_move_stops_the_seed_with_no_file_of_the_pair(which):
+    # Sol, round 2: a half pair on the box starts the run from step 0.
+    s3 = MemoryS3({f"{PREFIX}/{n}": n.encode() * 9 for n in save(25)})
+    box = new_box(s3)
+    box.fail_mv = save(25)[which]
+    lines = []
+    with pytest.raises(SystemExit, match="move"):
+        bc.seed(box, s3, RUN, "/box", lines.append)
+    assert lines == []
+    assert not [p for p in box.files if p.startswith(BOX_DIR)]
 
 
 def test_the_seed_removes_a_download_with_other_bytes():

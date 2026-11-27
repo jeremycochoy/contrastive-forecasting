@@ -5,16 +5,14 @@ ok: step 3: a save that is not whole stays out of S3
 ok: step 4: the 25k pair on the new box, the same bytes
 ok: step 5: no seed on a box that holds a .pth file
 ok: step 6: no output holds a presigned URL
-2026-11-27T16:30:51Z r2_box_copy_check: r2_box_copy_check_10k.pth: in S3, ETag 0c1282b3c47f93db70c1d23de1959280 = the box file
-2026-11-27T16:30:52Z r2_box_copy_check: r2_box_copy_check_10k_optimizer.pth: in S3, ETag 561b274681b412112b0abe64095bc1a2 = the box file
-2026-11-27T16:31:03Z r2_box_copy_check: r2_box_copy_check_25k.pth: in S3, ETag 6a8080aa451ff549219ee90b81fd4164 = the box file
-2026-11-27T16:31:05Z r2_box_copy_check: r2_box_copy_check_25k_optimizer.pth: in S3, ETag a0ef4b9a72910c31377bae0f1e8e2532 = the box file
-2026-11-27T16:31:06Z r2_box_copy_check: r2_box_copy_check_25k_optimizer.pth: the newest pair in S3; deleted ['manual/cf_runs/cf-482/r2_box_copy_check/ckpt/r2_box_copy_check_10k_optimizer.pth']
-2026-11-27T16:31:13Z r2_box_copy_check: r2_box_copy_check_50k.pth: not a whole file on the box yet; next poll
-2026-11-27T16:31:13Z r2_box_copy_check: r2_box_copy_check_50k_optimizer.pth: not a whole file on the box yet; next poll
-2026-11-27T16:31:22Z r2_box_copy_check: r2_box_copy_check_25k.pth: on the box, ETag 6a8080aa451ff549219ee90b81fd4164 = the S3 object
-2026-11-27T16:31:23Z r2_box_copy_check: r2_box_copy_check_25k_optimizer.pth: on the box, ETag a0ef4b9a72910c31377bae0f1e8e2532 = the S3 object
-2026-11-27T16:31:23Z r2_box_copy_check: r2_box_copy_check_25k: the run script resumes from it
+2026-11-27T17:06:31Z r2_box_copy_check: r2_box_copy_check_10k.pth: in S3, ETag 0c1282b3c47f93db70c1d23de1959280 = the box file
+2026-11-27T17:06:33Z r2_box_copy_check: r2_box_copy_check_10k_optimizer.pth: in S3, ETag 561b274681b412112b0abe64095bc1a2 = the box file
+2026-11-27T17:06:50Z r2_box_copy_check: r2_box_copy_check_25k.pth: in S3, ETag 6a8080aa451ff549219ee90b81fd4164 = the box file
+2026-11-27T17:07:11Z r2_box_copy_check: r2_box_copy_check_25k_optimizer.pth: in S3, ETag a0ef4b9a72910c31377bae0f1e8e2532 = the box file
+2026-11-27T17:07:12Z r2_box_copy_check: r2_box_copy_check_25k_optimizer.pth: the newest pair in S3; deleted ['manual/cf_runs/cf-482/r2_box_copy_check/ckpt/r2_box_copy_check_10k_optimizer.pth']
+2026-11-27T17:07:19Z r2_box_copy_check: r2_box_copy_check_50k.pth: not a whole file on the box yet; next poll
+2026-11-27T17:07:20Z r2_box_copy_check: r2_box_copy_check_50k_optimizer.pth: not a whole file on the box yet; next poll
+2026-11-27T17:07:34Z r2_box_copy_check: r2_box_copy_check_25k: the pair on the box, each ETag = the S3 object; the run script resumes from it
 the box holds a .pth file of r2_box_copy_check in /tmp/cf482_r2/s3copy/box2/r2_box_copy_check/ckpt
 ok: S3 holds no file of r2_box_copy_check at the end
 exit 0
