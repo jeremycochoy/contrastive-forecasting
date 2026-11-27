@@ -145,3 +145,44 @@ def test_the_trainer_refuses_an_e_then_f_head_that_it_cannot_train(flags, why):
 def test_the_trainer_takes_the_other_layouts(flags):
     module = trainer()
     module.refuse_head_input(head_args(module, *flags))
+
+
+def test_one_pass_gives_the_encoder_latents():
+    """with_encoder: the encoder latents of the forecaster pass are those of
+    extract_encoder_latents, bit for bit. So a head step on e_then_f runs the
+    patch encoder once."""
+    backbone, x = tiny_backbone(), batch()
+    f_bc, x_norm = extract_forecaster_latents(backbone, x)
+    f_one, x_norm_one, e_one = extract_forecaster_latents(
+        backbone, x, with_encoder=True)
+    e_bc, _ = extract_encoder_latents(backbone, x)
+    assert torch.equal(f_one, f_bc) and torch.equal(x_norm_one, x_norm)
+    assert torch.equal(e_one, e_bc)
+
+
+def test_e_then_f_of_the_one_pass_is_the_same_input():
+    backbone, x, f_bc, (seq, mask, start) = layout("e_then_f")
+    _, _, e_bc = extract_forecaster_latents(backbone, x, with_encoder=True)
+    seq_one, mask_one, start_one = forecast_head_input(
+        backbone, x, f_bc, "e_then_f", e_bc=e_bc)
+    assert torch.equal(seq_one, seq) and torch.equal(mask_one, mask)
+    assert start_one == start
+
+
+@pytest.mark.parametrize("size", [8, 32, 64])
+def test_one_pass_at_each_patch_size(size):
+    """The head bank reads each patch size of a multi-patch backbone (#417)
+    from a normalised input."""
+    torch.manual_seed(0)
+    backbone = ConfigurableModel(
+        C=1, H=16, W=16, encoder_type="gru", num_layers=1, nhead=2,
+        ffn_mult=2.0, activation="gelu", depthwise_conv=3, dropout=0.0,
+        rev_norm_kind="ewma", rev_norm_span=16, num_encoder_layers=1,
+        freq_emb_dim=3, seasonality_emb_dim=3,
+        multi_patch_sizes=(8, 16, 32, 64)).eval()
+    x_norm = backbone.rev_norm(batch(), mode="norm")
+    kw = dict(patch_size=size, normalised=True)
+    _, _, e_one = extract_forecaster_latents(backbone, x_norm,
+                                             with_encoder=True, **kw)
+    e_bc, _ = extract_encoder_latents(backbone, x_norm, **kw)
+    assert torch.equal(e_one, e_bc)
