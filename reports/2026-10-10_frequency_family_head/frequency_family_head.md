@@ -134,13 +134,15 @@ Light blue gets 0.9376 with the cooldown and 0.9342 without it.
 Tau 0.3 gets 0.9358 with the cooldown and 0.9394 without it.
 Only tau 0.3 with the 32 distances of grey gets a larger decrease: 0.9491 with the cooldown and 0.9646 without it.
 At width 64, the cooldown decreases the score at 166k by 0.006 to 0.009 for each run.
+With the cooldown, light blue at width 64 gets 0.9939 at 140k, 0.9901 at 150k and 0.9893 at 166k.
 At 166k, the difference between the two seeds of the green cooldown is 0.004 or less on each horizon.
 On the short horizons, they are lower than green without the cooldown (0.8366 and 0.8403 against 0.8499).
 On the medium horizons, they are higher (1.0772 and 1.0783 against 1.0642).
 On the long horizons, they are also higher (1.0575 and 1.0587 against 1.0308).
 A second cooldown of green starts from the 100k checkpoint and divides the learning rate by 2 at each 6,623 steps.
-It gets 0.9333 at 125k.
-Its scores at 150k and 166k are not available at this time.
+It gets 0.9333 at 125k and 0.9382 at 150k.
+At 150k, this score is higher than the scores of green without the cooldown (0.9260) and of the two cooldowns from 125k (0.9368 and 0.9315).
+Its score at 166k is not available at this time.
 `results/scores_6p6.tsv` holds the GM-Relative MASE of each 6 + 6 run and of MPE at each stop, with the names of the runs.
 It gives the score on the 97 configs and on the short, medium and long horizons.
 
