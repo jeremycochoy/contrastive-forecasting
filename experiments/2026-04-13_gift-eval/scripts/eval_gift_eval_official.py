@@ -89,6 +89,7 @@ from src.freq_family import (
 )
 from src.block_head import (BlockSizeHead, block_head_sizes, block_trunk_mode,
                             block_trunk_state)
+from src.gluonts_speed import use_fast_gluonts
 
 
 # ============================================================================
@@ -1091,6 +1092,9 @@ def load_models(args, device):
 def main():
     args = parse_args()
     device = torch.device(args.device)
+    # The eval spent 75% of its time in gluonts, on the seasonal error of the
+    # MASE and on quantile names. The same floats, 3.9 times faster (#425).
+    use_fast_gluonts()
 
     # Load models
     print("Loading models...")
