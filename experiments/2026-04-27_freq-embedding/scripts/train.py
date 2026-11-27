@@ -386,8 +386,8 @@ def build_parser():
                             "transformer", "timesfm"],
                    help="Patch encoder type. Default 'gru' (matches all backbone-beta runs). "
                         "'timesfm' is the residual block of TimesFM: an MLP "
-                        "of the patch vector plus a linear map, then a layer "
-                        "normalisation (#482). "
+                        "of the patch vector plus a linear map, with no "
+                        "layer normalisation (#482). "
                         "'transformer' replaces GRU+skip with a small decoder-only "
                         "causal transformer (Linear(W'->H) + N layers attending over T).")
     p.add_argument("--enc-num-layers", type=int, default=4,
@@ -564,7 +564,10 @@ def build_parser():
                         "whole window, and every term (L_align at each "
                         "distance, L_rep with its keys, SIGReg) keeps only "
                         "the anchors whose next patch starts after the "
-                        "context. The checkpoint and the eval are those of "
+                        "context. A window with fewer than two whole "
+                        "patches of real values has no target after its "
+                        "context, and no term reads it. The checkpoint and "
+                        "the eval are those of "
                         "meanstd. Set --meanstd-z-max 0 for no window "
                         "filter. Default off.")
     p.add_argument("--skip-nan-samples", action="store_true",
@@ -1183,17 +1186,22 @@ def group_forward(model, x_norm, labels, size, args, pad=None):
         rollout=forecaster_depths(model, f, o, args, pad))
 
 
-def group_padding(pad_mask, rows, size, active, shape, start_mask=None):
+def group_padding(pad_mask, rows, size, active, shape, start_mask=None,
+                  no_target=None):
     """``[n, T, C]`` bool: the patches of one group that no term may read
     (#419, #412), its zero padding, the patches whose next patch starts in
-    the EWMA's first window (start_window_anchors) and every patch of an
-    inert row. None when the group has none. ``shape`` is the step's
-    ``[B, T_raw, C]``."""
+    the EWMA's first window or in the context (start_window_anchors), every
+    patch of a window with no target (``no_target``, ``[B, 1, C]``, #482)
+    and every patch of an inert row. None when the group has none.
+    ``shape`` is the step's ``[B, T_raw, C]``."""
     pad = (None if pad_mask is None
            else patch_padding(take_rows(pad_mask, rows), size))
     if start_mask is not None:
         start = start_window_anchors(take_rows(start_mask, rows), size)
         pad = start if pad is None else pad | start
+    if no_target is not None:
+        whole = take_rows(no_target, rows).expand(-1, shape[1] // size, -1)
+        pad = whole if pad is None else pad | whole
     if active is None:
         return pad
     inert = ~take_rows(active, rows).view(-1, 1, 1)
@@ -1446,7 +1454,8 @@ def contrastive_objective(model, inputs, args, multi_patch_sizes, active=None,
                                   x_norm.shape))
             for size, rows in groups.items()}
     pads = {size: group_padding(inputs["pad_mask"], rows, size, active,
-                                x_norm.shape, inputs.get("start_mask"))
+                                x_norm.shape, inputs.get("start_mask"),
+                                inputs.get("no_target"))
             for size, rows in groups.items()}
     counts = {size: (len(lats[size].o) if active is None
                      else int(take_rows(active, rows).sum()))
@@ -2248,6 +2257,18 @@ def step_start_mask(args, model, target_mask):
     if args.meanstd_no_leak:
         return ~target_mask
     return getattr(model.rev_norm, "start_mask", None)
+
+
+def no_target_windows(args, target_mask):
+    """``[B, 1, C]`` bool, the ``no_target`` of the step inputs: the windows
+    that no term may read (``group_padding``), or None. Under
+    --meanstd-no-leak (#482) a window with no target after its context:
+    no patch of it starts after the context, so no anchor of it may enter a
+    term, and none of its latents may enter one as a key or a sample (#475:
+    the rule holds for every term). None on every other run."""
+    if not args.meanstd_no_leak:
+        return None
+    return ~target_mask.any(dim=1, keepdim=True)
 
 
 def contrastive_padding(model, args):
@@ -3415,7 +3436,8 @@ def main():
                   "leak. Each window draws a context of 1 patch to half of "
                   "its whole patches of real values. loc and scale come from "
                   "the context, and each term keeps only the anchors whose "
-                  "next patch starts after it.")
+                  "next patch starts after it. No term reads a window with "
+                  "no target after its context.")
         else:
             print(f"Scaling (#421): the mean/std scaling of Moirai 1.0. Each "
                   f"window draws a target fraction r ~ U[0.15, 0.5] of its whole "
@@ -3803,6 +3825,7 @@ def main():
                 x_norm=x_norm, sample_sizes=sample_sizes,
                 target_mask=target_mask, pad_mask=pad_mask,
                 start_mask=step_start_mask(args, model, target_mask),
+                no_target=no_target_windows(args, target_mask),
                 freq_ids=freq_ids, freq_embs=freq_embs,
                 seasonality_ids=seasonality_ids,
                 seasonality_embs=seasonality_embs)
