@@ -133,25 +133,23 @@ def test_zero_time_scale_embedding_needs_a_table(train_py, monkeypatch,
 # ---------------------------------------------------------------------------
 
 def test_the_timesfm_block_has_the_names_and_widths_of_timesfm():
+    # The ResidualBlock of TimesFM v1 has these three layers and no layer
+    # normalisation (pytorch_patched_decoder.py).
     from src.encoders import create_encoder
     enc = create_encoder("timesfm", 22, 32)
     shapes = {k: tuple(v.shape) for k, v in enc.state_dict().items()}
     assert shapes == {
         "hidden_layer.0.weight": (32, 22), "hidden_layer.0.bias": (32,),
         "output_layer.weight": (32, 32), "output_layer.bias": (32,),
-        "residual_layer.weight": (32, 22), "residual_layer.bias": (32,),
-        "layer_norm.weight": (32,), "layer_norm.bias": (32,)}
+        "residual_layer.weight": (32, 22), "residual_layer.bias": (32,)}
 
 
-def test_the_timesfm_block_is_an_mlp_plus_a_linear_map_then_a_layer_norm():
+def test_the_timesfm_block_is_an_mlp_plus_a_linear_map():
     from src.encoders import create_encoder
     enc = create_encoder("timesfm", 22, 32)
     x = torch.randn(2, 5, 1, 22)
     mlp = enc.output_layer(torch.nn.functional.silu(enc.hidden_layer[0](x)))
-    want = torch.nn.functional.layer_norm(
-        mlp + enc.residual_layer(x), (32,), enc.layer_norm.weight,
-        enc.layer_norm.bias)
-    assert torch.allclose(enc(x), want, atol=1e-6)
+    assert torch.equal(enc(x), mlp + enc.residual_layer(x))
     assert enc(x).shape == (2, 5, 1, 32)
 
 
@@ -275,28 +273,127 @@ def test_the_statistics_read_the_context_only():
     assert torch.equal(x_norm[~target], y_norm[~target])
 
 
+# 20 real values at W = 16 hold one whole patch: the window has no target
+# after its context (Sol, PR #484).
+SHORT = 20
+
+
+def window_masks(train_py, m, target, args):
+    """The ``start_mask`` and ``no_target`` inputs of a step, as the trainer
+    builds them."""
+    return (train_py.step_start_mask(args, m, target),
+            train_py.no_target_windows(args, target))
+
+
 def test_no_kept_anchor_reads_a_statistic_of_its_target(train_py):
     from src.forecasting_head import mean_std_inputs
-    m, x = meanstd_model(), padded_walks()
+    m, x = meanstd_model(), padded_walks((T_RAW, 700, SHORT, 300, 31))
     torch.manual_seed(2)
     _, _, target = mean_std_inputs(m, x, short_context=True)
     args = SimpleNamespace(meanstd_no_leak=True)
-    start = train_py.step_start_mask(args, m, target)
-    pad = train_py.group_padding(m.rev_norm.pad_mask, None, P, None,
-                                 x.shape, start)
+    pad = train_py.group_padding(m.rev_norm.pad_mask, None, P, None, x.shape,
+                                 *window_masks(train_py, m, target, args))
     ends = (~target).sum(dim=1).view(-1)          # the context of each row
     for b, end in enumerate(ends.tolist()):
-        for t in range(T_RAW // P - 1):
+        for t in range(T_RAW // P):               # the final patch too
             padding = bool(m.rev_norm.pad_mask[b, t * P:(t + 1) * P].all())
-            # Kept: the next patch starts after the context.
-            assert bool(pad[b, t, 0]) == (padding or (t + 1) * P < end)
+            # Kept: the window has a target, and the next patch of the
+            # anchor starts after the context.
+            closed = padding or end == T_RAW or (t + 1) * P < end
+            assert bool(pad[b, t, 0]) == closed, (b, t)
 
 
-def test_without_the_flag_the_start_mask_is_the_normaliser_s(train_py):
+def test_without_the_flag_the_masks_are_the_normaliser_s(train_py):
     m = meanstd_model()
     target = torch.zeros(2, T_RAW, 1, dtype=torch.bool)
     args = SimpleNamespace(meanstd_no_leak=False)
     assert train_py.step_start_mask(args, m, target) is None
+    assert train_py.no_target_windows(args, target) is None
+
+
+def no_leak_run(train_py):
+    """The flags of row 4 at the tiny size, the loss configured as the
+    trainer configures it, and a model of these flags with no dropout."""
+    args = train_py.parse_args([*TINY_GREEN, "--rev-norm-kind", "meanstd",
+                                "--meanstd-no-leak", "--meanstd-z-max", "0"])
+    train_py.configure_loss_spec(args)
+    torch.manual_seed(0)
+    model = ConfigurableModel(
+        C=1, H=16, W=P, encoder_type="gru", num_layers=1, nhead=2,
+        dropout=0.0, num_encoder_layers=1, rev_norm_kind="meanstd",
+        rev_norm_skip_leading_zeros=True, freq_emb_dim=3,
+        seasonality_emb_dim=3, qk_norm=True, attn_out_norm=True,
+        latent_sphere=True, ema_embedding=True, ema_encoder=True)
+    return args, model
+
+
+def no_leak_inputs(train_py, m, args, x):
+    """The step inputs of the windows ``x``, as the trainer builds them
+    under --meanstd-no-leak, with the splits of the seed 5."""
+    from src.forecasting_head import mean_std_inputs
+    torch.manual_seed(5)
+    x_norm, _, target = mean_std_inputs(m, x, short_context=True)
+    ids = torch.zeros(x.shape[0], dtype=torch.long)
+    start, no_target = window_masks(train_py, m, target, args)
+    return dict(x_norm=x_norm, sample_sizes=None, target_mask=target,
+                pad_mask=m.rev_norm.pad_mask, start_mask=start,
+                no_target=no_target, freq_ids=ids, freq_embs=None,
+                seasonality_ids=ids, seasonality_embs=None)
+
+
+@pytest.fixture
+def loss_calls(train_py, monkeypatch):
+    """The value of each call of ``contrastive_latent_loss``: the main loss
+    of a step, then its copy at each rollout depth (L_align at each
+    distance). The copies call the function of ``src.loss``."""
+    import src.loss
+    real, calls = src.loss.contrastive_latent_loss, []
+
+    def spy(*a, **k):
+        out = real(*a, **k)
+        calls.append(out.detach().item())
+        return out
+    monkeypatch.setattr(src.loss, "contrastive_latent_loss", spy)
+    monkeypatch.setattr(train_py, "contrastive_latent_loss", spy)
+    return calls
+
+
+def term_values(train_py, m, inputs, args, calls):
+    """{term: value} of the step objective: the loss, each term that the
+    objective logs, SIGReg on e and on h, and the loss calls."""
+    calls.clear()
+    loss, _, _, extra = train_py.contrastive_objective(m, inputs, args, (),
+                                                       rep_w=0.1)
+    v = extra.values
+    return dict(v["terms"], loss=loss.item(), sigreg_e=v["sigreg_e"],
+                sigreg_h=v["sigreg_h"], calls=tuple(calls))
+
+
+def new_last_values(x, row, scale, seed):
+    """``x`` with new random values in the last ``SHORT`` values of a row."""
+    y = x.clone()
+    g = torch.Generator().manual_seed(seed)
+    y[row, -SHORT:, 0] += scale * torch.randn(SHORT, generator=g)
+    return y
+
+
+def test_no_term_reads_a_window_with_no_target(train_py, loss_calls):
+    """A window of 20 values at W = 16 (row 2). New values in it change no
+    term: L_align at each distance, L_rep with its keys and its positives,
+    and SIGReg on e and on h. New values in a window with a target (row 0)
+    change each term, so each term reads the latents of a window."""
+    args, m = no_leak_run(train_py)
+    x = padded_walks((T_RAW, 700, SHORT, 300))
+    base, short, full = (
+        term_values(train_py, m, no_leak_inputs(train_py, m, args, v), args,
+                    loss_calls)
+        for v in (x, new_last_values(x, 2, 40.0, 9),
+                  new_last_values(x, 0, 5.0, 9)))
+    assert len(base["calls"]) == 1 + args.train_rollout_depth
+    assert {"l_rep", "l_align", "sigreg_e", "sigreg_h"} <= set(base)
+    assert short == base
+    assert all(full[k] != base[k] for k in base if k != "calls")
+    assert all(f != b for f, b in zip(full["calls"], base["calls"]))
 
 
 def test_meanstd_no_leak_needs_meanstd(train_py, monkeypatch, tmp_path):

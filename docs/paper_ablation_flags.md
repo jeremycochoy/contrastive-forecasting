@@ -28,23 +28,27 @@ cannot rebuild the backbone (it sets both sizes to 3).
 
 ## `--encoder-type timesfm`
 
-`TimesFMResidualEncoder` in `src/encoders.py`:
+`TimesFMResidualEncoder` in `src/encoders.py`, the `ResidualBlock` of
+TimesFM v1 (`pytorch_patched_decoder.py`):
 
 ```
-e = LayerNorm(output_layer(SiLU(hidden_layer(x))) + residual_layer(x))
+e = output_layer(SiLU(hidden_layer(x))) + residual_layer(x)
 ```
 
-`x` is the patch with its time-scale embedding, read as one vector of W'
-numbers. The hidden width is the model width, as in TimesFM. The layer
-normalisation is the one of the TiDE block. The module names are the names of
-TimesFM, so the keys of a checkpoint name the encoder.
+`x` is the input of the GRU encoder: the patch with its time-scale embedding,
+read as one vector of W' numbers. The hidden width is the model width, as in
+TimesFM. The block has no layer normalisation, as in TimesFM. The GRU encoder
+has its layer normalisation in the module, so the row also removes it.
+TimesFM also reads the padding mask of each patch, and this block does not,
+as the GRU does not. The module names are the names of TimesFM, so the keys
+of a checkpoint name the encoder.
 
 ## `--meanstd-no-leak`
 
 With `--rev-norm-kind meanstd`, one mean and one standard deviation over a
 context normalise the whole window. The uni2ts split draws the target, and
 the contrastive terms then keep every position: an anchor in the context
-reads statistics of its own target. The flag changes two things:
+reads statistics of its own target. The flag changes three things:
 
 - `draw_short_context_ends` (`src/forecasting_head.py`) draws a context of
   1 patch to half of the whole real patches of the window, uniform in
@@ -53,6 +57,11 @@ reads statistics of its own target. The flag changes two things:
   `group_padding` then masks each anchor whose next patch starts in the
   context, for every term: `L_align` at each distance, `L_rep` and its keys,
   and SIGReg.
+- A window with fewer than two whole patches of real values has no target
+  after its context: its split is at the end of the window.
+  `no_target_windows` gives these windows to the step inputs as
+  `no_target`, and `group_padding` masks each of their patches. Thus no
+  term reads a latent of such a window, as an anchor, a key or a sample.
 
 The checkpoint and the eval are those of `meanstd`. `--meanstd-z-max 0` turns
 off the window filter of Moirai 2.0, which the instance normalisation does not

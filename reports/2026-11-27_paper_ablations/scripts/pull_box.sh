@@ -1,14 +1,15 @@
 #!/bin/bash
-# Pull one ablation run of #482 from its box to elisa every 10 min, and send
-# its backbones to S3. pull_1126_stops_box.sh of #425 with the elisa folders of
-# #482 (CF) and two changes for the small disk of elisa:
-#   - of the .pth files it pulls only the backbones of the stops (STOPS), with
-#     no optimizer file.
-#   - each pulled backbone that loads goes to s3://model.artifacts/manual/
-#     cf_runs/cf-482/<run>/ckpt/ with upload_and_delete_pth.py (ETag check),
-#     then leaves elisa. A pulled file that does not load (the trainer still
-#     wrote it) is deleted and comes again at the next poll. The record
-#     <run>/s3_record.tsv names the files in S3, and they do not come back.
+# Pull one ablation run of #482 from its box to elisa every 10 min, and copy
+# its checkpoints to S3 from the box. pull_1126_stops_box.sh of #425 with the
+# elisa folders of #482 (CF), with one change: the uplink of elisa is too
+# slow for the checkpoints (about 0.16 MB/s on 11-27), so elisa sends no .pth
+# bytes. At each poll, s3_box_copy.py copy sends from the box to
+# s3://model.artifacts/manual/cf_runs/cf-482/<run>/ckpt/ the backbone of each
+# stop (STOPS) and the optimizer file of the newest stop, with a presigned
+# URL. The ETag of each object must equal the ETag of the box file. Only the
+# optimizer file of the newest stop stays in S3: with its backbone it is the
+# resume pair of a new box (EXECUTION_LOG.md). The record
+# <run>/s3_box_record.tsv names the files in S3.
 # It also pulls the other files of ckpt/ (the losses CSV), the logs into
 # <run>/logs_box/, the results folder of the box follower into
 # ff/results_box_<short>/, and, for each new score of this run, its eval folder
@@ -22,39 +23,21 @@ RUN="${RUN:?}"; SHORT="${SHORT:?}"; LABEL="${LABEL:?}"; ID="${ID:?}"
 BOX="${BOX:?}"; BOX_PORT="${BOX_PORT:?}"; MAX_HOURS="${MAX_HOURS:-48}"
 STOPS="${STOPS:-10 25 50 75 100 125 150 166}"
 PY="${PY:-/home/jupyter/rnd/.venv/bin/python3}"  # boto3
-S3_TOOL=/home/jupyter/cf_runs/hp64/tools/upload_and_delete_pth.py
-H=/workspace/hp64
+H="${BOX_H:-/workspace/hp64}"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=20 -o LogLevel=ERROR"
 XS="ssh -p $BOX_PORT $OPTS"
 CKPT=$CF/$RUN/ckpt; MIRROR=$FF/results_box_$SHORT
 log() { echo "$(date -u +%FT%TZ) $*"; }
 
-backbones() {  # the rsync filter: the backbones of the stops, less the files in S3
-  local f s
-  KEEP=()
-  for f in $(cut -f2 "$CF/$RUN/s3_record.tsv" 2>/dev/null); do KEEP+=(--exclude="$(basename "$f")"); done
-  for s in $STOPS; do KEEP+=(--include="*_${s}k.pth"); done
-}
-
-to_s3() {  # each pulled backbone that loads goes to S3. One that does not load goes away
-  local f
-  for f in "$CKPT"/*.pth; do
-    [ -e "$f" ] || continue
-    "$PY" -c 'import sys, torch; torch.load(sys.argv[1], map_location="cpu", weights_only=True)' "$f" 2>/dev/null \
-      || { log "$(basename "$f") does not load yet: deleted, next poll"; rm -f "$f"; }
-  done
-  ls "$CKPT"/*.pth >/dev/null 2>&1 || return 0
-  "$PY" "$S3_TOOL" "$CKPT" "manual/cf_runs/cf-482/$RUN/ckpt" "$CF/$RUN/s3_record.tsv" 2>&1 | tail -n 1
-}
-
 end=$(( $(date +%s) + MAX_HOURS * 3600 ))
 mkdir -p "$MIRROR" "$CF/$RUN/logs_box" "$CKPT" "$FF/results" "$FF/heads/eval"
 log "start: $RUN from $LABEL ($ID), stops $STOPS"
 while [ "$(date +%s)" -lt "$end" ] && [ ! -e "$CF/logs/stop_pull_$SHORT" ]; do
-  backbones
-  timeout 1200 rsync -a --partial "${KEEP[@]}" --exclude='*.pth' -e "$XS" "$BOX:$H/$RUN/ckpt/" "$CKPT/" < /dev/null \
+  timeout 1200 rsync -a --partial --exclude='*.pth' -e "$XS" "$BOX:$H/$RUN/ckpt/" "$CKPT/" < /dev/null \
     || log "pull of ckpt failed (rc $?)"
-  to_s3
+  timeout 3600 "$PY" "$HERE/s3_box_copy.py" copy "$RUN" "$BOX" "$BOX_PORT" --stops "$STOPS" \
+    --box-h "$H" --record "$CF/$RUN/s3_box_record.tsv" || log "S3 copy failed (rc $?); next poll"
   timeout 600 rsync -a -e "$XS" "$BOX:$H/$RUN/logs/" "$CF/$RUN/logs_box/" < /dev/null \
     || log "pull of logs failed (rc $?)"
   timeout 600 rsync -a --exclude 'evalslots/' -e "$XS" "$BOX:$H/ff/results/" "$MIRROR/" < /dev/null \

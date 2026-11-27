@@ -70,13 +70,16 @@ class ResidualSiLUEncoder(nn.Module):
 
 
 class TimesFMResidualEncoder(nn.Module):
-    """The residual block of TimesFM (Das and others, 2024) as the patch encoder,
-    with the layer normalisation of the TiDE block (#482).
+    """The residual block of TimesFM (Das and others, 2024) as the patch
+    encoder (#482): the ResidualBlock of TimesFM v1, with no layer
+    normalisation.
 
-    out = LayerNorm(output_layer(SiLU(hidden_layer(x))) + residual_layer(x)).
-    The block reads the W values of a patch (and the time-scale embedding)
-    as one vector. The hidden width is H, as in TimesFM. The module names
-    are the names of TimesFM, so the keys of a checkpoint name this encoder.
+    out = output_layer(SiLU(hidden_layer(x))) + residual_layer(x).
+    The block reads the input of the GRU encoder: the W values of a patch
+    and the time-scale embedding, as one vector. TimesFM also reads the
+    padding mask of the patch. This block does not, as the GRU does not.
+    The hidden width is H, as in TimesFM. The module names are the names of
+    TimesFM, so the keys of a checkpoint name this encoder.
     """
     def __init__(self, W, H, intermediate_dim=None):
         super().__init__()
@@ -84,11 +87,9 @@ class TimesFMResidualEncoder(nn.Module):
         self.hidden_layer = nn.Sequential(nn.Linear(W, hidden), nn.SiLU())
         self.output_layer = nn.Linear(hidden, H)
         self.residual_layer = nn.Linear(W, H)
-        self.layer_norm = nn.LayerNorm(H)
 
     def forward(self, x):
-        out = self.output_layer(self.hidden_layer(x))
-        return self.layer_norm(out + self.residual_layer(x))
+        return self.output_layer(self.hidden_layer(x)) + self.residual_layer(x)
 
 
 class GRUEncoder(nn.Module):

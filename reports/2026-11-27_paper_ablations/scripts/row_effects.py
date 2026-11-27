@@ -27,11 +27,15 @@ def effect(run, folder):
     signs = {  # each value is computed only for its own row
         "_ab01_": lambda: data, "_ab02_": lambda: data,
         "_ab03_": lambda: re.search(r"mixup_p=[\d.]+", log).group(0),
-        "_ab04_": lambda: "Scaling (#482) line: " + str("Scaling (#482)" in log),
+        "_ab04_": lambda: "Scaling (#482) line: " + str("Scaling (#482)" in log)
+                          + ", no-target rule: "
+                          + str("No term reads a window with no target" in log),
         "_ab05_": lambda: "tables all 0: " + str(all(
             int(torch.count_nonzero(sd[k])) == 0 for k in tables)),
         "_ab06_": lambda: "encoder.residual_layer.weight "
-                          + str(tuple(sd["encoder.residual_layer.weight"].shape)),
+                          + str(tuple(sd["encoder.residual_layer.weight"].shape))
+                          + ", encoder.layer_norm keys: "
+                          + str(sum(k.startswith("encoder.layer_norm.") for k in sd)),
         "_ab07_": lambda: "sphere buffer: " + str("transformer.latent_sphere" in sd),
         "_ab08_": lambda: "conv weights: " + str(sum("depthwise_conv" in k for k in sd)),
         "_ab09_": lambda: re.search(r"--encoder-dropkey [\d.]+", log).group(0),
