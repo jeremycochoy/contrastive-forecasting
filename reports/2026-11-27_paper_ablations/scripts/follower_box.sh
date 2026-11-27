@@ -70,8 +70,8 @@ freeze(){  # SIGSTOP each follower, until no new follower comes
     new=()
     for pid in $(follower_pids); do [[ " ${FROZEN[*]} " == *" $pid "* ]] || new+=("$pid"); done
     [ "${#new[@]}" -gt 0 ] || return 0
+    FROZEN+=("${new[@]}")   # before the SIGSTOP: the EXIT trap must resume them
     kill -STOP "${new[@]}" 2>/dev/null
-    FROZEN+=("${new[@]}")
   done
   return 1
 }

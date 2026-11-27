@@ -208,6 +208,25 @@ def test_a_head_that_starts_between_the_check_and_the_stop_keeps_the_follower(bo
     wait_until(lambda: (base / "head_runs").exists())
 
 
+def term_after_stop():
+    """A bash function `kill` for the box script: right after its SIGSTOP of
+    the followers, the box script gets a SIGTERM, and its trap ends it."""
+    return '() { builtin kill "$@"; [ "$1" != -STOP ] || builtin kill -TERM $$; }'
+
+
+def test_a_sigterm_right_after_the_sigstop_leaves_no_follower_frozen(box):
+    h, _ = box
+    start_follower(box, "25", f"follow_{SHORT}_25k_box.log")      # the recovery follower
+    wait_until(lambda: len(followers(h)) == 2)
+    old = sorted(followers(h))
+    r = swap(box, **{"BASH_FUNC_kill%%": term_after_stop()})
+    assert r.returncode == 2, r.stdout + r.stderr
+    assert "the stop of the followers failed (exit code 1)" in r.stdout
+    assert sorted(followers(h)) == old
+    assert "T" not in [state(pid) for pid in old]
+    assert (h / "ff" / "code" / "DEPLOYED_COMMIT").read_text() == "a416b3ae\n"
+
+
 @pytest.mark.parametrize("fault", [{"FAKE_SSH_FAIL": "-- stops "},     # ssh fails
                                    {"FAKE_SSH_HEAD": "-- stops :0"},   # no answer
                                    {"FAKE_SSH_HEAD": "-- stops :1"}])  # 1 stop of 8

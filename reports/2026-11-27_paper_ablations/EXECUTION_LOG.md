@@ -215,11 +215,12 @@ of a416b3ae (test).
 
 ### Deploy on the boxes (the Runner)
 
-Use `tools_r5/`: `tools_r4/` plus the swap fix of round 4, in
+Use `tools_r6/`: `tools_r4/` plus the swap fixes of rounds 4 and 5, in
 `swap_follower.sh` and `follower_box.sh`. Do not use the swap of
 `tools_r4/`: a head could start between its check and its stop, and a
-failed ssh query gave exit code 0 after the stop. `swap_follower.sh` moves
-the follower of one box to a new folder:
+failed ssh query gave exit code 0 after the stop. Do not use the swap of
+`tools_r5/`: a SIGTERM right after its SIGSTOP can keep a follower frozen.
+`swap_follower.sh` moves the follower of one box to a new folder:
 
 1. It reads the stops with no score file on the box. A failed query, or an
    answer without the state of each stop, gives exit code 2, and the swap
@@ -243,7 +244,7 @@ Do these steps:
    `FOLDER=ff_code_f14b0a5e` for the other 13 rows.
 2. Start with one box: the box whose next checkpoint comes first.
 3. Read its state:
-   `MODE=check BOX=<root@ip> BOX_PORT=<port> RUN=<run> SHORT=<short> FOLDER=<folder> bash tools_r5/swap_follower.sh`.
+   `MODE=check BOX=<root@ip> BOX_PORT=<port> RUN=<run> SHORT=<short> FOLDER=<folder> bash tools_r6/swap_follower.sh`.
    If it shows no follower PID, read the follower log. Do the swap only if
    the follower ended.
 4. Run the same command with no `MODE`. Exit code 3: a head trains or a
