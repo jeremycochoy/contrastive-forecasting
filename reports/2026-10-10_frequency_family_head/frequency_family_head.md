@@ -140,9 +140,8 @@ On the short horizons, they are lower than green without the cooldown (0.8366 an
 On the medium horizons, they are higher (1.0772 and 1.0783 against 1.0642).
 On the long horizons, they are also higher (1.0575 and 1.0587 against 1.0308).
 A second cooldown of green starts from the 100k checkpoint and divides the learning rate by 2 at each 6,623 steps.
-It gets 0.9333 at 125k and 0.9382 at 150k.
-At 150k, this score is higher than the scores of green without the cooldown (0.9260) and of the two cooldowns from 125k (0.9368 and 0.9315).
-Its score at 166k is not available at this time.
+It gets 0.9333 at 125k, 0.9382 at 150k and 0.9410 at 166k.
+At 150k and 166k, its score is higher than the scores of the three other green runs: 0.9260 to 0.9368 at 150k, and 0.9296 to 0.9324 at 166k.
 `results/scores_6p6.tsv` holds the GM-Relative MASE of each 6 + 6 run and of MPE at each stop, with the names of the runs.
 It gives the score on the 97 configs and on the short, medium and long horizons.
 
