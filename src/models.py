@@ -606,9 +606,13 @@ class ConfigurableModel(torch.nn.Module):
 
 
 def _ema_update(teacher: torch.nn.Module, student: torch.nn.Module, tau: float):
-    """In-place θ_T ← τ·θ_T + (1−τ)·θ_S over params. Hard-copy buffers."""
+    """In-place θ_T ← τ·θ_T + (1−τ)·θ_S over params. Hard-copy buffers.
+    At τ = 0 (#482) the teacher takes the student weights: an exact copy."""
     for t, s in zip(teacher.parameters(), student.parameters()):
-        t.data.mul_(tau).add_(s.data.detach(), alpha=1.0 - tau)
+        if tau == 0.0:
+            t.data.copy_(s.data)
+        else:
+            t.data.mul_(tau).add_(s.data.detach(), alpha=1.0 - tau)
     for t, s in zip(teacher.buffers(), student.buffers()):
         t.data.copy_(s.data)
 

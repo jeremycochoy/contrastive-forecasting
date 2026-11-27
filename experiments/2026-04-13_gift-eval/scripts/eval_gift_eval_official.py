@@ -60,6 +60,8 @@ sys.path.insert(0, str(project_root))
 
 from src.models import ConfigurableModel
 from src.checkpoint import (
+    depthwise_conv_of,
+    encoder_type_of,
     gru_input_bound_of,
     load_encoder_source,
     multi_patch_sizes_of,
@@ -870,6 +872,15 @@ def load_models(args, device):
     # Auto-detect freq_emb_dim and seasonality_emb_dim so backbones
     # trained with either / both axes load cleanly without CLI flags.
     sd = torch.load(args.backbone_path, map_location=device, weights_only=True)
+    # #482: the checkpoint names its patch encoder and the kernel of its
+    # convolution. It wins over the flags and the defaults.
+    detected = (encoder_type_of(sd, BACKBONE_CONFIG["encoder_type"]),
+                depthwise_conv_of(sd, BACKBONE_CONFIG["depthwise_conv"]))
+    if detected != (BACKBONE_CONFIG["encoder_type"],
+                    BACKBONE_CONFIG["depthwise_conv"]):
+        print(f"  [eval] the checkpoint names encoder_type={detected[0]} "
+              f"and depthwise_conv={detected[1]}")
+    BACKBONE_CONFIG["encoder_type"], BACKBONE_CONFIG["depthwise_conv"] = detected
     # #425: the latent that a reconstruction head of this checkpoint reads.
     # The head trainer reads it off the same checkpoint.
     args.reconstruction_latent = reconstruction_latent_of(sd)
