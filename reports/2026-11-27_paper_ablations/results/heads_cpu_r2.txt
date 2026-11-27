@@ -1,0 +1,7 @@
+# The head trainer of the score code (control head flags of head_eval_bb.sh, CPU, batch 8, 3 steps, the corpus of the #419 tests) on the last checkpoint of rows 4 and 6 of results/rows_cpu_r2.txt.
+# 'code' is hp64/ff/code (the score code of #425). Row 6 takes ff_code_c0124ad0 (the TimesFM block with no layer normalisation); the head trainer loads its backbone with a strict load.
+# python3 head_check.py --rows-dir <rows dirs> --out <dir> --patched /home/jupyter/cf_runs/cf-482/ff_code_c0124ad0
+g166b_w320e6f6_ab04_instnorm: rc 0, score code code, [head-train] the checkpoint names the mean/std scaling (#421); --rev-norm-kind ewma is not read
+g166b_w320e6f6_ab06_timesfm_patch: rc 0, score code ff_code_c0124ad0, [head-train] the checkpoint names encoder_type=timesfm and depthwise_conv=3
+heads: failed []
+exit 0
