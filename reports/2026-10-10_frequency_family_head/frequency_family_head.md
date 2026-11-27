@@ -123,6 +123,8 @@ The data for this conclusion:
 - At width 320, tau 0.3 gets 0.9449 at 50k, 0.9512 at 75k, 0.9353 at 125k and 0.9394 at 166k.
 - At width 64, tau 0.3 gets 1.0000 at 10k, 1.0195 at 50k and 0.9956 at 150k.
 
+![GM-Relative MASE of green at width 320 and of its two cooldowns from 125k](plots/green320_cooldown_seeds.png)
+
 Each cooldown starts from the 125k checkpoint of its run.
 It divides the learning rate by 2 at each 4,114 steps, to 1e-6 at 166k.
 The maximum difference between the two seeds of the green cooldown is 0.0053, at 150k (0.9368 and 0.9315).
@@ -132,11 +134,35 @@ Light blue gets 0.9376 with the cooldown and 0.9342 without it.
 Tau 0.3 gets 0.9358 with the cooldown and 0.9394 without it.
 Only tau 0.3 with the 32 distances of grey gets a larger decrease: 0.9491 with the cooldown and 0.9646 without it.
 At width 64, the cooldown decreases the score at 166k by 0.006 to 0.009 for each run.
+At 166k, the difference between the two seeds of the green cooldown is 0.004 or less on each horizon.
+On the short horizons, they are lower than green without the cooldown (0.8366 and 0.8403 against 0.8499).
+On the medium horizons, they are higher (1.0772 and 1.0783 against 1.0642).
+On the long horizons, they are also higher (1.0575 and 1.0587 against 1.0308).
 A second cooldown of green starts from the 100k checkpoint and divides the learning rate by 2 at each 6,623 steps.
 It gets 0.9333 at 125k.
 Its scores at 150k and 166k are not available at this time.
 `results/scores_6p6.tsv` holds the GM-Relative MASE of each 6 + 6 run and of MPE at each stop, with the names of the runs.
 It gives the score on the 97 configs and on the short, medium and long horizons.
+
+## Pink: the teacher EMA 2 times slower
+
+![GM-Relative MASE of pink with the teacher EMA 0.99995 and 0.999975, and of their cooldowns](plots/pink_ema.png)
+
+Pink is the tau 0.3 run at width 384, with 2 encoder layers, 4 forecaster layers and the warmup.
+Its teacher EMA starts at 0.99995 and increases linearly to 1.0 at 166k.
+The second run is pink with the EMA start 0.999975 and the same increase to 1.0.
+Thus, at the start, its teacher moves 2 times slower.
+All the other flags are the same.
+With the slower EMA, the GM-Relative MASE is higher at each stop, by 0.0020 to 0.0248.
+Pink gets its lowest score, 0.9320, at 50k.
+The slower EMA gets its lowest score, 0.9427, at 140k with the cooldown.
+At 166k, the slower EMA gets 0.9517, and pink gets 0.9497 without the cooldown.
+With the cooldown at 166k, pink gets 0.9379 and the slower EMA gets 0.9459 (a difference of 0.0080).
+On the short horizons, the slower EMA is higher at each stop.
+On the long horizons, the slower EMA is lower at 100k, 125k and 166k, and at each stop of the cooldown.
+For example, it gets 1.0401 at 125k, and pink gets 1.0641.
+Thus, a teacher EMA 2 times slower does not decrease the GM-Relative MASE of pink.
+`results/pink_ema_scores.tsv` holds the values of the figure.
 
 ## Cosine schedule and cooldown at width 384
 
