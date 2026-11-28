@@ -88,10 +88,10 @@ def dry_run(script, tmp_path, code):
 
 
 def test_there_is_one_run_for_each_row_of_the_table():
-    # Rows 1 to 15 of the paper table, and row 16: an extra row of the user.
-    assert sorted(ROWS) == list(range(1, 17))
+    # Rows 1 to 15 of the paper table, and rows 16 and 17: extra rows of the user.
+    assert sorted(ROWS) == list(range(1, 18))
     names = [mr.run_name(r[0], r[1]) for r in mr.ROWS]
-    assert len(set(names)) == 16
+    assert len(set(names)) == 17
     assert all(n.startswith("g166b_w320e6f6_ab") for n in names)
 
 

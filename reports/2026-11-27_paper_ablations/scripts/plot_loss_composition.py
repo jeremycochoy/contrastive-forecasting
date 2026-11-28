@@ -1,6 +1,6 @@
 """The loss composition of the paper ablations (#482): the weighted parts of
 the training loss of the reference, of its second training (another seed) and
-of each of the 16 rows, over the steps.
+of each of the 17 rows, over the steps.
 
 The trainer (experiments/2026-04-27_freq-embedding/scripts/train.py) logs
 ``loss`` as the sum of these parts, with the flags of the reference
@@ -298,7 +298,7 @@ def write_table(path, curves):
 def panels(ref_ckpt, runs_root):
     """``[(title, run, folder)]``: the reference, its second training, then
     the rows in the order of ROWS, with the labels of plot_ablations.py."""
-    rows = [(f"{row}. {LABELS[row]}", run_name(row, short),
+    rows = [(LABELS[row], run_name(row, short),
              Path(runs_root) / run_name(row, short) / "ckpt")
             for row, short, *_ in ROWS]
     return [("Reference, seed 1", REF, Path(ref_ckpt)),

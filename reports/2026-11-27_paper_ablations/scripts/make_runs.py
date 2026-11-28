@@ -72,6 +72,9 @@ ROWS = [
     (16, "no_ema_no_lrep", "Loss", "EMA teacher and L_rep", "No EMA teacher and no L_rep",
      [("set", "--ema-tau", "0"), ("drop", "--ema-tau-end"), ("drop", "--ema-tau-ramp-steps"),
       ("set", "--rep-loss-weight", "0")]),
+    # An extra row of the user (11-28): no SIGReg at all (rows 12 and 13 together).
+    (17, "no_sigreg", "Loss", "SIGReg on e and on h", "No SIGReg",
+     [("drop", "--sigreg-embedding"), ("drop", "--sigreg-encoding")]),
 ]
 # A second training of the reference (11-28, the user): only the seed changes.
 # The two references give the noise of one training. It is row 0, out of ROWS.

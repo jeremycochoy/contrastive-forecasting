@@ -38,7 +38,8 @@ LABELS = {1: "No synthetic series", 2: "No crossfade series", 3: "No mixup",
           11: "No EMA teacher", 12: "No SIGReg on $e$", 13: "No SIGReg on $h$",
           14: r"No $\mathcal{L}_{\mathrm{rep}}$",
           15: r"$\mathcal{L}_{\mathrm{align}}$ at distance 1",
-          16: r"No EMA teacher, no $\mathcal{L}_{\mathrm{rep}}$"}
+          16: r"No EMA teacher, no $\mathcal{L}_{\mathrm{rep}}$",
+          17: "No SIGReg"}
 ROW_HUE, REF_HUE, INK, GRID = "#257de0", "#8c8c8c", "#191919", "#e6e6e6"
 
 
@@ -183,7 +184,7 @@ def plot_steps(lines, out):
         if got:
             ax.plot(*zip(*got), color=ROW_HUE, lw=2, marker="o", ms=6,
                     mec="white", mew=1.5, label="ablation")
-        ax.set_title(f"{row}. {LABELS[row]}", color=INK, fontsize=10)
+        ax.set_title(LABELS[row], color=INK, fontsize=10)
         ax.set_ylim(low - pad, high + pad)
         style(ax)
     for ax in axes[-1]:
