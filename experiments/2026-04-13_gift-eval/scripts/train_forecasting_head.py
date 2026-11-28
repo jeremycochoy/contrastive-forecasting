@@ -32,7 +32,8 @@ import torch
 import torch.optim as optim
 
 from src.models import ConfigurableModel, count_parameters
-from src.checkpoint import (gru_input_bound_of, multi_patch_sizes_of,
+from src.checkpoint import (depthwise_conv_of, encoder_type_of,
+                            gru_input_bound_of, multi_patch_sizes_of,
                             prepare_backbone_state_dict,
                             reconstruction_latent_of, save_atomic,
                             save_encoder_source)
@@ -611,6 +612,14 @@ def backbone_config(args, sd):
         config["forecaster_n_heads"] = args.forecaster_n_heads
     if args.encoder_type is not None:
         config["encoder_type"] = args.encoder_type
+    # #482: the checkpoint names its patch encoder and the kernel of its
+    # convolution. It wins over the flags and the defaults.
+    detected = (encoder_type_of(sd, config["encoder_type"]),
+                depthwise_conv_of(sd, config["depthwise_conv"]))
+    if detected != (config["encoder_type"], config["depthwise_conv"]):
+        print(f"  [head-train] the checkpoint names encoder_type={detected[0]} "
+              f"and depthwise_conv={detected[1]}")
+    config["encoder_type"], config["depthwise_conv"] = detected
 
     # Auto-detect freq_emb_dim and seasonality_emb_dim from the checkpoint
     # if not explicitly set.

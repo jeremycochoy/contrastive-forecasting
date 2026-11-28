@@ -1,0 +1,13 @@
+# Row path (#482 round 2, implementation review gap 1): the reference run script on the run code of rows 4 and 6 (code_3d7b8c2d), as it is (forward_step) and with --skip-nan-samples (by_row).
+# On a clean stream --skip-nan-samples changes one thing: the step trains the contrastive objective by row (contrastive_objective, #412), the path of each --rev-norm-kind meanstd run, so of row 4. It adds three columns to the losses CSV.
+# python3 cpu_check.py rowpath --run-code /home/jupyter/cf_runs/cf-482/code_3d7b8c2d --script scripts/reference/run_<reference>.sh --out <dir>: CPU, batch 128 (127 real rows, 1 forked ARMA row, 3 crossfade rows), 3 steps, the corpus of tests/test_419_gift_pretrain.py, seed 20260520.
+# The losses at each step also equal those of results/parity_cpu.txt (code_038ea26c and code_c886f88e): the fixes of round 2 do not change the path of the reference.
+forward_step: rc 0, 1848 s, log /tmp/cf482_r2/rowpath/forward_step/train.log
+by_row: rc 0, 1891 s, log /tmp/cf482_r2/rowpath/by_row/train.log
+forward_step: 'Objective (#412)' in the log: False
+by_row: 'Objective (#412)' in the log: True
+rowpath: 3 steps x 35 common columns, EQUAL; columns of --skip-nan-samples only: ['nan_dropped', 'spike_dropped', 'grad_norm']
+  step 1: loss 96.45829772949219, l_rep 12.60727596282959, l_align 1.1319153308868408, sigreg_e 13.168065071105957, sigreg_h 16.9014949798584
+  step 2: loss 96.24000549316406, l_rep 12.953792572021484, l_align 1.1354951858520508, sigreg_e 13.026406288146973, sigreg_h 16.61272621154785
+  step 3: loss 96.09930419921875, l_rep 12.4472017288208, l_align 1.1271904706954956, sigreg_e 13.360779762268066, sigreg_h 16.735567092895508
+exit 0

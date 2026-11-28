@@ -1,0 +1,21 @@
+#!/bin/bash
+# ssh for a local folder as the box (tests/test_482_box_scripts.py and
+# check_box_copy_s3.sh): the command runs here, with the input of ssh (no
+# input with -n). pgrep finds no process on the box, and a command that
+# starts a process (setsid) only goes to the log.
+# FAKE_SSH_FAIL=<text>: exit 255 and no output when the command holds the text.
+# FAKE_SSH_HEAD=<text>:<n>: only the first n lines of the output, and exit 0,
+# when the command holds the text.
+input=keep
+while [ $# -gt 0 ]; do
+  case "$1" in -n) input=none; shift ;; -p|-o) shift 2 ;; *) break ;; esac
+done
+shift
+echo "ssh $*" >> "$FAKE_LOG"
+case "$*" in *pgrep*) echo 0; exit 0 ;; *setsid*) exit 0 ;; esac
+if [ -n "${FAKE_SSH_FAIL:-}" ] && [[ "$*" == *"$FAKE_SSH_FAIL"* ]]; then exit 255; fi
+if [ -n "${FAKE_SSH_HEAD:-}" ] && [[ "$*" == *"${FAKE_SSH_HEAD%:*}"* ]]; then
+  bash -c "$*" | head -n "${FAKE_SSH_HEAD##*:}"; exit 0
+fi
+[ "$input" = keep ] || exec bash -c "$*" < /dev/null
+exec bash -c "$*"

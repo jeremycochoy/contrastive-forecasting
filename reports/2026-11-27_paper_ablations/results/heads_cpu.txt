@@ -1,0 +1,19 @@
+# The head trainer of the score code (control head flags of head_eval_bb.sh, CPU, batch 8, 3 steps, the corpus of the #419 tests)
+# on the last checkpoint of each row of results/rows_cpu.txt. 'code' is hp64/ff/code (the score code of #425), ff_code_f541cf17 the patched one.
+# python3 head_check.py --rows-dir <rows dir> --out <dir> --patched /home/jupyter/cf_runs/cf-482/ff_code_f541cf17
+g166b_w320e6f6_ab01_no_synth: rc 0, score code code
+g166b_w320e6f6_ab02_no_crossfade: rc 0, score code code
+g166b_w320e6f6_ab03_no_mixup: rc 0, score code code
+g166b_w320e6f6_ab04_instnorm: rc 0, score code code, [head-train] the checkpoint names the mean/std scaling (#421); --rev-norm-kind ewma is not read
+g166b_w320e6f6_ab05_no_timescale: rc 0, score code code
+g166b_w320e6f6_ab06_timesfm_patch: rc 0, score code ff_code_f541cf17, [head-train] the checkpoint names encoder_type=timesfm and depthwise_conv=3
+g166b_w320e6f6_ab07_no_sphere: rc 0, score code code
+g166b_w320e6f6_ab08_no_conv: rc 0, score code ff_code_f541cf17, [head-train] the checkpoint names encoder_type=gru and depthwise_conv=0
+g166b_w320e6f6_ab09_no_dropkey: rc 0, score code code
+g166b_w320e6f6_ab10_no_dropout: rc 0, score code code
+g166b_w320e6f6_ab11_no_ema: rc 0, score code code
+g166b_w320e6f6_ab12_no_sigreg_e: rc 0, score code code
+g166b_w320e6f6_ab13_no_sigreg_h: rc 0, score code code
+g166b_w320e6f6_ab14_no_lrep: rc 0, score code code
+g166b_w320e6f6_ab15_align_d1: rc 0, score code code
+heads: 15 of 15 with exit code 0

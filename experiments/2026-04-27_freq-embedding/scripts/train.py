@@ -419,10 +419,21 @@ def build_parser():
                         "p) — much harder for a position counter to recover "
                         "than the layer-independent case where the union of "
                         "visible-at-some-layer is large.")
+    p.add_argument("--dropout", type=float, default=MODEL_CONFIG["dropout"],
+                   help="The dropout of the blocks of the encoder and of the "
+                        "forecaster (#482): on the attention weights, on the "
+                        "attention output, in the hidden layer of the "
+                        "feed-forward network and on its output. Default "
+                        "0.1, the value of every earlier run. 0 removes "
+                        "it. DropKey (--encoder-dropkey) is a separate "
+                        "flag.")
     p.add_argument("--encoder-type", default=MODEL_CONFIG["encoder_type"],
                    choices=["mlp", "mlp_wide", "residual_silu", "gru", "conv",
-                            "transformer"],
+                            "transformer", "timesfm"],
                    help="Patch encoder type. Default 'gru' (matches all backbone-beta runs). "
+                        "'timesfm' is the residual block of TimesFM: an MLP "
+                        "of the patch vector plus a linear map, with no "
+                        "layer normalisation (#482). "
                         "'transformer' replaces GRU+skip with a small decoder-only "
                         "causal transformer (Linear(W'->H) + N layers attending over T).")
     p.add_argument("--enc-num-layers", type=int, default=4,
@@ -548,6 +559,14 @@ def build_parser():
                    help="Seasonality embedding dim (0 = disabled).")
     p.add_argument("--freq-emb-dim", type=int, default=3,
                    help="Frequency embedding dimension (0 disables it).")
+    p.add_argument("--zero-time-scale-embedding", action="store_true",
+                   help="The frequency and seasonality embeddings stay at 0 "
+                        "and do not train (#482), so the model reads no time "
+                        "scale. The tables keep their shapes in the model "
+                        "and in the checkpoint, so the forecast heads load "
+                        "the backbone as before, and the mixup runs as "
+                        "before. Needs --freq-emb-dim or "
+                        "--seasonality-emb-dim above 0. Default off.")
     p.add_argument("--freq-vocab", default="v1", choices=["v1", "v2"],
                    help="Frequency classes (#419). v1: the 10 classes up to "
                         "weekly. v2 keeps them at their ids and adds every "
@@ -581,6 +600,22 @@ def build_parser():
                         "none of its values reaches the model. The default, "
                         "100, keeps 99.2%% of the GiftEvalPretrain windows "
                         "(reports/2026-09-28_meanstd_z). 0 turns it off.")
+    p.add_argument("--meanstd-no-leak", action="store_true",
+                   help="With --rev-norm-kind meanstd and the contrastive "
+                        "objective: instance normalisation with no target "
+                        "leak (#482, #475). Each window draws a context of "
+                        "1 patch to half of its whole real patches, in "
+                        "place of the uni2ts split. One mean and one "
+                        "standard deviation over the context normalise the "
+                        "whole window, and every term (L_align at each "
+                        "distance, L_rep with its keys, SIGReg) keeps only "
+                        "the anchors whose next patch starts after the "
+                        "context. A window with fewer than two whole "
+                        "patches of real values has no target after its "
+                        "context, and no term reads it. The checkpoint and "
+                        "the eval are those of "
+                        "meanstd. Set --meanstd-z-max 0 for no window "
+                        "filter. Default off.")
     p.add_argument("--skip-nan-samples", action="store_true",
                    help="With --value-space-objective (#421), or a "
                         "contrastive objective whose terms take a row mask "
@@ -979,6 +1014,10 @@ def build_parser():
                         "the weight the teacher keeps on its own previous "
                         "value in θ_T ← α·θ_T + (1−α)·θ_S. Higher α = slower "
                         "teacher. Constant unless --ema-tau-end is given. "
+                        "0 (#482) gives a teacher with no moving average: "
+                        "after each step it takes the student weights, so "
+                        "the targets are the student latents of the full "
+                        "context, with stop-gradient. "
                         "Default 0.99 (half-life ln(0.5)/ln(α) ≈ 69 "
                         "steps). (#353)")
     p.add_argument("--ema-tau-end", type=float, default=None,
@@ -1288,17 +1327,22 @@ def raw_rollout_depths(model, f, o, args, pad=None):
     return forecaster_depths(model, f, o, args, pad, raw=True)
 
 
-def group_padding(pad_mask, rows, size, active, shape, start_mask=None):
+def group_padding(pad_mask, rows, size, active, shape, start_mask=None,
+                  no_target=None):
     """``[n, T, C]`` bool: the patches of one group that no term may read
     (#419, #412), its zero padding, the patches whose next patch starts in
-    the EWMA's first window (start_window_anchors) and every patch of an
-    inert row. None when the group has none. ``shape`` is the step's
-    ``[B, T_raw, C]``."""
+    the EWMA's first window or in the context (start_window_anchors), every
+    patch of a window with no target (``no_target``, ``[B, 1, C]``, #482)
+    and every patch of an inert row. None when the group has none.
+    ``shape`` is the step's ``[B, T_raw, C]``."""
     pad = (None if pad_mask is None
            else patch_padding(take_rows(pad_mask, rows), size))
     if start_mask is not None:
         start = start_window_anchors(take_rows(start_mask, rows), size)
         pad = start if pad is None else pad | start
+    if no_target is not None:
+        whole = take_rows(no_target, rows).expand(-1, shape[1] // size, -1)
+        pad = whole if pad is None else pad | whole
     if active is None:
         return pad
     inert = ~take_rows(active, rows).view(-1, 1, 1)
@@ -1565,7 +1609,8 @@ def contrastive_objective(model, inputs, args, multi_patch_sizes, active=None,
                                   x_norm.shape))
             for size, rows in groups.items()}
     pads = {size: group_padding(inputs["pad_mask"], rows, size, active,
-                                x_norm.shape, inputs.get("start_mask"))
+                                x_norm.shape, inputs.get("start_mask"),
+                                inputs.get("no_target"))
             for size, rows in groups.items()}
     counts = {size: (len(lats[size].o) if active is None
                      else int(take_rows(active, rows).sum()))
@@ -1733,6 +1778,21 @@ def announce_dropped(kind, step, found, seconds, meta, args, extra=""):
           f"without them. Rows: {path}")
     print("\n".join(lines), flush=True)
     return len(culprits)
+
+
+def zero_time_scale_embedding_(model):
+    """Set the frequency and seasonality tables of ``model`` to 0 and freeze
+    them (#482): the model then reads no time scale. Returns the count of
+    tables. A frozen table gets no gradient, so AdamW and its weight decay
+    leave it at 0."""
+    tables = [m.embedding.weight for m in (model.freq_embedding,
+                                           model.seasonality_embedding)
+              if m is not None]
+    with torch.no_grad():
+        for table in tables:
+            table.zero_()
+            table.requires_grad_(False)
+    return len(tables)
 
 
 def random_sign_flip(x):
@@ -2439,6 +2499,12 @@ def check_mean_std(args):
         raise SystemExit("--meanstd-z-max filters the windows of "
                          "--rev-norm-kind meanstd (#421). Add it, or drop "
                          "the flag.")
+    if args.meanstd_no_leak and (args.rev_norm_kind != "meanstd"
+                                 or args.value_space_objective):
+        raise SystemExit("--meanstd-no-leak draws the context of "
+                         "--rev-norm-kind meanstd for the contrastive "
+                         "objective (#482). Add --rev-norm-kind meanstd, or "
+                         "drop the flag.")
     if args.meanstd_z_max < 0:
         raise SystemExit("--meanstd-z-max is 0 (off) or a positive bound.")
     if args.gru_input_bound < 0:
@@ -2497,6 +2563,29 @@ def check_joint_teacher(args):
         raise SystemExit(f"--loss-shape {JOINT_TEACHER_SHAPE} does not run "
                          "with this command line:\n  - "
                          + "\n  - ".join(clashes))
+
+
+def step_start_mask(args, model, target_mask):
+    """``[B, T_raw, C]`` bool, the ``start_mask`` of the step inputs: the
+    values whose patch no term may take as the next patch of an anchor
+    (``group_padding``). Under --meanstd-no-leak (#482) the context:
+    an anchor whose next patch starts in it reads statistics of its target.
+    Else the first window of the EWMA, or None."""
+    if args.meanstd_no_leak:
+        return ~target_mask
+    return getattr(model.rev_norm, "start_mask", None)
+
+
+def no_target_windows(args, target_mask):
+    """``[B, 1, C]`` bool, the ``no_target`` of the step inputs: the windows
+    that no term may read (``group_padding``), or None. Under
+    --meanstd-no-leak (#482) a window with no target after its context:
+    no patch of it starts after the context, so no anchor of it may enter a
+    term, and none of its latents may enter one as a key or a sample (#475:
+    the rule holds for every term). None on every other run."""
+    if not args.meanstd_no_leak:
+        return None
+    return ~target_mask.any(dim=1, keepdim=True)
 
 
 def contrastive_padding(model, args):
@@ -3468,6 +3557,9 @@ def main():
             .format(args.depthwise_conv, args.deprecated_depthwise_conv))
     model_config["depthwise_conv"] = args.depthwise_conv
     model_config["deprecated_depthwise_conv"] = args.deprecated_depthwise_conv
+    if not 0.0 <= args.dropout < 1.0:
+        raise SystemExit(f"--dropout must be in [0, 1); got {args.dropout!r}.")
+    model_config["dropout"] = args.dropout
     # Forecaster bottleneck (#286 follow-up, v13). When None on both the
     # ConfigurableModel side defaults them to (H, nhead) — full no-op for
     # all pre-v13 runs / checkpoints. v13: 128 + 4 (vs encoder H=384 / 6).
@@ -3534,8 +3626,8 @@ def main():
         raise SystemExit(
             "--ema-embedding/--ema-encoder only implemented for "
             f"--loss-shape in {_EMA_LOSS_SHAPES}.")
-    if (args.ema_embedding or args.ema_encoder) and not (0.0 < args.ema_tau < 1.0):
-        raise SystemExit("--ema-tau must be in (0, 1); got "
+    if (args.ema_embedding or args.ema_encoder) and not (0.0 <= args.ema_tau < 1.0):
+        raise SystemExit("--ema-tau must be in [0, 1); got "
                          f"{args.ema_tau!r}.")
     # Parse --extra-save-steps at validation time (not deep in the training
     # loop) so a malformed value fails immediately instead of after model +
@@ -3699,6 +3791,11 @@ def main():
                          "(muP, docs/mup.md).")
     if not 0.5 <= args.mup_depth_alpha <= 1.0:
         raise SystemExit(f"--mup-depth-alpha must be in [0.5, 1], not {args.mup_depth_alpha}.")
+    if args.zero_time_scale_embedding and not (args.freq_emb_dim > 0
+                                               or args.seasonality_emb_dim > 0):
+        raise SystemExit("--zero-time-scale-embedding needs a time-scale "
+                         "embedding: --freq-emb-dim or --seasonality-emb-dim "
+                         "above 0.")
     model = ConfigurableModel(**model_config).to(device)
     if args.latent_sphere:
         print(f"Latent sphere: e, h and f at radius sqrt({args.d_model}) = "
@@ -3713,6 +3810,10 @@ def main():
         weight_decay=args.weight_decay,
         betas=(args.adam_beta1, args.adam_beta2),
     )
+    if args.zero_time_scale_embedding:
+        # After the init (muP included): the tables stay at 0 (#482).
+        n = zero_time_scale_embedding_(model)
+        print(f"Time-scale embedding: {n} table(s) at 0, frozen (#482)")
 
     start_step = 0
     best_gap, best_gap_step = -float("inf"), 0
@@ -3831,11 +3932,19 @@ def main():
         counted = ("the loss counts only the patches after it"
                    if args.value_space_objective
                    else "the contrastive terms keep every real position")
-        print(f"Scaling (#421): the mean/std scaling of Moirai 1.0. Each "
-              f"window draws a target fraction r ~ U[0.15, 0.5] of its whole "
-              f"patches of real values. loc and scale come from the observed "
-              f"values before the split, and {counted}. A size needs two "
-              f"whole patches of real values (uni2ts GetPatchSize).")
+        if args.meanstd_no_leak:
+            print("Scaling (#482): instance normalisation with no target "
+                  "leak. Each window draws a context of 1 patch to half of "
+                  "its whole patches of real values. loc and scale come from "
+                  "the context, and each term keeps only the anchors whose "
+                  "next patch starts after it. No term reads a window with "
+                  "no target after its context.")
+        else:
+            print(f"Scaling (#421): the mean/std scaling of Moirai 1.0. Each "
+                  f"window draws a target fraction r ~ U[0.15, 0.5] of its whole "
+                  f"patches of real values. loc and scale come from the observed "
+                  f"values before the split, and {counted}. A size needs two "
+                  f"whole patches of real values (uni2ts GetPatchSize).")
         if args.meanstd_z_max > 0:
             print(f"Window filter (#421, Moirai 2.0): a window whose target "
                   f"part holds a |z| above {args.meanstd_z_max:g} leaves the "
@@ -4175,7 +4284,8 @@ def main():
                 # the patches after it only. The contrastive terms keep
                 # every real position (#412).
                 x_norm, sample_sizes, target_mask = mean_std_inputs(
-                    model, x, freq_ids, multi_patch_sizes)
+                    model, x, freq_ids, multi_patch_sizes,
+                    short_context=args.meanstd_no_leak)
                 pad_mask = model.rev_norm.pad_mask
                 if args.skip_nan_samples:
                     # #421: the rows as the step reads them, for the report
@@ -4225,7 +4335,8 @@ def main():
             step_inputs = dict(
                 x_norm=x_norm, sample_sizes=sample_sizes,
                 target_mask=target_mask, pad_mask=pad_mask,
-                start_mask=getattr(model.rev_norm, "start_mask", None),
+                start_mask=step_start_mask(args, model, target_mask),
+                no_target=no_target_windows(args, target_mask),
                 freq_ids=freq_ids, freq_embs=freq_embs,
                 seasonality_ids=seasonality_ids,
                 seasonality_embs=seasonality_embs)

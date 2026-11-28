@@ -1,0 +1,18 @@
+# Each row script of #482 on the run code (code_c886f88e): its dry-run command with the CPU changes of cpu_check.py,
+# batch 128, 2 steps, the corpus of tests/test_419_gift_pretrain.py. Each ran with exit code 0.
+# python3 row_effects.py <rows dirs>: one sign per row that its flag acts.
+g166b_w320e6f6_ab01_no_synth: 2 steps, final loss 96.1972, hf_bs=128, synth_bs=0, cross_bs=0, total_bs=131
+g166b_w320e6f6_ab02_no_crossfade: 2 steps, final loss 95.4163, hf_bs=127, synth_bs=1, cross_bs=0, total_bs=128
+g166b_w320e6f6_ab03_no_mixup: 2 steps, final loss 95.6426, mixup_p=0.0
+g166b_w320e6f6_ab04_instnorm: 2 steps, final loss 97.5796, Scaling (#482) line: True
+g166b_w320e6f6_ab05_no_timescale: 2 steps, final loss 96.2118, tables all 0: True
+g166b_w320e6f6_ab06_timesfm_patch: 2 steps, final loss 96.7869, encoder.residual_layer.weight (320, 22)
+g166b_w320e6f6_ab07_no_sphere: 2 steps, final loss 87.4648, sphere buffer: False
+g166b_w320e6f6_ab08_no_conv: 2 steps, final loss 95.0858, conv weights: 0
+g166b_w320e6f6_ab09_no_dropkey: 2 steps, final loss 96.5319, --encoder-dropkey 0
+g166b_w320e6f6_ab10_no_dropout: 2 steps, final loss 97.3810, --dropout 0
+g166b_w320e6f6_ab11_no_ema: 2 steps, final loss 96.2704, ema_tau 0.0
+g166b_w320e6f6_ab12_no_sigreg_e: 2 steps, final loss 83.1138, sigreg_e '', sigreg_h 16.588184356689453
+g166b_w320e6f6_ab13_no_sigreg_h: 2 steps, final loss 79.5631, sigreg_e 13.055950164794922, sigreg_h ''
+g166b_w320e6f6_ab14_no_lrep: 2 steps, final loss 94.9446, rep_w 0.0
+g166b_w320e6f6_ab15_align_d1: 2 steps, final loss 42.2190, rollout columns: []

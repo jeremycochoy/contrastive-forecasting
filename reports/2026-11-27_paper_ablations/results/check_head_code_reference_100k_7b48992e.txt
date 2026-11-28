@@ -1,0 +1,7 @@
+# python3 check_head_code.py --old /home/jupyter/cf_runs/hp64/ff/code --new /home/jupyter/cf_runs/cf-482/ff_code_7b48992e --ckpt /home/jupyter/cf_runs/hp64/g166b_w320e6f6_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix_wu10k/ckpt/g166b_w320e6f6_lr1em3_tau99995_bs256_rep01_sigfix_ss_sphere_align10_rollfix_wu10k_r2_100k.pth
+head_config: SAME
+head_weights: SAME
+eval_config: SAME
+eval_weights: SAME
+encoder_type gru, depthwise_conv 3
+exit 0

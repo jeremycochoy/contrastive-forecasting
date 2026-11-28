@@ -1,0 +1,16 @@
+#!/bin/bash
+# rsync for a local folder as the box (tests/test_482_box_scripts.py and
+# check_box_copy_s3.sh): a local copy, with "<host>:" out of each path.
+# FAKE_RSYNC_FAIL=<text>: exit 23 when the destination holds the text.
+# FAKE_RSYNC_CORRUPT=<text>: one more byte in each copied file then.
+args=()
+while [ $# -gt 0 ]; do
+  case "$1" in -e) shift 2 ;; *) args+=("${1#*:}"); shift ;; esac
+done
+dest="${args[-1]}"
+echo "rsync ${args[*]}" >> "$FAKE_LOG"
+if [ -n "${FAKE_RSYNC_FAIL:-}" ] && [[ "$dest" == *"$FAKE_RSYNC_FAIL"* ]]; then exit 23; fi
+"$REAL_RSYNC" "${args[@]}" || exit $?
+if [ -n "${FAKE_RSYNC_CORRUPT:-}" ] && [[ "$dest" == *"$FAKE_RSYNC_CORRUPT"* ]]; then
+  find "$dest" -type f -exec sh -c 'printf x >> "$1"' _ {} \;
+fi

@@ -469,3 +469,28 @@ def load_backbone_from_checkpoint(
     for p in backbone.parameters():
         p.requires_grad = False
     return backbone, cfg
+
+
+def encoder_type_of(state_dict: dict, default: str) -> str:
+    """The patch encoder of a checkpoint (#482): 'timesfm' when its keys name
+    the residual block of TimesFM (``encoder[.encoders.<P>].residual_layer``),
+    else ``default``, the type the caller names."""
+    for key in state_dict:
+        if re.fullmatch(r"encoder(\.encoders\.\d+)?\.residual_layer\.weight", key):
+            return "timesfm"
+    return default
+
+
+def depthwise_conv_of(state_dict: dict, default: int) -> int:
+    """The kernel of the depthwise convolution of the blocks of a checkpoint
+    (#482): the width of its weights, or 0 when its blocks hold none.
+    ``default`` when the checkpoint holds no block."""
+    blocks = r"transformer\.(layers|encoder_layers)\.\d+\."
+    kernels = {int(value.shape[-1]) for key, value in state_dict.items()
+               if re.fullmatch(blocks + r"depthwise_conv\.conv\.weight", key)}
+    if len(kernels) > 1:
+        raise ValueError(f"the blocks hold the kernels {sorted(kernels)}")
+    if kernels:
+        return kernels.pop()
+    has_blocks = any(re.match(blocks, key) for key in state_dict)
+    return 0 if has_blocks else default

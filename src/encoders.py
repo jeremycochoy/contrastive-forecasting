@@ -69,6 +69,29 @@ class ResidualSiLUEncoder(nn.Module):
         return self.layer_norm(h + s)
 
 
+class TimesFMResidualEncoder(nn.Module):
+    """The residual block of TimesFM (Das and others, 2024) as the patch
+    encoder (#482): the ResidualBlock of TimesFM v1, with no layer
+    normalisation.
+
+    out = output_layer(SiLU(hidden_layer(x))) + residual_layer(x).
+    The block reads the input of the GRU encoder: the W values of a patch
+    and the time-scale embedding, as one vector. TimesFM also reads the
+    padding mask of the patch. This block does not, as the GRU does not.
+    The hidden width is H, as in TimesFM. The module names are the names of
+    TimesFM, so the keys of a checkpoint name this encoder.
+    """
+    def __init__(self, W, H, intermediate_dim=None):
+        super().__init__()
+        hidden = intermediate_dim or H
+        self.hidden_layer = nn.Sequential(nn.Linear(W, hidden), nn.SiLU())
+        self.output_layer = nn.Linear(hidden, H)
+        self.residual_layer = nn.Linear(W, H)
+
+    def forward(self, x):
+        return self.output_layer(self.hidden_layer(x)) + self.residual_layer(x)
+
+
 class GRUEncoder(nn.Module):
     """
     GRU processes each patch as a sequence of W scalar time steps.
@@ -333,6 +356,8 @@ def create_encoder(encoder_type, W, H, intermediate_dim=None,
         return MLPWideEncoder(W, H, intermediate_dim=intermediate_dim or 256)
     elif encoder_type == 'residual_silu':
         return ResidualSiLUEncoder(W, H, intermediate_dim=intermediate_dim)
+    elif encoder_type == 'timesfm':
+        return TimesFMResidualEncoder(W, H, intermediate_dim=intermediate_dim)
     elif encoder_type == 'gru':
         return GRUEncoder(W, H, intermediate_dim=intermediate_dim or 128,
                           patch_emb_dtype=patch_emb_dtype,

@@ -1,0 +1,10 @@
+# Rows 4 and 6 of #482 on the run code of round 2 (code_3d7b8c2d): the dry-run command of each run script with the CPU changes of cpu_check.py,
+# batch 128, 2 steps, the corpus of tests/test_419_gift_pretrain.py. Each ran with exit code 0.
+# python3 row_effects.py <rows dirs>: the sign that the flag of each row acts.
+g166b_w320e6f6_ab04_instnorm: 2 steps, final loss 97.5545, Scaling (#482) line: True, no-target rule: True
+g166b_w320e6f6_ab06_timesfm_patch: 2 steps, final loss 192.9324, encoder.residual_layer.weight (320, 22), encoder.layer_norm keys: 0
+# The terms at each step (row 6: e has no layer normalisation, so SIGReg on e starts at about 110; the learning rate is near 0 in the first steps of the warmup):
+g166b_w320e6f6_ab04_instnorm step 1: loss 97.2182, l_rep 12.1214, l_align 1.1143, sigreg_e 12.6336, sigreg_h 18.1709
+g166b_w320e6f6_ab04_instnorm step 2: loss 97.5545, l_rep 12.7669, l_align 1.1182, sigreg_e 12.5091, sigreg_h 18.7548
+g166b_w320e6f6_ab06_timesfm_patch step 1: loss 192.6903, l_rep 12.7273, l_align 1.1434, sigreg_e 110.6531, sigreg_h 16.4516
+g166b_w320e6f6_ab06_timesfm_patch step 2: loss 192.9324, l_rep 13.2495, l_align 1.1434, sigreg_e 110.6162, sigreg_h 16.6334

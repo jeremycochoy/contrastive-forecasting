@@ -130,6 +130,11 @@ python scripts/recover.py --device cuda --model-path model.pth --epochs 20000
   `--loss-shape cosine_similarity_batch_joint_teacher`, which replaces
   `L_align` and `L_rep` with one InfoNCE fraction for each rollout depth.
   Every h key and target of the fraction comes from the EMA teacher.
+- [`docs/paper_ablation_flags.md`](docs/paper_ablation_flags.md) — the
+  flags of the paper ablations (#482): `--dropout`,
+  `--zero-time-scale-embedding`, `--encoder-type timesfm`,
+  `--meanstd-no-leak` and `--ema-tau 0`. The score code reads the patch
+  encoder and the convolution of a backbone from its checkpoint.
 
 ### Evaluation flags
 
