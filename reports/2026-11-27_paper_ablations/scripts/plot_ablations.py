@@ -106,6 +106,8 @@ def plot_final(lines, out):
     ref, ref2 = final[0]["reference"], final[0]["reference_seed2"]
     xs = positions(final)
     fig, ax = plt.subplots(figsize=(11, 5.2))
+    if ref is not None and ref2 is not None:
+        ax.axhspan(min(ref, ref2), max(ref, ref2), color=REF_HUE, alpha=0.25, lw=0, zorder=0)
     # The label of the higher reference line goes above it, the other below.
     for value, other, seed, dash in ((ref, ref2, 1, "--"), (ref2, ref, 2, ":")):
         if value is None:
@@ -138,6 +140,16 @@ def plot_final(lines, out):
     plt.close(fig)
 
 
+def band(ax, ref, ref2):
+    """The noise band of one training: the area between the two reference
+    trainings ({stop: GM-MASE} each), at the stops where both have a score."""
+    ks = [k for k in STOPS if k in ref and k in ref2]
+    if len(ks) > 1:
+        ax.fill_between(ks, [min(ref[k], ref2[k]) for k in ks],
+                        [max(ref[k], ref2[k]) for k in ks], color=REF_HUE,
+                        alpha=0.25, lw=0, zorder=0, label="noise band (2 seeds)")
+
+
 def plot_steps(lines, out):
     """The GM-MASE of each row against the steps, one panel per row, with the
     reference curve in each panel."""
@@ -167,6 +179,7 @@ def plot_steps(lines, out):
         if ref2:
             ax.plot(*zip(*ref2), color=REF_HUE, lw=1.6, ls="--", marker="o", ms=5,
                     mfc="white", label="reference, seed 2")
+        band(ax, dict(ref), dict(ref2))
         if got:
             ax.plot(*zip(*got), color=ROW_HUE, lw=2, marker="o", ms=6,
                     mec="white", mew=1.5, label="ablation")
