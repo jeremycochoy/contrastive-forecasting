@@ -293,3 +293,12 @@ misses: a follower that waits for a checkpoint writes its log only each
 - Row 6 has no layer normalisation after the patch encoder. At the start,
   SIGReg on e is about 110, against 12.5 for row 4
   (`results/rows_cpu_r2.txt`). Watch its first steps after the warmup.
+
+## Two extra runs of the user (11-28)
+
+| Run | Change from the reference | Box |
+|---|---|---|
+| `g166b_w320e6f6_ab00_ref_seed2` (`make_runs.SEED2`) | `--seed 20260521` (the reference: 20260520): a second training of the reference, for the noise of one training | `cf-482-ab00` |
+| `g166b_w320e6f6_ab16_no_ema_no_lrep` (row 16) | the changes of rows 11 and 14 together: no EMA teacher and no L_rep | `cf-482-ab16` |
+
+Both run on `code_c886f88e` with the follower of the 13 rows (`ff_code_f14b0a5e`) and score the 8 stops. `make_runs.py --rows 0,16` writes the two deployed run folders byte for byte. `cpu_check.py rows` on both scripts: exit code 0 after 3 steps (row 16 logs no `l_rep`). The figures draw the second reference as a dashed grey curve in each panel, next to the reference.

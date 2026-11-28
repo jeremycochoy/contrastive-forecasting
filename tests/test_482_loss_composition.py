@@ -155,6 +155,8 @@ def test_main_draws_partial_runs_and_writes_the_table(tmp_path):
     ref, root, out = tmp_path / "ref", tmp_path / "runs", tmp_path / "out"
     ref.mkdir()
     write_leg(ref / f"{plot.REF}_losses.csv", range(1, 166_001, 50))
+    (root / plot.REF2 / "ckpt").mkdir(parents=True)
+    write_leg(root / plot.REF2 / "ckpt" / f"{plot.REF2}_losses.csv", range(1, 30_001, 50))
     removed = {12: (("sigreg_e",), True), 13: (("sigreg_h",), True),
                14: (("l_rep",), True), 15: ((), False)}
     for row, short, *_ in plot.ROWS:
@@ -169,15 +171,15 @@ def test_main_draws_partial_runs_and_writes_the_table(tmp_path):
         assert (out / "plots" / png).stat().st_size > 10_000
     with open(out / "results" / "loss_parts_binned.tsv") as f:
         table = list(csv.DictReader(f, delimiter="\t"))
-    names = [plot.REF] + [plot.run_name(r, s) for r, s, *_ in plot.ROWS]
+    names = [plot.REF, plot.REF2] + [plot.run_name(r, s) for r, s, *_ in plot.ROWS]
     assert list(dict.fromkeys(line["run"] for line in table)) == names
-    row1 = [line for line in table if line["run"] == names[1]]
+    row1 = [line for line in table if line["run"] == names[2]]
     edges = np.geomspace(plot.FIRST, plot.LAST, plot.BINS + 1)
     low = edges[edges <= 59_951].max()  # the last bin holds the last steps
     assert float(row1[-1]["bin_centre_step"]) == pytest.approx(
         np.sqrt(low * 59_951), abs=0.5)
     for row, part in [(12, "sigreg_e"), (13, "sigreg_h"), (14, "rep"),
                       (15, "align_dist2to4")]:
-        lines = [line for line in table if line["run"] == names[row]]
+        lines = [line for line in table if line["run"] == names[row + 1]]
         assert lines and all(line[part] == "" for line in lines)
         assert all(line["align_dist1"] != "" for line in lines)

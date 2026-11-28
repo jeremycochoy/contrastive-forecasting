@@ -68,7 +68,15 @@ ROWS = [
      [("set", "--rep-loss-weight", "0")]),
     (15, "align_d1", "Loss", "L_align at distances 1 to 4", "Distance 1 only",
      [("set", "--train-rollout-depth", "0")]),
+    # An extra row of the user (11-28): the changes of rows 11 and 14 together.
+    (16, "no_ema_no_lrep", "Loss", "EMA teacher and L_rep", "No EMA teacher and no L_rep",
+     [("set", "--ema-tau", "0"), ("drop", "--ema-tau-end"), ("drop", "--ema-tau-ramp-steps"),
+      ("set", "--rep-loss-weight", "0")]),
 ]
+# A second training of the reference (11-28, the user): only the seed changes.
+# The two references give the noise of one training. It is row 0, out of ROWS.
+SEED2 = (0, "ref_seed2", "Reference", "Reference recipe, seed 20260520",
+         "Second training, seed 20260521", [("set", "--seed", "20260521")])
 
 
 def run_name(row, short):
@@ -152,10 +160,11 @@ def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     p.add_argument("--code", required=True, help="the code folder, code_<sha>")
     p.add_argument("--out", default=OUT)
-    p.add_argument("--rows", default=None, help="comma-separated rows; default all")
+    p.add_argument("--rows", default=None,
+                   help="comma-separated rows, 0 for SEED2; default all")
     a = p.parse_args(argv)
     keep = None if a.rows is None else {int(r) for r in a.rows.split(",")}
-    for row in ROWS:
+    for row in [SEED2] + ROWS:
         if keep is None or row[0] in keep:
             print("wrote", write_row(row, a.code, a.out))
 

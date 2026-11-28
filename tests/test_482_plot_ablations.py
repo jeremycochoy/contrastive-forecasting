@@ -3,7 +3,7 @@
 
 The script reads one score file per run and stop, in the layout of the
 follower (``<ff>/results/score_<run>_bb<k>k_h30k_control.txt``), for the
-reference and for the 15 rows. The tests write such files in temp folders.
+reference and for the 16 rows. The tests write such files in temp folders.
 """
 import csv
 import importlib.util
@@ -51,7 +51,7 @@ def folders(tmp_path):
 
 def test_the_table_has_each_row_at_each_stop_with_the_reference(folders):
     lines = plot.table(*folders)
-    assert len(lines) == 15 * len(plot.STOPS)
+    assert len(lines) == 16 * len(plot.STOPS)
     for line in lines:
         assert line["reference"] == REFERENCE[line["stop_k"]]
         want = (None if line["row"] == 4 and line["stop_k"] > 100
@@ -69,9 +69,25 @@ def test_main_writes_the_table_and_the_two_figures(folders, tmp_path):
                "--out", str(out)])
     with open(out / "results" / "ablation_gm_mase.csv") as f:
         rows = list(csv.DictReader(f))
-    assert len(rows) == 120
+    assert len(rows) == 128
     final = [r for r in rows if r["stop_k"] == "166"]
-    assert [r["reference"] for r in final] == ["0.9303"] * 15
+    assert [r["reference"] for r in final] == ["0.9303"] * 16
     assert final[3]["gm_mase"] == ""  # row 4 has no 166k score
+    for name in ("ablation_gm_mase_166k.png", "ablation_gm_mase_steps.png"):
+        assert (out / "plots" / name).stat().st_size > 10_000
+
+
+def test_the_second_training_of_the_reference_has_its_column_and_curve(folders, tmp_path):
+    write_score(folders[1], plot.REF2, 10, 0.9871)
+    write_score(folders[1], plot.REF2, 166, 0.9290)
+    lines = plot.table(*folders)
+    want = {10: 0.9871, 166: 0.9290}
+    assert all(line["reference_seed2"] == want.get(line["stop_k"]) for line in lines)
+    out = tmp_path / "report"
+    plot.main(["--ref-ff", str(folders[0]), "--ablation-ff", str(folders[1]),
+               "--out", str(out)])
+    with open(out / "results" / "ablation_gm_mase.csv") as f:
+        final = [r for r in csv.DictReader(f) if r["stop_k"] == "166"]
+    assert [r["reference_seed2"] for r in final] == ["0.929"] * 16
     for name in ("ablation_gm_mase_166k.png", "ablation_gm_mase_steps.png"):
         assert (out / "plots" / name).stat().st_size > 10_000

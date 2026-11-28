@@ -4,7 +4,9 @@ the reference, from the score files of the follower.
 A score file holds one number: the GM-Relative MASE over the 97 GIFT-Eval
 configurations of one stop of one run, with the control head of 30k steps
 (``score_<run>_bb<k>k_h30k_control.txt``). The reference scores are those of
-#425 (hp64/ff, read only). The ablation scores are in cf-482/ff.
+#425 (hp64/ff, read only). The ablation scores are in cf-482/ff, with the
+scores of a second training of the reference (REF2: the same recipe with
+another seed), which gives the noise of one training.
 
 Outputs (default: the results/ and plots/ folders of the report):
   results/ablation_gm_mase.csv     one line per row and stop, with the reference
@@ -27,13 +29,16 @@ STOPS = [10, 25, 50, 75, 100, 125, 150, 166]
 FINAL = 166
 REF_FF = "/home/jupyter/cf_runs/hp64/ff"
 ABLATION_FF = "/home/jupyter/cf_runs/cf-482/ff"
+# The second training of the reference: --seed 20260521 (the reference: 20260520).
+REF2 = "g166b_w320e6f6_ab00_ref_seed2"
 # The short label of each row, for the axes.
 LABELS = {1: "No synthetic series", 2: "No crossfade series", 3: "No mixup",
           4: "Instance norm.", 5: "No time-scale emb.", 6: "TimesFM patch emb.",
           7: "No sphere", 8: "No convolution", 9: "No DropKey", 10: "No dropout",
           11: "No EMA teacher", 12: "No SIGReg on $e$", 13: "No SIGReg on $h$",
           14: r"No $\mathcal{L}_{\mathrm{rep}}$",
-          15: r"$\mathcal{L}_{\mathrm{align}}$ at distance 1"}
+          15: r"$\mathcal{L}_{\mathrm{align}}$ at distance 1",
+          16: r"No EMA teacher, no $\mathcal{L}_{\mathrm{rep}}$"}
 ROW_HUE, REF_HUE, INK, GRID = "#257de0", "#8c8c8c", "#191919", "#e6e6e6"
 
 
@@ -53,7 +58,8 @@ def score(ff, run, k):
 
 def table(ref_ff, ablation_ff):
     """One dict per row and stop: the row, its labels, the stop, its GM-MASE
-    (None when not scored yet) and the GM-MASE of the reference."""
+    (None when not scored yet), the GM-MASE of the reference and of its
+    second training."""
     runs = load_rows()
     out = []
     for row, short, part, ours, replaced, _ in runs.ROWS:
@@ -62,7 +68,8 @@ def table(ref_ff, ablation_ff):
             out.append(dict(row=row, run=name, part=part, ours=ours,
                             replaced=replaced, stop_k=k,
                             gm_mase=score(ablation_ff, name, k),
-                            reference=score(ref_ff, runs.REF, k)))
+                            reference=score(ref_ff, runs.REF, k),
+                            reference_seed2=score(ablation_ff, REF2, k)))
     return out
 
 
@@ -96,13 +103,17 @@ def positions(rows):
 def plot_final(lines, out):
     """The GM-MASE of each row at 166k, with a stem from the reference line."""
     final = [line for line in lines if line["stop_k"] == FINAL]
-    ref = final[0]["reference"]
+    ref, ref2 = final[0]["reference"], final[0]["reference_seed2"]
     xs = positions(final)
     fig, ax = plt.subplots(figsize=(11, 5.2))
-    if ref is not None:
-        ax.axhline(ref, color=REF_HUE, ls="--", lw=1.5, zorder=1)
-        ax.text(max(xs.values()) + 1.4, ref, f"reference {ref:.4f}", color=INK,
-                fontsize=9, ha="right", va="bottom")
+    # The label of the higher reference line goes above it, the other below.
+    for value, other, seed, dash in ((ref, ref2, 1, "--"), (ref2, ref, 2, ":")):
+        if value is None:
+            continue
+        ax.axhline(value, color=REF_HUE, ls=dash, lw=1.5, zorder=1)
+        above = other is None or value >= other
+        ax.text(max(xs.values()) + 1.4, value, f"reference, seed {seed}: {value:.4f}",
+                color=INK, fontsize=9, ha="right", va="bottom" if above else "top")
     for line in final:
         x, value = xs[line["row"]], line["gm_mase"]
         if value is None:
@@ -131,19 +142,31 @@ def plot_steps(lines, out):
     """The GM-MASE of each row against the steps, one panel per row, with the
     reference curve in each panel."""
     rows = list(dict.fromkeys(line["row"] for line in lines))
-    values = [v for line in lines for v in (line["gm_mase"], line["reference"])
+    values = [v for line in lines
+              for v in (line["gm_mase"], line["reference"], line["reference_seed2"])
               if v is not None]
     low, high = (min(values), max(values)) if values else (0.9, 1.0)
     pad = 0.08 * (high - low or 0.05)
-    fig, axes = plt.subplots(3, 5, figsize=(15, 8.4), sharex=True, sharey=True)
+    ncols = 4
+    nrows = -(-len(rows) // ncols)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(3.4 * ncols, 2.6 * nrows + 0.6),
+                             sharex=True, sharey=True, squeeze=False)
+    for ax in axes.flat[len(rows):]:
+        ax.set_visible(False)
     for ax, row in zip(axes.flat, rows):
         mine = [line for line in lines if line["row"] == row]
         ref = [(line["stop_k"], line["reference"]) for line in mine
                if line["reference"] is not None]
+        ref2 = [(line["stop_k"], line["reference_seed2"]) for line in mine
+                if line["reference_seed2"] is not None]
         got = [(line["stop_k"], line["gm_mase"]) for line in mine
                if line["gm_mase"] is not None]
         if ref:
-            ax.plot(*zip(*ref), color=REF_HUE, lw=2, marker="o", ms=5, label="reference")
+            ax.plot(*zip(*ref), color=REF_HUE, lw=2, marker="o", ms=5,
+                    label="reference, seed 1")
+        if ref2:
+            ax.plot(*zip(*ref2), color=REF_HUE, lw=1.6, ls="--", marker="o", ms=5,
+                    mfc="white", label="reference, seed 2")
         if got:
             ax.plot(*zip(*got), color=ROW_HUE, lw=2, marker="o", ms=6,
                     mec="white", mew=1.5, label="ablation")

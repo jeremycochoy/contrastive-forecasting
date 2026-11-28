@@ -88,10 +88,20 @@ def dry_run(script, tmp_path, code):
 
 
 def test_there_is_one_run_for_each_row_of_the_table():
-    assert sorted(ROWS) == list(range(1, 16))
+    # Rows 1 to 15 of the paper table, and row 16: an extra row of the user.
+    assert sorted(ROWS) == list(range(1, 17))
     names = [mr.run_name(r[0], r[1]) for r in mr.ROWS]
-    assert len(set(names)) == 15
+    assert len(set(names)) == 16
     assert all(n.startswith("g166b_w320e6f6_ab") for n in names)
+
+
+def test_the_second_reference_changes_the_seed_only(tmp_path):
+    folder = mr.write_row(mr.SEED2, CODE, tmp_path)
+    text = (folder / f"run_{folder.name}.sh").read_text()
+    ref = mr.REF_RUN.read_text()
+    assert folder.name == "g166b_w320e6f6_ab00_ref_seed2"
+    assert args_of(text) == with_edits(args_of(ref), [("set", "--seed", "20260521")])
+    assert args_of(ref) != args_of(text)
 
 
 @pytest.mark.parametrize("row", sorted(ROWS))
